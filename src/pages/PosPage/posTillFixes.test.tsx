@@ -11,7 +11,7 @@ import { PosRefundPage } from './PosRefundPage'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import { resetOpenSale, setFinishedSale, setSaleCompany, useFinishedSale } from '../../lib/posSale'
 import { resetPosQueue } from '../../lib/posQueue'
-import { NO_SALE_DISCOUNT, totalsFor } from '../../lib/pos'
+import { NO_SALE_DISCOUNT, totalsFor, omr } from '../../lib/pos'
 import { resetSharedRequests } from '../../api'
 import { forgetWorkingBranch } from '../../lib/workingBranch'
 
@@ -475,6 +475,46 @@ describe('the till offline across screens (F-4) and back online (F-5)', () => {
   })
 })
 
+describe('a typed line discount offline', () => {
+  it('goes in the queue as the printed sale has it, and the queue sends it as it was', async () => {
+    const lines = SAMPLE_SALE.map((line, index) =>
+      index === 0 ? { ...line, lineDiscount: { type: 'PERCENTAGE' as const, value: '100' } } : line,
+    )
+    const amount = omr(totalsFor(lines, NO_SALE_DISCOUNT).sale)
+    const online = renderAt('/pos/payment')
+    await screen.findByRole('button', { name: /Take 5.649 in cash/ })
+    online.unmount()
+    offline = true
+    resetOpenSale(lines)
+    resetSharedRequests()
+    const away = renderAt('/pos/payment')
+    fireEvent.click(
+      await screen.findByRole('button', { name: new RegExp(`Take ${amount} in cash`) }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+    await screen.findByText(/done queued/)
+    away.unmount()
+
+    offline = false
+    answer = (url, init) => {
+      if (url !== '/api/v1/pos/sales' || init?.method !== 'POST') return null
+      const body = JSON.parse(String(init.body))
+      return json(sold(body.invoiceNumber ?? 'NZW-T01-INV-2026-000050'), 201)
+    }
+    resetOpenSale(SAMPLE_SALE)
+    resetSharedRequests()
+    renderAt('/pos/payment')
+    fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+    await screen.findByText(/done sent/)
+    const queued = bodyOf(
+      sales().filter((call) => call.init?.method === 'POST' && !call.offline)[0],
+    ) as { queuedOffline: boolean; draft: { lines: { discount: unknown }[] } }
+    expect(queued.queuedOffline).toBe(true)
+    expect(queued.draft.lines[0].discount).toMatchObject({ type: 'PERCENTAGE', value: 100 })
+  })
+})
+
 describe('the full invoice receipt (F-6)', () => {
   it('prints a tax invoice in both languages and names the buyer with their ID', async () => {
     const totals = totalsFor(SAMPLE_SALE, NO_SALE_DISCOUNT)
@@ -769,5 +809,42 @@ describe('a till refund the credit cap refuses (DA-1 option B)', () => {
     expect(alert.textContent).toMatch(start)
     expect(alert.textContent).toContain('1.500')
     expect(alert.textContent).toContain('0.075')
+  })
+})
+
+describe('a given-away line comes back (Abdul, 31 Oct 2026)', () => {
+  it('goes back on the shelf with no money and no credit note', async () => {
+    const free = {
+      ...LOOKUP.lines[0],
+      givenFree: true,
+      discount: { type: 'PERCENTAGE', value: 100 },
+    }
+    let sent: { moneyBack: unknown[]; lines: { backOnShelf: boolean }[] } | null = null
+    answer = (url, init) => {
+      if (url.startsWith('/api/v1/pos/refund-lookup')) return json({ ...LOOKUP, lines: [free] })
+      if (url.endsWith('/refunds') && init?.method === 'POST') {
+        sent = JSON.parse(String(init.body))
+        return json(
+          {
+            refundId: 'r-1',
+            saleId: LOOKUP.saleId,
+            creditNoteId: null,
+            creditNoteNumber: null,
+            stockOnly: true,
+            warnings: [],
+          },
+          201,
+        )
+      }
+      return null
+    }
+    renderAt('/pos/refund?invoice=NZW-T01-INV-2026-000001')
+    expect(await screen.findByText(i18n.t('pos.refund.givenFreeLine'))).toBeTruthy()
+    fireEvent.click(screen.getByRole('checkbox'))
+    expect(screen.getByText(i18n.t('pos.refund.noCreditNote'))).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('pos.refund.stockReturnButton') }))
+    expect(await screen.findByText(i18n.t('pos.refund.stockReturnDone'))).toBeTruthy()
+    expect(sent!.moneyBack).toEqual([])
+    expect(sent!.lines[0].backOnShelf).toBe(true)
   })
 })

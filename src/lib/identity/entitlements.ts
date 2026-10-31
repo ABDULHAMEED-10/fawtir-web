@@ -30,6 +30,8 @@ export type Entitlements = {
   permissions: string[]
   scopes: string[]
   featureFlags: Record<string, boolean>
+  /** The highest discount each permission lets the user type, percent by code; absent from an older server. */
+  discountLimits?: Record<string, number>
   /** The caller is the company's stored Owner (Business Rules OW-1). Absent from older servers. */
   isOwner?: boolean
   /**

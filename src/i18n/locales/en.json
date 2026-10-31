@@ -4635,8 +4635,6 @@
         "mineOnly": "Mine only"
       },
       "rowMenu": "More for this sale",
-      "itemCount_one": "{{count}} item",
-      "itemCount_other": "{{count}} items",
       "refundNote_one": "{{count}} credit note",
       "refundNote_other": "{{count}} credit notes",
       "groupTotal_one": "{{count}} sale · {{amount}}",
@@ -4823,7 +4821,11 @@
       "ringNew": "Ring up the replacement",
       "filedNoteLive": "The credit note is filed with the Tax Authority like any invoice and counts toward your monthly documents. Cash paid back shows on the shift's close.",
       "alreadyRefunded": "This sale has already been refunded in full. Credit notes: {{numbers}}.",
-      "nothingToRefund": "Nothing on this sale can be refunded."
+      "nothingToRefund": "Nothing on this sale can be refunded.",
+      "givenFreeLine": "Given free: goes back on the shelf, no credit note",
+      "noCreditNote": "Given free, so no credit note and no money back",
+      "stockReturnButton": "Put back with no refund",
+      "stockReturnDone": "Return recorded. No credit note, nothing paid back."
     },
     "saleDiscountLabel": "Discount on the whole sale",
     "saleDiscountNote": "Taken after the price rule and before VAT. It shows on the invoice as a document discount.",
@@ -4926,7 +4928,8 @@
       "POS_SLIP_INVALID": "This file cannot be kept as a slip. Use a photo or a PDF up to 10 MB.",
       "CUSTOMER_NOT_INVOICE_ELIGIBLE": "This company cannot get a full invoice yet: {{missing}} is missing.",
       "customerIncomplete": "This company's record is missing something a full invoice needs.",
-      "completeCompany": "Complete it on the company screen"
+      "completeCompany": "Complete it on the company screen",
+      "DISCOUNT_ABOVE_LIMIT": "This discount takes {{requestedPercent}}% off and your limit is {{limitPercent}}%. Lower it, or ask a manager."
     },
     "warning": {
       "STOCK_BELOW_ZERO": "Line {{line}} took the stock below zero. Count it when you can.",
@@ -4944,7 +4947,8 @@
       "ZR_FOOD_CHARGED_STANDARD": "Line {{line}} is on Oman's zero-rated food list but was charged 5% VAT. Check whether it should be zero-rated.",
       "ZR_FOOD_NOT_LISTED": "Line {{line}} is zero-rated as food, but its HS code is not on Oman's zero-rated food list. Check its VAT category or HS code.",
       "ZR_MEDICAL_CHARGED_STANDARD": "Line {{line}} is on Oman's zero-rated medicines or medical equipment list but was charged 5% VAT. Check whether it should be zero-rated.",
-      "ZR_MEDICAL_NOT_LISTED": "Line {{line}} is zero-rated as medical, but its HS code is not on Oman's zero-rated medicines or medical equipment lists. Check its VAT category or HS code."
+      "ZR_MEDICAL_NOT_LISTED": "Line {{line}} is zero-rated as medical, but its HS code is not on Oman's zero-rated medicines or medical equipment lists. Check its VAT category or HS code.",
+      "POS_DISCOUNT_ABOVE_LIMIT_ACCEPTED": "Sold offline with a discount above the cashier's limit. It is filed and recorded for the manager."
     },
     "day": {
       "title": "The day's shifts",
@@ -4985,7 +4989,21 @@
         "other": "Fawtir would not accept this sale as it stands."
       }
     },
-    "moneyNotAFigure": "That is not an amount. Type it like 4.510."
+    "moneyNotAFigure": "That is not an amount. Type it like 4.510.",
+    "lineDiscount": {
+      "add": "Discount",
+      "open": "Set a line discount for {{name}}",
+      "setPercent": "{{value}}% off",
+      "setAmount": "{{value}} off",
+      "limit": "Your limit: up to {{limit}}%",
+      "giveAway": "Give it away (100%)",
+      "tooMuch": "That is more than this line costs.",
+      "over": {
+        "line": "This takes {{percent}}% off. Your limit is {{limit}}%.",
+        "sale": "The whole-sale discount takes {{percent}}% off. Your limit is {{limit}}%.",
+        "total": "Your discounts come to {{percent}}% of the sale. Your limit is {{limit}}%."
+      }
+    }
   },
   "orderDetail": {
     "breadcrumbParent": "Trade documents",

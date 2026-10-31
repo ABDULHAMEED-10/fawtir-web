@@ -4726,13 +4726,7 @@
       "slipRead": "قُرئ من الإيصال: {{card}} {{rrn}}",
       "slipCheck": "تحقق من الحقل المعلَّم قبل الضغط على تم الدفع.",
       "slipDiffers": "الإيصال يذكر {{slip}}، والدفعة {{payment}}.",
-      "slipKeptOffline": "نقطة البيع غير متصلة. تُحفظ صورة الإيصال مع هذه البيعة وتُرسل عند عودة الاتصال. اكتب رمز الموافقة إذا احتجت إليه الآن.",
-      "receiptWithQr_zero": "لا أصناف · إيصال برمز QR",
-      "receiptWithQr_one": "صنف واحد · إيصال برمز QR",
-      "receiptWithQr_two": "صنفان · إيصال برمز QR",
-      "receiptWithQr_few": "{{count}} أصناف · إيصال برمز QR",
-      "receiptWithQr_many": "{{count}} صنفًا · إيصال برمز QR",
-      "receiptWithQr_other": "{{count}} صنف · إيصال برمز QR"
+      "slipKeptOffline": "نقطة البيع غير متصلة. تُحفظ صورة الإيصال مع هذه البيعة وتُرسل عند عودة الاتصال. اكتب رمز الموافقة إذا احتجت إليه الآن."
     },
     "done": {
       "title": "دُفعت وأُرسلت",
@@ -4894,12 +4888,6 @@
         "mineOnly": "عملياتي فقط"
       },
       "rowMenu": "المزيد لهذه العملية",
-      "itemCount_zero": "لا أصناف",
-      "itemCount_one": "صنف واحد",
-      "itemCount_two": "صنفان",
-      "itemCount_few": "{{count}} أصناف",
-      "itemCount_many": "{{count}} صنفًا",
-      "itemCount_other": "{{count}} صنف",
       "refundNote_zero": "لا إشعارات دائن",
       "refundNote_one": "إشعار دائن واحد",
       "refundNote_two": "إشعارا دائن",
@@ -5148,7 +5136,11 @@
       "ringNew": "سجّل البديل",
       "filedNoteLive": "يُقدَّم الإشعار الدائن إلى جهاز الضرائب مثل أي فاتورة ويُحتسب من مستنداتك الشهرية. يظهر النقد المُعاد في إغلاق الوردية.",
       "alreadyRefunded": "رُدّت قيمة هذه العملية بالكامل من قبل. إشعارات دائنة: {{numbers}}.",
-      "nothingToRefund": "لا شيء في هذه العملية يمكن رد قيمته."
+      "nothingToRefund": "لا شيء في هذه العملية يمكن رد قيمته.",
+      "givenFreeLine": "قُدّم مجانًا: يعود إلى الرف بلا إشعار دائن",
+      "noCreditNote": "قُدّم مجانًا، فلا إشعار دائن ولا مبلغ يُعاد",
+      "stockReturnButton": "إعادته دون استرداد مال",
+      "stockReturnDone": "سُجّل الإرجاع. لا إشعار دائن ولا مبلغ مدفوع."
     },
     "saleDiscountLabel": "خصم على البيع كله",
     "saleDiscountNote": "يُطبَّق بعد قاعدة السعر وقبل الضريبة، ويظهر في الفاتورة خصمًا على المستند.",
@@ -5251,7 +5243,8 @@
       "POS_SLIP_INVALID": "لا يمكن حفظ هذا الملف كإيصال. استخدم صورة أو ملف PDF حتى 10 ميغابايت.",
       "CUSTOMER_NOT_INVOICE_ELIGIBLE": "لا يمكن إصدار فاتورة كاملة لهذه الشركة بعد: ينقص {{missing}}.",
       "customerIncomplete": "ينقص سجل هذه الشركة شيء تحتاجه الفاتورة الكاملة.",
-      "completeCompany": "أكمله في شاشة الشركة"
+      "completeCompany": "أكمله في شاشة الشركة",
+      "DISCOUNT_ABOVE_LIMIT": "هذا الخصم {{requestedPercent}}% وحدّك {{limitPercent}}%. خفّضه أو اطلب من المدير."
     },
     "warning": {
       "STOCK_BELOW_ZERO": "السطر {{line}} أنزل المخزون تحت الصفر. عُدّه عندما تستطيع.",
@@ -5269,7 +5262,8 @@
       "ZR_FOOD_CHARGED_STANDARD": "السطر {{line}} مدرج في قائمة الأغذية الخاضعة لنسبة الصفر في عُمان، لكنه حُسبت عليه ضريبة 5٪. تحقق مما إذا كان يجب أن يخضع لنسبة الصفر.",
       "ZR_FOOD_NOT_LISTED": "السطر {{line}} خاضع لنسبة الصفر كغذاء، لكن رمزه الجمركي غير مدرج في قائمة الأغذية الخاضعة لنسبة الصفر في عُمان. تحقق من فئة الضريبة أو الرمز الجمركي.",
       "ZR_MEDICAL_CHARGED_STANDARD": "السطر {{line}} مدرج في قائمة الأدوية أو المعدات الطبية الخاضعة لنسبة الصفر في عُمان، لكنه حُسبت عليه ضريبة 5٪. تحقق مما إذا كان يجب أن يخضع لنسبة الصفر.",
-      "ZR_MEDICAL_NOT_LISTED": "السطر {{line}} خاضع لنسبة الصفر كمنتج طبي، لكن رمزه الجمركي غير مدرج في قوائم الأدوية والمعدات الطبية الخاضعة لنسبة الصفر في عُمان. تحقق من فئة الضريبة أو الرمز الجمركي."
+      "ZR_MEDICAL_NOT_LISTED": "السطر {{line}} خاضع لنسبة الصفر كمنتج طبي، لكن رمزه الجمركي غير مدرج في قوائم الأدوية والمعدات الطبية الخاضعة لنسبة الصفر في عُمان. تحقق من فئة الضريبة أو الرمز الجمركي.",
+      "POS_DISCOUNT_ABOVE_LIMIT_ACCEPTED": "بيع دون اتصال بخصم يتجاوز حدّ أمين الصندوق. سُجّل وأُبلغ به المدير."
     },
     "day": {
       "title": "ورديات اليوم",
@@ -5322,19 +5316,21 @@
         "other": "لم تقبل فوترة عملية البيع هذه بوضعها الحالي."
       }
     },
-    "itemsStarted_zero": "لا أصناف · بدأ {{time}}",
-    "itemsStarted_one": "صنف واحد · بدأ {{time}}",
-    "itemsStarted_two": "صنفان · بدأ {{time}}",
-    "itemsStarted_few": "{{count}} أصناف · بدأ {{time}}",
-    "itemsStarted_many": "{{count}} صنفًا · بدأ {{time}}",
-    "itemsStarted_other": "{{count}} صنف · بدأ {{time}}",
-    "itemsFullInvoice_zero": "لا أصناف · فاتورة كاملة عبر Peppol",
-    "itemsFullInvoice_one": "صنف واحد · فاتورة كاملة عبر Peppol",
-    "itemsFullInvoice_two": "صنفان · فاتورة كاملة عبر Peppol",
-    "itemsFullInvoice_few": "{{count}} أصناف · فاتورة كاملة عبر Peppol",
-    "itemsFullInvoice_many": "{{count}} صنفًا · فاتورة كاملة عبر Peppol",
-    "itemsFullInvoice_other": "{{count}} صنف · فاتورة كاملة عبر Peppol",
-    "moneyNotAFigure": "هذا ليس مبلغًا. اكتبه هكذا: 4.510"
+    "moneyNotAFigure": "هذا ليس مبلغًا. اكتبه هكذا: 4.510",
+    "lineDiscount": {
+      "add": "خصم",
+      "open": "تحديد خصم على {{name}}",
+      "setPercent": "خصم {{value}}%",
+      "setAmount": "خصم {{value}}",
+      "limit": "حدّك: حتى {{limit}}%",
+      "giveAway": "تقديمه مجانًا (100%)",
+      "tooMuch": "هذا أكثر من قيمة السطر.",
+      "over": {
+        "line": "هذا يخصم {{percent}}%، وحدّك {{limit}}%.",
+        "sale": "خصم البيع كله {{percent}}%، وحدّك {{limit}}%.",
+        "total": "خصوماتك تبلغ {{percent}}% من البيع، وحدّك {{limit}}%."
+      }
+    }
   },
   "orderDetail": {
     "breadcrumbParent": "المستندات التجارية",

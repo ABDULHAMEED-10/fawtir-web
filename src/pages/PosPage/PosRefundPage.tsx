@@ -16,6 +16,7 @@ import {
   WHY_OPTIONS,
   creditFor,
   moneyBackMethod,
+  onlyGivenAway,
   refundRequest,
   remaining,
   standsAt,
@@ -121,14 +122,17 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
   // the category and rate refused, and what is left there, in the till's own refusal line.
   const refusalSentence = (error: unknown) => {
     const capped = creditCapRefusal(error, t, 'OMR', i18n.language)
-    return capped ? withRial(t(capped.key, capped.values)) : t(posRefusalKey(error), refusalValues(error))
+    return capped
+      ? withRial(t(capped.key, capped.values))
+      : t(posRefusalKey(error), refusalValues(error))
   }
   const navigate = useNavigate()
   const refundable = sale.lines.filter((line) => line.refundable && line.role !== 'ADD_ON')
   const [returning, setReturning] = useState<ReturnLine[]>(
     refundable.map((line) => ({ lineNumber: line.lineNumber, qty: 0 })),
   )
-  const [stock, setStock] = useState<StockChoice>('thrownAway')
+  /** Null until the cashier answers: a given-away item alone is assumed to go back on the shelf. */
+  const [stockAnswer, setStock] = useState<StockChoice | null>(null)
   const [choice, setChoice] = useState<PutRightChoice>('moneyBack')
   const [why, setWhy] = useState<WhyId>('madeWrong')
   const [note, setNote] = useState('')
@@ -140,6 +144,8 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
   const attempt = useRef<{ fingerprint: string; key: string } | null>(null)
 
   const credit = creditFor(sale, returning)
+  const stockReturn = onlyGivenAway(sale, returning)
+  const stock: StockChoice = stockAnswer ?? (stockReturn ? 'backInStock' : 'thrownAway')
   // The tip the customer paid on top, which is never refunded (F-11): on the lookup since backend
   // #810; from an older server, read from the sale itself (`pos.read`), 0 without it.
   const mayReadSale = useCan('pos.read')
@@ -157,7 +163,7 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
     sale.filing ?? (sold.read.status === 'ready' ? (sold.read.data.filing ?? null) : null)
   const acceptedByOta = Boolean(filing?.acceptedAt)
   const back = expected ?? credit.back
-  const anything = credit.items > 0
+  const anything = credit.items > 0 || stockReturn
   const was = toBaisa(sale.total)
   const credited = toBaisa(sale.credited)
 
@@ -183,6 +189,7 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
       backOnShelf: stock === 'backInStock',
       method: moneyBackMethod(sale),
       amount: back,
+      noMoney: stockReturn,
     })
     const fingerprint = JSON.stringify(body)
     if (!attempt.current || attempt.current.fingerprint !== fingerprint) {
@@ -324,17 +331,19 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
                         {line.description}
                       </span>
                       <span className="mt-1 block text-xs font-medium text-text-quaternary">
-                        {line.discount && line.discount.value > 0
-                          ? t('pos.refund.eachLessDiscount', {
-                              each: omr(toBaisa(line.unitPrice)),
-                              discount:
-                                line.discount.type === 'PERCENTAGE'
-                                  ? `${line.discount.value}%`
-                                  : omr(toBaisa(line.discount.value)),
-                            })
-                          : t('pos.refund.eachNoDiscountLive', {
-                              each: omr(toBaisa(line.unitPrice)),
-                            })}
+                        {line.givenFree
+                          ? t('pos.refund.givenFreeLine')
+                          : line.discount && line.discount.value > 0
+                            ? t('pos.refund.eachLessDiscount', {
+                                each: omr(toBaisa(line.unitPrice)),
+                                discount:
+                                  line.discount.type === 'PERCENTAGE'
+                                    ? `${line.discount.value}%`
+                                    : omr(toBaisa(line.discount.value)),
+                              })
+                            : t('pos.refund.eachNoDiscountLive', {
+                                each: omr(toBaisa(line.unitPrice)),
+                              })}
                       </span>
                     </span>
                     <span className="flex shrink-0 items-center gap-1 rounded-sm border border-border-subtle bg-white">
@@ -501,8 +510,12 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
             </h2>
             <p className="mt-1 text-xs font-medium text-text-quaternary">
               {done
-                ? t('pos.refund.filedStraightAway', { number: done.creditNoteNumber })
-                : t('pos.refund.willBeFiled')}
+                ? done.creditNoteNumber
+                  ? t('pos.refund.filedStraightAway', { number: done.creditNoteNumber })
+                  : t('pos.refund.noCreditNote')
+                : stockReturn
+                  ? t('pos.refund.noCreditNote')
+                  : t('pos.refund.willBeFiled')}
             </p>
           </div>
 
@@ -581,7 +594,9 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
               <div className="flex flex-col gap-3">
                 <p className="flex items-center gap-2 rounded-sm bg-success-100 px-3 py-3 text-sm font-medium text-success-700">
                   <CheckIcon className="size-4 shrink-0" />
-                  {t('pos.refund.done', { number: done.creditNoteNumber })}
+                  {done.creditNoteNumber
+                    ? t('pos.refund.done', { number: done.creditNoteNumber })
+                    : t('pos.refund.stockReturnDone')}
                 </p>
                 {done.warnings.map((warning, index) => (
                   <p
@@ -614,11 +629,13 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
                 onClick={() => void refund()}
                 className="inline-flex h-[52px] w-full items-center justify-center rounded-sm bg-danger-700 text-base font-semibold text-white transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {t('pos.refund.refundAmount', { amount: omr(anything ? back : 0) })}
+                {stockReturn
+                  ? t('pos.refund.stockReturnButton')
+                  : t('pos.refund.refundAmount', { amount: omr(anything ? back : 0) })}
               </button>
             )}
           </div>
-          <PosFootNote>{t('pos.refund.filedNoteLive')}</PosFootNote>
+          {stockReturn ? null : <PosFootNote>{t('pos.refund.filedNoteLive')}</PosFootNote>}
         </aside>
       </div>
     </>
