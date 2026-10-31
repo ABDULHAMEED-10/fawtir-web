@@ -173,8 +173,8 @@ const REFUSALS: Record<string, string> = {
   // Rejecting a bill that has a payment, is in a run, or with a reason that is too long.
   APPROVAL_REJECT_PAYMENT_RECORDED: 'billDetail.refused.paymentRecorded',
   APPROVAL_REJECT_IN_PAYMENT_RUN: 'billDetail.refused.inRun',
-  // Supplier credit set against the bill (backend #817): there is no way yet to release it, so the
-  // sentence promises none.
+  // Supplier credit set against the bill (backend #817): a credit note's is released from the
+  // note first (#827), by the person, never by the rejection; an overpayment's cannot be yet.
   BILL_REJECTION_HAS_APPLIED_CREDIT: 'billDetail.refused.appliedCredit',
   APPROVAL_REASON_TOO_LONG: 'billDetail.refused.reasonTooLong',
   // A rejection is taken back by a reopen, not an approval (backend V523). Approve is hidden on a

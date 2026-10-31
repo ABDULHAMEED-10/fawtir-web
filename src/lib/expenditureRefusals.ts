@@ -130,6 +130,9 @@ const REFUSAL_VALUES: Record<
   CREDIT_NOTE_TARGET_IN_PAYMENT_RUN: (problem) => ({
     run: String(problem.paymentRunReference ?? ''),
   }),
+  CREDIT_NOTE_RELEASE_BILL_IN_PAYMENT_RUN: (problem) => ({
+    run: String(problem.paymentRunReference ?? ''),
+  }),
   BILL_PAYMENT_REVERSAL_IN_SENT_RUN: (problem) => ({
     run: String(problem.paymentRunReference ?? ''),
   }),
@@ -154,6 +157,14 @@ const CONFLICT_REFUSALS: Record<string, string> = {
   // check what was recorded, the second to press again unchanged, which the server replays.
   CREDIT_NOTE_REFUND_IDEMPOTENCY_KEY_REUSED: 'supplierCreditNoteDetail.refundKeyReused',
   CREDIT_NOTE_REFUND_IN_PROGRESS: 'supplierCreditNoteDetail.refundInProgress',
+  // Releasing a note's credit from a bill (backend #827), each about what the two hold now.
+  CREDIT_NOTE_NOT_APPLIED_TO_BILL: 'supplierCreditNoteDetail.release.refused.changed',
+  CREDIT_NOTE_APPLICATION_ALREADY_RELEASED: 'supplierCreditNoteDetail.release.refused.changed',
+  CREDIT_NOTE_RELEASE_BILL_IN_PAYMENT_RUN: 'supplierCreditNoteDetail.release.refused.inRun',
+  CREDIT_NOTE_RELEASE_OVERPAYMENT_SETTLED: 'supplierCreditNoteDetail.release.refused.overpayment',
+  CREDIT_NOTE_RELEASE_DEBIT_NOTE_TARGET: 'supplierCreditNoteDetail.release.refused.debitNote',
+  // Setting a note against the bill it was released from.
+  CREDIT_NOTE_RELEASED_FROM_BILL: 'supplierCreditNoteDetail.release.refused.reapply',
   // A held Peppol copy (backend V493): deciding it, and the plain release it refuses.
   BILL_DUPLICATE_ALREADY_RESOLVED: 'billDetail.duplicate.refused.alreadyResolved',
   BILL_NOT_HELD_AS_DUPLICATE: 'billDetail.duplicate.refused.notHeld',
@@ -223,7 +234,8 @@ export function refusalMessageKey(error: unknown): string | null {
 
 /** The values a refusal's sentence names, or undefined when it names none. */
 export function refusalMessageValues(error: unknown): Record<string, string> | undefined {
-  if (!isExpenditureRefusal(error) || error.code === null) return undefined
+  if (!(error instanceof ApiError) || error.code === null) return undefined
+  if (!isExpenditureRefusal(error) && conflictRefusalKey(error) === null) return undefined
   return Object.hasOwn(REFUSAL_VALUES, error.code)
     ? REFUSAL_VALUES[error.code](error.problem)
     : undefined

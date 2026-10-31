@@ -120,6 +120,8 @@ function json(status: number, body?: unknown) {
 let fetchMock: ReturnType<typeof vi.fn>
 let who: Entitlements
 let notes: CreditNoteRowDto[]
+let releaseBody: unknown
+let releaseResponse: (() => Response) | null
 let settlements: unknown[]
 let applyBody: unknown
 let applyRefusal: Record<string, unknown> | null
@@ -144,6 +146,8 @@ beforeEach(async () => {
   who = ADMIN
   notes = [note()]
   settlements = []
+  releaseBody = null
+  releaseResponse = null
   applyBody = null
   applyRefusal = null
   refundBody = null
@@ -172,6 +176,26 @@ beforeEach(async () => {
       return new Response('<CreditNote/>', { status: 200 })
     }
     if (url.includes(`/credit-notes/${NOTE_ID}/settlements`)) return json(200, settlements)
+    if (url.includes(`/credit-notes/${NOTE_ID}/release`)) {
+      releaseBody = JSON.parse(String(init?.body))
+      if (releaseResponse !== null) return releaseResponse()
+      const applied = settlements[0] as { id: string }
+      settlements = [
+        ...settlements,
+        {
+          ...applied,
+          id: 'rel-1',
+          kind: 'RELEASED',
+          releasedSettlementId: applied.id,
+          reason: 'Wrong bill',
+        },
+      ]
+      return json(200, {
+        settlement: {},
+        status: 'UNAPPLIED',
+        balance: { applied: 0, refunded: 0, remaining: 200 },
+      })
+    }
     if (url.includes(`/credit-notes/${NOTE_ID}/apply`)) {
       applyBody = JSON.parse(String(init?.body))
       if (applyConflict !== null) {
@@ -1591,6 +1615,126 @@ describe('One credit note', () => {
 
 // Owner, 9 Oct 2026 (E1): set against a debit note on upload, the note's page says what was done,
 // once, in the page's own notice.
+describe("releasing a note's credit from a bill (backend #827)", () => {
+  const APPLIED = {
+    id: 'set-1',
+    creditNoteId: NOTE_ID,
+    billId: 'b-9',
+    billNumber: 'QMS-7781',
+    billDocumentTypeCode: '380',
+    kind: 'APPLIED' as const,
+    amount: 200,
+    paymentReference: null,
+    settledOn: '2026-10-01',
+    actorId: 'u-1',
+    occurredAt: '2026-10-01T08:00:00Z',
+  }
+  const conflict = (error: string, extra: object = {}) => () =>
+    new Response(
+      JSON.stringify({
+        type: 'https://api.fawtir.om/problems/resource-conflict',
+        status: 409,
+        error,
+        ...extra,
+      }),
+      { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+    )
+  const openRelease = async () => {
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    fireEvent.click(await screen.findByRole('button', { name: 'Release' }))
+    return screen.findByRole('dialog')
+  }
+
+  it('releases an application only once asked, sends the reason, then offers it no more', async () => {
+    settlements = [APPLIED]
+    renderDetail()
+    const dialog = await openRelease()
+    expect(releaseBody).toBeNull()
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: ' Wrong bill ' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Release credit' }))
+    expect(await screen.findByText('The credit was released from that bill.')).toBeTruthy()
+    expect(releaseBody).toEqual({ billId: 'b-9', reason: 'Wrong bill' })
+    await waitFor(() => expect(screen.getByText('Released from QMS-7781')).toBeTruthy())
+    expect(screen.queryByRole('button', { name: 'Release' })).toBeNull()
+  })
+
+  it('sends no reason when none was given', async () => {
+    settlements = [APPLIED]
+    renderDetail()
+    const dialog = await openRelease()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Release credit' }))
+    await screen.findByText('The credit was released from that bill.')
+    expect(releaseBody).toEqual({ billId: 'b-9', reason: null })
+  })
+
+  it("offers a linked note's credit, which has no row yet", async () => {
+    notes = [
+      note({
+        status: 'APPLIED',
+        balance: { applied: 200, refunded: 0, remaining: 0 },
+        credits: { ...note().credits, billId: 'b-9', billNumber: 'QMS-7781', applied: true },
+      }),
+    ]
+    renderDetail()
+    await openRelease()
+    expect(screen.getByRole('dialog').textContent).toContain('200.000')
+  })
+
+  it('offers nothing on a supplier debit note, which the server refuses', async () => {
+    settlements = [{ ...APPLIED, billDocumentTypeCode: '383' }]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    await screen.findByText('Used against QMS-7781')
+    expect(screen.queryByRole('button', { name: 'Release' })).toBeNull()
+  })
+
+  it('offers nothing to someone without the right to settle', async () => {
+    who = READER
+    settlements = [APPLIED]
+    renderDetail()
+    await screen.findByText('Used against QMS-7781')
+    expect(screen.queryByRole('button', { name: 'Release' })).toBeNull()
+  })
+
+  it.each([
+    [
+      'CREDIT_NOTE_RELEASE_BILL_IN_PAYMENT_RUN',
+      'This bill is in payment run PR-7. Take it out of the run before releasing credit from it.',
+    ],
+    [
+      'CREDIT_NOTE_RELEASE_OVERPAYMENT_SETTLED',
+      "This credit can't be released: part of what the bill was overpaid by has already been refunded or used on another bill.",
+    ],
+    [
+      'CREDIT_NOTE_APPLICATION_ALREADY_RELEASED',
+      'This credit has changed since the page loaded. Check the activity and try again.',
+    ],
+  ])('says why when the server refuses: %s', async (code, sentence) => {
+    settlements = [APPLIED]
+    releaseResponse = conflict(code, { paymentRunReference: 'PR-7' })
+    renderDetail()
+    const dialog = await openRelease()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Release credit' }))
+    expect(await screen.findByText(new RegExp(sentence.replace(/[.]/g, '\\.')))).toBeTruthy()
+  })
+
+  it('says it is not available on a server without the route', async () => {
+    settlements = [APPLIED]
+    releaseResponse = () => new Response(null, { status: 404 })
+    renderDetail()
+    const dialog = await openRelease()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Release credit' }))
+    expect(await screen.findByText("Credit can't be released yet.")).toBeTruthy()
+  })
+
+  it('has every sentence in Arabic', () => {
+    for (const key of ['heading', 'action', 'title', 'body', 'reason', 'confirm', 'done', 'unavailable']) {
+      const full = `supplierCreditNoteDetail.release.${key}`
+      expect(i18n.exists(full, { lng: 'ar', fallbackLng: [] })).toBe(true)
+    }
+  })
+})
+
 describe('arriving from the upload', () => {
   /** The history entry's state, as a reload or a step back would find it. */
   function StateProbe() {

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { DateField, withRial } from '../../components/ui'
+import { DateField, Modal, withRial } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { selectAllOnFocus } from '../../components/invoice'
 import {
@@ -29,6 +29,7 @@ import {
   loadCreditNote,
   loadCreditNoteSettlements,
   newCreditNoteRefundKey,
+  releaseCreditNote,
   refundCreditNote,
   type CreditNoteRowDto,
   type CreditNoteSettlementDto,
@@ -60,6 +61,8 @@ import {
   creditEffect,
   vatEffect,
   type NoteFormat,
+  standingCredits,
+  type StandingCredit,
 } from '../../lib/supplierCreditNotes'
 import { billStateKey, linkedBillDetailKey } from '../../lib/supplierDebitNotes'
 import { describeApiFailure } from '../../lib/apiFailure'
@@ -153,6 +156,9 @@ function CreditNoteDetail() {
   const [failure, setFailure] = useState<string | null>(null)
   const [kept, setKept] = useState(false)
   const [mode, setMode] = useState<'idle' | 'apply' | 'refund'>('idle')
+  const [releasing, setReleasing] = useState<StandingCredit | null>(null)
+  const [releaseReason, setReleaseReason] = useState('')
+  const [releaseBusy, setReleaseBusy] = useState(false)
 
   const currency = row?.currencyCode ?? 'OMR'
   const money = (value: number) => formatAmount(value, currency, language)
@@ -178,6 +184,36 @@ function CreditNoteDetail() {
     setFailure(
       message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body,
     )
+  }
+
+  const closeRelease = () => {
+    setReleasing(null)
+    setReleaseReason('')
+  }
+
+  const release = async () => {
+    if (!releasing) return
+    setReleaseBusy(true)
+    try {
+      await releaseCreditNote(id, releasing.billId, releaseReason.trim() || null)
+      closeRelease()
+      afterAction('supplierCreditNoteDetail.release.done')
+    } catch (error) {
+      closeRelease()
+      // No such route, not a named refusal: a server without backend #827 cannot release yet.
+      if (
+        error instanceof ApiError &&
+        error.code === null &&
+        (error.status === 404 || error.status === 405)
+      ) {
+        setNotice(null)
+        setFailure(t('supplierCreditNoteDetail.release.unavailable'))
+      } else {
+        onFailure(error)
+      }
+    } finally {
+      setReleaseBusy(false)
+    }
   }
 
   // The note's own bill read names its file; until it answers, the row's delivery or upload.
@@ -220,6 +256,17 @@ function CreditNoteDetail() {
   // UNAPPLIED, and it is neither unused nor offerable against the bill it already reduced.
   const state = item.status
   const usedOnBill = row.credits.applied
+  const rows = settlements.read.status === 'ready' ? settlements.read.data : []
+  // A held copy credits nothing, so it has nothing to release. Read only once the rows have
+  // answered: with none, a note reads as credit by its link alone.
+  const standing =
+    settlements.read.status === 'ready' && canSettle && !item.heldAsDuplicate
+      ? standingCredits(row, rows, against.bill?.documentTypeCode ?? null)
+      : []
+  // Released from its bill, the note no longer reduces that bill and may not go back on it.
+  const releasedFromBill =
+    bill !== null &&
+    rows.some((settlement) => settlement.kind === 'RELEASED' && settlement.billId === bill.id)
   const effect = creditEffect(
     {
       credited: row.creditedAmount ?? 0,
@@ -227,7 +274,7 @@ function CreditNoteDetail() {
       remaining,
       appliedHere: usedOnBill,
     },
-    bill,
+    releasedFromBill ? null : bill,
   )
   const vat = vatEffect(bill?.vatAmount ?? null, row.vatAmount, bill?.inputVat?.counted)
   const reason = reasonLabelKey(row.reasonCode, row.reasonDetail ?? null)
@@ -277,7 +324,7 @@ function CreditNoteDetail() {
         ? targetUnpaid
           ? t('supplierCreditNotes.detail.youllPayLess', { amount: money(row.balance.applied) })
           : t('supplierCreditNotes.detail.paidLessTitle', { amount: money(row.balance.applied) })
-        : bill && state !== 'PARTLY_USED' && !targetRejected
+        : bill && !releasedFromBill && state !== 'PARTLY_USED' && !targetRejected
           ? t('supplierCreditNotes.detail.youllPayLess', { amount: money(remaining) })
           : t('supplierCreditNotes.detail.creditToUse', { amount: money(remaining) })
   const bannerBody = rejectedWithCredit
@@ -292,7 +339,7 @@ function CreditNoteDetail() {
           ? t('supplierCreditNotes.detail.partlyUsedBody')
           : state === 'WAITING_FOR_BILL'
             ? t('supplierCreditNotes.detail.waitingBody')
-            : bill
+            : bill && !releasedFromBill
               ? targetRejected
                 ? t('supplierCreditNotes.detail.billRejectedNote')
                 : bill.outstandingAmount > 0
@@ -633,11 +680,7 @@ function CreditNoteDetail() {
               <ActivityTrail
                 tone="credit"
                 label={t('supplierCreditNotes.detail.activityTitle')}
-                entries={creditActivity(
-                  row,
-                  settlements.read.status === 'ready' ? settlements.read.data : [],
-                  fmt,
-                )}
+                entries={creditActivity(row, rows, fmt)}
               />
             )}
           </NoteCard>
@@ -714,7 +757,7 @@ function CreditNoteDetail() {
                       ? t('appAccess.missingPermission')
                       : noteRejected
                         ? t('supplierCreditNotes.refused.rejected')
-                        : billNumber && !usedOnBill
+                        : billNumber && !usedOnBill && !releasedFromBill
                         ? billOnHold
                           ? t('supplierCreditNotes.detail.billOnHold', { bill: billNumber })
                           : t('supplierCreditNotes.detail.decisionNote', { bill: billNumber })
@@ -740,7 +783,7 @@ function CreditNoteDetail() {
                   supplierName={item.supplier}
                   knownBill={
                     // The bill this note already reduced would refuse it a second time.
-                    bill && !usedOnBill
+                    bill && !usedOnBill && !releasedFromBill
                       ? { id: bill.id, label: bill.supplierBillNumber ?? billNumber ?? '' }
                       : null
                   }
@@ -791,6 +834,37 @@ function CreditNoteDetail() {
                   </div>
                 </>
               )
+            ) : null}
+
+            {standing.length > 0 ? (
+              <div className="mt-4 border-t border-primary-100 pt-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.5px] text-text-quaternary">
+                  {t('supplierCreditNoteDetail.release.heading')}
+                </p>
+                <ul className="mt-2 flex flex-col gap-2">
+                  {standing.map((credit) => (
+                    <li key={credit.billId} className="flex items-center justify-between gap-2">
+                      <span className="min-w-0 text-sm font-medium text-text-secondary">
+                        <Link
+                          to={`/expenditure/bills/${credit.billId}`}
+                          className="underline decoration-transparent underline-offset-2 transition-colors hover:decoration-current"
+                        >
+                          {credit.billNumber ?? t('supplierCreditNoteDetail.release.thatBill')}
+                        </Link>
+                        {' · '}
+                        <SignedAmount sign="" value={money(credit.amount)} />
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setReleasing(credit)}
+                        className="inline-flex h-[34px] shrink-0 items-center justify-center rounded-sm border border-border-subtle bg-white px-3 text-sm font-medium text-text-secondary transition-colors hover:border-primary-300"
+                      >
+                        {t('supplierCreditNoteDetail.release.action')}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ) : null}
           </section>
 
@@ -878,6 +952,53 @@ function CreditNoteDetail() {
           </NoteCard>
         </aside>
       </div>
+
+      <Modal
+        open={releasing !== null}
+        onClose={closeRelease}
+        title={t('supplierCreditNoteDetail.release.title', {
+          bill: releasing?.billNumber ?? t('supplierCreditNoteDetail.release.thatBill'),
+        })}
+        footer={
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={closeRelease}
+              className="inline-flex h-[46px] items-center justify-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              type="button"
+              disabled={releaseBusy}
+              onClick={() => void release()}
+              className="inline-flex h-[46px] items-center justify-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-60"
+            >
+              {t('supplierCreditNoteDetail.release.confirm')}
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm font-medium leading-[1.5] text-text-secondary">
+          {withRial(
+            t('supplierCreditNoteDetail.release.body', {
+              amount: releasing ? money(releasing.amount) : '',
+            }),
+          )}
+        </p>
+        <label className="mt-4 block">
+          <span className="text-sm font-semibold text-text-secondary">
+            {t('supplierCreditNoteDetail.release.reason')}
+          </span>
+          <textarea
+            value={releaseReason}
+            onChange={(event) => setReleaseReason(event.target.value)}
+            maxLength={1000}
+            rows={3}
+            className="mt-1.5 w-full rounded-sm border border-border-subtle p-3 text-sm text-text-primary outline-none focus:border-primary-500"
+          />
+        </label>
+      </Modal>
     </div>
   )
 }

@@ -136,6 +136,46 @@ const SOURCE_ARRIVAL: Record<CreditNoteRowDto['source'], string> = {
  * The Activity list, newest first: where the note stands now, what has been done with it (the
  * settlement rows), whether it was reported, and how it arrived.
  */
+/** Credit of this note that stands on one bill, and can be released from it. */
+export type StandingCredit = {
+  billId: string
+  billNumber: string | null
+  amount: number
+}
+
+/**
+ * What can be released, as `CreditNoteService.release` decides it: every APPLIED row with no
+ * RELEASED row naming it, or, on a note with no rows at all, what its BTOM-031 link gives the bill.
+ * A supplier debit note is left out: the server refuses it (P10 on backend #827).
+ */
+export function standingCredits(
+  row: CreditNoteRowDto,
+  settlements: CreditNoteSettlementDto[],
+  linkedBillTypeCode: string | null,
+): StandingCredit[] {
+  if (settlements.length === 0) {
+    const billId = row.credits.billId
+    return row.credits.applied && billId && row.balance.applied > 0 && linkedBillTypeCode !== '383'
+      ? [{ billId, billNumber: row.credits.billNumber, amount: row.balance.applied }]
+      : []
+  }
+  const released = new Set(settlements.map((settlement) => settlement.releasedSettlementId))
+  return settlements.flatMap((settlement) =>
+    settlement.kind === 'APPLIED' &&
+    settlement.billId &&
+    settlement.billDocumentTypeCode !== '383' &&
+    !released.has(settlement.id)
+      ? [
+          {
+            billId: settlement.billId,
+            billNumber: settlement.billNumber ?? null,
+            amount: settlement.amount,
+          },
+        ]
+      : [],
+  )
+}
+
 export function creditActivity(
   row: CreditNoteRowDto,
   settlements: CreditNoteSettlementDto[],
@@ -212,22 +252,31 @@ export function creditActivity(
       id: settlement.id,
       // Names the bill it went to when the server says which; an older server leaves it out.
       titleKey:
-        settlement.kind === 'APPLIED'
+        settlement.kind === 'RELEASED'
           ? settlement.billNumber
-            ? 'supplierCreditNotes.detail.activity.settledAppliedTo'
-            : 'supplierCreditNotes.detail.activity.settledApplied'
-          : 'supplierCreditNotes.detail.activity.settledRefunded',
+            ? 'supplierCreditNotes.detail.activity.settledReleasedFrom'
+            : 'supplierCreditNotes.detail.activity.settledReleased'
+          : settlement.kind === 'APPLIED'
+            ? settlement.billNumber
+              ? 'supplierCreditNotes.detail.activity.settledAppliedTo'
+              : 'supplierCreditNotes.detail.activity.settledApplied'
+            : 'supplierCreditNotes.detail.activity.settledRefunded',
       detailKey:
-        settlement.kind === 'APPLIED'
-          ? 'supplierCreditNotes.detail.activity.settledAppliedDetail'
-          : settlement.paymentReference
-            ? 'supplierCreditNotes.detail.activity.settledRefundedRef'
-            : 'supplierCreditNotes.detail.activity.settledRefundedDetail',
+        settlement.kind === 'RELEASED'
+          ? settlement.reason
+            ? 'supplierCreditNotes.detail.activity.settledReleasedReason'
+            : 'supplierCreditNotes.detail.activity.settledAppliedDetail'
+          : settlement.kind === 'APPLIED'
+            ? 'supplierCreditNotes.detail.activity.settledAppliedDetail'
+            : settlement.paymentReference
+              ? 'supplierCreditNotes.detail.activity.settledRefundedRef'
+              : 'supplierCreditNotes.detail.activity.settledRefundedDetail',
       values: {
         bill: settlement.billNumber ?? '',
         amount: fmt.money(settlement.amount),
         date: fmt.date(settlement.settledOn),
         reference: settlement.paymentReference ?? '',
+        reason: settlement.reason ?? '',
         when: fmt.when(settlement.occurredAt),
       },
       tone: 'done' as const,
