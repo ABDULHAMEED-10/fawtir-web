@@ -1975,10 +1975,14 @@ describe('cancelling a refunded credit note (DA-2)', () => {
     ...overrides,
   })
 
-  const open = async (originalPayments: () => Response, cancel?: () => Response) => {
+  const open = async (
+    originalPayments: () => Response,
+    cancel?: () => Response,
+    note: object = refundNote,
+  ) => {
     entitlements = CANCELLER
     override = (url, init) => {
-      if (url === `/api/v1/authored-invoices/${NOTE_ID}`) return json(200, refundNote)
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}`) return json(200, note)
       if (url === `/api/v1/authored-invoices/${INVOICE_ID}/payments`) return originalPayments()
       if (url === `/api/v1/authored-invoices/${NOTE_ID}/cancel` && init?.method === 'POST' && cancel)
         return cancel()
@@ -2020,6 +2024,16 @@ describe('cancelling a refunded credit note (DA-2)', () => {
       await screen.findByText('This credit note cannot be cancelled: a refund is recorded against it.'),
     ).toBeTruthy()
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('reads Refunded with nothing due once the whole note was paid back, whoever else credited', async () => {
+    await open(() => json(200, [refund()]), undefined, {
+      ...refundNote,
+      deliveryState: 'SENT_MANUALLY',
+      totals: { ...refundNote.totals, totalAmount: 26.25 },
+    })
+    expect((await screen.findAllByText(i18n.t('salesNote.status.refunded'))).length).toBeGreaterThan(0)
+    expect(screen.queryByText(i18n.t('salesNote.detail.notAvailableYet'))).toBeNull()
   })
 
   it('offers Cancel when the refund was reversed, or was for another note', async () => {

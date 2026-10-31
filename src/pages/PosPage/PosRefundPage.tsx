@@ -211,6 +211,22 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
     .map((entry) => `${t(`pos.refund.method.${entry.method}`)} ${omr(toBaisa(entry.amount))}`)
     .join(' · ')
 
+  // Nothing left to send back: no form that could only say "Refund 0.000".
+  if (!done && !refundable.some((line) => remaining(line) > 0)) {
+    return (
+      <p
+        role="status"
+        className="rounded-md bg-surface-card p-5 text-sm font-medium text-text-secondary"
+      >
+        <span dir="ltr">{sale.invoiceNumber}</span>
+        {': '}
+        {credited > 0
+          ? t('pos.refund.alreadyRefunded', { numbers: sale.creditNoteNumbers.join(', ') })
+          : t('pos.refund.nothingToRefund')}
+      </p>
+    )
+  }
+
   return (
     <>
       <div>
@@ -268,7 +284,10 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-semibold text-text-primary">
                   <span dir="ltr">{sale.invoiceNumber}</span> ·{' '}
-                  {sale.customer.name ?? t('pos.refund.walkIn')}
+                  {/* A walk-in's stored name is the server's English placeholder, not a person. */}
+                  {sale.customer.kind === 'WALK_IN' || !sale.customer.name
+                    ? t('pos.refund.walkIn')
+                    : sale.customer.name}
                 </span>
                 <span className="mt-0.5 block text-xs font-medium text-text-quaternary">
                   {withRial(`${paid}${paid ? ' · ' : ''}OMR ${omr(was)}`)}

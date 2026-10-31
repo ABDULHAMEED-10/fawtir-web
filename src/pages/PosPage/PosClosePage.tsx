@@ -269,11 +269,12 @@ function CloseForm({
     day: 'numeric',
     month: 'long',
   })
-  const needsReason = gap !== 0 && reason === null
+  const countKnown = byNote || total !== null
+  const needsReason = countKnown && gap !== 0 && reason === null
   const ready =
     !busy &&
     !closed &&
-    (byNote || total !== null) &&
+    countKnown &&
     !needsReason &&
     (!cardDiffers || cardNote.trim().length > 0)
 
@@ -444,15 +445,17 @@ function CloseForm({
               <div
                 className={[
                   'min-w-[260px] flex-1 rounded-sm p-4',
-                  gap === 0 ? 'bg-success-100' : 'bg-pending-100',
+                  countKnown && gap === 0 ? 'bg-success-100' : 'bg-pending-100',
                 ].join(' ')}
               >
                 <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-quaternary">
-                  {gap === 0
-                    ? t('pos.close.balances')
-                    : gap < 0
-                      ? t('pos.close.shortBy')
-                      : t('pos.close.overBy')}
+                  {!countKnown
+                    ? t('pos.close.notCounted')
+                    : gap === 0
+                      ? t('pos.close.balances')
+                      : gap < 0
+                        ? t('pos.close.shortBy')
+                        : t('pos.close.overBy')}
                 </p>
                 <p
                   className={[
@@ -461,9 +464,9 @@ function CloseForm({
                   ].join(' ')}
                 >
                   <Rial />
-                  {omr(Math.abs(gap))}
+                  {countKnown ? omr(Math.abs(gap)) : omr(0)}
                 </p>
-                {gap !== 0 ? (
+                {countKnown && gap !== 0 ? (
                   <p className="mt-2 text-xs font-medium leading-[1.6] text-text-tertiary">
                     {t('pos.close.shortStory', {
                       expected: omr(figures.expected),
@@ -484,7 +487,7 @@ function CloseForm({
               />
               <Line
                 label={t('pos.close.cashTaken')}
-                note={t('pos.close.cashTakenNote', { sales: figures.cashSales })}
+                note={t('pos.close.cashTakenNote', { count: figures.cashSales, sales: figures.cashSales })}
                 value={`+${omr(figures.cashTaken)}`}
                 tone="add"
               />
@@ -644,6 +647,7 @@ function CloseForm({
                     {withRial(
                       t('pos.close.terminalTotalNote', {
                         amount: `OMR ${omr(figures.terminal)}`,
+                        count: preview.looseEnds.cardSalesForTerminalCheck.count,
                         payments: preview.looseEnds.cardSalesForTerminalCheck.count,
                       }),
                     )}
@@ -704,13 +708,15 @@ function CloseForm({
             <Sum
               label={t('pos.close.drawer')}
               value={
-                gap === 0
-                  ? t('pos.close.balances')
-                  : gap < 0
-                    ? t('pos.close.shortValue', { amount: omr(Math.abs(gap)) })
-                    : t('pos.day.overValue', { amount: omr(gap) })
+                !countKnown
+                  ? t('pos.close.notCounted')
+                  : gap === 0
+                    ? t('pos.close.balances')
+                    : gap < 0
+                      ? t('pos.close.shortValue', { amount: omr(Math.abs(gap)) })
+                      : t('pos.day.overValue', { amount: omr(gap) })
               }
-              tone={gap === 0 ? undefined : 'watch'}
+              tone={countKnown && gap === 0 ? undefined : 'watch'}
             />
             <Sum
               label={t('pos.close.toBank')}
@@ -723,6 +729,11 @@ function CloseForm({
               money
             />
           </div>
+          {!countKnown && !closed ? (
+            <p className="mx-5 mb-2 rounded-sm bg-pending-100 px-4 py-3 text-sm font-medium text-pending-700">
+              {t('pos.close.countFirst')}
+            </p>
+          ) : null}
           {needsReason && !closed ? (
             <p className="mx-5 mb-2 rounded-sm bg-pending-100 px-4 py-3 text-sm font-medium text-pending-700">
               {t('pos.refusal.POS_OVER_SHORT_REASON_REQUIRED', {
