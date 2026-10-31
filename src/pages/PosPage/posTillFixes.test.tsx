@@ -288,6 +288,54 @@ describe('a company the till cannot invoice yet (F-1)', () => {
     })
   })
 
+  it('puts a refused VAT number on the field, in place of the general failure', async () => {
+    answer = (url, init) => {
+      if (url.startsWith('/api/v1/customers?')) {
+        return json({ content: [], totalElements: 0, number: 0, size: 10, totalPages: 0 })
+      }
+      if (url.startsWith('/api/v1/pos/sales')) {
+        return json({ content: [], totalElements: 0, page: 0, size: 50, branchId: 'b-1' })
+      }
+      if (url === '/api/v1/pos/customers' && init?.method === 'POST') {
+        return json(
+          {
+            type: 'https://api.fawtir.om/problems/validation-failed',
+            title: 'Validation failed',
+            status: 400,
+            errors: [
+              {
+                field: 'details.vatRegistrationNumber',
+                code: 'INVALID_CHARACTERS',
+                message: 'VAT registration number contains unsupported characters',
+              },
+            ],
+          },
+          400,
+        )
+      }
+      return null
+    }
+    renderAt('/pos/company')
+    fireEvent.change(await screen.findByLabelText('VAT number'), {
+      target: { value: 'not a number' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Enter it by hand instead' }))
+    const form = (await screen.findByRole('button', { name: 'Add the company' })).closest(
+      'div.rounded-md',
+    ) as HTMLElement
+    const field = (label: string) => within(form).getByLabelText(label)
+    fireEvent.change(field('Legal name'), { target: { value: 'Sohar Traders LLC' } })
+    fireEvent.change(field('Contact person'), { target: { value: 'Ali' } })
+    fireEvent.change(field('City / Governorate'), { target: { value: 'Sohar' } })
+    fireEvent.change(field('Street & building'), { target: { value: 'Way 12' } })
+    fireEvent.click(within(form).getByRole('button', { name: 'Add the company' }))
+    expect(await within(form).findByText(i18n.t('validation.vatin'))).toBeTruthy()
+    expect(within(form).queryByText(i18n.t('pos.refusal.failed'))).toBeNull()
+    // Typing again takes the complaint away.
+    fireEvent.change(field('Legal name'), { target: { value: 'Sohar Traders' } })
+    expect(within(form).queryByText(i18n.t('validation.vatin'))).toBeNull()
+  })
+
   it('names what is missing when the server refuses the company itself (backend #810)', async () => {
     answer = (url, init) => {
       if (url.startsWith('/api/v1/customers?')) {

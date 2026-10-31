@@ -188,7 +188,7 @@
   }
 
   /* The row menu belongs in the corner the card opens with, not at the end of a scroll down it. */
-  .rows-cards tbody td[data-label='']:last-child {
+  .rows-cards tbody td[data-label='']:not([data-message]):last-child {
     position: absolute;
     top: 10px;
     inset-inline-end: 14px;
@@ -197,7 +197,7 @@
 
   /* And the first line keeps clear of it. On lists that open with a tick box there is room
      already; on ones that open with a name — Suppliers, Catalog — there would not be. */
-  .rows-cards tbody td:first-child {
+  .rows-cards tbody td:first-child:not([data-message]) {
     padding-inline-end: 40px;
   }
 }

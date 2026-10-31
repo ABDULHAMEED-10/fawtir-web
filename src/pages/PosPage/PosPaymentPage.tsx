@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
 import { PosFootNote } from './PosFootNote'
+import { PosQuotaNextStep } from './PosQuotaNextStep'
 import { PosTillGate } from './PosTillGate'
 import {
   BuildingIcon,
@@ -777,7 +778,12 @@ function Payment({ till }: { till: Ready }) {
                     </Link>
                   </>
                 ) : (
-                  t(posRefusalKey(refusal), refusalValues(refusal))
+                  <>
+                    {t(posRefusalKey(refusal), refusalValues(refusal))}
+                    {refusal instanceof ApiError && refusal.problemType === 'quota-exceeded' ? (
+                      <PosQuotaNextStep />
+                    ) : null}
+                  </>
                 )}
               </p>
             </div>
