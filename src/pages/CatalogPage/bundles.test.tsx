@@ -6,7 +6,8 @@ import { forgetEntitlements } from '../../lib/identity/entitlements'
 import { resetSharedRequests } from '../../api'
 import { BundlesPage } from './BundlesPage'
 import { BundlePage } from './BundlePage'
-import { bundleRequest, partFromProduct } from '../../lib/bundleForm'
+import { bundleRequest, partFromProduct, stockShownOnceSaved } from '../../lib/bundleForm'
+import type { ProductDto } from '../../api/catalog/products'
 
 const part = (productId: string, extra: Record<string, unknown> = {}) => ({
   position: 1,
@@ -363,6 +364,13 @@ describe('one bundle', () => {
       url: '/api/v1/bundles/bun-starter?expectedVersion=5',
       method: 'DELETE',
     })
+  })
+
+  it('claims nothing about stock for a part just picked, and reads it once saved', () => {
+    const picked = partFromProduct({ id: 'p-1', name: 'Milk', basePrice: 1 } as unknown as ProductDto)
+    expect(stockShownOnceSaved([picked])).toBe(true)
+    expect(stockShownOnceSaved([{ ...picked, counted: false }])).toBe(false)
+    expect(i18n.t('bundle.footerStockLater', { parts: 2, price: '1.000' })).not.toMatch(/counted/)
   })
 
   it('builds the request from picked products, at their size and branch price', () => {

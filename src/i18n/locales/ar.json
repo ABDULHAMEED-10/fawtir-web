@@ -13704,7 +13704,9 @@
       "PRODUCT_VERSION_CONFLICT": "غيّر شخص آخر هذه الحزمة. أعد تحميلها وحاول مجددًا.",
       "PRODUCT_ARCHIVED": "هذه الحزمة موقوفة. أعدها لتغييرها.",
       "BUNDLE_NOT_FOUND": "هذه الحزمة لم تعد موجودة."
-    }
+    },
+    "footerStockLater": "الأجزاء: {{parts}} · <amount>{{price}}</amount> قبل الضريبة · يظهر ما يمكن تجهيزه بعد الحفظ",
+    "stockLater": "يظهر بعد الحفظ"
   },
   "stock": {
     "title": "المخزون",

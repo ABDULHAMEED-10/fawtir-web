@@ -53,6 +53,7 @@ import {
   partFromProduct,
   partIcon,
   partsFromBundle,
+  stockShownOnceSaved,
   type EditPart,
 } from '../../lib/bundleForm'
 import plusIcon from '../../assets/catalog/plus-muted.svg'
@@ -304,6 +305,7 @@ function BundleEditor({
     ? round3(savedLines.lines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0))
     : null
   const counted = parts.filter((part) => part.counted && part.onHand !== null)
+  const stockLater = stockShownOnceSaved(parts)
 
   return (
     <CatalogShell
@@ -855,7 +857,11 @@ function BundleEditor({
               <Row
                 label={t('bundle.readyToGo')}
                 value={
-                  working.make.count === null ? t('bundles.unlimited') : String(working.make.count)
+                  stockLater
+                    ? t('bundle.stockLater')
+                    : working.make.count === null
+                      ? t('bundles.unlimited')
+                      : String(working.make.count)
                 }
               />
               {working.make.limitedBy ? (
@@ -927,7 +933,13 @@ function BundleEditor({
         <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle bg-white px-4 py-3">
           <p className="text-sm font-medium text-text-tertiary">
             <Trans
-              i18nKey={working.make.count === null ? 'bundle.footerUnlimited' : 'bundle.footer'}
+              i18nKey={
+                stockLater
+                  ? 'bundle.footerStockLater'
+                  : working.make.count === null
+                    ? 'bundle.footerUnlimited'
+                    : 'bundle.footer'
+              }
               values={{
                 parts: parts.length,
                 price: omr(working.before),

@@ -103,6 +103,13 @@ export function bundleRequest(form: {
 }
 
 /** How many can be made from the parts the form knows the stock of, and which part binds. */
+/**
+ * A part just picked has no stock figure until the bundle is saved and read back, so nothing can
+ * be said yet about what is counted or how many can be made.
+ */
+export const stockShownOnceSaved = (parts: readonly EditPart[]) =>
+  parts.some((part) => part.counted === null)
+
 export function canMakeOf(parts: readonly EditPart[]) {
   let count: number | null = null
   let limitedBy: string | null = null

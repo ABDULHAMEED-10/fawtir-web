@@ -12947,7 +12947,9 @@
       "PRODUCT_VERSION_CONFLICT": "Someone else changed this bundle. Reload it and try again.",
       "PRODUCT_ARCHIVED": "This bundle is switched off. Bring it back to change it.",
       "BUNDLE_NOT_FOUND": "This bundle no longer exists."
-    }
+    },
+    "footerStockLater": "{{parts}} parts · <amount>{{price}}</amount> before VAT · what you can make shows once saved",
+    "stockLater": "Shows once saved"
   },
   "stock": {
     "title": "Stock",
