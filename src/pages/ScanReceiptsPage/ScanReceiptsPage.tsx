@@ -942,7 +942,7 @@ function ReceiptEditor({
                 {t('scanReceipts.whatItWasFor')}
               </h2>
               <div className="mt-4 flex flex-col gap-1.5">
-                <FieldLabel label={t('scanReceipts.category')} required />
+                <FieldLabel label={t('scanReceipts.category')} />
                 <Select
                   value={receipt.category}
                   onChange={(category) =>

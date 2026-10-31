@@ -243,6 +243,16 @@ describe('scan receipts: a receipt stored earlier', () => {
   })
 })
 
+describe('scan receipts: the category', () => {
+  it('is not marked required, since a receipt may be saved with it not set', async () => {
+    stored = { 'r-1': typed('r-1', 'Nizwa Hardware Store', 28.4) }
+    renderAt('/expenditure/bills/scan?intake=r-1')
+    await screen.findByText('Receipt 1 of 1')
+    const label = screen.getAllByText('Category')[0].parentElement!
+    expect(label.textContent).not.toContain('*')
+  })
+})
+
 describe('scan receipts: discard', () => {
   it('removes the photo on the server and from the pile', async () => {
     stored = { 'r-1': typed('r-1', 'Nizwa Hardware Store', 28.4), 'r-2': typed('r-2', 'Taxi', 3) }

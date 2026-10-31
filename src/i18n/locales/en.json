@@ -2165,7 +2165,8 @@
       "toSend": "To be sent",
       "overdue": "Overdue",
       "overdueDays_one": "{{count}} day overdue",
-      "overdueDays_other": "{{count}} days overdue"
+      "overdueDays_other": "{{count}} days overdue",
+      "credited": "Credited in full"
     },
     "delivery": {
       "sentManually": "Sent manually",
@@ -4751,7 +4752,9 @@
       "cashNote_one": "{{percent}}% of takings · {{count}} sale",
       "cashNote_other": "{{percent}}% of takings · {{count}} sales",
       "cardNote_one": "{{count}} sale",
-      "cardNote_other": "{{count}} sales"
+      "cardNote_other": "{{count}} sales",
+      "notCounted": "Not counted yet",
+      "countFirst": "Type what is actually in the drawer, then close the till."
     },
     "refund": {
       "title": "Putting something right",
@@ -4814,7 +4817,9 @@
       "discountsBack": "Discounts on these lines",
       "done": "Refunded. Credit note {{number}} is filed.",
       "ringNew": "Ring up the replacement",
-      "filedNoteLive": "The credit note is filed with the Tax Authority like any invoice and counts toward your monthly documents. Cash paid back shows on the shift's close."
+      "filedNoteLive": "The credit note is filed with the Tax Authority like any invoice and counts toward your monthly documents. Cash paid back shows on the shift's close.",
+      "alreadyRefunded": "This sale has already been refunded in full. Credit notes: {{numbers}}.",
+      "nothingToRefund": "Nothing on this sale can be refunded."
     },
     "saleDiscountLabel": "Discount on the whole sale",
     "saleDiscountNote": "Taken after the price rule and before VAT. It shows on the invoice as a document discount.",
@@ -4974,7 +4979,8 @@
         "INDUSTRIAL_CLASSIFICATION_REQUIRED": "The company's business activity code is missing. Add it in Settings and the sale goes.",
         "other": "Fawtir would not accept this sale as it stands."
       }
-    }
+    },
+    "moneyNotAFigure": "That is not an amount. Type it like 4.510."
   },
   "orderDetail": {
     "breadcrumbParent": "Trade documents",

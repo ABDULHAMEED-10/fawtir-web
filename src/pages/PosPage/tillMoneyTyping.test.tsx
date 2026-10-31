@@ -164,6 +164,28 @@ describe('the drawer count', () => {
     expect(field.value).toBe('2.500')
   })
 
+  it('says so when what was typed is not a figure, instead of a silent Close', async () => {
+    const user = userEvent.setup()
+    renderAt('/pos/close')
+    const field = await drawer()
+    await user.click(field)
+    await user.keyboard('4.514.5')
+    const wrong = i18n.t('pos.moneyNotAFigure')
+    expect(screen.getByRole('alert').textContent).toBe(wrong)
+    expect(field.getAttribute('aria-invalid')).toBe('true')
+    expect(closeButton().disabled).toBe(true)
+    expect(screen.queryByText(i18n.t('pos.close.shortBy'))).toBeNull()
+    expect(screen.getByText(i18n.t('pos.close.countFirst'))).toBeTruthy()
+    // Leaving the field keeps the text and the line: nothing empties it unexplained.
+    await user.tab()
+    expect(field.value).toBe('4.514.5')
+    expect(screen.getByRole('alert').textContent).toBe(wrong)
+    await user.clear(field)
+    await user.keyboard('4.510')
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getByText(i18n.t('pos.close.shortBy'))).toBeTruthy()
+  })
+
   it('saves what was typed, and only the reason that was chosen', async () => {
     const user = userEvent.setup()
     renderAt('/pos/close')

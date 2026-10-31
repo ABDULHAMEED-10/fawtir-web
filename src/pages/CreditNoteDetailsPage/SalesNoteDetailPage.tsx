@@ -350,13 +350,26 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
           ) / 1000,
         )
       : 0
+  // A note whose whole amount is recorded as paid back (a till refund) is settled, whichever else
+  // the invoice carries: nothing is due and nothing was applied.
+  const refunded =
+    credit && originalPayments.read.status === 'ready'
+      ? refundedOnNote(data.id, originalPayments.read.data)
+      : 0
+  const refundedInFull = credit && total !== null && refunded > 0 && refunded >= total - 0.0005
   const refund: number | null = !credit
     ? 0
-    : soleCredit && total !== null
-      ? Math.min(total, overpaid)
-      : null
+    : refundedInFull
+      ? 0
+      : soleCredit && total !== null
+        ? Math.min(total, overpaid)
+        : null
   const applied: number | null =
-    credit && total !== null && refund !== null ? Math.round((total - refund) * 1000) / 1000 : null
+    refundedInFull
+      ? 0
+      : credit && total !== null && refund !== null
+        ? Math.round((total - refund) * 1000) / 1000
+        : null
   const refunding = refund !== null && refund > 0
   const nowDue =
     !credit && total !== null
@@ -373,9 +386,11 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
       : data.deliveryState !== 'SENT_MANUALLY'
         ? 'toSend'
         : credit
-          ? refunding
-            ? 'refundDue'
-            : 'applied'
+          ? refundedInFull
+            ? 'refunded'
+            : refunding
+              ? 'refundDue'
+              : 'applied'
           : owed?.overdue
             ? 'overdue'
             : owed?.paymentState === 'PAID'
@@ -399,10 +414,6 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
   const reasonLabel = reasonKey ? t(reasonKey) : (reasonCode ?? '—')
   const reference = data.details?.buyerReference ?? data.details?.subject ?? null
 
-  const refunded =
-    credit && originalPayments.read.status === 'ready'
-      ? refundedOnNote(data.id, originalPayments.read.data)
-      : 0
   const cancelBlockedKey: string | null = credit
     ? refunded > 0
       ? 'salesNote.detail.cancelBlocked.refunded'

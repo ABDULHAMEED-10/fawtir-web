@@ -923,7 +923,7 @@ describe('invoice list mapping', () => {
         deliveryState: 'SENT_MANUALLY',
       }),
     )
-    expect(credited).toMatchObject({ authoring: 'issued', payment: 'paid', sentManually: true })
+    expect(credited).toMatchObject({ authoring: 'issued', payment: 'credited', sentManually: true })
     expect(credited.amountNote).toEqual({
       key: 'invoicesPage.amountNote.credited',
       values: { amount: 845.125 },
