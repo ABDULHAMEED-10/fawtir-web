@@ -4959,8 +4959,8 @@
     "queue": {
       "problemTitle_one": "1 sale could not be filed",
       "problemTitle_other": "{{count}} sales could not be filed",
-      "waiting_one": "1 sale is waiting to be sent. It goes by itself as soon as the connection is back.",
-      "waiting_other": "{{count}} sales are waiting to be sent. They go by themselves as soon as the connection is back.",
+      "waiting_one": "1 sale is waiting to be sent. It goes by itself as soon as it can.",
+      "waiting_other": "{{count}} sales are waiting to be sent. They go by themselves as soon as they can.",
       "heldHint": "The customer holds this invoice. The till tries again by itself and keeps selling meanwhile. Nothing is charged or filed twice.",
       "finalHint": "The customer holds this invoice and it stays open here until it is filed. Sending it again as it stands will not work. Correct it if you can, or contact Fawtir support. The till keeps selling meanwhile.",
       "retry": "Try again",

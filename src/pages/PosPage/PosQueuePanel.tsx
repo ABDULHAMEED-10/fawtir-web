@@ -29,13 +29,13 @@ const PAYMENTS_CAN_BE_CORRECTED = new Set([
  * (`pos.till.manage`) sees the reason and resolves it: correct and send again on the printed number,
  * try again, or set it aside on the server so the queue moves on. Setting aside closes nothing: the
  * number stays listed until it is filed. Anyone else on the till is told to ask a manager. Set aside
- * and the server's list need `skipsStuckNumbers`; on a server without it later sales must wait for
+ * and the server's list need `openNumbers`; on a server without it later sales must wait for
  * the number, and the panel says so. Sales only waiting for the connection are one quiet line.
  */
 export function PosQueuePanel({ till }: { till: Ready }) {
   const { t } = useTranslation()
   const entries = useQueuedSales(till.till.id)
-  const canSkip = till.till.skipsStuckNumbers === true
+  const canSkip = till.till.openNumbers === true
   const open = useApiRead<PosOpenNumberDto[]>(canSkip ? posOpenNumbersPath(till.branchId) : null)
   const onServer = open.read.status === 'ready' ? open.read.data : []
   const problems = entries.filter((entry) => entry.refusal)

@@ -30,7 +30,7 @@ import { forgetBuyer, openBuyer, sealBuyer } from './posVault'
  * again on its own, with the same key, so it can never be paid or filed twice. A refusal that the
  * same sale can never get past is not sent again until a person presses Try again; it stays on the
  * till, open, until it is filed. Later sales go past it where the server allows it
- * (`till.skipsStuckNumbers`, naming the numbers they pass); an older server requires strict number
+ * (`till.openNumbers`, naming the numbers they pass); an older server requires strict number
  * order, so there they wait behind it, in order, and are numbered and printed meanwhile.
  *
  * TODO(backend): a sale made offline prints its number but not its QR; the QR's signed payload
@@ -329,7 +329,7 @@ export async function submitSale(
     return { queued: entry }
   }
   await holdSlipPhotos(key, till.id, photos)
-  const canSkip = till.skipsStuckNumbers === true
+  const canSkip = till.openNumbers === true
   capable.set(till.id, canSkip)
   // The older sales go first: once they are in, this one is sent as an ordinary online sale and
   // its receipt says so (E2E 29 Oct 2026, F-5). Only while some still wait does it join them.
@@ -348,13 +348,11 @@ export async function submitSale(
     }
   }
   if (outcome === 'offline' || outcome === 'busy') return enqueue()
-  // The server answered and every waiting sale is stuck on its own: this one need not wait, but it
-  // carries its own number, because the next one on the server is on a stuck sale's receipt.
+  // The server answered and every waiting sale is stuck on its own: this one need not wait. It goes
+  // as an ordinary online sale, and the server takes a number past those it has refused.
   if (outcome === 'done' && canSkip) {
-    const number = nextTillNumber(till)
-    if (!number) return enqueue()
     try {
-      const sale = await sendNumbered({ ...body, invoiceNumber: number }, key, true)
+      const sale = await createPosSale(body, key)
       noteNumberUsed(till.id, sale.invoiceNumber)
       void sendSlipPhotos(key, sale.saleId, till.id)
       return { sale }
@@ -375,12 +373,12 @@ export async function submitSale(
 }
 
 let flushing = false
-/** Whether the server takes `skippedNumbers`, as the till last said (`skipsStuckNumbers`). */
+/** Whether the server takes `skippedNumbers`, as the till last said (`openNumbers`). */
 const capable = new Map<string, boolean>()
 
 /** Tells the queue what this till's server allows; until then it keeps strict number order. */
-export function noteTillServer(till: Pick<PosTillDto, 'id' | 'skipsStuckNumbers'>) {
-  capable.set(till.id, till.skipsStuckNumbers === true)
+export function noteTillServer(till: Pick<PosTillDto, 'id' | 'openNumbers'>) {
+  capable.set(till.id, till.openNumbers === true)
 }
 
 /**

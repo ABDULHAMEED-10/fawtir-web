@@ -184,7 +184,7 @@ describe('the queue on the till and Today (H-1)', () => {
 
   it('a manager sets it aside on the server with a reason: it stays listed and is not sent by itself', async () => {
     const server = { aside: null as string | null }
-    const skipping = { ...TILL, skipsStuckNumbers: true } as PosTillDto
+    const skipping = { ...TILL, openNumbers: true } as PosTillDto
     const row = () => ({
       tillId: 'till-1',
       tillNumber: 1,

@@ -36,8 +36,8 @@ export type PosTillDto = {
   openShift: { shiftId: string; cashier: PosPerson; openedAt: string } | null
   /** Keyed `INVOICE` and `CREDIT_NOTE`. */
   series: Record<string, PosSeries>
-  /** The server takes `skippedNumbers` on a sale; an older one leaves this out. */
-  skipsStuckNumbers?: boolean
+  /** The server keeps open numbers (skip, set aside, the outstanding list); an older one leaves this out. */
+  openNumbers?: boolean
 }
 
 export type PosShiftDto = {
@@ -587,7 +587,7 @@ export function posOpenNumbersPath(branchId: string): string {
   return withQuery(`${POS_PATH}/open-numbers`, { branchId })
 }
 
-/** `pos.till.manage`. Lets the queue move on and closes nothing; only on a server with `skipsStuckNumbers`. */
+/** `pos.till.manage`. Lets the queue move on and closes nothing; only on a server with `openNumbers`. */
 export function setAsideOpenNumber(
   tillId: string,
   invoiceNumber: string,
