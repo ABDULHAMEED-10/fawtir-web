@@ -22663,7 +22663,9 @@
       "REFUNDED": "Refunded"
     },
     "appliedDone": "The credit was used against that bill.",
-    "refundedDone": "The refund was recorded."
+    "refundedDone": "The refund was recorded.",
+    "refundKeyReused": "This refund was changed after an earlier attempt that may already be recorded. Check the refunds on this note before recording it again: the next attempt counts as a new refund.",
+    "refundInProgress": "This refund is still being recorded. Wait a moment, then press Record the refund again without changing it."
   },
   "approvalPolicy": {
     "title": "Bill approvals",
