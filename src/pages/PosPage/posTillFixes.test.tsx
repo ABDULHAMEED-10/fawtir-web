@@ -630,7 +630,7 @@ describe('the refund page (F-11)', () => {
     fireEvent.click(await screen.findByRole('checkbox', { name: /Butter croissant/ }))
     const tipRow = (await screen.findByText(i18n.t('pos.refund.tipNotRefunded'))).parentElement!
     expect(tipRow.textContent).toContain('0.412')
-    expect(calls.some((call) => call.url.startsWith('/api/v1/pos/sales/s-1'))).toBe(false)
+    expect(calls.some((call) => call.url === '/api/v1/pos/sales/s-1')).toBe(false)
   })
 })
 

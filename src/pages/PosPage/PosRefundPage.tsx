@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
@@ -9,17 +9,23 @@ import {
   PermissionDeniedNotice,
 } from '../../components/feedback/ApiNotice'
 import { PosFootNote } from './PosFootNote'
+import { TillMoneyInput } from './TillMoneyInput'
 import { PosTillGate } from './PosTillGate'
 import { CheckIcon, DocumentIcon } from './posIcons'
 import { omr, omrSigned, tillTime, toBaisa } from '../../lib/pos'
 import {
   WHY_OPTIONS,
+  changeSplit,
   creditFor,
+  moneyBackLines,
   moneyBackMethod,
   onlyGivenAway,
   refundRequest,
   remaining,
+  splitFromQuote,
+  splitProblem,
   standsAt,
+  type MoneySplit,
   type PutRightChoice,
   type ReturnLine,
   type StockChoice,
@@ -33,16 +39,21 @@ import {
   createPosRefund,
   loadPosSale,
   newPosKey,
+  quotePosRefund,
   refundLookupPath,
   type PosSaleDto,
   type PosRefundDto,
   type PosRefundLookupDto,
+  type PosRefundQuoteDto,
 } from '../../api/pos/pos'
 import { startNewSale } from '../../lib/posSale'
 import { useCan } from '../../lib/session/session'
 import type { TillState } from '../../lib/posTill'
 
 type Ready = Extract<TillState, { status: 'ready' }>
+
+const MONEY_FIELD =
+  'h-10 w-full rounded-sm border border-border-subtle bg-white px-3 text-sm font-medium text-text-primary outline-none focus:border-border-brand'
 
 /**
  * A refund at the till (Figma 143:20983): only for whoever holds "Refund at the till"
@@ -142,9 +153,58 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
   /** The server's own figure, once it has said what the credit note comes to. */
   const [expected, setExpected] = useState<number | null>(null)
   const attempt = useRef<{ fingerprint: string; key: string } | null>(null)
+  /**
+   * The server's figure and split for the lines chosen. 'none': it cannot say (an older server, or
+   * the quote failed), and the refund goes as one line of money as it always did.
+   */
+  const [quote, setQuote] = useState<PosRefundQuoteDto | 'loading' | 'none' | null>(null)
+  const [split, setSplit] = useState<MoneySplit | null>(null)
+  const [approval, setApproval] = useState('')
+  const [transferReference, setTransferReference] = useState('')
+  /** Asks the server again after it refused the money: the sale may have moved on. */
+  const [askAgain, setAskAgain] = useState(0)
 
   const credit = creditFor(sale, returning)
   const stockReturn = onlyGivenAway(sale, returning)
+  const chosen = useMemo(
+    () =>
+      returning
+        .filter((entry) => entry.qty > 0)
+        .map((entry) => ({
+          lineNumber: entry.lineNumber,
+          quantity: entry.qty,
+          backOnShelf: false,
+        })),
+    [returning],
+  )
+  useEffect(() => {
+    if (chosen.length === 0 || stockReturn) {
+      setQuote(null)
+      setSplit(null)
+      return
+    }
+    let current = true
+    setQuote('loading')
+    quotePosRefund(sale.saleId, { tillId: till.till.id, lines: chosen }).then(
+      (answer) => {
+        if (!current) return
+        if (!Array.isArray(answer?.suggested)) {
+          setQuote('none')
+          return
+        }
+        setQuote(answer)
+        setSplit(splitFromQuote(answer))
+        setExpected(null)
+      },
+      () => {
+        if (current) setQuote('none')
+      },
+    )
+    return () => {
+      current = false
+    }
+  }, [chosen, stockReturn, sale.saleId, till.till.id, askAgain])
+  const quoted = quote && typeof quote === 'object' ? quote : null
   const stock: StockChoice = stockAnswer ?? (stockReturn ? 'backInStock' : 'thrownAway')
   // The tip the customer paid on top, which is never refunded (F-11): on the lookup since backend
   // #810; from an older server, read from the sale itself (`pos.read`), 0 without it.
@@ -162,7 +222,9 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
   const filing =
     sale.filing ?? (sold.read.status === 'ready' ? (sold.read.data.filing ?? null) : null)
   const acceptedByOta = Boolean(filing?.acceptedAt)
-  const back = expected ?? credit.back
+  const back = quoted ? toBaisa(quoted.total) : (expected ?? credit.back)
+  const cardLimit = quoted ? toBaisa(quoted.cardLimit) : 0
+  const moneyProblem = quoted && split ? splitProblem(split, back, cardLimit) : null
   const anything = credit.items > 0 || stockReturn
   const was = toBaisa(sale.total)
   const credited = toBaisa(sale.credited)
@@ -190,6 +252,10 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
       method: moneyBackMethod(sale),
       amount: back,
       noMoney: stockReturn,
+      moneyBack:
+        quoted && split
+          ? moneyBackLines(split, { approval, transfer: transferReference })
+          : undefined,
     })
     const fingerprint = JSON.stringify(body)
     if (!attempt.current || attempt.current.fingerprint !== fingerprint) {
@@ -207,6 +273,16 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
         server != null
       ) {
         setExpected(toBaisa(server))
+      }
+      if (
+        quoted &&
+        error instanceof ApiError &&
+        (error.code === 'POS_REFUND_MONEY_DOES_NOT_MATCH' ||
+          error.code === 'POS_REFUND_CARD_MORE_THAN_PAID' ||
+          error.code === 'POS_REFUND_MORE_THAN_PAID' ||
+          error.code === 'POS_REFUND_MORE_THAN_OWED')
+      ) {
+        setAskAgain((times) => times + 1)
       }
     } finally {
       setBusy(false)
@@ -448,16 +524,102 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
                         {t(`pos.refund.${option}`)}
                       </span>{' '}
                       <span className="text-xs font-medium leading-[1.5] text-text-quaternary">
-                        {t(`pos.refund.${option}NoteLive`, {
-                          amount: omr(back),
-                          method: t(`pos.refund.method.${moneyBackMethod(sale)}`),
-                        })}
+                        {quoted && option === 'moneyBack'
+                          ? t('pos.refund.moneyBackNoteSplit', { amount: omr(back) })
+                          : t(`pos.refund.${option}NoteLive`, {
+                              amount: omr(back),
+                              method: t(`pos.refund.method.${moneyBackMethod(sale)}`),
+                            })}
                       </span>
                     </span>
                   </button>
                 )
               })}
             </div>
+            {quoted && split && !done ? (
+              <div className="grid grid-cols-2 gap-3 border-t border-border-subtle px-5 py-4 max-md:grid-cols-1">
+                <p className="col-span-full text-sm font-semibold text-text-primary">
+                  {t('pos.refund.howItGoesBack')}
+                </p>
+                {split.reduce > 0 ? (
+                  <p className="col-span-full text-xs font-medium leading-[1.5] text-text-quaternary">
+                    {withRial(
+                      t('pos.refund.offWhatTheyOwe', { amount: `OMR ${omr(split.reduce)}` }),
+                    )}
+                  </p>
+                ) : null}
+                {cardLimit > 0 ? (
+                  <label className="flex flex-col gap-1.5 text-sm font-medium text-text-secondary">
+                    {t('pos.refund.method.CARD')}
+                    <TillMoneyInput
+                      baisa={split.card}
+                      onBaisa={(value) =>
+                        setSplit(changeSplit(split, back, cardLimit, 'card', value ?? 0))
+                      }
+                      className={`${MONEY_FIELD} text-end`}
+                    />
+                    <span className="text-xs font-medium text-text-quaternary">
+                      {withRial(t('pos.refund.cardLimit', { amount: `OMR ${omr(cardLimit)}` }))}
+                    </span>
+                  </label>
+                ) : null}
+                {cardLimit > 0 && split.card > 0 ? (
+                  <label className="flex flex-col gap-1.5 text-sm font-medium text-text-secondary">
+                    {t('pos.pay.approvalCode')}
+                    <input
+                      value={approval}
+                      maxLength={40}
+                      dir="ltr"
+                      onChange={(event) => setApproval(event.target.value)}
+                      placeholder={t('pos.pay.optional')}
+                      className={MONEY_FIELD}
+                    />
+                  </label>
+                ) : null}
+                <label className="flex flex-col gap-1.5 text-sm font-medium text-text-secondary">
+                  {t('pos.refund.method.CASH')}
+                  <TillMoneyInput
+                    baisa={split.cash}
+                    onBaisa={(value) =>
+                      setSplit(changeSplit(split, back, cardLimit, 'cash', value ?? 0))
+                    }
+                    className={`${MONEY_FIELD} text-end`}
+                  />
+                </label>
+                <label className="flex flex-col gap-1.5 text-sm font-medium text-text-secondary">
+                  {t('pos.refund.method.TRANSFER')}
+                  <TillMoneyInput
+                    baisa={split.transfer}
+                    onBaisa={(value) =>
+                      setSplit(changeSplit(split, back, cardLimit, 'transfer', value ?? 0))
+                    }
+                    className={`${MONEY_FIELD} text-end`}
+                  />
+                </label>
+                {split.transfer > 0 ? (
+                  <label className="flex flex-col gap-1.5 text-sm font-medium text-text-secondary">
+                    {t('pos.pay.transferReference')}
+                    <input
+                      value={transferReference}
+                      maxLength={200}
+                      dir="ltr"
+                      onChange={(event) => setTransferReference(event.target.value)}
+                      placeholder={t('pos.pay.optional')}
+                      className={MONEY_FIELD}
+                    />
+                  </label>
+                ) : null}
+                {moneyProblem ? (
+                  <p role="alert" className="col-span-full text-xs font-medium text-pending-700">
+                    {withRial(
+                      moneyProblem === 'overCard'
+                        ? t('pos.refund.overCard', { amount: `OMR ${omr(cardLimit)}` })
+                        : t('pos.refund.doesNotAdd', { amount: `OMR ${omr(back)}` }),
+                    )}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
           </section>
 
           <section className="rounded-md bg-surface-card">
@@ -625,7 +787,13 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
             ) : (
               <button
                 type="button"
-                disabled={!anything || busy || (why === 'other' && !note.trim())}
+                disabled={
+                  !anything ||
+                  busy ||
+                  quote === 'loading' ||
+                  moneyProblem !== null ||
+                  (why === 'other' && !note.trim())
+                }
                 onClick={() => void refund()}
                 className="inline-flex h-[52px] w-full items-center justify-center rounded-sm bg-danger-700 text-base font-semibold text-white transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
               >

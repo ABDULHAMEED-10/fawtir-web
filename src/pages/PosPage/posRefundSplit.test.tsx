@@ -1,0 +1,337 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import i18n from '../../i18n'
+import { PosRefundPage } from './PosRefundPage'
+import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
+import { changeSplit, moneyBackLines, splitFromQuote, splitProblem } from '../../lib/posRefund'
+import { figuresOf } from '../../lib/posClose'
+import { resetOpenSale } from '../../lib/posSale'
+import { resetPosQueue } from '../../lib/posQueue'
+import { resetSharedRequests } from '../../api'
+import { forgetWorkingBranch } from '../../lib/workingBranch'
+import type { PosClosePreviewDto, PosRefundQuoteDto } from '../../api/pos/pos'
+
+/** The money back of a split sale (Abdul, 1 Nov 2026), on a server with the quote and one without. */
+
+const MANAGER: Entitlements = {
+  userId: 'u-1',
+  username: 'maryam',
+  tenantId: 't-1',
+  roles: [],
+  permissions: ['pos.read', 'pos.sell', 'pos.refund'],
+  scopes: [],
+  featureFlags: {},
+}
+
+const TILL = {
+  id: 'till-1',
+  branchId: 'b-1',
+  number: 1,
+  code: 'T01',
+  seriesBase: 'NZW-T01',
+  name: 'Till 1',
+  status: 'ACTIVE',
+  defaultFloat: 30,
+  version: 0,
+  openShift: {
+    shiftId: 'sh-1',
+    cashier: { userId: 'u-1', name: 'Maryam' },
+    openedAt: '2026-10-28T03:00:00Z',
+  },
+  series: { INVOICE: { series: 'NZW-T01-INV', year: 2026, nextValue: 49 } },
+}
+
+const LOOKUP = {
+  saleId: 'sale-1',
+  invoiceId: 'inv-1',
+  invoiceNumber: 'NZW-T01-INV-2026-000001',
+  soldAt: '2026-10-28T08:00:00Z',
+  transactionType: 'SIMPLIFIED',
+  branch: { id: 'b-1', name: 'Nizwa' },
+  customer: { kind: 'WALK_IN', customerId: 'c-1', name: 'Walk-in customer' },
+  headerDiscount: null,
+  lines: [
+    {
+      lineNumber: 1,
+      role: 'ITEM',
+      productId: 'p-1',
+      description: 'Lunch',
+      quantitySold: 3,
+      quantityRefunded: 0,
+      unitPrice: 4.452,
+      discount: null,
+      vatRate: 5,
+      vatCategory: 'S',
+      refundable: true,
+    },
+  ],
+  paid: {
+    byMethod: [
+      { method: 'CARD', amount: 10 },
+      { method: 'CASH', amount: 4.025 },
+    ],
+    total: 14.025,
+    paidBack: 0,
+  },
+  total: 14.025,
+  tip: 0,
+  tipMethod: null,
+  filing: null,
+  credited: 0,
+  owed: 0,
+  creditNoteNumbers: [],
+}
+
+const QUOTE: PosRefundQuoteDto = {
+  total: 14.025,
+  lastRefund: true,
+  suggested: [
+    { method: 'CARD', amount: 10 },
+    { method: 'CASH', amount: 4.025 },
+  ],
+  cardLimit: 10,
+  payOutLimit: 14.025,
+  reduceBalance: 0,
+}
+
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': status >= 400 ? 'application/problem+json' : 'application/json' },
+  })
+
+let quote: () => Response
+let refund: () => Response
+let quotes: unknown[]
+let refunds: { moneyBack: unknown[] }[]
+
+const REFUNDED = {
+  refundId: 'r-1',
+  saleId: 'sale-1',
+  creditNoteId: 'cn-1',
+  creditNoteNumber: 'NZW-T01-CRN-2026-000001',
+  totals: {},
+  warnings: [],
+}
+
+beforeEach(async () => {
+  await i18n.changeLanguage('en')
+  resetOpenSale([])
+  resetPosQueue()
+  resetSharedRequests()
+  forgetEntitlements()
+  forgetWorkingBranch()
+  window.localStorage.clear()
+  quotes = []
+  refunds = []
+  quote = () => json(QUOTE)
+  refund = () => json(REFUNDED, 201)
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url === '/api/v1/me/entitlements') return json(MANAGER)
+      if (url === '/api/v1/branches') {
+        return json([{ id: 'b-1', code: 'NZW', name: 'Nizwa', type: 'BRANCH', city: 'Nizwa' }])
+      }
+      if (url.startsWith('/api/v1/pos/tills')) return json([TILL])
+      if (url.startsWith('/api/v1/pos/refund-lookup')) return json(LOOKUP)
+      if (url === '/api/v1/pos/sales/sale-1/refund-quote') {
+        quotes.push(JSON.parse(String(init?.body)))
+        return quote()
+      }
+      if (url === '/api/v1/pos/sales/sale-1/refunds' && init?.method === 'POST') {
+        refunds.push(JSON.parse(String(init.body)))
+        return refund()
+      }
+      return json({ type: 'about:blank', status: 404 }, 404)
+    }),
+  )
+})
+
+afterEach(() => vi.unstubAllGlobals())
+
+const open = async () => {
+  render(
+    <MemoryRouter initialEntries={['/pos/refund?invoice=NZW-T01-INV-2026-000001']}>
+      <Routes>
+        <Route path="/pos/refund" element={<PosRefundPage />} />
+      </Routes>
+    </MemoryRouter>,
+  )
+  fireEvent.click(await screen.findByText(i18n.t('pos.refund.allOfIt')))
+}
+
+const field = (label: string) => screen.getByLabelText(new RegExp(`^${label}`)) as HTMLInputElement
+
+const refundButton = () => screen.getByRole('button', { name: /^Refund/ }) as HTMLButtonElement
+
+describe('the refund page on a server with the quote', () => {
+  it('fills the sale split from the server, and sends it with the approval reference', async () => {
+    await open()
+    await waitFor(() => expect(field('Card').value).toBe('10.000'))
+    expect(field('Cash').value).toBe('4.025')
+    expect(quotes).toEqual([
+      { tillId: 'till-1', lines: [{ lineNumber: 1, quantity: 3, backOnShelf: false }] },
+    ])
+    expect(document.body.textContent).toMatch(/Up to .*10\.000 can go back to the card/)
+
+    fireEvent.change(field(i18n.t('pos.pay.approvalCode')), { target: { value: 'AUTH-77' } })
+    fireEvent.click(refundButton())
+    await waitFor(() => expect(refunds).toHaveLength(1))
+    expect(refunds[0].moneyBack).toEqual([
+      { method: 'CARD', amount: 10, reference: 'AUTH-77' },
+      { method: 'CASH', amount: 4.025 },
+    ])
+  })
+
+  it('uses the server total over the estimate', async () => {
+    quote = () =>
+      json({
+        ...QUOTE,
+        total: 14.024,
+        suggested: [
+          { method: 'CARD', amount: 10 },
+          { method: 'CASH', amount: 4.024 },
+        ],
+      })
+    await open()
+    await waitFor(() => expect(field('Cash').value).toBe('4.024'))
+    expect(refundButton().textContent).toContain('14.024')
+  })
+
+  it('lets the cashier send it all in cash: no approval field, no card line', async () => {
+    await open()
+    await waitFor(() => expect(field('Card').value).toBe('10.000'))
+    fireEvent.change(field('Cash'), { target: { value: '14.025' } })
+    fireEvent.blur(field('Cash'))
+    expect(field('Card').value).toBe('0.000')
+    expect(screen.queryByLabelText(new RegExp(`^${i18n.t('pos.pay.approvalCode')}`))).toBeNull()
+    fireEvent.click(refundButton())
+    await waitFor(() => expect(refunds).toHaveLength(1))
+    expect(refunds[0].moneyBack).toEqual([{ method: 'CASH', amount: 14.025 }])
+  })
+
+  it('stops more than the card can take, on the screen', async () => {
+    await open()
+    await waitFor(() => expect(field('Card').value).toBe('10.000'))
+    fireEvent.change(field('Card'), { target: { value: '12.000' } })
+    expect(screen.getByRole('alert').textContent).toMatch(
+      /At most .*10\.000 can go back to the card/,
+    )
+    expect(refundButton().disabled).toBe(true)
+  })
+
+  it('words the server refusal, and asks again for what is left now', async () => {
+    refund = () =>
+      json(
+        { status: 422, code: 'POS_REFUND_CARD_MORE_THAN_PAID', maxCard: 4.75, requested: 10 },
+        422,
+      )
+    await open()
+    await waitFor(() => expect(field('Card').value).toBe('10.000'))
+    fireEvent.click(refundButton())
+    await waitFor(() =>
+      expect(screen.getByText(/At most 4\.750 can go back to the card/)).toBeTruthy(),
+    )
+    await waitFor(() => expect(quotes).toHaveLength(2))
+  })
+
+  it('shows what a company owes as going to its account, with nothing to change', async () => {
+    quote = () =>
+      json({
+        ...QUOTE,
+        suggested: [{ method: 'REDUCE_BALANCE', amount: 14.025 }],
+        cardLimit: 0,
+        payOutLimit: 0,
+        reduceBalance: 14.025,
+      })
+    await open()
+    await screen.findByText(/comes off what they owe/)
+    expect(screen.queryByLabelText(/^Card/)).toBeNull()
+    fireEvent.click(refundButton())
+    await waitFor(() => expect(refunds).toHaveLength(1))
+    expect(refunds[0].moneyBack).toEqual([{ method: 'REDUCE_BALANCE', amount: 14.025 }])
+  })
+
+  it('reads in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    await open()
+    await screen.findByText(i18n.t('pos.refund.howItGoesBack'))
+    expect(i18n.t('pos.refund.howItGoesBack')).not.toBe('How it goes back')
+    expect(i18n.t('pos.refusal.POS_REFUND_CARD_MORE_THAN_PAID', { maxCard: '1.000' })).toContain(
+      '1.000',
+    )
+  })
+})
+
+describe('the refund page on a server without the quote', () => {
+  it('keeps one line of money, the way it was paid, with no split fields', async () => {
+    quote = () => json({ type: 'about:blank', status: 404 }, 404)
+    await open()
+    await waitFor(() => expect(quotes).toHaveLength(1))
+    await waitFor(() => expect(refundButton().disabled).toBe(false))
+    expect(screen.queryByText(i18n.t('pos.refund.howItGoesBack'))).toBeNull()
+    fireEvent.click(refundButton())
+    await waitFor(() => expect(refunds).toHaveLength(1))
+    expect(refunds[0].moneyBack).toHaveLength(1)
+    expect(refunds[0].moneyBack[0]).toMatchObject({ method: 'CASH' })
+  })
+})
+
+describe('the split in baisa', () => {
+  const split = splitFromQuote(QUOTE)
+
+  it('changing the card moves the difference to cash', () => {
+    expect(changeSplit(split, 14025, 10000, 'card', 6000)).toMatchObject({ card: 6000, cash: 8025 })
+  })
+
+  it('changing cash fills the card up to its limit, then transfer', () => {
+    expect(changeSplit(split, 14025, 10000, 'cash', 2000)).toMatchObject({
+      cash: 2000,
+      card: 10000,
+      transfer: 2025,
+    })
+  })
+
+  it('says when it cannot go', () => {
+    expect(splitProblem({ ...split, card: 10001, cash: 4024 }, 14025, 10000)).toBe('overCard')
+    expect(splitProblem({ ...split, cash: 1 }, 14025, 10000)).toBe('doesNotAdd')
+    expect(splitProblem(split, 14025, 10000)).toBeNull()
+  })
+
+  it('leaves out a method given nothing and a blank reference', () => {
+    expect(
+      moneyBackLines(
+        { card: 500, cash: 0, transfer: 0, reduce: 0 },
+        { approval: ' ', transfer: '' },
+      ),
+    ).toEqual([{ method: 'CARD', amount: 0.5, reference: null }])
+  })
+})
+
+describe('the close, card refunds', () => {
+  const preview = (terminal: number) =>
+    ({
+      openingFloat: 0,
+      cashRefunded: 0,
+      paidOut: 0,
+      paidIn: 0,
+      expectedCash: 0,
+      companyInvoices: 0,
+      salesAmount: 10,
+      salesCount: 1,
+      byMethod: [{ method: 'CARD', sales: 1, taken: 10, refunded: 3.333, tips: 0 }],
+      looseEnds: { cardSalesForTerminalCheck: { count: 1, amount: terminal } },
+    }) as unknown as PosClosePreviewDto
+
+  it('reads what went back to cards, and whether the machine figure already took it off', () => {
+    expect(figuresOf(preview(6.667))).toMatchObject({
+      cardRefunded: 3333,
+      terminal: 6667,
+      terminalNet: true,
+    })
+    expect(figuresOf(preview(10)).terminalNet).toBe(false)
+  })
+})
