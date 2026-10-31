@@ -13103,7 +13103,8 @@
     "selected_zero": "{{count}} أصناف محددة",
     "selected_two": "{{count}} أصناف محددة",
     "selected_few": "{{count}} أصناف محددة",
-    "selected_many": "{{count}} أصناف محددة"
+    "selected_many": "{{count}} أصناف محددة",
+    "buildFromTemplate": "ابنِ من قالب"
   },
   "changePrices": {
     "title_one": "غيّر صنفًا واحدًا دفعة واحدة",

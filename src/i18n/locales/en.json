@@ -12368,7 +12368,8 @@
       "moveGroup": "Move it to a group",
       "switchOff": "Take it off sale",
       "switchOn": "Put it back on sale"
-    }
+    },
+    "buildFromTemplate": "Build from a template"
   },
   "changePrices": {
     "title_one": "Change {{count}} item at once",

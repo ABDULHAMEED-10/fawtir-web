@@ -300,3 +300,54 @@ describe('the catalogue list', () => {
     }
   })
 })
+
+describe('the way back to the template once the catalogue has items', () => {
+  const withTemplate = (permissions: string[], template: Response | null) => {
+    const base = vi.mocked(fetch).getMockImplementation()!
+    vi.mocked(fetch).mockImplementation(async (url, init) => {
+      if (url === '/api/v1/me/entitlements') return json({ ...READER, permissions })
+      if (url === '/api/v1/catalog/templates')
+        return template ?? new Response(null, { status: 404 })
+      return base(url, init)
+    })
+  }
+  const TEMPLATE = json({ subBusinessTypeCode: 'COFFEE_SHOP', version: 1, groups: [] })
+  const templateCalls = () =>
+    vi.mocked(fetch).mock.calls.filter(([url]) => String(url) === '/api/v1/catalog/templates')
+      .length
+
+  it('offers Build from a template to someone who may add items', async () => {
+    withTemplate(['product.read', 'product.manage'], TEMPLATE)
+    render(
+      <MemoryRouter>
+        <CatalogPage />
+      </MemoryRouter>,
+    )
+    const link = await screen.findByRole('link', { name: 'Build from a template' })
+    expect(link.getAttribute('href')).toBe('/catalog/build')
+  })
+
+  it('offers nothing when the business type has no template', async () => {
+    withTemplate(['product.read', 'product.manage'], null)
+    render(
+      <MemoryRouter>
+        <CatalogPage />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText('Item 01')).toBeTruthy()
+    await vi.waitFor(() => expect(templateCalls()).toBe(1))
+    expect(screen.queryByRole('link', { name: 'Build from a template' })).toBeNull()
+  })
+
+  it('does not even ask for the template for someone who only reads', async () => {
+    withTemplate(['product.read'], TEMPLATE)
+    render(
+      <MemoryRouter>
+        <CatalogPage />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText('Item 01')).toBeTruthy()
+    expect(templateCalls()).toBe(0)
+    expect(screen.queryByRole('link', { name: 'Build from a template' })).toBeNull()
+  })
+})
