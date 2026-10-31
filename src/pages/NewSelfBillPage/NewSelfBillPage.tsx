@@ -106,7 +106,8 @@ const KIND_ICONS: Record<SelfBillKind, string> = {
   statutory: statutoryIcon,
 }
 
-const CURRENCIES: SelectOption[] = [{ value: 'OMR', label: 'OMR - Omani Rial' }]
+/** The label is translated where it is drawn: a constant here showed English in Arabic (DB-13). */
+const CURRENCY_LABEL_KEYS: Record<string, string> = { OMR: 'invoiceDetails.currencyOmr' }
 
 /** What the attachment route takes: the invoice composer's list and limit. */
 const ATTACHMENT_TYPES = '.pdf,.jpg,.jpeg,.png,.xlsx'
@@ -1100,7 +1101,10 @@ function SelfBillComposer() {
               label={t('newSelfBill.fields.currency')}
               value={form.currency}
               onChange={(currency) => patch({ currency })}
-              options={CURRENCIES}
+              options={Object.entries(CURRENCY_LABEL_KEYS).map(([value, key]) => ({
+                value,
+                label: t(key),
+              }))}
               required
               disabled={!editable}
             />

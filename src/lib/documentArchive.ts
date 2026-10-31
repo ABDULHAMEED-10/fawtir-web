@@ -110,7 +110,24 @@ export const TDD_STATUSES = [
   'TO_DISREGARD',
   'DISREGARD_SUBMITTED',
   'DEAD_LETTERED',
+  // Backend V491: the obligation on a network with no tax authority endpoint to report to.
+  'NOT_TESTED',
 ] as const
+
+export type TddStatus = (typeof TDD_STATUSES)[number]
+
+const isTddStatus = (status: string): status is TddStatus =>
+  (TDD_STATUSES as readonly string[]).includes(status)
+
+/**
+ * The words for a report status. The archive's `tdd.status` is an open string, and a value this
+ * build does not know (NOT_TESTED arrived with V491 and leaked as `documents.chip.NOT_TESTED`)
+ * reads as "not recognised" rather than as a raw i18n key.
+ */
+export function tddStatusKey(status: string | null, scope: 'chip' | 'tdd'): string {
+  if (!status) return `documents.${scope}.none`
+  return isTddStatus(status) ? `documents.${scope}.${status}` : `documents.${scope}.unknown`
+}
 
 /** Tax years worth offering: this one and the nine before it, which is the retention horizon. */
 export function taxYears(today: string): number[] {
@@ -404,7 +421,7 @@ export function statusChip(item: ArchiveItemDto): { key: string; tone: ChipTone 
         : status === 'PENDING' || status === 'SUBMITTED' || status === 'DELIVERED_UNCONFIRMED'
           ? 'blue'
           : 'grey'
-  return { key: `documents.chip.${status}`, tone }
+  return { key: tddStatusKey(status, 'chip'), tone }
 }
 
 /** The retention class in the list's short words ("10 years", "15 years · property"). */

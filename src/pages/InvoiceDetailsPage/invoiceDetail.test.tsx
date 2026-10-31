@@ -37,6 +37,7 @@ const ADMIN: Entitlements = {
     'invoice.payment.manage',
     'customer.read',
     'creditnote.create',
+    'branch.read',
   ],
   scopes: [],
   featureFlags: {},
@@ -120,6 +121,14 @@ const RECEIVABLE: InvoiceReceivableDto = {
   paymentState: 'PARTIALLY_PAID',
   overdue: false,
   dueDate: '2026-09-30',
+}
+
+/** Nothing paid and nothing credited: the only receivable an issued invoice may be cancelled with. */
+const UNSETTLED: InvoiceReceivableDto = {
+  ...RECEIVABLE,
+  paidAmount: 0,
+  outstandingAmount: 56.7,
+  paymentState: 'UNPAID',
 }
 
 const PAYMENTS: InvoicePaymentDto[] = [
@@ -224,6 +233,8 @@ let fetchMock: ReturnType<typeof vi.fn>
 let invoiceResponse: () => Response
 let receivableResponse: () => Response
 let cancelResponse: () => Response
+/** The notes that correct the invoice, as `GET /authored-invoices?correctionOf=` lists them. */
+let notesResponse: () => Response
 let payResponse: () => Response
 let issueResponse: () => Response
 let dispatchResponse: () => Response
@@ -261,6 +272,7 @@ beforeEach(async () => {
   invoiceResponse = () => json(200, invoice())
   receivableResponse = () => json(200, RECEIVABLE)
   cancelResponse = () => json(200, invoice({ authoringState: 'CANCELLED', version: 5 }))
+  notesResponse = () => json(200, { content: [], page: 0, size: 50, totalElements: 0 })
   payResponse = () => json(200, PAYMENTS[0])
   issueResponse = () => json(200, invoice({ version: 5 }))
   dispatchResponse = () => json(200, NOT_SENT)
@@ -344,9 +356,8 @@ beforeEach(async () => {
     if (url === '/api/v1/settings/subscription') return subscriptionResponse()
     if (url === '/api/v1/payment-reminders/schedule')
       return json(200, { offsets: [-3, 0, 7, 14], enabled: true })
-    // The notes that correct the invoice; none in these fixtures.
-    if (url.startsWith('/api/v1/authored-invoices?'))
-      return json(200, { content: [], page: 0, size: 50, totalElements: 0 })
+    // The notes that correct the invoice; none unless a test says otherwise.
+    if (url.startsWith('/api/v1/authored-invoices?')) return notesResponse()
     if (url.startsWith('/api/v1/compliance/activity?') && method === 'GET')
       return activityListResponse()
     if (url.startsWith('/api/v1/compliance/activity/') && method === 'GET') {
@@ -427,6 +438,10 @@ describe('An invoice, wired to the API', () => {
     expect((await screen.findAllByText('Partially paid')).length).toBeGreaterThan(0)
     expect(screen.getAllByText('Sohar Port Logistics').length).toBeGreaterThan(0)
     expect(screen.getAllByText('VAT OM1100999001').length).toBeGreaterThan(0)
+    // There is no /customers/:id route; the catch-all sent this link to the marketing home.
+    expect((await screen.findByRole('link', { name: /View customer/ })).getAttribute('href')).toBe(
+      '/customers/c-1/edit',
+    )
     // The branch and the terms are on the page and again on the preview's paper.
     expect(screen.getAllByText('Head office').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Net 30 days').length).toBeGreaterThan(0)
@@ -589,10 +604,12 @@ describe('An invoice, wired to the API', () => {
   })
 
   it('cancels with a reason, and reads a refusal as its own sentence', async () => {
+    receivableResponse = () => json(200, UNSETTLED)
     renderInvoice()
     await screen.findByRole('heading', { level: 1, name: 'Invoice INV-2026-0042' })
-    // Cancelling lives in the header's overflow menu, as the design draws it.
-    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    // Cancelling lives in the header's overflow menu, as the design draws it. The menu waits on
+    // the receivable and the notes list, which decide whether Cancel may be offered (A-0).
+    fireEvent.click(await screen.findByRole('button', { name: 'More actions' }))
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel invoice' }))
     expect(await screen.findByText(/does not tell the customer/)).toBeTruthy()
     const confirm = screen.getByRole('button', { name: 'Cancel the invoice' }) as HTMLButtonElement
@@ -615,9 +632,10 @@ describe('An invoice, wired to the API', () => {
         code: 'DELIVERED_INVOICE_CANCELLATION_NOT_APPROVED',
         detail: 'no',
       })
+    receivableResponse = () => json(200, UNSETTLED)
     renderInvoice()
     await screen.findByRole('heading', { level: 1, name: 'Invoice INV-2026-0042' })
-    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'More actions' }))
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel invoice' }))
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Too late' } })
     fireEvent.click(screen.getByRole('button', { name: 'Cancel the invoice' }))
@@ -640,6 +658,99 @@ describe('An invoice, wired to the API', () => {
     invoiceResponse = () => json(404, { type: 'https://api.fawtir.om/problems/not-found' })
     renderInvoice()
     expect(await screen.findByText('Not found')).toBeTruthy()
+  })
+
+  it('reads a malformed id (400 on the read) as not found, with nothing to retry', async () => {
+    invoiceResponse = () =>
+      json(400, { type: 'https://api.fawtir.om/problems/validation-failed', status: 400 })
+    renderInvoice()
+    expect(await screen.findByText('Not found')).toBeTruthy()
+    expect(screen.queryByText(/Some details were not accepted/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
+  })
+
+  it('names the VAT category on the totals line as the header does, zero-rated included', async () => {
+    const base = invoice()
+    invoiceResponse = () =>
+      json(
+        200,
+        invoice({
+          lines: [{ ...base.lines[0], taxCategoryCode: 'Z', en16931Category: 'Z', taxRate: 0 }],
+          totals: { ...base.totals!, vatAmount: 0, totalAmount: 54 },
+        }),
+      )
+    renderInvoice()
+    expect(await screen.findByText('VAT · Zero-rated 0%')).toBeTruthy()
+    expect(screen.queryByText(/Standard 0%/)).toBeNull()
+  })
+
+  it('words the totals VAT line in natural Arabic, standard and zero-rated', async () => {
+    await i18n.changeLanguage('ar')
+    const view = renderInvoice()
+    expect(await screen.findByText('الضريبة · القياسية 5%')).toBeTruthy()
+    view.unmount()
+    const base = invoice()
+    invoiceResponse = () =>
+      json(
+        200,
+        invoice({
+          lines: [{ ...base.lines[0], taxCategoryCode: 'Z', en16931Category: 'Z', taxRate: 0 }],
+          totals: { ...base.totals!, vatAmount: 0, totalAmount: 54 },
+        }),
+      )
+    renderInvoice()
+    expect(await screen.findByText('الضريبة · بنسبة صفرية 0%')).toBeTruthy()
+  })
+
+  it.each([
+    ['en', 'S', 5, 'Standard rate · 5%'],
+    ['en', 'Z', 0, 'Zero-rated · 0%'],
+    ['ar', 'S', 5, 'النسبة القياسية · 5%'],
+    ['ar', 'Z', 0, 'بنسبة صفرية · 0%'],
+  ])('heads the VAT treatment in plain words, %s %s (A-8)', async (lang, category, rate, words) => {
+    await i18n.changeLanguage(lang)
+    const base = invoice()
+    invoiceResponse = () =>
+      json(
+        200,
+        invoice({
+          lines: [{ ...base.lines[0], taxCategoryCode: category, en16931Category: category, taxRate: rate }],
+        }),
+      )
+    renderInvoice()
+    expect(await screen.findByText(words)).toBeTruthy()
+    // "Zero-rated rate" and "نسبة بنسبة صفر" were the words this replaces.
+    expect(screen.queryByText(/Zero-rated rate|نسبة بنسبة/)).toBeNull()
+  })
+
+  it('names the credit in the payments footer, so paid, credited and outstanding add up', async () => {
+    receivableResponse = () =>
+      json(200, {
+        ...RECEIVABLE,
+        documentTotal: 52.5,
+        paidAmount: 0,
+        creditedAmount: 10.5,
+        outstandingAmount: 42,
+        paymentState: 'UNPAID',
+      })
+    renderInvoice()
+    const footer = await screen.findAllByText(
+      (_, element) =>
+        element?.tagName === 'SPAN' &&
+        /Paid.*of.*52\.500.*·\s*Credited.*10\.500/.test(element.textContent ?? ''),
+    )
+    expect(footer.length).toBeGreaterThan(0)
+  })
+
+  it('names no credit in the payments footer when nothing was credited', async () => {
+    renderInvoice()
+    await waitFor(() => expect(screen.getAllByText('56.700')).toHaveLength(4))
+    expect(
+      screen.queryAllByText(
+        (_, element) =>
+          element?.tagName === 'SPAN' && /Paid.*of.*·\s*Credited/.test(element.textContent ?? ''),
+      ),
+    ).toHaveLength(0)
   })
 
   it('marks an invoice a till sale issued From the till, naming the till, in English and Arabic', async () => {
@@ -1619,6 +1730,7 @@ describe('E28: a read-only subscription hides new documents and sending (plan v4
   ])('hides Credit note, Debit note, Send, Duplicate and periodic while %s; reading stays', async (_, status) => {
     who = OWNER
     subscriptionResponse = () => json(200, status)
+    receivableResponse = () => json(200, UNSETTLED)
     renderInvoice()
     await screen.findByRole('heading', { level: 1, name: 'Invoice INV-2026-0042' })
     await waitFor(() => expect(subscriptionReads().length).toBeGreaterThan(0))
@@ -2235,5 +2347,298 @@ describe('Sales approval on a draft', () => {
     ).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Send for approval' })).toBeTruthy()
     expect(screen.queryByText(/Not enough people/)).toBeNull()
+  })
+})
+
+describe('Cancel is not offered on an invoice something already settles (A-0)', () => {
+  const ISSUED_CREDIT_NOTE = {
+    id: 'cn-1',
+    type: 'CREDIT_NOTE',
+    version: 1,
+    authoringState: 'ISSUED',
+    deliveryState: 'NOT_SUBMITTED',
+    customerId: 'c-1',
+    currency: 'OMR',
+    invoiceNumber: 'CRN-2026-0003',
+    issueDate: '2026-08-05',
+    dueDate: null,
+    details: null,
+    lines: [],
+    totals: { totalAmount: 10 },
+    customerName: null,
+    payment: null,
+    correctionOfInvoiceId: ID,
+  }
+
+  const openMenu = async () => {
+    renderInvoice()
+    await screen.findByRole('heading', {
+      level: 1,
+      name: i18n.t('invoiceDetails.title', { id: 'INV-2026-0042' }),
+    })
+    // Both reads decide the menu, so the menu is opened only once both have answered.
+    await waitFor(() => expect(calls()).toContain(`GET ${URL_BASE}/receivable`))
+    await waitFor(() =>
+      expect(calls().some((call) => call.startsWith('GET /api/v1/authored-invoices?'))).toBe(true),
+    )
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('invoiceDetails.actions.more') }))
+  }
+
+  it('offers Cancel on an issued invoice with no payment and no note', async () => {
+    receivableResponse = () => json(200, UNSETTLED)
+    await openMenu()
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel invoice' }))
+    expect(await screen.findByRole('dialog', { name: 'Cancel this invoice?' })).toBeTruthy()
+  })
+
+  it('does not open the cancel dialog once a credit note is issued against it, and says why', async () => {
+    receivableResponse = () => json(200, { ...UNSETTLED, creditedAmount: 10, outstandingAmount: 46.7 })
+    notesResponse = () =>
+      json(200, { content: [ISSUED_CREDIT_NOTE], page: 0, size: 50, totalElements: 1 })
+    await openMenu()
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel invoice' }))
+    expect(
+      await screen.findByText(
+        'This invoice cannot be cancelled: credit or debit notes have been issued against it.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByRole('dialog', { name: 'Cancel this invoice?' })).toBeNull()
+    expect(calls()).not.toContain(`POST ${URL_BASE}/cancel`)
+  })
+
+  it('reads an issued debit note on the list as a correction even before the balance shows it', async () => {
+    receivableResponse = () => json(200, UNSETTLED)
+    notesResponse = () =>
+      json(200, {
+        content: [{ ...ISSUED_CREDIT_NOTE, id: 'dn-1', type: 'DEBIT_NOTE', invoiceNumber: 'DBN-1' }],
+        page: 0,
+        size: 50,
+        totalElements: 1,
+      })
+    await openMenu()
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel invoice' }))
+    expect(await screen.findByText(/credit or debit notes have been issued against it/)).toBeTruthy()
+    expect(screen.queryByRole('dialog', { name: 'Cancel this invoice?' })).toBeNull()
+  })
+
+  it('does not open the cancel dialog once a payment is recorded, and says why', async () => {
+    receivableResponse = () => json(200, RECEIVABLE)
+    await openMenu()
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel invoice' }))
+    expect(
+      await screen.findByText(
+        'This invoice cannot be cancelled: payments are recorded against it.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByRole('dialog', { name: 'Cancel this invoice?' })).toBeNull()
+    expect(calls()).not.toContain(`POST ${URL_BASE}/cancel`)
+  })
+
+  it('a draft or cancelled note on the list does not block cancelling', async () => {
+    receivableResponse = () => json(200, UNSETTLED)
+    notesResponse = () =>
+      json(200, {
+        content: [
+          { ...ISSUED_CREDIT_NOTE, authoringState: 'DRAFT', invoiceNumber: null },
+          { ...ISSUED_CREDIT_NOTE, id: 'cn-2', authoringState: 'CANCELLED' },
+        ],
+        page: 0,
+        size: 50,
+        totalElements: 2,
+      })
+    await openMenu()
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel invoice' }))
+    expect(await screen.findByRole('dialog', { name: 'Cancel this invoice?' })).toBeTruthy()
+  })
+
+  it.each([
+    [
+      'en',
+      'INVOICE_CANCEL_HAS_CORRECTIONS',
+      'This invoice cannot be cancelled: credit or debit notes have been issued against it.',
+    ],
+    ['en', 'INVOICE_CANCEL_HAS_PAYMENTS', 'This invoice cannot be cancelled: payments are recorded against it.'],
+    [
+      'ar',
+      'INVOICE_CANCEL_HAS_CORRECTIONS',
+      'لا يمكن إلغاء هذه الفاتورة: صدرت عليها إشعارات دائنة أو مدينة.',
+    ],
+    ['ar', 'INVOICE_CANCEL_HAS_PAYMENTS', 'لا يمكن إلغاء هذه الفاتورة: سُجّلت عليها دفعات.'],
+  ])('a page that is out of date reads the 409 %s %s as its own sentence', async (lang, code, sentence) => {
+    // The page still believes nothing settles the invoice; the server knows better.
+    receivableResponse = () => json(200, UNSETTLED)
+    cancelResponse = () =>
+      json(409, { type: 'https://api.fawtir.om/problems/conflict', status: 409, code, detail: 'no' })
+    await i18n.changeLanguage(lang)
+    await openMenu()
+    fireEvent.click(await screen.findByRole('menuitem', { name: i18n.t('invoiceDetails.actions.cancel') }))
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Wrong customer' } })
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('invoiceDetails.cancel.confirm') }))
+    expect(await screen.findByText(sentence)).toBeTruthy()
+    expect(screen.queryByText('no')).toBeNull()
+  })
+})
+
+describe('a reader who may only read (B-14, C-9)', () => {
+  it('is offered no sharing and asks for no branches or reminder schedule', async () => {
+    who = READ_ONLY
+    receivableResponse = () => json(200, UNSETTLED)
+    renderInvoice()
+    await screen.findByRole('heading', { level: 1, name: 'Invoice INV-2026-0042' })
+    await waitFor(() => expect(calls()).toContain(`GET ${URL_BASE}/receivable`))
+    expect(screen.queryByRole('button', { name: 'Send by email' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Share on WhatsApp' })).toBeNull()
+    expect(calls()).not.toContain('GET /api/v1/branches')
+    expect(calls()).not.toContain('GET /api/v1/payment-reminders/schedule')
+  })
+})
+
+describe('Cancel when the page cannot tell, and on a note (A-0 review)', () => {
+  const menuItems = async () => {
+    await screen.findByRole('heading', { level: 1 })
+    const more = screen.queryByRole('button', { name: 'More actions' })
+    if (more) fireEvent.click(more)
+    return screen.queryAllByRole('menuitem').map((item) => item.textContent ?? '')
+  }
+
+  it.each([
+    ['the receivable', () => (receivableResponse = () => json(500, { status: 500 }))],
+    ['the notes list', () => (notesResponse = () => json(500, { status: 500 }))],
+  ])('offers no Cancel, and no hint, when %s cannot be read', async (_, fail) => {
+    receivableResponse = () => json(200, UNSETTLED)
+    fail()
+    renderInvoice()
+    await waitFor(() => expect(calls()).toContain(`GET ${URL_BASE}/receivable`))
+    await waitFor(() =>
+      expect(calls().some((call) => call.startsWith('GET /api/v1/authored-invoices?'))).toBe(true),
+    )
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect((await menuItems()).some((text) => /Cancel/.test(text))).toBe(false)
+    expect(screen.queryByText(/cannot be cancelled/)).toBeNull()
+  })
+
+  it('says a paid debit note cannot be cancelled in its own words', async () => {
+    invoiceResponse = () =>
+      json(200, invoice({ type: 'DEBIT_NOTE', correctionOfInvoiceId: 'inv-0', invoiceNumber: 'DBN-2026-0001' }))
+    receivableResponse = () => json(200, { ...UNSETTLED, paidAmount: 5, outstandingAmount: 51.7 })
+    renderInvoice()
+    await screen.findByRole('heading', { level: 1, name: 'Debit note DBN-2026-0001' })
+    fireEvent.click(await screen.findByRole('button', { name: 'More actions' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel debit note' }))
+    expect(
+      await screen.findByText('This note cannot be cancelled: payments are recorded against it.'),
+    ).toBeTruthy()
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it.each([
+    ['en', 'This note cannot be cancelled: credit or debit notes have been issued against it.'],
+    ['ar', 'لا يمكن إلغاء هذا الإشعار: صدرت عليه إشعارات دائنة أو مدينة.'],
+  ])('reads a corrections refusal on a note page as the note’s (%s)', async (lang, sentence) => {
+    await i18n.changeLanguage(lang)
+    invoiceResponse = () =>
+      json(200, invoice({ type: 'DEBIT_NOTE', correctionOfInvoiceId: 'inv-0', invoiceNumber: 'DBN-2026-0001' }))
+    receivableResponse = () => json(200, UNSETTLED)
+    cancelResponse = () =>
+      json(409, { status: 409, code: 'INVOICE_CANCEL_HAS_CORRECTIONS', detail: 'no' })
+    renderInvoice()
+    fireEvent.click(await screen.findByRole('button', { name: i18n.t('invoiceDetails.actions.more') }))
+    fireEvent.click(
+      await screen.findByRole('menuitem', { name: i18n.t('salesNote.detail.cancelAction.DEBIT_NOTE') }),
+    )
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Raised twice' } })
+    fireEvent.click(
+      screen.getByRole('button', { name: i18n.t('salesNote.detail.cancelConfirm.DEBIT_NOTE') }),
+    )
+    expect(await screen.findByText(sentence)).toBeTruthy()
+  })
+})
+
+describe('issuing to a Peppol customer whose address is incomplete (backend #817)', () => {
+  it.each([
+    [
+      'en',
+      "This customer's address is incomplete for Peppol: add the street, additional street, city, postal code and address line 3, then issue again.",
+    ],
+    [
+      'ar',
+      'عنوان هذا العميل غير مكتمل لإرسال Peppol: أضف الشارع والشارع الإضافي والمدينة والرمز البريدي وسطر العنوان 3، ثم أصدر الفاتورة مرة أخرى.',
+    ],
+  ])('says what to complete and links to the customer (%s)', async (lang, sentence) => {
+    await i18n.changeLanguage(lang)
+    who = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.issue', 'customer.manage'] }
+    invoiceResponse = () =>
+      json(
+        200,
+        invoice({
+          authoringState: 'DRAFT',
+          version: 2,
+          invoiceNumber: null,
+          issueDate: null,
+          dueDate: null,
+          issuedAt: null,
+          totals: null,
+        }),
+      )
+    receivableResponse = () =>
+      json(200, { ...RECEIVABLE, paymentState: 'NOT_APPLICABLE', documentTotal: null, outstandingAmount: null, paidAmount: 0 })
+    issueResponse = () =>
+      json(400, { status: 400, code: 'BUYER_ADDRESS_INCOMPLETE', detail: 'The customer address is incomplete' })
+    renderInvoice()
+    fireEvent.click(await screen.findByRole('button', { name: i18n.t('invoiceIssue.action') }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('invoiceIssue.submit') }))
+    expect(await screen.findByText(sentence)).toBeTruthy()
+    expect(
+      screen
+        .getByRole('link', { name: i18n.t('invoiceIssue.refused.buyerAddressAction') })
+        .getAttribute('href'),
+    ).toBe('/customers/c-1/edit')
+    expect(screen.queryByText(/The customer address is incomplete/)).toBeNull()
+  })
+})
+
+describe('a payment refused because the balance moved in another tab (DA-12)', () => {
+  it.each([
+    ['en', 'What is owed changed since this page was opened. Closing this dialog shows the current balance.'],
+    ['ar', 'تغيّر المبلغ المستحق منذ فتح هذه الصفحة. يُظهر إغلاق هذه النافذة الرصيد الحالي.'],
+  ])('says so in the dialog and reads the balance again once it closes (%s)', async (lang, sentence) => {
+    await i18n.changeLanguage(lang)
+    payResponse = () =>
+      json(400, { status: 400, code: 'PAYMENT_EXCEEDS_OUTSTANDING', detail: 'too much' })
+    renderInvoice()
+    fireEvent.click(await screen.findByRole('button', { name: i18n.t('invoiceDetails.payments.add') }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('invoiceDetails.pay.submit') }))
+    expect(await within(dialog).findByText(sentence)).toBeTruthy()
+    const reads = () => calls().filter((call) => call === `GET ${URL_BASE}/receivable`).length
+    const before = reads()
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('common.cancel') }))
+    await waitFor(() => expect(reads()).toBe(before + 1))
+  })
+})
+
+describe('the discount column says what kind of discount it holds (DA-15)', () => {
+  const withDiscount = (discountType: 'PERCENTAGE' | 'FIXED_AMOUNT', discountValue: number) => {
+    const base = invoice()
+    invoiceResponse = () =>
+      json(200, invoice({ lines: [{ ...base.lines[0], discountType, discountValue }] }))
+  }
+
+  it('heads a fixed discount "Discount" and prints it as money', async () => {
+    withDiscount('FIXED_AMOUNT', 4)
+    renderInvoice()
+    const table = (await screen.findByRole('columnheader', { name: /^(Disc %|Discount)$/ })).closest('table')!
+    expect(within(table).getByText('Discount')).toBeTruthy()
+    expect(within(table).queryByText('Disc %')).toBeNull()
+    expect(within(table).getByText('4.000')).toBeTruthy()
+  })
+
+  it('keeps "Disc %" for a percentage', async () => {
+    withDiscount('PERCENTAGE', 10)
+    renderInvoice()
+    const table = (await screen.findByRole('columnheader', { name: /^(Disc %|Discount)$/ })).closest('table')!
+    expect(within(table).getByText('Disc %')).toBeTruthy()
+    expect(within(table).getByText('10%')).toBeTruthy()
   })
 })

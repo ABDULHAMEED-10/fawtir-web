@@ -100,7 +100,7 @@ export function StockDetailPage() {
   if (!access.ready || branchRead.read.status === 'loading') return wait(<LoadingNotice />)
   if (!access.canRead) return wait(<PermissionDeniedNotice />)
   if (item.read.status === 'failed')
-    return wait(<ApiReadFailure error={item.read.error} retry={item.retry} />)
+    return wait(<ApiReadFailure error={item.read.error} retry={item.retry} notFoundOn400 />)
   // A reload after a count or a new level keeps the page (and its "saved" line) on screen with
   // the figures it had until the new ones arrive.
   if (item.read.status === 'ready') shown.current = { path, data: item.read.data }

@@ -4,7 +4,8 @@ import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNoti
 import { registerPosTill } from '../../api/pos/pos'
 import { usePosTill, type TillState } from '../../lib/posTill'
 import { posRefusalKey } from '../../lib/posRefusals'
-import { usePosQueue } from '../../lib/posQueue'
+import { noteTillServer, usePosQueue } from '../../lib/posQueue'
+import { PosQueuePanel } from './PosQueuePanel'
 
 type Ready = Extract<TillState, { status: 'ready' }>
 
@@ -13,7 +14,14 @@ type Ready = Extract<TillState, { status: 'ready' }>
  * the page shows the shared notices; a branch with no till offers to register one to whoever may
  * (`pos.till.manage`), and says who to ask otherwise.
  */
-export function PosTillGate({ children }: { children: (till: Ready) => ReactNode }) {
+export function PosTillGate({
+  children,
+  showQueue = false,
+}: {
+  children: (till: Ready) => ReactNode
+  /** Shows the queue's waiting and refused sales above the screen (Till and Today). */
+  showQueue?: boolean
+}) {
   const state = usePosTill()
   if (state.status === 'loading') return <LoadingNotice />
   if (state.status === 'failed') return <ApiReadFailure error={state.error} retry={state.retry} />
@@ -21,7 +29,8 @@ export function PosTillGate({ children }: { children: (till: Ready) => ReactNode
   if (state.status === 'noTill') return <NoTill state={state} />
   return (
     <>
-      <QueueSender tillId={state.till.id} />
+      <QueueSender till={state.till} />
+      {showQueue ? <PosQueuePanel till={state} /> : null}
       {children(state)}
     </>
   )
@@ -31,8 +40,9 @@ export function PosTillGate({ children }: { children: (till: Ready) => ReactNode
  * Sends the till's offline sales (and their slip photos) on every till screen, as soon as the
  * browser is back online and every minute until they are all filed. Draws nothing.
  */
-function QueueSender({ tillId }: { tillId: string }) {
-  usePosQueue(tillId)
+function QueueSender({ till }: { till: Ready['till'] }) {
+  noteTillServer(till)
+  usePosQueue(till.id)
   return null
 }
 

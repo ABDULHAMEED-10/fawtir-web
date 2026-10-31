@@ -278,6 +278,7 @@ function Payment({ till }: { till: Ready }) {
         })),
         sale: 'sale' in result ? result.sale : null,
         queuedNumber: 'queued' in result ? result.queued.number : null,
+        queuedBehind: 'queued' in result && result.behind === true,
         finishedAt: attempt.current.soldAt,
       })
       attempt.current = null
@@ -794,7 +795,7 @@ function Payment({ till }: { till: Ready }) {
           {buyerAsked && !company ? (
             // The full-invoice offer (SIMPLIFIED_INVOICE_LIMIT, BUYER_IDENTIFIER_REQUIRED): the
             // buyer is named with their ID (IBR-016-OM), or the sale is put on a company.
-            <div className="mx-5 mb-4 flex flex-col gap-3 rounded-sm bg-surface-background p-4">
+            <div className="mx-5 mb-4 grid grid-cols-1 gap-3 rounded-sm bg-surface-background p-4">
               <p className="text-sm font-semibold text-text-primary">{t('pos.buyer.title')}</p>
               <p className="text-xs font-medium leading-[1.5] text-text-tertiary">
                 {t('pos.buyer.note')}

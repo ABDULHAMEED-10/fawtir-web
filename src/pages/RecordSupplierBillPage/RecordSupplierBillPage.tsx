@@ -44,11 +44,13 @@ import { describeApiFailure } from '../../lib/apiFailure'
 import {
   BILL_FILE_TYPES,
   BILL_CONFIRM_REFUSALS,
+  UPLOAD_MAY_HAVE_ARRIVED,
   UPLOAD_REFUSALS,
   blankBillForm,
   linesTotals,
   supplierTaxCategory,
   toConfirmation,
+  uploadMayHaveArrived,
   type BillLine,
 } from '../../lib/billIntake'
 import { DESIGN_REFERENCE } from '../../lib/invoiceDraft'
@@ -224,6 +226,7 @@ function RecordBill({ id }: { id: string }) {
     }
     inFlight.current = true
     setBusy(true)
+    let uploading = false
     try {
       if (stored.current && stored.current.file !== file) {
         // Another file was chosen, or the file was taken off: the stored one goes, as "Replace
@@ -232,7 +235,9 @@ function RecordBill({ id }: { id: string }) {
         stored.current = null
       }
       if (file && !stored.current) {
-        const uploaded = await uploadIntake(file, 'UPLOADED')
+        uploading = true
+        const uploaded = await uploadIntake(file, 'UPLOADED', { read: 'none' })
+        uploading = false
         stored.current = { file, intakeId: uploaded.id }
       }
       const form = {
@@ -275,9 +280,18 @@ function RecordBill({ id }: { id: string }) {
       } else if (
         failure instanceof ApiError &&
         failure.code &&
-        (Object.hasOwn(BILL_CONFIRM_REFUSALS, failure.code) || Object.hasOwn(UPLOAD_REFUSALS, failure.code))
+        (Object.hasOwn(BILL_CONFIRM_REFUSALS, failure.code) ||
+          Object.hasOwn(UPLOAD_REFUSALS, failure.code))
       ) {
-        setNotice(t(Object.hasOwn(BILL_CONFIRM_REFUSALS, failure.code) ? BILL_CONFIRM_REFUSALS[failure.code].key : UPLOAD_REFUSALS[failure.code]))
+        setNotice(
+          t(
+            Object.hasOwn(BILL_CONFIRM_REFUSALS, failure.code)
+              ? BILL_CONFIRM_REFUSALS[failure.code].key
+              : UPLOAD_REFUSALS[failure.code],
+          ),
+        )
+      } else if (uploading && uploadMayHaveArrived(failure)) {
+        setNotice(t(UPLOAD_MAY_HAVE_ARRIVED))
       } else {
         const described = describeApiFailure(failure)
         const body = t(described.key, described.values)

@@ -63,12 +63,17 @@ export function CatalogEmptyState({ notice }: { notice?: ReactNode } = {}) {
               {t('catalogEmpty.subtitle')}
             </p>
           </div>
-          <Link
-            to="/catalog/build"
-            className="inline-flex h-[46px] shrink-0 items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-          >
-            {t('catalogEmpty.importFromExcel')}
-          </Link>
+          {/* The frame's "Import from Excel" opened the template page; the catalogue has no
+              spreadsheet import, so the button says where it goes, and only when there is a
+              template to go to. */}
+          {template ? (
+            <Link
+              to="/catalog/build"
+              className="inline-flex h-[46px] shrink-0 items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+            >
+              {t('catalog.buildFromTemplate')}
+            </Link>
+          ) : null}
         </div>
 
         {notice}

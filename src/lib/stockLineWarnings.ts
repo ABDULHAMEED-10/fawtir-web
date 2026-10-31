@@ -11,6 +11,9 @@ export const STOCK_LINE_WARNINGS = [
   'STOCK_VARIANT_UNKNOWN',
   'STOCK_QUANTITY_NOT_WHOLE',
   'STOCK_QUANTITY_INVALID',
+  // A credit note's shelf return (backend STK-1): more than the sale took off, or nothing it took.
+  'STOCK_RETURN_EXCEEDS_SALE',
+  'STOCK_NOT_TRACKED_AT_SALE',
 ] as const
 
 export type StockLineWarningCode = (typeof STOCK_LINE_WARNINGS)[number]

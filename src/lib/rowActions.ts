@@ -48,7 +48,7 @@ export function customerRowActions(customerId: string): ActionMenuItem[] {
       id: 'view',
       labelKey: 'rowActions.customer.view',
       icon: viewIcon,
-      to: `/customers/${customerId}`,
+      to: `/customers/${customerId}/edit`,
     },
     {
       id: 'newInvoice',

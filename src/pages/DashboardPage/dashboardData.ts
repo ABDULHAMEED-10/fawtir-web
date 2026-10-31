@@ -37,6 +37,18 @@ export const toNumber = (amount: Amount | null | undefined): number => {
   return Number.isFinite(value) ? value : 0
 }
 
+/**
+ * The OMR VAT of a VAT list, every row added. Unlike the receivables and cash lists, `/reports/vat`
+ * lists output VAT once per category and rate, so taking the first OMR row showed the exempt row's
+ * 0.000 while the standard-rated VAT sat in the next one (A-3, local E2E 2026-10-29). Rows of VAT
+ * with no known rial figure are listed apart by the server and never added in.
+ */
+export function omrVatTotal(rows: readonly { side: string; currency: string; vatAmount: Amount }[]): number {
+  return rows
+    .filter((row) => row.currency === 'OMR' && row.side !== 'INPUT_WITHOUT_OMR_VAT')
+    .reduce((sum, row) => sum + toNumber(row.vatAmount), 0)
+}
+
 /** Before noon is morning, before 17:00 afternoon, and later is evening, in the business's zone. */
 export function partOfDay(now: Date): 'morning' | 'afternoon' | 'evening' {
   const hour = Number(

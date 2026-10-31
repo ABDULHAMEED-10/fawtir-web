@@ -9,6 +9,7 @@ import { DESIGN_REFERENCE, omanTaxCategories } from '../../lib/invoiceDraft'
 import { defaultPicks, readyToAdd, type SuggestedGroup } from '../../lib/catalogBuild'
 import { suggestedFrom, templateName } from '../../lib/catalogTemplates'
 import {
+  addedWithoutPrice,
   buildSummary,
   planBuild,
   runBuild,
@@ -249,6 +250,7 @@ export function BuildCatalogPage() {
 
   const failed = run?.outcomes.filter((outcome) => outcome.state === 'failed') ?? []
   const summary = run ? buildSummary(run.outcomes) : null
+  const stillUnpriced = run ? addedWithoutPrice(run.outcomes) : 0
 
   /** Leaves for a page where something of one's own is added, keeping the work to come back to. */
   const leaveFor = (to: string) => {
@@ -372,6 +374,19 @@ export function BuildCatalogPage() {
                   failed: t('buildCatalog.summaryFailed', { count: summary.failed }),
                 })}
               </p>
+              {stillUnpriced > 0 ? (
+                <p className="mt-2 text-sm font-medium text-text-secondary">
+                  {t('buildCatalog.noPriceLeft', { count: stillUnpriced })}{' '}
+                  {/* The tab filters on the client, a page at a time, so lowest price first brings
+                      the unpriced to the first page however big the catalogue is. */}
+                  <Link
+                    to="/catalog?tab=attention&sort=priceLow"
+                    className="font-semibold text-primary-700 hover:text-primary-800"
+                  >
+                    {t('buildCatalog.noPriceLink')}
+                  </Link>
+                </p>
+              ) : null}
               {failed.length > 0 ? (
                 <div className="mt-3">
                   <p className="text-xs font-semibold uppercase tracking-[0.5px] text-text-quaternary">
@@ -483,7 +498,8 @@ export function BuildCatalogPage() {
                         >
                           <bdi>{entry.name}</bdi>
                         </span>
-                        {kinds > 0 ? (
+                        {/* Unticked, nothing of it is added: its remembered ticks are not "picked". */}
+                        {on && kinds > 0 ? (
                           <span className="text-xs font-medium text-text-quaternary">
                             {t('buildCatalog.kindsPicked', { count: kinds })}
                           </span>
@@ -570,9 +586,10 @@ export function BuildCatalogPage() {
                           >
                             <bdi>{entry.name}</bdi>
                           </span>
-                          {sizes > 0 ? (
+                          {on && sizes > 0 ? (
                             <span className="text-xs font-medium text-text-quaternary">
-                              {t('buildCatalog.sizesPicked', { count: sizes })}
+                              {/* What is ticked here are the things sold, sized or not. */}
+                              {t('buildCatalog.itemsPicked', { count: sizes })}
                             </span>
                           ) : null}
                         </button>

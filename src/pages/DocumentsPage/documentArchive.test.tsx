@@ -6,6 +6,7 @@ import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitl
 import { answerStanding, settle, standingRead } from '../../testing/subscriptionStanding'
 import type { ArchiveItemDto, ArchiveListDto } from '../../api/compliance/archive'
 import {
+  TDD_STATUSES,
   artefactRows,
   counterpartyValue,
   directionOf,
@@ -20,11 +21,14 @@ import {
   signatureBadge,
   statusChip,
   taxYears,
+  tddStatusKey,
   timeLeft,
   validationLine,
   visibleItems,
 } from '../../lib/documentArchive'
 import { profileLabel, readArchiveXml } from '../../lib/archiveXml'
+import en from '../../i18n/locales/en.json'
+import ar from '../../i18n/locales/ar.json'
 import { DocumentsPage } from './DocumentsPage'
 import { DocumentDetailPage } from '../DocumentDetailPage/DocumentDetailPage'
 
@@ -362,6 +366,33 @@ describe('The compliance archive, wired to the API', () => {
     expect(screen.queryByText(/the log can't be edited/)).toBeNull()
   })
 
+  it('gives a delivery time only for a document that was delivered (A-5)', async () => {
+    const deliveredAt = () =>
+      screen.getByText('Delivered at').nextElementSibling?.textContent ?? null
+    // Issued, and nothing says it reached the buyer: the record's own time is not a delivery.
+    const first = renderArchive(`/compliance/documents/${ISSUED.invoice_uuid}`)
+    await screen.findByText('Delivered at')
+    expect(deliveredAt()).toBe('-')
+    first.unmount()
+
+    extra = [
+      {
+        ...ISSUED,
+        invoice_uuid: '33333333-3333-3333-3333-333333333333',
+        delivered_at: '2026-09-02T09:30:00Z',
+      },
+    ]
+    const second = renderArchive('/compliance/documents/33333333-3333-3333-3333-333333333333')
+    await screen.findByText('Delivered at')
+    expect(deliveredAt()).toContain('2 Sept 2026')
+    second.unmount()
+
+    // A received document was delivered to us when it arrived.
+    renderArchive(`/compliance/documents/${RECEIVED.invoice_uuid}`)
+    await screen.findByText('Delivered at')
+    expect(deliveredAt()).toContain('1 Sept 2026')
+  })
+
   it('shows a received record as reported by us as receiver, dated when it arrived', async () => {
     renderArchive(`/compliance/documents/${RECEIVED.invoice_uuid}`)
     expect(await screen.findByText(/received 1 Sept 2026/)).toBeTruthy()
@@ -388,6 +419,52 @@ describe('The compliance archive, wired to the API', () => {
       '/compliance/documents/8f3c44a1-9d02-477b-be21-0a6c5d19e0f1',
     )
     expect(screen.getByText('Corrects invoice · issued 23 Jun 2026')).toBeTruthy()
+  })
+
+  it("links the record's customer to its record page and an invoice to the invoice page", async () => {
+    const related: ArchiveItemDto = {
+      ...ISSUED,
+      invoice_uuid: '55555555-5555-5555-5555-555555555555',
+      related: [
+        { kind: 'CUSTOMER', id: 'c-9', label: 'Sohar Port Logistics', note: null },
+        { kind: 'INVOICE', id: 'inv-7', label: 'INV-2026-0007', note: null },
+      ],
+    }
+    extra = [related]
+    renderArchive(`/compliance/documents/${related.invoice_uuid}`)
+    // Neither /customers/:id nor /income/invoices/:id is a route; the catch-all sent both home.
+    expect(
+      (await screen.findByRole('link', { name: 'Sohar Port Logistics' })).getAttribute('href'),
+    ).toBe('/customers/c-9/edit')
+    expect(screen.getByRole('link', { name: 'INV-2026-0007' }).getAttribute('href')).toBe(
+      '/invoices/inv-7',
+    )
+  })
+
+  it('says an artefact the archive names but does not serve yet is held, not that the record is missing', async () => {
+    const unserved = '/api/v1/invoices/sub-404/document'
+    const held: ArchiveItemDto = {
+      ...ISSUED,
+      invoice_uuid: '66666666-6666-6666-6666-666666666666',
+      artefacts: { ...ISSUED.artefacts, xml: artefact(true, unserved) },
+    }
+    extra = [held]
+    const answer = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string) =>
+      url === unserved ? json(404, { type: 'https://api.fawtir.om/problems/not-found' }) : answer(url),
+    )
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    renderArchive(`/compliance/documents/${held.invoice_uuid}`)
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'INV-2026-000004' })).toBeTruthy()
+    expect(await screen.findByText('Held, no download yet')).toBeTruthy()
+    expect(screen.queryByText('Not found')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Download' }))
+    // One read for the preview, one for the download.
+    await waitFor(() => expect(calls(unserved)).toHaveLength(2))
+    expect(await screen.findAllByText('Held, no download yet')).toHaveLength(2)
+    expect(screen.queryByText(/couldn't find this record/)).toBeNull()
   })
 
   it('shows a legal hold with its reason, and never offers to set one', async () => {
@@ -503,6 +580,38 @@ describe('archive helpers', () => {
   })
 })
 
+describe('report status words', () => {
+  it('has a chip and a detail in English and Arabic for every status the obligation can hold', () => {
+    const missing: string[] = []
+    for (const [name, locale] of [['en', en], ['ar', ar]] as const) {
+      const documents = locale.documents as unknown as Record<string, Record<string, unknown>>
+      for (const scope of ['chip', 'tdd'] as const) {
+        for (const status of [...TDD_STATUSES, 'none', 'unknown']) {
+          const words = documents[scope][status]
+          if (typeof words !== 'string' || words.trim() === '') missing.push(`${name}:${scope}.${status}`)
+        }
+      }
+    }
+    expect(missing).toEqual([])
+  })
+
+  it('reads NOT_TESTED on the record page, in English and Arabic', async () => {
+    const untested: ArchiveItemDto = {
+      ...ISSUED,
+      invoice_uuid: '77777777-7777-7777-7777-777777777777',
+      tdd: { status: 'NOT_TESTED', ack: 'NONE' },
+    }
+    extra = [untested]
+    renderArchive(`/compliance/documents/${untested.invoice_uuid}`)
+    expect(await screen.findByText('Not sent (test network)')).toBeTruthy()
+    expect(screen.queryByText(/documents\.(chip|tdd)\./)).toBeNull()
+    cleanup()
+    await i18n.changeLanguage('ar')
+    renderArchive(`/compliance/documents/${untested.invoice_uuid}`)
+    expect(await screen.findByText('لم يُرسل (شبكة الاختبار)')).toBeTruthy()
+  })
+})
+
 describe('the design reading of an archive row', () => {
   it('names the record, its chip and the time left', () => {
     expect(recordKind(ISSUED)).toBe('salesInvoice')
@@ -512,6 +621,17 @@ describe('the design reading of an archive row', () => {
     )
     expect(statusChip(ISSUED)).toEqual({ key: 'documents.chip.ACCEPTED', tone: 'green' })
     expect(statusChip(RECEIVED)).toEqual({ key: 'documents.chip.legalHold', tone: 'amber' })
+    // V491: on a network with no tax authority endpoint; it leaked as a raw key before.
+    expect(statusChip({ ...ISSUED, tdd: { status: 'NOT_TESTED', ack: 'NONE' } })).toEqual({
+      key: 'documents.chip.NOT_TESTED',
+      tone: 'grey',
+    })
+    // A status this build does not know yet is worded, never shown as its key.
+    expect(statusChip({ ...ISSUED, tdd: { status: 'SOMETHING_NEW', ack: 'NONE' } }).key).toBe(
+      'documents.chip.unknown',
+    )
+    expect(tddStatusKey('SOMETHING_NEW', 'tdd')).toBe('documents.tdd.unknown')
+    expect(tddStatusKey(null, 'tdd')).toBe('documents.tdd.none')
     expect(timeLeft('2036-06-23', '2026-09-25')).toEqual({ years: 9, months: 8 })
     expect(timeLeft('2026-01-01', '2026-09-25')).toBeNull()
     expect(formatBytes(18 * 1024)).toBe('18 KB')

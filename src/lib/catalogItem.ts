@@ -50,8 +50,10 @@ export type Size = {
   onSale: boolean
   price?: number
   priceOverride?: number | null
-  /** The combination's Arabic line name set by hand (backend #808), sent back to keep it. */
+  /** The combination's Arabic line name set by hand (backend #808); empty means worked out. */
   variantNameAr?: string | null
+  /** The one the server worked out, shown as the input's placeholder. Never sent. */
+  variantNameArAuto?: string | null
   saved?: boolean
 }
 
@@ -145,6 +147,8 @@ export function tillPreview(
 /** Which of the five readiness checks the item passes, worked out from the record. */
 export function readiness(record: {
   name: string
+  /** The item's code, which a save refuses without. */
+  code?: string
   basePrice: number
   taxCategory: string
   group: string
@@ -156,6 +160,7 @@ export function readiness(record: {
 }) {
   return [
     { id: 'namedAndPriced', done: record.name.trim().length > 0 && record.basePrice > 0 },
+    { id: 'coded', done: record.code === undefined || record.code.trim().length > 0 },
     {
       id: 'taxAgrees',
       done: record.taxCategory.length > 0 && record.reasonGiven !== false,

@@ -96,6 +96,7 @@ import { dueDateFor, muscatToday } from '../../lib/invoiceIssue'
 import {
   PAYMENT_REFUSALS,
   attachmentsEditable,
+  cancelBlockOf,
   dueNote,
   isDraft,
   isSelfBilled,
@@ -117,7 +118,7 @@ import {
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatDate, formatInstant, initialsOf } from '../../lib/format'
 import { formatFileSize } from '../../lib/files'
-import { can, useSession } from '../../lib/session/session'
+import { can, mayRequest, useSession } from '../../lib/session/session'
 import { usePlanIncludes } from '../../lib/planAccess'
 import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 import backIcon from '../../assets/invoice-details/back.svg'
@@ -272,7 +273,11 @@ function InvoiceScreen() {
     document && can(session, 'customer.read') ? `/v1/customers/${document.customerId}` : null,
     () => loadCustomer(document!.customerId),
   )
-  const branches = useApiRead<BranchDto[]>(document ? '/v1/branches' : null, loadBranches)
+  // `branch.read` only: a reader without it answered 403 here (B-14); the branch is then unnamed.
+  const branches = useApiRead<BranchDto[]>(
+    document && mayRequest(session, 'branch.read') ? '/v1/branches' : null,
+    loadBranches,
+  )
   const branchLabel = useBranchName()
   // The live profile stands in for the seller only where the document carries no issued snapshot
   // (a draft, or a server older than the snapshot), and only for a reader the profile admits.
@@ -401,8 +406,10 @@ function InvoiceScreen() {
     loadReminderPreview(previewPath!),
   )
   // The ladder, so the banner can say "Reminder 2 of 4" and when the next one goes out.
+  // The schedule is the settings' (`admin.settings.manage`); anyone else got a 403 (B-14) and the
+  // banner reads the ladder as unknown, as it did after that refusal.
   const schedule = useApiRead<ReminderScheduleDto>(
-    chaseable ? REMINDER_SCHEDULE_PATH : null,
+    chaseable && mayRequest(session, 'admin.settings.manage') ? REMINDER_SCHEDULE_PATH : null,
     loadReminderSchedule,
   )
   const [remindersOpen, setRemindersOpen] = useState(false)
@@ -437,6 +444,8 @@ function InvoiceScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const [paying, setPaying] = useState(false)
+  // Set by a payment refusal that says the balance moved (DA-12): the page re-reads on close.
+  const balanceStale = useRef(false)
   // The payment being reversed, and the key minted when its confirmation opened: confirming twice
   // is one reversal, not two refusals.
   const [reversing, setReversing] = useState<{ id: string; amount: number; key: string } | null>(
@@ -457,7 +466,7 @@ function InvoiceScreen() {
         {invoice.read.status === 'loading' ? (
           <LoadingNotice />
         ) : (
-          <ApiReadFailure error={invoice.read.error} retry={invoice.retry} />
+          <ApiReadFailure error={invoice.read.error} retry={invoice.retry} notFoundOn400 />
         )}
       </div>
     )
@@ -492,16 +501,26 @@ function InvoiceScreen() {
   const vatRates = [
     ...new Set(data.lines.map((line) => `${line.en16931Category}:${line.taxRate ?? 0}`)),
   ]
+  // One category word for the header and the totals line: the totals hard-coded "Standard" and
+  // read "VAT · Standard 0%" on a zero-rated invoice (TEST verification 2026-10-29).
+  const vatCategory = data.lines[0]
+    ? t(`invoiceDetails.category.${data.lines[0].en16931Category}`, {
+        defaultValue: data.lines[0].taxCategoryCode,
+      })
+    : ''
   const vatTreatment =
     data.lines.length === 0
       ? '—'
       : vatRates.length > 1
         ? t('invoiceDetails.vat.mixed')
-        : t('invoiceDetails.vat.rate', {
-            category: t(`invoiceDetails.category.${data.lines[0].en16931Category}`, {
-              defaultValue: data.lines[0].taxCategoryCode,
-            }),
+        : // Its own words per category: "{{category}} rate" read "Zero-rated rate · 0%", and the
+          // Arabic "نسبة {{category}}" read "نسبة بنسبة صفر" (A-8, local E2E 2026-10-29).
+          t(`invoiceDetails.vat.treatment.${data.lines[0].en16931Category}`, {
             rate: data.lines[0].taxRate ?? 0,
+            defaultValue: t('invoiceDetails.vat.rate', {
+              category: vatCategory,
+              rate: data.lines[0].taxRate ?? 0,
+            }),
           })
   const sentAt =
     history.read.status === 'ready'
@@ -545,7 +564,13 @@ function InvoiceScreen() {
       adoptDispatch(null)
       dispatchRead.retry()
     } catch (error) {
-      setNotice({ body: refusalText(t, error) })
+      setNotice({ body: refusalText(t, error, noteType) })
+      // A refusal on a settlement the page did not show yet: re-read, so the menu stops offering it.
+      if (error instanceof ApiError && error.code && Object.hasOwn(CANCEL_REFUSALS, error.code)) {
+        setCancelling(false)
+        receivable.retry()
+        notes.retry()
+      }
     } finally {
       setBusy(false)
     }
@@ -708,15 +733,25 @@ function InvoiceScreen() {
       onSelect: () => void releaseHeldEmail(),
     })
   }
-  if (data.authoringState === 'ISSUED' && can(session, 'invoice.cancel')) {
+  const cancelBlock = cancelBlockOf(receivable.read, notesPath ? notes.read : null)
+  if (
+    data.authoringState === 'ISSUED' &&
+    can(session, 'invoice.cancel') &&
+    cancelBlock !== 'unknown'
+  ) {
+    // A settled document keeps the item, so the reader who looks for Cancel learns why it cannot
+    // be done instead of finding it gone; it no longer opens the confirmation.
     moreActions.push({
       id: 'cancel',
       labelKey: noteType
         ? `salesNote.detail.cancelAction.${noteType}`
         : 'invoiceDetails.actions.cancel',
       icon: deleteIcon,
-      danger: true,
-      onSelect: () => setCancelling(true),
+      danger: cancelBlock === null,
+      onSelect: () =>
+        cancelBlock === null
+          ? setCancelling(true)
+          : setNotice({ key: cancelBlockedKey(cancelBlock, noteType) }),
     })
   }
 
@@ -1118,7 +1153,7 @@ function InvoiceScreen() {
             action={
               can(session, 'customer.read') && customer.read.status === 'ready' ? (
                 <Link
-                  to={`/customers/${data.customerId}`}
+                  to={`/customers/${data.customerId}/edit`}
                   className="inline-flex items-center gap-0.5 text-base font-semibold text-primary-800"
                 >
                   {t(party.view)}
@@ -1249,7 +1284,8 @@ function InvoiceScreen() {
                 {/* TODO(backend): sharing a copy of the invoice waits for the rendered PDF and the
                     share calls (INCOME.md rows SH.1 to SH.3). When live, hide both on a deemed
                     supply too (no buyer copy). Hidden while read-only (owner, 23 Oct). */}
-                {mayShare ? (
+                {/* Sharing sends the document, so it needs what Send needs (C-9). */}
+                {mayShare && can(session, 'invoice.issue') ? (
                   <>
                     <button
                       type="button"
@@ -1306,7 +1342,17 @@ function InvoiceScreen() {
                 <th className="py-2 text-start font-semibold">{t('invoiceDetails.col.vat')}</th>
                 <th className="py-2 text-start font-semibold">{t('invoiceDetails.col.qty')}</th>
                 <th className="py-2 text-start font-semibold">{t('invoiceDetails.col.unit')}</th>
-                <th className="py-2 text-start font-semibold">{t('invoiceDetails.col.disc')}</th>
+                <th className="py-2 text-start font-semibold">
+                  {/* "Disc %" only when every discount is a percentage: a fixed 4.000 under it
+                      read as 4% (DA-15, local E2E 2026-10-29). */}
+                  {t(
+                    data.lines.every(
+                      (line) => line.discountValue === 0 || line.discountType === 'PERCENTAGE',
+                    )
+                      ? 'invoiceDetails.col.disc'
+                      : 'invoiceDetails.col.discount',
+                  )}
+                </th>
                 <th className="py-2 text-end font-semibold">{t('invoiceDetails.col.total')}</th>
               </tr>
             </thead>
@@ -1370,7 +1416,14 @@ function InvoiceScreen() {
               ['invoiceDetails.totals.net', money(data.totals.taxableAmount), 'text-text-primary'],
               [
                 vatRates.length === 1 && data.lines[0]
-                  ? t('invoiceDetails.totals.vatRate', { rate: data.lines[0].taxRate ?? 0 })
+                  ? t('invoiceDetails.totals.vatRate', {
+                      // Its own words: Arabic needs the definite, agreeing form after "الضريبة"
+                      // ("الضريبة · القياسية"), which the header's "نسبة قياسية" does not take.
+                      category: t(`invoiceDetails.totals.category.${data.lines[0].en16931Category}`, {
+                        defaultValue: vatCategory,
+                      }),
+                      rate: data.lines[0].taxRate ?? 0,
+                    })
                   : t('invoiceDetails.totals.vatOnly'),
                 money(data.totals.vatAmount),
                 'text-text-primary',
@@ -1680,6 +1733,18 @@ function InvoiceScreen() {
                   amount={money(owed.documentTotal)}
                   amountClassName="font-semibold text-text-primary"
                 />
+                {/* Without the credit, "Paid 0.000 of 52.500, Outstanding 42.000" did not add up. */}
+                {owed.creditedAmount > 0 ? (
+                  <>
+                    {' · '}
+                    {t('invoiceDetails.credited')}{' '}
+                    <OmAmount
+                      size="xs"
+                      amount={money(owed.creditedAmount)}
+                      amountClassName="font-semibold text-text-primary"
+                    />
+                  </>
+                ) : null}
               </span>
               <span className="inline-flex items-center gap-1">
                 {t('invoiceDetails.outstanding')}{' '}
@@ -1820,7 +1885,11 @@ function InvoiceScreen() {
           initialIssueDate={muscatToday()}
           initialDueDate={dueDateFor(reference, muscatToday(), data.details?.paymentTerms?.code)}
           kind={noteType ?? 'INVOICE'}
-          customerId={data.customerId}
+          customerEditPath={
+            can(session, 'customer.manage')
+              ? `/customers/${encodeURIComponent(data.customerId)}/edit`
+              : undefined
+          }
           onClose={() => setIssuing(false)}
           onIssued={(issued) => {
             setIssuing(false)
@@ -1861,7 +1930,18 @@ function InvoiceScreen() {
           outstanding={owed.outstandingAmount}
           issueDate={data.issueDate}
           today={today}
-          onClose={() => setPaying(false)}
+          onBalanceChanged={() => {
+            balanceStale.current = true
+          }}
+          onClose={() => {
+            setPaying(false)
+            // Read again only once the dialog is gone: a re-read blanks the receivable, and the
+            // dialog is drawn only while it is there.
+            if (balanceStale.current) {
+              balanceStale.current = false
+              afterPayment()
+            }
+          }}
           onRecorded={() => {
             setPaying(false)
             setNotice({ key: 'invoiceDetails.done.recorded' })
@@ -2229,7 +2309,30 @@ function fileKind(file: InvoiceAttachmentDto): string {
   return file.contentType.split('/').pop()?.toUpperCase() ?? ''
 }
 
-function refusalText(t: Translate, error: unknown): string {
+function cancelBlockedKey(
+  block: 'corrections' | 'payments',
+  noteType: 'CREDIT_NOTE' | 'DEBIT_NOTE' | null,
+): string {
+  if (block === 'corrections')
+    return noteType
+      ? 'invoiceDetails.cancelBlocked.correctionsOnNote'
+      : 'invoiceDetails.cancelBlocked.corrections'
+  return noteType ? 'invoiceDetails.cancelBlocked.paymentsOnNote' : 'invoiceDetails.cancelBlocked.payments'
+}
+
+/** The server's cancel refusals that a page read before the note or payment cannot foresee. */
+const CANCEL_REFUSALS: Record<string, 'corrections' | 'payments'> = {
+  INVOICE_CANCEL_HAS_CORRECTIONS: 'corrections',
+  INVOICE_CANCEL_HAS_PAYMENTS: 'payments',
+}
+
+function refusalText(
+  t: Translate,
+  error: unknown,
+  noteType: 'CREDIT_NOTE' | 'DEBIT_NOTE' | null = null,
+): string {
+  if (error instanceof ApiError && error.code && Object.hasOwn(CANCEL_REFUSALS, error.code))
+    return t(cancelBlockedKey(CANCEL_REFUSALS[error.code], noteType))
   if (error instanceof ApiError && error.code === 'STALE_INVOICE_VERSION')
     return t('invoiceDetails.refused.stale')
   if (error instanceof ApiError && error.code === 'INVOICE_NOT_CANCELLABLE')

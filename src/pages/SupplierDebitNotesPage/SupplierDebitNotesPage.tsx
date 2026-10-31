@@ -38,7 +38,7 @@ import {
   type NoteSort,
 } from '../../lib/supplierNoteList'
 import { describeApiFailure } from '../../lib/apiFailure'
-import { formatAmount, formatCount, formatDate } from '../../lib/format'
+import { formatAmount, formatCount, formatDate, formatInstantDay } from '../../lib/format'
 import { saveDownload } from '../../lib/supplierRecord'
 import { can, useSession } from '../../lib/session/session'
 import { usePlanIncludes } from '../../lib/planAccess'
@@ -521,9 +521,14 @@ function DebitRow({
         >
           {note.number ?? t('supplierCreditNotes.rows.unnumbered')}
         </Link>
-        {note.issueDate ? (
+        {/* "Arrived" is the day it reached us; the supplier's issue date said so wrongly (B-9). */}
+        {note.receivedAt || note.issueDate ? (
           <p className="mt-1 text-xs font-medium leading-[1.2] text-text-quaternary">
-            {t('supplierDebitNotes.rows.arrived', { date: formatDate(note.issueDate, language) })}
+            {note.receivedAt
+              ? t('supplierDebitNotes.rows.arrived', {
+                  date: formatInstantDay(note.receivedAt, language),
+                })
+              : t('supplierCreditNotes.rows.issued', { date: formatDate(note.issueDate!, language) })}
           </p>
         ) : null}
       </td>

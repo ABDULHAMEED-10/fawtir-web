@@ -359,7 +359,7 @@ beforeEach(async () => {
       ])
     if (url === '/api/v1/payment-runs/run-1/items' && method === 'POST')
       return json(200, { run: {}, items: [] })
-    if (url === '/api/v1/bills/intake?source=UPLOADED' && method === 'POST')
+    if (url === '/api/v1/bills/intake?source=UPLOADED&read=none' && method === 'POST')
       return json(201, {
         id: `intake-${++uploads}`,
         source: 'UPLOADED',
@@ -978,7 +978,7 @@ describe('Record a bill (Figma 163:27781)', () => {
     ])
     expect(await screen.findByText('bill page')).toBeTruthy()
     // One upload, one confirm, nothing discarded.
-    expect(calls('POST', '/api/v1/bills/intake?source=UPLOADED')).toHaveLength(1)
+    expect(calls('POST', '/api/v1/bills/intake?source=UPLOADED&read=none')).toHaveLength(1)
     expect(calls('DELETE', '/api/v1/bills/intake/')).toHaveLength(0)
   })
 
@@ -987,7 +987,7 @@ describe('Record a bill (Figma 163:27781)', () => {
       status: 400,
       headers: { 'Content-Type': 'application/problem+json' },
     })
-  const uploaded = () => calls('POST', '/api/v1/bills/intake?source=UPLOADED')
+  const uploaded = () => calls('POST', '/api/v1/bills/intake?source=UPLOADED&read=none')
   const confirmed = (intake: string) => calls('POST', `/api/v1/bills/intake/${intake}/confirm`)
 
   async function typeBill() {
@@ -1006,6 +1006,56 @@ describe('Record a bill (Figma 163:27781)', () => {
       target: { files: [new File(['%PDF'], name, { type: 'application/pdf' })] },
     })
   const send = () => fireEvent.click(screen.getByRole('button', { name: 'Send for approval' }))
+
+  it('confirms only what was typed when an older server ignores read=none and reads the file', async () => {
+    const before = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url !== '/api/v1/bills/intake?source=UPLOADED&read=none') return before(url, init)
+      const answer = await (await before(url, init)).json()
+      return new Response(
+        JSON.stringify({
+          ...answer,
+          extractionStatus: 'EXTRACTED',
+          extracted: { supplierName: 'Read by the server', billNumber: 'READ-1', total: 999 },
+        }),
+        { status: 201, headers: { 'Content-Type': 'application/json' } },
+      )
+    })
+    await typeBill()
+    attach('bill.pdf')
+    send()
+
+    await waitFor(() => expect(confirmed('intake-1')).toHaveLength(1))
+    const body = JSON.parse(String(confirmed('intake-1')[0][1]?.body))
+    expect(body).toMatchObject({ billNumber: 'QMS-2050', total: 105 })
+    expect(JSON.stringify(body)).not.toContain('Read by the server')
+  })
+
+  it('says an upload the gateway stopped waiting for may have been received', async () => {
+    const before = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url === '/api/v1/bills/intake?source=UPLOADED&read=none'
+        ? new Response('', { status: 504 })
+        : before(url, init),
+    )
+    await typeBill()
+    attach('bill.pdf')
+    send()
+
+    expect(await screen.findByText(/may still have been received/)).toBeTruthy()
+    expect(confirmed('intake-1')).toHaveLength(0)
+  })
+
+  it('does not say that about a confirm that timed out: its file is already stored', async () => {
+    confirmResponse = () => new Response('', { status: 504 })
+    await typeBill()
+    attach('bill.pdf')
+    send()
+
+    await waitFor(() => expect(confirmed('intake-1')).toHaveLength(1))
+    expect(await screen.findByText(/temporarily unavailable/)).toBeTruthy()
+    expect(screen.queryByText(/may still have been received/)).toBeNull()
+  })
 
   it('saves a typed bill with no file attached, with no upload behind it', async () => {
     await typeBill()
@@ -1100,8 +1150,7 @@ describe('Record a bill (Figma 163:27781)', () => {
     expect(await screen.findByText('bill page')).toBeTruthy()
     expect(noFilePosts()).toHaveLength(0)
     const headers = (confirmed('intake-1')[0][1] as RequestInit).headers as
-      | Record<string, string>
-      | undefined
+      Record<string, string> | undefined
     expect(headers?.['Idempotency-Key']).toBeUndefined()
   })
 
@@ -1433,9 +1482,7 @@ describe('the bills of theirs already in a payment run', () => {
     withInRuns([])
     openBills = [{ ...BILL, workflowState: 'IN_PAYMENT_RUN', paymentRunReference: 'PR-0014' }]
     renderSupplier()
-    expect(
-      await screen.findByText('Some of their bills have been paid late before.'),
-    ).toBeTruthy()
+    expect(await screen.findByText('Some of their bills have been paid late before.')).toBeTruthy()
     expect(screen.queryByText(/already in draft run/)).toBeNull()
   })
 

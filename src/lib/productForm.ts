@@ -107,6 +107,7 @@ export function sizesFrom(product: ProductDto): Size[] {
       price: own?.price,
       priceOverride: own?.priceOverride ?? null,
       variantNameAr: own?.nameArSet ? (own.nameAr ?? null) : null,
+      variantNameArAuto: own?.nameArSet ? null : (own?.nameAr ?? null),
       saved: true,
     }
   })
@@ -241,8 +242,8 @@ export function productRequestFrom(
         code: size.code.trim() || null,
         price: size.priceOverride ?? null,
         onSale: size.onSale,
-        // A listed combination sent without it loses a hand-set Arabic name (backend #808).
-        ...(size.variantNameAr ? { nameAr: size.variantNameAr } : {}),
+        // A listed combination sent without it goes back to the worked-out name (backend #808).
+        ...(size.variantNameAr?.trim() ? { nameAr: size.variantNameAr.trim() } : {}),
       }))
     }
   }
@@ -367,6 +368,11 @@ export const PRODUCT_REFUSALS: Record<string, ProductProblem> = {
   PRODUCT_VARIANT_DUPLICATE: { field: 'sizes', key: 'itemForm.refused.variantUnknown' },
   PRODUCT_VARIANT_CODE_INVALID: { field: 'sizes', key: 'itemForm.refused.variantCodeInvalid' },
   PRODUCT_VARIANT_CODE_DUPLICATE: { field: 'sizes', key: 'itemForm.refused.variantCodeTaken' },
+  PRODUCT_VARIANT_BARCODE_INVALID: { field: 'sizes', key: 'itemForm.refused.barcodeInvalid' },
+  PRODUCT_VARIANT_BARCODE_DUPLICATE: {
+    field: 'sizes',
+    key: 'itemForm.refused.variantBarcodeTaken',
+  },
   PRODUCT_VARIANT_PRICE_NEGATIVE: {
     field: 'sizes',
     key: 'itemForm.refused.variantPriceNegative',
@@ -392,6 +398,8 @@ export const PRODUCT_REFUSALS: Record<string, ProductProblem> = {
 /** The sentence for a refused save, or null when it is not a product refusal the form knows. */
 export function productRefusal(error: unknown): (ProductProblem & { code: string }) | null {
   if (!(error instanceof ApiError) || !error.code) return null
-  const known = Object.hasOwn(PRODUCT_REFUSALS, error.code) ? PRODUCT_REFUSALS[error.code] : undefined
+  const known = Object.hasOwn(PRODUCT_REFUSALS, error.code)
+    ? PRODUCT_REFUSALS[error.code]
+    : undefined
   return known ? { ...known, code: error.code } : null
 }

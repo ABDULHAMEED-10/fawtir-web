@@ -217,12 +217,17 @@ export type VariantRequest = {
   onSale?: boolean
   /**
    * Backend #808 (V508): a hand-set Arabic line name; null or blank lets the server work it out.
-   * Sent only to keep one read with `nameArSet`, since a listed combination without it loses it.
+   * Sent only when set by hand, since a listed combination without it goes back to worked out.
    */
   nameAr?: string | null
   /** Backend V509: the size's own barcode. Left out keeps the stored one; blank removes it. */
   barcode?: string | null
 }
+
+/** A server from before backend #808 returns no `nameArSet`: its Arabic names cannot be set. */
+export const canSetVariantArabicNames = (
+  product: Pick<ProductDto, 'variants'> | null | undefined,
+) => (product?.variants ?? []).some((variant) => variant.nameArSet !== undefined)
 
 export type AddOnRequest = {
   id?: string

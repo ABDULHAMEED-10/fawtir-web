@@ -207,7 +207,7 @@ function CreditNoteDetail() {
         />
         {note.read.status === 'loading' ? <LoadingNotice /> : null}
         {note.read.status === 'failed' ? (
-          <ApiReadFailure error={note.read.error} retry={note.retry} />
+          <ApiReadFailure error={note.read.error} retry={note.retry} notFoundOn400 />
         ) : null}
       </div>
     )
@@ -277,7 +277,12 @@ function CreditNoteDetail() {
             ? t('supplierCreditNotes.detail.waitingBody')
             : bill
               ? bill.outstandingAmount > 0
-                ? t('supplierCreditNotes.detail.youllPayLessNote')
+                ? // Not applied yet (an applied credit is APPLIED or PARTLY_USED above): "comes
+                  // straight off what you owe" claimed a deduction the activity said was waiting
+                  // (B-11, local E2E 2026-10-29).
+                  billNumber
+                  ? t('supplierCreditNotes.detail.youllPayLessNote', { bill: billNumber })
+                  : t('supplierCreditNotes.detail.youllPayLessNoteNoBill')
                 : t('supplierCreditNotes.detail.billPaidNote')
               : t('supplierCreditNotes.detail.noBillNote')
   // Held, the bill refuses any credit until it is released (C8).

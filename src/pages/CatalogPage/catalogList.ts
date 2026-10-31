@@ -42,6 +42,10 @@ export const CATALOG_TABS = [
 
 export type CatalogTab = (typeof CATALOG_TABS)[number]['id']
 
+/** The tab a link asks for; anything else is All. */
+export const catalogTabOf = (raw: string | null): CatalogTab =>
+  CATALOG_TABS.find((entry) => entry.id === raw)?.id ?? 'all'
+
 /** On sale in the working branch: anything the server did not mark `availableHere: false`. */
 export const onSaleHere = (product: ProductDto) => product.availableHere !== false
 
@@ -75,6 +79,10 @@ export const CATALOG_SORTS = [
 ] as const
 
 export type CatalogSort = (typeof CATALOG_SORTS)[number]['value']
+
+/** The order a link asks for; anything else is by name. */
+export const catalogSortOf = (raw: string | null): CatalogSort =>
+  CATALOG_SORTS.find((entry) => entry.value === raw)?.value ?? 'name'
 
 /** The server's order for each choice, so sorting runs across every page, not just this one. */
 export const SERVER_SORT: Record<CatalogSort, Pick<ProductListQuery, 'sort' | 'direction'>> = {

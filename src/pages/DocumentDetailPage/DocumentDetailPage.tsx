@@ -13,7 +13,7 @@ import {
   type ArchiveItemDto,
   type ArchiveRelation,
 } from '../../api/compliance/archive'
-import { describeApiFailure } from '../../lib/apiFailure'
+import { describeApiFailure, isNotFound } from '../../lib/apiFailure'
 import {
   formatAmount,
   formatDate,
@@ -36,6 +36,7 @@ import {
   reportsAsReceiver,
   signatureBadge,
   statusChip,
+  tddStatusKey,
   timeLeft,
   validationLine,
   CHIP_TONE,
@@ -81,11 +82,11 @@ const RELATES_ICON: Record<ArchiveRelation['kind'], string> = {
 const relationPath = (relation: ArchiveRelation): string | null => {
   switch (relation.kind) {
     case 'CUSTOMER':
-      return `/customers/${relation.id}`
+      return `/customers/${relation.id}/edit`
     case 'SUPPLIER':
       return `/suppliers/${relation.id}`
     case 'INVOICE':
-      return `/income/invoices/${relation.id}`
+      return `/invoices/${relation.id}`
     default:
       return null
   }
@@ -132,7 +133,7 @@ function ArchivedDocument({ invoiceUuid }: { invoiceUuid: string }) {
         {read.read.status === 'loading' ? (
           <LoadingNotice />
         ) : (
-          <ApiReadFailure error={read.read.error} retry={read.retry} />
+          <ApiReadFailure error={read.read.error} retry={read.retry} notFoundOn400 />
         )}
       </div>
     )
@@ -168,7 +169,9 @@ function ArchivedDocument({ invoiceUuid }: { invoiceUuid: string }) {
         artefactFileName(fileNumber, artefact.id) ?? `${fileNumber}-${artefact.id}`,
       )
     } catch (error) {
-      setNotice(failure(error))
+      // The record was found, so a 404 here is the artefact address not being served yet, not a
+      // missing record; "Not found" read as if the document itself were gone.
+      setNotice(isNotFound(error) ? t('documents.notServed') : failure(error))
     }
   }
 
@@ -400,7 +403,7 @@ function fileBadge(
           : status === 'REJECTED' || status === 'GENERATION_FAILED' || status === 'DEAD_LETTERED'
             ? 'red'
             : 'grey'
-      return { key: status ? `documents.tdd.${status}` : 'documents.tdd.none', tone }
+      return { key: tddStatusKey(status, 'tdd'), tone }
     }
     case 'pdf':
       // TODO(backend): the PDF's languages, DOCUMENTS.md row 3.20.
@@ -539,7 +542,9 @@ function Preview({
         </Link>
       </div>
     )
-  } else if (!served) {
+  } else if (!served || (file.read.status === 'failed' && isNotFound(file.read.error))) {
+    // A 404 on the artefact address, with the record itself read, means it is held but not served
+    // yet; the record-level "Not found" said the document was missing.
     body = (
       <p className="p-6 text-sm font-medium text-text-quaternary">{t('documents.notServed')}</p>
     )
@@ -870,9 +875,15 @@ function Sheet({ item, sheet }: { item: ArchiveItemDto; sheet: ArchiveSheet }) {
             : null}
         </Field>
         <Field label={t('documents.detail.profile')}>{profile}</Field>
-        {/* TODO(backend): the network's delivery time (ask 3.9); the record's own time stands in. */}
+        {/* TODO(backend): the network's delivery time (ask 3.9). The record's own time stood in
+            and read "Delivered at" over a document that never left (A-5, local E2E 2026-10-29):
+            only a received document's arrival is a delivery, to us. */}
         <Field label={t('documents.detail.deliveredAt')}>
-          {formatInstant(item.delivered_at ?? item.occurred_at, language)}
+          {item.delivered_at
+            ? formatInstant(item.delivered_at, language)
+            : item.direction === 'RECEIVED'
+              ? formatInstant(item.occurred_at, language)
+              : null}
         </Field>
         {/* TODO(backend): the validation layers' results (DOCUMENTS.md row 3.19). "All five
             layers passed" is said only when the archive reports it. */}

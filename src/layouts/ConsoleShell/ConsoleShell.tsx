@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Topbar } from '../AppShell/Topbar'
 import { forgetEntitlements, hasPermission, isPlatformOperator } from '../../lib/identity/entitlements'
 import { LOGIN_ROUTE } from '../../lib/identity/login'
+import { useSessionExpiryRedirect } from '../../lib/identity/sessionExpiry'
 import { ConsoleAccessRefreshContext } from './consoleAccessRefresh'
 import { ConsoleNotice, ConsoleReadFailure } from './ConsoleNotice'
 import { ConsoleSidebar } from './ConsoleSidebar'
@@ -36,6 +37,7 @@ export function ConsoleShell({ children, requires }: ConsoleShellProps) {
   const [navOpen, setNavOpen] = useState(false)
   const { pathname } = useLocation()
   const { access, retry } = useConsoleAccess()
+  useSessionExpiryRedirect()
   const refreshAccess = useCallback(() => {
     forgetEntitlements()
     retry()

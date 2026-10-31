@@ -39,6 +39,8 @@ const ENTITLEMENTS = {
     'invoice.export',
     'invoice.cancel',
     'invoice.internal-note.read',
+    // The owner records bills: Upload a bill and Scan receipts (bills.mjs) need it.
+    'invoice.payment.manage',
     'customer.read',
     'customer.manage',
     'supplier.read',

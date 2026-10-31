@@ -7,6 +7,7 @@ import type {
 } from '../api/expenditure/suppliers'
 import type { ProblemFieldError } from '../api/errors'
 import * as validate from './validation'
+import { OMAN_PEPPOL_SCHEME } from './peppolParticipant'
 
 /**
  * The supplier form, for a new supplier and for an existing one, on the Edit frame's layout
@@ -335,7 +336,14 @@ export function toSupplierRequest(
   version?: number,
 ): SupplierRequestDto {
   const [scheme, ...rest] = values.peppolId.trim().split(':')
-  const participantValue = rest.join(':').trim()
+  const typed = rest.join(':').trim()
+  // Only 0248 is upper-cased, as on the customer form (A-1): its value is an Omani VAT number, so
+  // this only keeps the stored form uniform. The server keeps the caller's casing and compares
+  // identity case-insensitively (ParticipantId, [Peppol_PFUOI] POLICY 2), so a blanket upper-case
+  // was not harmless: it corrupted 0242's mixed-case `nnnnnn-TaxAuthority.OM` value, and a party
+  // that is also a customer no longer matched the participant held on its customer record, which
+  // the supplier save compares as typed (A-1b).
+  const participantValue = (scheme ?? '').trim() === OMAN_PEPPOL_SCHEME ? typed.toUpperCase() : typed
   const iban = compactIban(values.iban)
   const bic = values.bic.trim().toUpperCase()
   const bankName = orNull(values.bankName)
@@ -356,7 +364,7 @@ export function toSupplierRequest(
     registeredForVat: vatNumber !== null,
     registeredOnPeppol: values.registeredOnPeppol,
     participantScheme: values.registeredOnPeppol ? orNull(scheme ?? '') : null,
-    participantValue: values.registeredOnPeppol ? orNull(participantValue.toUpperCase()) : null,
+    participantValue: values.registeredOnPeppol ? orNull(participantValue) : null,
     defaultCurrency: orNull(values.defaultCurrency),
     defaultTaxCategory: orNull(values.defaultTaxCategory),
     paymentTerms: orNull(values.paymentTerms),
