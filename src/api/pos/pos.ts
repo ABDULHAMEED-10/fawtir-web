@@ -565,6 +565,40 @@ export function posDayPath(date: string, branchId: string): string {
   return withQuery(`${POS_PATH}/days/${id(date)}`, { branchId })
 }
 
+/* --------------------------------------------------------------- open numbers */
+
+/** A printed number no invoice carries yet. It stays listed until it is filed, set aside or not. */
+export type PosOpenNumberDto = {
+  tillId: string
+  tillNumber: number
+  invoiceNumber: string
+  refusalCode: string | null
+  reason: string | null
+  soldAt: string | null
+  amount: number | null
+  firstRecordedAt: string
+  passed: boolean
+  setAsideAt: string | null
+  setAsideBy: string | null
+  setAsideReason: string | null
+}
+
+export function posOpenNumbersPath(branchId: string): string {
+  return withQuery(`${POS_PATH}/open-numbers`, { branchId })
+}
+
+/** `pos.till.manage`. Lets the queue move on and closes nothing; only on a server with `skipsStuckNumbers`. */
+export function setAsideOpenNumber(
+  tillId: string,
+  invoiceNumber: string,
+  reason: string,
+): Promise<PosOpenNumberDto> {
+  return apiRequest<PosOpenNumberDto>(`${POS_PATH}/open-numbers/set-aside`, {
+    method: 'POST',
+    body: { tillId, invoiceNumber, reason },
+  })
+}
+
 /* -------------------------------------------------------------------- refunds */
 
 export type PosRefundLookupLine = {

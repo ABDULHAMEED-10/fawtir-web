@@ -61,6 +61,8 @@ export type QueuedSale = {
   /** A refusal nobody has reviewed: tried again no sooner than this, and later each time. */
   notBefore?: string
   attempts?: number
+  /** A manager set it aside on the server: not sent by itself, still open, still shown. */
+  setAside?: boolean
 }
 
 const QUEUE_KEY = 'fawtir.pos.queue'
@@ -445,7 +447,7 @@ export async function flushQueue(tillId: string): Promise<FlushOutcome> {
   try {
     for (const entry of queuedFor(tillId)) {
       const resting = entry.notBefore != null && Date.now() < Date.parse(entry.notBefore)
-      if (entry.final || resting) {
+      if (entry.final || entry.setAside || resting) {
         if (canSkip) continue
         return 'done'
       }
@@ -498,10 +500,39 @@ export async function retryQueuedSale(tillId: string, key: string): Promise<Flus
   save(
     queue.map((entry) => {
       if (entry.key !== key) return entry
-      const { final: _final, notBefore: _notBefore, ...again } = entry
+      const { final: _final, notBefore: _notBefore, setAside: _setAside, ...again } = entry
       void _final
       void _notBefore
+      void _setAside
       return again
+    }),
+  )
+  return flushQueue(tillId)
+}
+
+/** The server has it set aside: this device stops sending it by itself, and keeps it. */
+export function markQueuedSaleSetAside(key: string) {
+  save(queue.map((entry) => (entry.key === key ? { ...entry, setAside: true } : entry)))
+}
+
+/**
+ * A manager's correction, sent again on the printed number and under the same key: the refused
+ * attempts left nothing on the server, and if one did go through, the server says so rather than
+ * filing twice. Only the payments change, so the invoice and the customer's receipt still agree.
+ */
+export async function correctQueuedSale(
+  tillId: string,
+  key: string,
+  payments: PosSaleRequest['payments'],
+): Promise<FlushOutcome> {
+  save(
+    queue.map((entry) => {
+      if (entry.key !== key) return entry
+      const { final: _final, notBefore: _notBefore, setAside: _setAside, ...again } = entry
+      void _final
+      void _notBefore
+      void _setAside
+      return { ...again, body: { ...again.body, payments } }
     }),
   )
   return flushQueue(tillId)
