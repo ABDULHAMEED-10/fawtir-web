@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
 import { PosArt } from './PosArt'
 import { PosSalePanel } from './PosSalePanel'
+import { PosPhoneSaleBar } from './PosPhoneSaleBar'
 import { CashierPicker } from './CashierPicker'
 import { PosTillGate } from './PosTillGate'
 import { PosChooser } from './PosChooser'
@@ -369,7 +370,13 @@ function Shelf({
   useEffect(() => captureScans((code) => void scanRef.current(code)), [])
 
   return (
-    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+    <div
+      className={[
+        'mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10',
+        // Room under the sale panel for the phone's bar, so it covers nothing.
+        lines.length > 0 ? 'max-md:pb-24' : '',
+      ].join(' ')}
+    >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1 basis-[320px]">
           <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
@@ -535,6 +542,8 @@ function Shelf({
           company={company ?? undefined}
         />
       </div>
+
+      <PosPhoneSaleBar lines={lines} onTakePayment={() => navigate('/pos/payment')} />
 
       {choosing && choicesFor(choosing.id) ? (
         <PosChooser

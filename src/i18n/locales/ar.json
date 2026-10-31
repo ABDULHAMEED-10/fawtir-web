@@ -4593,6 +4593,15 @@
     "nothingYet": "لا شيء في هذا البيع بعد. اضغط صنفًا من الرف.",
     "lullApplied": "خصم فترة الظهيرة {{percent}}٪ على المشروبات، الساعة {{time}} في يوم عمل.",
     "takePayment": "استلام الدفع",
+    "phoneBar": {
+      "seeSale": "عرض هذا البيع",
+      "itemCount_zero": "لا أصناف",
+      "itemCount_one": "صنف واحد",
+      "itemCount_two": "صنفان",
+      "itemCount_few": "{{count}} أصناف",
+      "itemCount_many": "{{count}} صنفًا",
+      "itemCount_other": "{{count}} صنف"
+    },
     "discount": "خصم",
     "filter": {
       "active": "نشط",
