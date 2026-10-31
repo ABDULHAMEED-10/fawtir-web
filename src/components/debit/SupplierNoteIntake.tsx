@@ -15,14 +15,20 @@ import { ApiError } from '../../api/errors'
 import {
   confirmIntake,
   discardIntake,
-  possibleDuplicateOf,
   type ConfirmedBillDto,
   type IntakeDto,
-  type PossibleDuplicateDto,
 } from '../../api/expenditure/billIntake'
 import { billListPath, loadBillPage, type BillRowDto } from '../../api/expenditure/bills'
 import { acceptDebitNote, refuseDebitNote } from '../../api/expenditure/notes'
 import { describeApiFailure } from '../../lib/apiFailure'
+import {
+  overrideExtras,
+  overrideRefused,
+  reviewAfterRefusal,
+  type DuplicateOverride,
+  type DuplicateReview,
+} from '../../lib/billDuplicateOverride'
+import { DuplicateReviewPanel } from '../bills/DuplicateReviewPanel'
 import {
   CONFIRM_REFUSALS,
   billProblems,
@@ -122,7 +128,7 @@ export function SupplierNoteIntake({
   const [reason, setReason] = useState('')
   const [errors, setErrors] = useState<BillProblems>({})
   const [notice, setNotice] = useState<string | null>(null)
-  const [duplicate, setDuplicate] = useState<PossibleDuplicateDto | null>(null)
+  const [duplicate, setDuplicate] = useState<DuplicateReview | null>(null)
   const [saved, setSaved] = useState<ConfirmedBillDto | null>(null)
   const [busy, setBusy] = useState(false)
   const inFlight = useRef(false)
@@ -219,7 +225,7 @@ export function SupplierNoteIntake({
             ? t('supplierDebitNotes.upload.saveAndRefuse')
             : t(`${ns}.save`)
 
-  const save = async (notDuplicateOf: string | null) => {
+  const save = async (override: DuplicateOverride | null) => {
     if (inFlight.current || saved) return
     const submitted: BillForm = { ...form, total: totals?.total ?? '', vat: totals?.vat ?? '' }
     const problems = billProblems(submitted, { needsNumber: true })
@@ -249,7 +255,7 @@ export function SupplierNoteIntake({
       const note = await confirmIntake(
         intake.id,
         toConfirmation(submitted, {
-          notDuplicateOf,
+          ...overrideExtras(override),
           documentTypeCode: kind === 'credit' ? '381' : '383',
           ...(kind === 'credit' ? { reasonDetail: reason } : {}),
           ...(chosenBill ? { relatedBillId: chosenBill.id } : {}),
@@ -302,9 +308,13 @@ export function SupplierNoteIntake({
   }
 
   const refuse = (failure: unknown) => {
-    const same = possibleDuplicateOf(failure)
+    const same = reviewAfterRefusal(duplicate, failure)
+    const overridden = overrideRefused(duplicate, failure)
     if (same) {
       setDuplicate(same)
+    } else if (overridden) {
+      setDuplicate(overridden.review)
+      if (!overridden.review) setNotice(t(overridden.key))
     } else if (failure instanceof ApiError && failure.code && Object.hasOwn(CONFIRM_REFUSALS, failure.code)) {
       const refusal = CONFIRM_REFUSALS[failure.code]
       if (refusal.field) setErrors({ [refusal.field]: refusal.key })
@@ -996,41 +1006,27 @@ export function SupplierNoteIntake({
           ) : null}
 
           {duplicate ? (
-            <section role="alert" className="rounded-md border border-[#d8c9a8] bg-[#faf5ea] p-5">
-              <h2 className="flex items-center gap-2 text-base font-semibold text-text-primary">
-                <img src={warnIcon} alt="" className="size-5" />
-                {t('billIntake.duplicate.title')}
-              </h2>
-              <p className="mt-2 text-sm font-medium leading-[1.5] text-text-secondary">
-                {withRial(
+            <DuplicateReviewPanel
+              review={duplicate}
+              onChange={setDuplicate}
+              onDifferent={(override) => void save(override)}
+              busy={busy}
+              sentence={(bill) =>
+                withRial(
                   t('billIntake.duplicate.body', {
-                    number: duplicate.supplierBillNumber,
-                    date: duplicate.issueDate ? formatDate(duplicate.issueDate, language) : '—',
+                    number: bill.supplierBillNumber,
+                    date: bill.issueDate ? formatDate(bill.issueDate, language) : '—',
                     total:
-                      duplicate.total === null
+                      bill.total === null
                         ? '—'
-                        : `${money(duplicate.total)} ${duplicate.currencyCode ?? form.currency}`,
-                    source: t(`billIntake.duplicate.source.${duplicate.source}`),
+                        : `${money(bill.total)} ${bill.currencyCode ?? form.currency}`,
+                    source: t(`billIntake.duplicate.source.${bill.source}`),
                   }),
-                )}
-              </p>
-              <div className="mt-4 flex flex-wrap gap-3">
-                <Link
-                  to={`/expenditure/bills/${duplicate.billId}`}
-                  className="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary hover:bg-primary-25"
-                >
-                  {t('billIntake.duplicate.open')}
-                </Link>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void save(duplicate.billId)}
-                  className="inline-flex h-[42px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white hover:bg-primary-800 disabled:opacity-60"
-                >
-                  {t('billIntake.duplicate.different')}
-                </button>
-              </div>
-            </section>
+                )
+              }
+              linkClassName="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary hover:bg-primary-25"
+              buttonClassName="inline-flex h-[42px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white hover:bg-primary-800 disabled:opacity-60"
+            />
           ) : null}
         </div>
       </div>

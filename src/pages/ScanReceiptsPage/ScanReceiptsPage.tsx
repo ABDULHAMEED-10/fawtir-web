@@ -26,11 +26,17 @@ import {
   discardIntake,
   loadIntake,
   loadIntakeFile,
-  possibleDuplicateOf,
   type IntakeDto,
-  type PossibleDuplicateDto,
 } from '../../api/expenditure/billIntake'
 import { describeApiFailure } from '../../lib/apiFailure'
+import {
+  overrideExtras,
+  overrideRefused,
+  reviewAfterRefusal,
+  type DuplicateOverride,
+  type DuplicateReview,
+} from '../../lib/billDuplicateOverride'
+import { DuplicateReviewPanel } from '../../components/bills/DuplicateReviewPanel'
 import {
   BILL_CONFIRM_REFUSALS,
   CONFIDENT_AT,
@@ -530,7 +536,7 @@ function ReceiptEditor({
   const url = useObjectUrl(receipt.file)
   const [errors, setErrors] = useState<BillProblems>({})
   const [notice, setNotice] = useState<string | null>(null)
-  const [duplicate, setDuplicate] = useState<PossibleDuplicateDto | null>(null)
+  const [duplicate, setDuplicate] = useState<DuplicateReview | null>(null)
   const [busy, setBusy] = useState(false)
   const [rotation, setRotation] = useState(0)
   const [zoomed, setZoomed] = useState(false)
@@ -569,7 +575,7 @@ function ReceiptEditor({
   const toCheck =
     Object.keys(billProblems(form, { needsNumber: false })).length + (receipt.category ? 0 : 1)
 
-  const save = async (notDuplicateOf: string | null) => {
+  const save = async (override: DuplicateOverride | null) => {
     if (inFlight.current || saved) return
     const problems = billProblems(form, { needsNumber: false })
     setErrors(problems)
@@ -586,7 +592,7 @@ function ReceiptEditor({
         toConfirmation(form, {
           category: receipt.category || null,
           note: receipt.note,
-          notDuplicateOf,
+          ...overrideExtras(override),
           // 0% and Exempt are both a zero rate; the category is what tells them apart.
           taxCategoryCode: VAT_RATES.find((rate) => rate.id === receipt.vatRate)?.category ?? null,
           paidOnTheSpot:
@@ -602,9 +608,13 @@ function ReceiptEditor({
       )
       onSaved({ ...receipt, status: 'saved' })
     } catch (failure) {
-      const same = possibleDuplicateOf(failure)
+      const same = reviewAfterRefusal(duplicate, failure)
+      const overridden = overrideRefused(duplicate, failure)
       if (same) setDuplicate(same)
-      else if (
+      else if (overridden) {
+        setDuplicate(overridden.review)
+        if (!overridden.review) setNotice(t(overridden.key))
+      } else if (
         failure instanceof ApiError &&
         failure.code &&
         Object.hasOwn(BILL_CONFIRM_REFUSALS, failure.code)
@@ -1058,41 +1068,27 @@ function ReceiptEditor({
           </fieldset>
 
           {duplicate ? (
-            <section role="alert" className="rounded-md border border-[#d8c9a8] bg-[#faf5ea] p-5">
-              <h2 className="flex items-center gap-2 text-base font-semibold text-text-primary">
-                <img src={warnIcon} alt="" className="size-5" />
-                {t('billIntake.duplicate.title')}
-              </h2>
-              <p className="mt-2 text-sm font-medium leading-[1.5] text-text-secondary">
-                {withRial(
+            <DuplicateReviewPanel
+              review={duplicate}
+              onChange={setDuplicate}
+              onDifferent={(override) => void save(override)}
+              busy={busy}
+              sentence={(bill) =>
+                withRial(
                   t('billIntake.duplicate.body', {
-                    number: duplicate.supplierBillNumber,
-                    date: duplicate.issueDate ? formatDate(duplicate.issueDate, i18n.language) : '',
+                    number: bill.supplierBillNumber,
+                    date: bill.issueDate ? formatDate(bill.issueDate, i18n.language) : '',
                     total:
-                      duplicate.total === null
+                      bill.total === null
                         ? ''
-                        : `${formatAmount(duplicate.total, duplicate.currencyCode ?? form.currency, i18n.language)} ${duplicate.currencyCode ?? form.currency}`,
-                    source: t(`billIntake.duplicate.source.${duplicate.source}`),
+                        : `${formatAmount(bill.total, bill.currencyCode ?? form.currency, i18n.language)} ${bill.currencyCode ?? form.currency}`,
+                    source: t(`billIntake.duplicate.source.${bill.source}`),
                   }),
-                )}
-              </p>
-              <div className="mt-4 flex flex-wrap gap-3">
-                <Link
-                  to={`/expenditure/bills/${duplicate.billId}`}
-                  className="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary hover:bg-primary-25"
-                >
-                  {t('billIntake.duplicate.open')}
-                </Link>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void save(duplicate.billId)}
-                  className="inline-flex h-[42px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white hover:bg-primary-800 disabled:opacity-60"
-                >
-                  {t('billIntake.duplicate.different')}
-                </button>
-              </div>
-            </section>
+                )
+              }
+              linkClassName="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary hover:bg-primary-25"
+              buttonClassName="inline-flex h-[42px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white hover:bg-primary-800 disabled:opacity-60"
+            />
           ) : null}
         </div>
       </div>

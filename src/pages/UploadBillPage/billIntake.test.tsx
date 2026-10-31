@@ -880,3 +880,266 @@ describe('why a captured bill was refused, in its own sentence', () => {
     expect(screen.queryByText(/to record a bill for it/)).toBeNull()
   })
 })
+
+// RB2 580c732a1 / 19f93170a: the 409 lists every match in `duplicates`; the bill is recorded once
+// all of them are in `notDuplicateOfIds` with an `overrideReason` (BillIntakeService:557-625).
+describe('a bill that may duplicate more than one bill on file', () => {
+  const onFile = (id: string) => ({
+    billId: id,
+    supplierBillNumber: 'MR-INV-8821',
+    issueDate: '2026-08-30',
+    total: 105,
+    currencyCode: 'OMR',
+    source: 'UPLOADED',
+  })
+  const X = '11111111-1111-1111-1111-111111111111'
+  const Y = '22222222-2222-2222-2222-222222222222'
+  /** `listed` null answers as a server before the list: `duplicateOf` alone. */
+  const possible = (listed: string[] | null, oldest = listed?.[0] ?? X) =>
+    json(409, {
+      type: 'https://api.fawtir.om/problems/resource-conflict',
+      error: 'BILL_INTAKE_POSSIBLE_DUPLICATE',
+      duplicateOf: onFile(oldest),
+      ...(listed ? { duplicates: listed.map(onFile) } : {}),
+    })
+  const refusedWith = (code: string) =>
+    json(400, { type: 'https://api.fawtir.om/problems/expenditure-refused', error: code })
+  const confirms = () => calls('POST', '/api/v1/bills/intake/i-xml/confirm')
+  const warning = () => screen.getByRole('alert', { name: '' })
+  const ALL_DIFFERENT = 'They are all different bills. Save it'
+  const ONE_DIFFERENT = "It's a different bill. Save it"
+
+  async function openAndSave() {
+    uploads.push(XML_INTAKE)
+    renderAt('/expenditure/bills/upload')
+    await pick([new File(['<Invoice/>'], 'bill.xml', { type: 'application/xml' })])
+    await screen.findByDisplayValue('MR-INV-8821')
+    fireEvent.click(screen.getByRole('button', { name: 'Save the bill' }))
+  }
+  const sendAll = () =>
+    fireEvent.click(within(warning()).getByRole('button', { name: ALL_DIFFERENT }))
+  const giveReason = (reason: string) =>
+    fireEvent.change(within(warning()).getByRole('textbox'), { target: { value: reason } })
+
+  it('keeps one listed match exactly as before: notDuplicateOf alone, no reason', async () => {
+    confirmAnswers.push(possible([X]))
+    await openAndSave()
+    expect(await screen.findByText('This may be a bill you already have')).toBeTruthy()
+    expect(within(warning()).queryByRole('textbox')).toBeNull()
+
+    fireEvent.click(within(warning()).getByRole('button', { name: ONE_DIFFERENT }))
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    const body = bodyOf(confirms()[1])
+    expect(body.notDuplicateOf).toBe(X)
+    expect('notDuplicateOfIds' in body).toBe(false)
+    expect('overrideReason' in body).toBe(false)
+  })
+
+  it('lists both bills, asks why, and saves over both with the reason trimmed', async () => {
+    confirmAnswers.push(possible([X, Y]))
+    await openAndSave()
+
+    expect(await screen.findByText('This may be one of 2 bills you already have')).toBeTruthy()
+    expect(
+      within(warning())
+        .getAllByRole('link', { name: 'Open that bill' })
+        .map((link) => link.getAttribute('href')),
+    ).toEqual([`/expenditure/bills/${X}`, `/expenditure/bills/${Y}`])
+    expect(within(warning()).getAllByText(/A bill MR-INV-8821 from this supplier/)).toHaveLength(2)
+
+    sendAll()
+    expect(
+      await within(warning()).findByText('Say why this bill is different from the ones listed.'),
+    ).toBeTruthy()
+    expect(confirms()).toHaveLength(1)
+
+    giveReason('  The supplier reissues its numbers every year  ')
+    sendAll()
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    expect(confirms()).toHaveLength(2)
+    expect(bodyOf(confirms()[1])).toMatchObject({
+      notDuplicateOf: null,
+      notDuplicateOfIds: [X, Y],
+      overrideReason: 'The supplier reissues its numbers every year',
+    })
+  })
+
+  it('ends the X/Y swap: the second bill named is added to the first, not put in its place', async () => {
+    confirmAnswers.push(possible([X]), possible([Y]))
+    await openAndSave()
+    fireEvent.click(
+      within(await screen.findByRole('alert', { name: '' })).getByRole('button', {
+        name: ONE_DIFFERENT,
+      }),
+    )
+    expect(await screen.findByText('This may be one of 2 bills you already have')).toBeTruthy()
+    expect(bodyOf(confirms()[1]).notDuplicateOf).toBe(X)
+
+    giveReason('Two deliveries billed under one number')
+    sendAll()
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    expect(bodyOf(confirms()[2])).toMatchObject({
+      notDuplicateOf: null,
+      notDuplicateOfIds: [X, Y],
+      overrideReason: 'Two deliveries billed under one number',
+    })
+  })
+
+  it('never sends the list to a server that did not list the matches', async () => {
+    confirmAnswers.push(possible(null, X), possible(null, Y))
+    await openAndSave()
+    fireEvent.click(
+      within(await screen.findByRole('alert', { name: '' })).getByRole('button', {
+        name: ONE_DIFFERENT,
+      }),
+    )
+    expect(await screen.findByText(/they cannot be set aside here yet/)).toBeTruthy()
+    expect(within(warning()).queryByRole('button')).toBeNull()
+    expect(within(warning()).queryByRole('textbox')).toBeNull()
+    expect(confirms()).toHaveLength(2)
+    for (const call of confirms()) {
+      expect('notDuplicateOfIds' in bodyOf(call)).toBe(false)
+      expect('overrideReason' in bodyOf(call)).toBe(false)
+    }
+    expect(bodyOf(confirms()[1]).notDuplicateOf).toBe(X)
+  })
+
+  it('gathers the ids across refusals and stops past 20 without asking', async () => {
+    const ids = Array.from(
+      { length: 25 },
+      (_, index) => `00000000-0000-0000-0000-${String(index + 1).padStart(12, '0')}`,
+    )
+    confirmAnswers.push(
+      possible(ids.slice(0, 5)),
+      possible(ids.slice(5, 10)),
+      possible(ids.slice(10, 15)),
+      possible(ids.slice(15, 20)),
+      possible(ids.slice(20, 25)),
+    )
+    await openAndSave()
+    expect(await screen.findByText('This may be one of 5 bills you already have')).toBeTruthy()
+    giveReason('Reissued numbers')
+    for (const seen of [10, 15, 20]) {
+      sendAll()
+      expect(
+        await screen.findByText(`This may be one of ${seen} bills you already have`),
+      ).toBeTruthy()
+    }
+    expect(bodyOf(confirms()[3]).notDuplicateOfIds).toEqual(ids.slice(0, 15))
+
+    sendAll()
+    expect(await screen.findByText(/matches too many bills on file to save in one go/)).toBeTruthy()
+    expect(bodyOf(confirms()[4]).notDuplicateOfIds).toEqual(ids.slice(0, 20))
+    expect(within(warning()).queryByRole('button', { name: ALL_DIFFERENT })).toBeNull()
+    expect(confirms()).toHaveLength(5)
+  })
+
+  it.each([
+    ['BILL_INTAKE_OVERRIDE_REASON_REQUIRED', 'Say why this bill is different from the ones listed.'],
+    ['BILL_INTAKE_OVERRIDE_REASON_TOO_LONG', 'Keep the reason to 280 characters.'],
+    [
+      'BILL_INTAKE_NOT_DUPLICATE_OF_TOO_MANY',
+      'This bill matches too many bills on file to save in one go. Open them and check the supplier and number.',
+    ],
+  ])('words %s in the warning, keeping the list and the reason', async (code, sentence) => {
+    confirmAnswers.push(possible([X, Y]), refusedWith(code))
+    await openAndSave()
+    await screen.findByText('This may be one of 2 bills you already have')
+    giveReason('Reissued numbers')
+    sendAll()
+    expect(await within(warning()).findByText(sentence)).toBeTruthy()
+    expect((within(warning()).getByRole('textbox') as HTMLTextAreaElement).value).toBe(
+      'Reissued numbers',
+    )
+    expect(screen.queryByText(new RegExp(code))).toBeNull()
+  })
+
+  it('words an unknown bill and asks afresh on the next save', async () => {
+    confirmAnswers.push(
+      possible([X, Y]),
+      refusedWith('BILL_INTAKE_NOT_DUPLICATE_OF_UNKNOWN'),
+      possible([Y]),
+    )
+    await openAndSave()
+    await screen.findByText('This may be one of 2 bills you already have')
+    giveReason('Reissued numbers')
+    sendAll()
+    expect(
+      await screen.findByText(
+        'One of the bills it was compared with is no longer on file. Save again to check it afresh.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByRole('textbox', { name: 'Why is this a different bill?' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Open that bill' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save the bill' }))
+    // Only Y is on file now: the older single warning, with no stale X carried over.
+    expect(await screen.findByText('This may be a bill you already have')).toBeTruthy()
+  })
+
+  it('says it in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    confirmAnswers.push(possible([X, Y]))
+    uploads.push(XML_INTAKE)
+    renderAt('/expenditure/bills/upload')
+    await pick([new File(['<Invoice/>'], 'bill.xml', { type: 'application/xml' })])
+    await screen.findByDisplayValue('MR-INV-8821')
+    fireEvent.submit(document.querySelector('form')!)
+    expect(await screen.findByText('قد تكون هذه إحدى 2 فواتير مسجّلة لديك')).toBeTruthy()
+    fireEvent.click(within(warning()).getByRole('button', { name: 'كلها فواتير مختلفة: احفظها' }))
+    expect(
+      await screen.findByText('اذكر سبب اختلاف هذه الفاتورة عن الفواتير المذكورة.'),
+    ).toBeTruthy()
+  })
+
+  it('sends one request for a double click', async () => {
+    confirmAnswers.push(possible([X, Y]))
+    await openAndSave()
+    await screen.findByText('This may be one of 2 bills you already have')
+    giveReason('Reissued numbers')
+    sendAll()
+    sendAll()
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    expect(confirms()).toHaveLength(2)
+  })
+})
+
+describe('a supplier note that may duplicate more than one on file', () => {
+  it('sends the list from the note upload too', async () => {
+    const X = '11111111-1111-1111-1111-111111111111'
+    const Y = '22222222-2222-2222-2222-222222222222'
+    const onFile = (id: string) => ({
+      billId: id,
+      supplierBillNumber: 'MR-INV-8821',
+      issueDate: null,
+      total: null,
+      currencyCode: null,
+      source: 'PEPPOL',
+    })
+    confirmAnswers.push(
+      json(409, {
+        type: 'https://api.fawtir.om/problems/resource-conflict',
+        error: 'BILL_INTAKE_POSSIBLE_DUPLICATE',
+        duplicateOf: onFile(X),
+        duplicates: [onFile(X), onFile(Y)],
+      }),
+    )
+    uploads.push(XML_INTAKE)
+    renderAt('/expenditure/debit-notes/upload')
+    await pick([new File(['<DebitNote/>'], 'note.xml', { type: 'application/xml' })])
+    await screen.findByDisplayValue('MR-INV-8821')
+    fireEvent.click(screen.getByRole('button', { name: 'Save the debit note' }))
+
+    const panel = await screen.findByRole('alert', { name: '' })
+    expect(within(panel).getByText('This may be one of 2 bills you already have')).toBeTruthy()
+    fireEvent.change(within(panel).getByRole('textbox'), { target: { value: 'Two charges' } })
+    fireEvent.click(within(panel).getByRole('button', { name: 'They are all different bills. Save it' }))
+    expect(await screen.findByText('debit note page')).toBeTruthy()
+    expect(bodyOf(calls('POST', '/api/v1/bills/intake/i-xml/confirm')[1])).toMatchObject({
+      documentTypeCode: '383',
+      notDuplicateOf: null,
+      notDuplicateOfIds: [X, Y],
+      overrideReason: 'Two charges',
+    })
+  })
+})

@@ -21609,7 +21609,15 @@
         "SELF_BILLED": "self-billed"
       },
       "open": "Open that bill",
-      "different": "It's a different bill. Save it"
+      "different": "It's a different bill. Save it",
+      "titleMany": "This may be one of {{count}} bills you already have",
+      "reasonLabel": "Why is this a different bill?",
+      "differentAll": "They are all different bills. Save it",
+      "reasonRequired": "Say why this bill is different from the ones listed.",
+      "reasonTooLong": "Keep the reason to 280 characters.",
+      "tooMany": "This bill matches too many bills on file to save in one go. Open them and check the supplier and number.",
+      "unknown": "One of the bills it was compared with is no longer on file. Save again to check it afresh.",
+      "cannotOverrideMany": "This bill matches more than one bill on file, and they cannot be set aside here yet. Open them and check the supplier and number."
     },
     "discard": "Discard",
     "saving": "Saving…",
