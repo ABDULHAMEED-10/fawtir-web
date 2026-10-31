@@ -20,13 +20,13 @@ import {
 import { useApiRead } from '../../hooks'
 import { ApiError } from '../../api/errors'
 import {
+  INTAKE_LIVE_MAX_MB,
   INTAKE_MAX_BYTES,
   confirmIntake,
   discardIntake,
   loadIntake,
   loadIntakeFile,
   possibleDuplicateOf,
-  uploadIntake,
   type IntakeDto,
   type PossibleDuplicateDto,
 } from '../../api/expenditure/billIntake'
@@ -36,15 +36,12 @@ import {
   CONFIDENT_AT,
   EXPENSE_CATEGORIES,
   RECEIPT_FILE_TYPES,
-  UPLOAD_MAY_HAVE_ARRIVED,
-  UPLOAD_REFUSALS,
   billProblems,
   blankBillForm,
   fileKindOf,
   fromIntake,
   guessedCategory,
   notReadReason,
-  uploadMayHaveArrived,
   readingOf,
   toConfirmation,
   unsureFields,
@@ -54,6 +51,7 @@ import {
   type BillProblems,
   type ReadField,
 } from '../../lib/billIntake'
+import { uploadInTurn } from '../../lib/billUpload'
 import { formatAmount, formatDate } from '../../lib/format'
 import { muscatToday } from '../../lib/invoiceIssue'
 import { can, useSession } from '../../lib/session/session'
@@ -181,6 +179,8 @@ function ScanReceipts() {
   const session = useSession()
   const [params] = useSearchParams()
   const [receipts, setReceipts] = useState<Receipt[]>([])
+  /** The files of the last choice that did not become receipts, so none goes without a word. */
+  const [notAdded, setNotAdded] = useState<string[]>([])
   const [active, setActive] = useState(0)
 
   // Receipts stored earlier, named in the URL: fetched once with their files, then part of the pile.
@@ -216,8 +216,9 @@ function ScanReceipts() {
 
   const anyRead = receipts.some((item) => readingOf(item.intake) !== null)
 
-  const add = (uploaded: { intake: IntakeDto; file: File }[]) => {
+  const add = (uploaded: { intake: IntakeDto; file: File }[], problems: string[]) => {
     setReceipts((current) => [...current, ...uploaded.map(receiptOf)])
+    setNotAdded(problems)
   }
 
   const saved = receipts.filter((receipt) => receipt.status === 'saved')
@@ -280,11 +281,16 @@ function ScanReceipts() {
           source="SCANNED"
           multiple
           title={t('billIntake.scan.choose')}
-          hint={t('billIntake.scan.hint')}
+          hint={t('billIntake.scan.hint', { mb: INTAKE_LIVE_MAX_MB })}
           onUploaded={add}
         />
       ) : (
         <>
+          {notAdded.length > 0 ? (
+            <p role="alert" className="text-sm font-medium text-text-danger">
+              {notAdded.join(' ')}
+            </p>
+          ) : null}
           <div className="flex flex-wrap items-center justify-between gap-4 rounded-sm border border-primary-300 bg-primary-25 p-4">
             <div className="flex items-center gap-3">
               <span className="flex size-11 shrink-0 items-center justify-center rounded-sm bg-white">
@@ -448,37 +454,25 @@ function Thumbnail({
 function AddMore({
   onUploaded,
 }: {
-  onUploaded: (uploaded: { intake: IntakeDto; file: File }[]) => void
+  onUploaded: (uploaded: { intake: IntakeDto; file: File }[], problems: string[]) => void
 }) {
   const { t } = useTranslation()
   const [busy, setBusy] = useState(false)
-  const [refusal, setRefusal] = useState<string | null>(null)
+  /** Files the box itself turned away, in the same drop as the ones it passes on. */
+  const rejected = useRef<string[]>([])
   // Each photo is read while it uploads, which can take a while: the tile counts the seconds.
   const seconds = useElapsedSeconds(busy)
 
   const take = async (files: File[]) => {
+    const refused = rejected.current
+    rejected.current = []
     setBusy(true)
-    setRefusal(null)
-    const uploaded: { intake: IntakeDto; file: File }[] = []
-    try {
-      for (const file of files) uploaded.push({ intake: await uploadIntake(file, 'SCANNED'), file })
-    } catch (error) {
-      const coded =
-        error instanceof ApiError && error.code && Object.hasOwn(UPLOAD_REFUSALS, error.code)
-          ? UPLOAD_REFUSALS[error.code]
-          : undefined
-      const failure = describeApiFailure(error)
-      setRefusal(
-        coded
-          ? t(coded)
-          : uploadMayHaveArrived(error)
-            ? t(UPLOAD_MAY_HAVE_ARRIVED)
-            : t(failure.key, failure.values),
-      )
-    } finally {
-      setBusy(false)
-      if (uploaded.length > 0) onUploaded(uploaded)
-    }
+    const result = await uploadInTurn(files, 'SCANNED')
+    setBusy(false)
+    onUploaded(result.uploaded, [
+      ...refused,
+      ...result.problems.map((problem) => t(problem.key, problem.values)),
+    ])
   }
 
   return (
@@ -487,11 +481,22 @@ function AddMore({
       multiple
       maxBytes={INTAKE_MAX_BYTES}
       onFiles={(files) => void take(files)}
-      onReject={(reason) =>
-        setRefusal(
-          t(reason === 'size' ? 'billIntake.upload.tooLarge' : 'billIntake.upload.wrongType'),
+      onReject={(reason, file) => {
+        rejected.current.push(
+          t(
+            reason === 'size'
+              ? 'billIntake.upload.tooLargeNamed'
+              : 'billIntake.upload.wrongTypeNamed',
+            { name: file.name },
+          ),
         )
-      }
+        // Nothing else came with it: no upload follows to carry the words up.
+        queueMicrotask(() => {
+          if (rejected.current.length === 0) return
+          onUploaded([], rejected.current)
+          rejected.current = []
+        })
+      }}
       className="flex max-w-[116px] shrink-0 flex-col items-center justify-center gap-2 rounded-sm border-2 border-dashed border-border-default p-2 text-text-tertiary transition-colors hover:border-primary-300 hover:text-primary-700"
     >
       {() => (
@@ -500,11 +505,6 @@ function AddMore({
           <span className="text-xs font-medium">
             {busy ? t('billIntake.upload.readingShort', { seconds }) : t('scanReceipts.addMore')}
           </span>
-          {refusal ? (
-            <span role="alert" className="text-[11px] font-medium text-text-danger">
-              {refusal}
-            </span>
-          ) : null}
         </>
       )}
     </FileDropzone>

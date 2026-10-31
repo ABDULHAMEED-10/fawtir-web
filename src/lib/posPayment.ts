@@ -96,8 +96,22 @@ export function quickCash(owed: number): number[] {
 
 /** A typed figure ("12.5", "12.500") in baisa; anything else is 0. */
 export function parseBaisa(text: string): number {
-  const value = Number(text.replace(/[^0-9.]/g, ''))
+  const value = Number(latinDigits(text).replace(/[^0-9.]/g, ''))
   return Number.isFinite(value) ? Math.round(value * BAISA) : 0
+}
+
+/** Arabic-Indic and Persian digits and the Arabic decimal point, as an Arabic keyboard types them. */
+function latinDigits(text: string): string {
+  return text
+    .replace(/[\u0660-\u0669]/g, (digit) => String(digit.charCodeAt(0) - 0x0660))
+    .replace(/[\u06f0-\u06f9]/g, (digit) => String(digit.charCodeAt(0) - 0x06f0))
+    .replace(/\u066b/g, '.')
+}
+
+/** What a money field holds as typed, in baisa; null when empty or not a figure, never a made-up 0. */
+export function typedBaisa(text: string): number | null {
+  const plain = latinDigits(text).trim()
+  return /^(\d+\.?\d*|\.\d+)$/.test(plain) ? Math.round(Number(plain) * BAISA) : null
 }
 
 /** The tip is paid in cash when cash was taken, else on the card; never by transfer or account. */
