@@ -459,6 +459,33 @@ describe('the full invoice receipt (F-6)', () => {
   })
 })
 
+describe('the receipt in Arabic (31 Oct browser check)', () => {
+  it('says the title and the thanks once, and counts one item as one', async () => {
+    await i18n.changeLanguage('ar')
+    const totals = totalsFor(SAMPLE_SALE, NO_SALE_DISCOUNT)
+    setFinishedSale({
+      lines: SAMPLE_SALE,
+      totals,
+      tip: 0,
+      change: 0,
+      company: null,
+      buyer: null,
+      payments: [{ method: 'card', amount: totals.sale }],
+      sale: sold('NZW-T01-INV-2026-000006') as never,
+      queuedNumber: null,
+      finishedAt: '2026-10-29T11:35:22Z',
+    })
+    renderAt('/pos/receipt')
+    const title = await screen.findAllByText(i18n.t('pos.done.simplifiedInvoice'))
+    expect(title).toHaveLength(1)
+    expect(screen.getByText(i18n.t('pos.done.thankYou'))).toBeTruthy()
+    expect(i18n.t('pos.today.itemCount', { count: 1 })).toBe('صنف واحد')
+    expect(i18n.t('pos.pay.receiptWithQr', { count: 2 })).toBe('صنفان · إيصال برمز QR')
+    await i18n.changeLanguage('en')
+    expect(i18n.t('pos.itemsStarted', { count: 1, time: '09:00' })).toBe('1 item · started 09:00')
+  })
+})
+
 /** A refund lookup as a server older than backend #810 answers it: no tip. */
 const LOOKUP = {
   saleId: 's-1',
