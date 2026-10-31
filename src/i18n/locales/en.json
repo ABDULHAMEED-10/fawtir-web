@@ -4991,7 +4991,11 @@
         "CARD": "Card",
         "TRANSFER": "Bank transfer",
         "ON_ACCOUNT": "On account"
-      }
+      },
+      "waitingOffline_one": "1 sale is waiting to be sent. It goes by itself as soon as the connection is back.",
+      "waitingOffline_other": "{{count}} sales are waiting to be sent. They go by themselves as soon as the connection is back.",
+      "waitingBehind_one": "1 later sale is waiting behind it. It goes by itself once the sale above is filed.",
+      "waitingBehind_other": "{{count}} later sales are waiting behind it. They go by themselves once the sale above is filed."
     }
   },
   "orderDetail": {

@@ -99,6 +99,22 @@ describe('the queue on the till and Today (H-1)', () => {
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
+  it('says what a waiting sale waits for: the connection when offline, the stuck sale when not', async () => {
+    await submitSale(TILL, BODY, 'pos-sale-key-panel-w1')
+    await submitSale(TILL, BODY, 'pos-sale-key-panel-w2')
+    const offline = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    const first = render(wrap(<PosQueuePanel till={READY(true)} />))
+    expect(screen.getByText(/2 sales are waiting to be sent.*connection is back/)).toBeTruthy()
+    first.unmount()
+    offline.mockRestore()
+
+    reply = READ_ONLY
+    await flushQueue('till-1')
+    render(wrap(<PosQueuePanel till={READY(true)} />))
+    expect(screen.getByText(/1 later sale is waiting behind it/)).toBeTruthy()
+    expect(screen.queryByText(/connection is back/)).toBeNull()
+  })
+
   it('shows a refused sale with its number, reason and retry, and retrying files it with the same key', async () => {
     await submitSale(TILL, BODY, 'pos-sale-key-panel-1')
     reply = READ_ONLY

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Rial } from '../../components/ui'
 import { useApiRead } from '../../hooks'
@@ -17,6 +17,15 @@ import { posOpenNumbersPath, setAsideOpenNumber, type PosOpenNumberDto } from '.
 type Ready = Extract<TillState, { status: 'ready' }>
 
 /** The refusals a manager can put right here: payments only, so the receipt still matches. */
+const onlineChanges = (notify: () => void) => {
+  window.addEventListener('online', notify)
+  window.addEventListener('offline', notify)
+  return () => {
+    window.removeEventListener('online', notify)
+    window.removeEventListener('offline', notify)
+  }
+}
+
 const PAYMENTS_CAN_BE_CORRECTED = new Set([
   'POS_PAYMENTS_DO_NOT_MATCH_TOTAL',
   'POS_CASH_TENDERED_TOO_LOW',
@@ -37,6 +46,7 @@ export function PosQueuePanel({ till }: { till: Ready }) {
   const entries = useQueuedSales(till.till.id)
   const canSkip = till.till.openNumbers === true
   const open = useApiRead<PosOpenNumberDto[]>(canSkip ? posOpenNumbersPath(till.branchId) : null)
+  const online = useSyncExternalStore(onlineChanges, () => navigator.onLine)
   const onServer = open.read.status === 'ready' ? open.read.data : []
   const problems = entries.filter((entry) => entry.refusal)
   const waiting = entries.length - problems.length
@@ -81,7 +91,15 @@ export function PosQueuePanel({ till }: { till: Ready }) {
       ) : null}
       {waiting > 0 ? (
         <p className="rounded-md bg-surface-card px-5 py-3 text-xs font-medium text-text-tertiary">
-          {t('pos.queue.waiting', { count: waiting })}
+          {t(
+            // What it waits for: the connection, the stuck sale it must follow, or only its turn.
+            !online
+              ? 'pos.queue.waitingOffline'
+              : problems.length > 0 && !canSkip
+                ? 'pos.queue.waitingBehind'
+                : 'pos.queue.waiting',
+            { count: waiting },
+          )}
         </p>
       ) : null}
     </div>
