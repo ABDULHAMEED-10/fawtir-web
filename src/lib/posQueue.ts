@@ -37,9 +37,12 @@ import { forgetBuyer, openBuyer, sealBuyer } from './posVault'
  * is made by the server once the sale is sent (INCOME.md row P.28).
  *
  * A full invoice names its buyer, and their civil ID or passport number is personal data: the
- * queue entry never holds it where the device can seal it (`posVault`), and it is removed the
- * moment the sale is filed or finally refused. A slip photo taken offline waits with the sale
- * and is attached once it is filed (`posSlipOutbox`).
+ * queue entry never holds it where the device can seal it (`posVault`). The sealed copy stays until
+ * the sale is filed, whatever the server has answered meanwhile, so Try again and "Correct and send
+ * again" can still name the buyer (Abdul, 1 Nov 2026); it is deleted the moment the sale is filed
+ * and is never shown. A device that cannot seal keeps the buyer in the entry only until a final
+ * refusal: nothing personal stays in plain text for a sale that may never go. A slip photo taken
+ * offline waits with the sale, also until it is filed, and is then attached (`posSlipOutbox`).
  */
 
 export type QueuedSale = {
@@ -51,7 +54,7 @@ export type QueuedSale = {
   refusal: string | null
   /** The buyer was taken out of `body` and sealed on the device, to be put back as it is sent. */
   sealed?: boolean
-  /** Refused for good: not sent again by itself, and nothing personal is kept for it. */
+  /** Refused for good: not sent again by itself. A sealed buyer stays until a person resends it. */
   final?: boolean
   /** The refusal as the server gave it, for its sentence on the till. */
   refusalType?: string | null
@@ -297,7 +300,7 @@ async function bodyToSend(entry: QueuedSale): Promise<PosSaleRequest> {
   return consumer ? { ...entry.body, customer: { ...entry.body.customer, consumer } } : entry.body
 }
 
-/** Nothing personal is left of a sale the server has, or will never take. */
+/** Nothing personal is left of a sale the server has filed. */
 async function forget(entry: QueuedSale) {
   await forgetBuyer(entry.key)
 }
@@ -425,6 +428,7 @@ function refusedEntry(entry: QueuedSale, error: ApiError, verdict: RefusalVerdic
       : undefined,
     ...(final ? { final: true } : {}),
   }
+  // Only a buyer this device could not seal: plain text does not stay for a sale that may never go.
   if (final && refused.body.customer.consumer) {
     const customer = { ...refused.body.customer }
     delete customer.consumer
@@ -470,10 +474,7 @@ export async function flushQueue(tillId: string): Promise<FlushOutcome> {
           return { verdict, error }
         }
         const final = verdict === 'final'
-        if (final) {
-          await forget(entry)
-          await dropSlipPhotos(entry.key)
-        }
+        // Refused is not filed: the sealed buyer and any slip photo stay for Try again.
         save(
           queue.map((other) =>
             other.key === entry.key ? refusedEntry(other, error, verdict) : other,

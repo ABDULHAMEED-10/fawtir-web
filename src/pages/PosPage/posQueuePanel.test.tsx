@@ -10,6 +10,7 @@ import {
   submitSale,
 } from '../../lib/posQueue'
 import type { TillState } from '../../lib/posTill'
+import { memoryVault, setPosVault } from '../../lib/posVault'
 import { PosQueuePanel } from './PosQueuePanel'
 import { MemoryRouter } from 'react-router-dom'
 import type { ReactNode } from 'react'
@@ -151,6 +152,38 @@ describe('the queue on the till and Today (H-1)', () => {
     expect(text).not.toMatch(/by hand|new invoice|take it off/i)
     expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual(['Try again'])
     expect(queuedFor('till-1')).toHaveLength(1)
+  })
+
+  it('never shows the sealed buyer ID on a refused sale, to a manager or anyone else', async () => {
+    setPosVault(memoryVault(true))
+    try {
+      const civilId = '98765432'
+      await submitSale(
+        TILL,
+        {
+          ...BODY,
+          customer: {
+            kind: 'CONSUMER',
+            consumer: {
+              name: 'Salim Al Harthy',
+              contact: '+968 9123 4567',
+              identifierScheme: 'CID',
+              identifierValue: civilId,
+            },
+          },
+        },
+        'pos-sale-key-panel-sealed',
+      )
+      reply = () => problem(422, { code: 'POS_PAYMENTS_DO_NOT_MATCH_TOTAL' })
+      await flushQueue('till-1')
+      expect(queuedFor('till-1')[0]).toMatchObject({ final: true, sealed: true })
+      const { container } = render(wrap(<PosQueuePanel till={READY(true)} />))
+      fireEvent.click(screen.getByRole('button', { name: i18n.t('pos.queue.correct') }))
+      expect(container.innerHTML).not.toContain(civilId)
+      expect(window.localStorage.getItem('fawtir.pos.queue')).not.toContain(civilId)
+    } finally {
+      setPosVault(null)
+    }
   })
 
   it('someone who cannot manage tills sees that a sale could not be filed, and asks a manager', async () => {
