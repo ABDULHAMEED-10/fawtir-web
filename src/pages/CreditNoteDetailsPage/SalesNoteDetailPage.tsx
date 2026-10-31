@@ -1696,6 +1696,13 @@ const CANCEL_REFUSALS: Record<string, Record<NoteKind, string>> = {
     CREDIT_NOTE: 'invoiceDetails.cancelBlocked.correctionsOnNote',
     DEBIT_NOTE: 'invoiceDetails.cancelBlocked.correctionsOnNote',
   },
+  // Backend #834: credit notes on the invoice already use what this debit note added. Answered
+  // 409, where the plain conflict sentence would say "reload and try again", which cannot help.
+  // Only a debit note is refused this way; the credit-note entry is never reached.
+  DEBIT_NOTE_CANCEL_CREDITED: {
+    CREDIT_NOTE: 'salesNote.detail.cancelBlocked.debitCredited',
+    DEBIT_NOTE: 'salesNote.detail.cancelBlocked.debitCredited',
+  },
 }
 
 function refusalText(t: Translate, error: unknown, kind?: NoteKind): string {

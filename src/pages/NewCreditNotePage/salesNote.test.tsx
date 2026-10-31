@@ -2315,3 +2315,66 @@ describe('the cap sentences name each category without repeating a word (DA-1 re
     expect(sentence).not.toMatch(/بنسبة.*بنسبة|At Exempt|as Out of scope/)
   })
 })
+
+describe('cancelling a debit note that issued credits rely on (backend #834)', () => {
+  const debitNote: InvoiceDetailDto = {
+    ...INVOICE,
+    id: NOTE_ID,
+    type: 'DEBIT_NOTE',
+    correctionOfInvoiceId: INVOICE_ID,
+    invoiceNumber: 'DBN-5',
+  }
+
+  it.each([
+    ['en', 'This debit note cannot be cancelled: credit notes already issued on the invoice use what it added. Cancel those credit notes first.'],
+    ['ar', 'لا يمكن إلغاء هذا الإشعار المدين: الإشعارات الدائنة الصادرة على الفاتورة تستخدم ما أضافه. ألغِ تلك الإشعارات الدائنة أولاً.'],
+  ])('says which notes to cancel first instead of "reload and try again" (%s)', async (lang, sentence) => {
+    await i18n.changeLanguage(lang)
+    entitlements = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.cancel'] }
+    override = (url, init) => {
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}`) return json(200, debitNote)
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}/cancel` && init?.method === 'POST')
+        return json(409, { status: 409, code: 'DEBIT_NOTE_CANCEL_CREDITED', detail: 'cancel them first' })
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}/receivable`)
+        return json(200, {
+          ...RECEIVABLE,
+          documentTotal: 10.5,
+          paidAmount: 0,
+          creditedAmount: 0,
+          outstandingAmount: 10.5,
+          paymentState: 'UNPAID',
+        })
+      if (url.startsWith(`/api/v1/authored-invoices/${NOTE_ID}/`))
+        return json(
+          200,
+          url.endsWith('/history')
+            ? { entries: [], truncated: false, limit: 200 }
+            : url.endsWith('/internal-note')
+              ? { internalNote: null }
+              : [],
+        )
+      return undefined
+    }
+    render(
+      <MemoryRouter initialEntries={[`/income/debit-notes/${NOTE_ID}`]}>
+        <Routes>
+          <Route path="/income/debit-notes/:id" element={<SalesNoteDetailPage kind="DEBIT_NOTE" />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await screen.findByRole('heading', { name: 'DBN-5' })
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(([url]) => url === `/api/v1/authored-invoices/${NOTE_ID}/receivable`),
+      ).toBe(true),
+    )
+    fireEvent.click(await screen.findByRole('button', { name: i18n.t('invoiceDetails.actions.more') }))
+    fireEvent.click(
+      await screen.findByRole('menuitem', { name: i18n.t('salesNote.detail.cancelAction.DEBIT_NOTE') }),
+    )
+    fireEvent.change(await screen.findByRole('textbox'), { target: { value: 'Raised twice' } })
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('salesNote.detail.cancelConfirm.DEBIT_NOTE') }))
+    expect(await screen.findByText(sentence)).toBeTruthy()
+    expect(screen.queryByText(i18n.t('apiErrors.conflict'))).toBeNull()
+  })
+})

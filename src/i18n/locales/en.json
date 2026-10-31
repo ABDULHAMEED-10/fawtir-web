@@ -22013,7 +22013,8 @@
       },
       "notAvailableYet": "Not available yet",
       "cancelBlocked": {
-        "refunded": "This credit note cannot be cancelled: a refund is recorded against it."
+        "refunded": "This credit note cannot be cancelled: a refund is recorded against it.",
+        "debitCredited": "This debit note cannot be cancelled: credit notes already issued on the invoice use what it added. Cancel those credit notes first."
       }
     },
     "status": {
