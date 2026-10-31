@@ -84,7 +84,7 @@ describe('the sale panel', () => {
     expect(screen.getByText('5.084')).toBeTruthy()
   })
 
-  it('says One size for goods, and nothing of the kind for a service', () => {
+  it('says no One size on a line with no sizes, goods or service', () => {
     const [sample] = SAMPLE_SALE
     const plain = { ...sample, variant: null, addOns: [] }
     const { unmount } = render(
@@ -92,7 +92,7 @@ describe('the sale panel', () => {
         <PosSalePanel lines={[plain]} onLines={vi.fn()} onTakePayment={vi.fn()} />
       </MemoryRouter>,
     )
-    expect(screen.getByText(i18n.t('pos.oneSizeOnly'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('pos.oneSizeOnly'))).toBeNull()
     unmount()
 
     const service = { ...plain, itemType: 'service' as const }
@@ -185,11 +185,12 @@ describe('taking the payment (P.12)', () => {
       </MemoryRouter>,
     )
 
-  it('shows One size on the payment screen for goods, not for a service', async () => {
+  it('shows no One size on the payment screen, goods or service', async () => {
     const plain = { ...SAMPLE_SALE[0], variant: null, addOns: [] }
     resetOpenSale([plain])
     const goods = renderPayment()
-    expect(await screen.findByText(i18n.t('pos.oneSizeOnly'))).toBeTruthy()
+    expect(await screen.findAllByText(plain.name)).toBeTruthy()
+    expect(screen.queryByText(i18n.t('pos.oneSizeOnly'))).toBeNull()
     goods.unmount()
 
     resetOpenSale([{ ...plain, itemType: 'service' }])

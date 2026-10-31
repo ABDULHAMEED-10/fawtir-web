@@ -336,12 +336,12 @@ describe('the catalogue list', () => {
     expect(tabButton('catalogReal.tab.onSale').textContent).toContain('9')
     expect(productCalls()).toContain('/api/v1/products?branchId=b-main&availability=ON_SALE&size=1')
     expect(productCalls()).toContain(
-      '/api/v1/products?branchId=b-main&includeUnavailable=true&sales=NEVER_SOLD&size=1',
+      '/api/v1/products?branchId=b-main&availability=ON_SALE&sales=NEVER_SOLD&size=1',
     )
     fireEvent.click(tabButton('catalogReal.tab.neverSold'))
     await vi.waitFor(() =>
       expect(productCalls()).toContain(
-        '/api/v1/products?branchId=b-main&includeUnavailable=true&sales=NEVER_SOLD&sort=NAME&direction=ASC&size=20',
+        '/api/v1/products?branchId=b-main&includeUnavailable=true&availability=ON_SALE&sales=NEVER_SOLD&sort=NAME&direction=ASC&size=20',
       ),
     )
     expect(await screen.findByText('Item 07')).toBeTruthy()
@@ -386,6 +386,9 @@ describe('the catalogue list', () => {
       expect(tabButton('catalogReal.tab.switchedOff').textContent).toContain('2'),
     )
     expect(tabButton('catalogReal.tab.all').textContent).toContain('43')
+    expect(tabButton('catalogReal.tab.all').textContent).not.toContain('+')
+    // Products counts this page alone, and there are more pages, so it says at least that many.
+    expect(tabButton('catalogReal.tab.goods').textContent).toMatch(/\d+\+$/)
     expect(
       screen.getByText(i18n.t('catalogReal.kpi.things')).parentElement?.parentElement?.textContent,
     ).toContain('43')

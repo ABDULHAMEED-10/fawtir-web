@@ -7,7 +7,7 @@ export type FilterMenuOption<T extends string> = {
   value: T
   label: string
   /** Rows this option would leave on screen — Figma's toolbar shows none, so it is optional. */
-  count?: number
+  count?: number | string
 }
 
 /**

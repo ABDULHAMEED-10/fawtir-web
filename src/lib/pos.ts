@@ -104,14 +104,13 @@ export function lineTotal(line: SaleLine): number {
 }
 
 /**
- * The small print under a row, before its add-ons: a split bundle's parts, the size and option
- * chosen, else "One size". A service has no sizes, so it has none of that.
+ * The small print under a row, before its add-ons: a split bundle's parts, or the size and option
+ * chosen. A line with no sizes has none of that: saying "One size" only adds words.
  */
 export function saleLineDetail(line: SaleLine, t: TFunction): string | null {
   const parts = bundlePartNames(line)
   if (parts) return t('pos.bundle.parts', { parts })
-  if (line.variant) return line.variant.label
-  return line.itemType === 'service' ? null : t('pos.oneSizeOnly')
+  return line.variant ? line.variant.label : null
 }
 
 /** What a split bundle is made of, for the small print under its row: "Beans, Cups". */

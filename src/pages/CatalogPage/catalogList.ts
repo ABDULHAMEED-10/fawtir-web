@@ -51,7 +51,9 @@ export const SERVER_TABS: Partial<
   Record<CatalogTab, Pick<ProductListQuery, 'availability' | 'sales'>>
 > = {
   onSale: { availability: 'ON_SALE' },
-  neverSold: { sales: 'NEVER_SOLD' },
+  // Never sold is of what is on sale here, so it can never be more than All (a greyed item, not
+  // sold in this branch, is under Switched off).
+  neverSold: { availability: 'ON_SALE', sales: 'NEVER_SOLD' },
   switchedOff: { availability: 'SWITCHED_OFF' },
 }
 

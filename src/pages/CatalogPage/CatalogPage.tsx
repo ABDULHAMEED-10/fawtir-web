@@ -72,6 +72,15 @@ const SEARCH_DELAY_MS = 250
  * the server; the sort is the server's (`sort`, `direction`); the Archived tab reads
  * `status=ARCHIVED` and offers Put back on sale (P.14, P.15).
  */
+/** The tabs whose number is the server's; the others count the page of products in view. */
+const FROM_SERVER: ReadonlySet<CatalogTab> = new Set([
+  'all',
+  'onSale',
+  'neverSold',
+  'switchedOff',
+  'archived',
+])
+
 export function CatalogPage() {
   const { t, i18n } = useTranslation()
   const [query, setQuery] = useState('')
@@ -150,8 +159,7 @@ export function CatalogPage() {
     ? productListPath({
         q: search,
         branchId,
-        includeUnavailable: true,
-        sales: 'NEVER_SOLD',
+        ...SERVER_TABS.neverSold,
         size: 1,
       })
     : null
@@ -243,6 +251,9 @@ export function CatalogPage() {
               ? serverCount(switchedOffCount)
               : activeItems.filter((product) => matchesCatalogTab(product, id, flagged)).length +
                 (id === 'attention' ? flaggedElsewhere.length : 0)
+  // What the page alone counts is only a floor once there are more pages: "19+", not "19".
+  const tabBadge = (id: CatalogTab) =>
+    kpiPaged && !FROM_SERVER.has(id) ? `${tabCount(id)}+` : tabCount(id)
   const services = onSale.filter((product) => kindOf(product) === 'service').length
   const attention =
     onSale.filter((product) => needsAttention(product, flagged)).length +
@@ -404,7 +415,7 @@ export function CatalogPage() {
           {t('catalogReal.products')}
         </h2>
         {(loaded && items.length > 0) || archivedTab || archivedTotal > 0 ? (
-          <TabStrip tabs={tabs} value={tab} onChange={setTab} count={tabCount} />
+          <TabStrip tabs={tabs} value={tab} onChange={setTab} count={tabBadge} />
         ) : null}
 
         <div className="flex flex-wrap items-center justify-between gap-3 p-5">
@@ -427,7 +438,7 @@ export function CatalogPage() {
               options={tabs.map((entry) => ({
                 value: entry.id,
                 label: t(entry.labelKey),
-                count: tabCount(entry.id),
+                count: tabBadge(entry.id),
               }))}
               onChange={setTab}
             />
