@@ -13325,11 +13325,11 @@
       "none": "Nothing found",
       "noSizes": "This item has no sizes on sale",
       "type": {
-        "ALL": "everything",
-        "GROUP": "group",
-        "KIND": "kind",
-        "PRODUCT": "item",
-        "VARIANT": "size"
+        "ALL": "Everything",
+        "GROUP": "Group",
+        "KIND": "Kind",
+        "PRODUCT": "Item",
+        "VARIANT": "Size"
       },
       "pick": {
         "ALL": "Everything in the catalogue",
