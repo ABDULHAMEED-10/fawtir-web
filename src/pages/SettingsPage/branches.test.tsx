@@ -399,6 +399,60 @@ describe('Add a branch, for real', () => {
     expect(screen.queryByText(i18n.t('addBranch.cost'))).toBeNull()
   })
 
+  describe('the Till column (31 Oct browser check)', () => {
+    const withTills = (permissions: string[]) => {
+      overview = ONE_BRANCH_OVERVIEW
+      fetchMock.mockImplementation(async (url: string) => {
+        if (url === '/api/v1/me/entitlements') return json(200, { ...ADMIN, permissions })
+        if (url === OVERVIEW_PATH) return json(200, overview)
+        if (url === '/api/v1/pos/tills') {
+          return json(200, [
+            { id: 't-1', branchId: 'b-1' },
+            { id: 't-2', branchId: 'b-1' },
+            { id: 't-3', branchId: 'b-other' },
+          ])
+        }
+        return json(200, {})
+      })
+    }
+    const tillCell = async () => {
+      render(
+        <MemoryRouter>
+          <BranchesPage />
+        </MemoryRouter>,
+      )
+      const label = await screen.findByText(i18n.t('branches.col.till'))
+      return label.parentElement as HTMLElement
+    }
+
+    it('counts the tills of the branch, not the devices of its people', async () => {
+      withTills(['branch.read', 'pos.read'])
+      const cell = await tillCell()
+      await within(cell).findByText('2')
+      expect(within(cell).getByText('tills')).toBeTruthy()
+    })
+
+    it('does not say None to a reader who may not see tills', async () => {
+      withTills(['branch.read'])
+      const cell = await tillCell()
+      await waitFor(() => expect(within(cell).getByText('-')).toBeTruthy())
+      expect(within(cell).queryByText('None')).toBeNull()
+      expect(calls('GET', '/api/v1/pos/tills')).toHaveLength(0)
+    })
+  })
+
+  it('offers no switch for a till: saving a branch does not make one', async () => {
+    render(
+      <MemoryRouter initialEntries={['/settings/branches/new']}>
+        <Routes>
+          <Route path="/settings/branches/new" element={<AddBranchPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await screen.findByText(i18n.t('addBranch.tillLater'))
+    expect(screen.queryByRole('switch', { name: /till/i })).toBeNull()
+  })
+
   it('reads in Arabic with the same empty form', async () => {
     await i18n.changeLanguage('ar')
     render(

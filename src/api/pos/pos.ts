@@ -58,6 +58,11 @@ export function posTillsPath(branchId: string): string {
   return withQuery(POS_TILLS_PATH, { branchId })
 }
 
+/** Every active till the reader's branches can see, for a count per branch. */
+export function loadAllPosTills(): Promise<PosTillDto[]> {
+  return apiRequest<PosTillDto[]>(POS_TILLS_PATH)
+}
+
 export function loadPosTills(branchId: string): Promise<PosTillDto[]> {
   return apiRequest<PosTillDto[]>(posTillsPath(branchId))
 }
