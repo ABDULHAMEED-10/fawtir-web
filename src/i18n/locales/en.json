@@ -6232,7 +6232,10 @@
       "receiptAgainst": "Received against {{order}}",
       "originalNote": "The original file as the supplier sent it",
       "none": "Nothing is linked to this bill yet.",
-      "note": "Note: {{text}}"
+      "note": "Note: {{text}}",
+      "creditNote": "credit note",
+      "creditOnBill": "{{amount}} credited to this bill",
+      "creditNotListed": "Credit stands on this bill, but it cannot be tied to one credit note here. The amount is under Payment."
     },
     "activity": {
       "title": "Activity",

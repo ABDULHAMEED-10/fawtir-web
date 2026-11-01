@@ -296,10 +296,15 @@ const calls = () =>
     ([url, init]) => `${(init as RequestInit)?.method ?? 'GET'} ${String(url)}`,
   )
 
+let creditNotesResponse: () => Response
+let creditNoteReads: string[]
+
 beforeEach(async () => {
   await i18n.changeLanguage('en')
   forgetEntitlements()
   who = ADMIN
+  creditNotesResponse = () => json(200, { items: [], page: 0, size: 200, total: 0 })
+  creditNoteReads = []
   billResponse = () => json(200, detail())
   matchResponse = () => json(200, MATCH)
   actionResponse = () => json(200, {})
@@ -370,6 +375,10 @@ beforeEach(async () => {
           total: 2759.1,
         },
       })
+    if (url.startsWith('/api/v1/credit-notes?')) {
+      creditNoteReads.push(url)
+      return creditNotesResponse()
+    }
     if (url === `${BILL_URL}/match`) return method === 'GET' ? matchResponse() : actionResponse()
     if (url.startsWith(`${BILL_URL}/`)) return actionResponse()
     if (url === BILL_URL) return billResponse()
@@ -1799,6 +1808,15 @@ describe('bill detail mapping', () => {
         .reject,
     ).toBe(false)
     expect(decisionsOf({ ...approved, paymentRunReference: 'RUN-0012' }, all).reject).toBe(false)
+  })
+
+  it('a rejected bill offers no Approve: rejected is final, the server has no reopen step', () => {
+    const can = () => true
+    const rejected = detail({
+      readiness: { state: 'REJECTED', distinctApprovals: 0, required: 1, autoApproved: false },
+    })
+    expect(decisionsOf(rejected, can)).toMatchObject({ approve: false, reject: false })
+    expect(decisionsOf(detail(), can).approve).toBe(true)
   })
 
   it('offers no decision on a credit note or a paid bill', () => {
@@ -3374,5 +3392,110 @@ describe('a USD bill’s payment terms and saving carry its currency (DB-5 revie
     const saving = (await screen.findByText(/^Paying by .* saves$/)).closest('p')!
     expect(within(saving).getByText('USD')).toBeTruthy()
     expect(saving.querySelector('svg')).toBeNull()
+  })
+})
+
+describe('A rejected bill, on the page', () => {
+  it.each(['en', 'ar'])('has no Approve button (%s)', async (language) => {
+    await i18n.changeLanguage(language)
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          readiness: { state: 'REJECTED', distinctApprovals: 0, required: 1, autoApproved: false },
+        }),
+      )
+    renderBill()
+    await screen.findByText(i18n.t('billDetail.linked.title'))
+    expect(
+      screen.queryByRole('button', { name: i18n.t('billDetail.decision.approveForPayment') }),
+    ).toBeNull()
+    await i18n.changeLanguage('en')
+  })
+})
+
+describe('The credit notes on a bill, in Linked documents', () => {
+  const credited = (amount = 21) => {
+    const bill = detail()
+    return { ...bill, settlement: { ...bill.settlement, creditedAmount: amount } }
+  }
+  /** A `GET /v1/credit-notes` row as the live server answers it (`CreditNoteController`). */
+  const noteRow = (id: string, number: string, billId: string | null, applied: number) => ({
+    id,
+    source: 'PEPPOL',
+    supplierId: 's-1',
+    supplierName: 'Qalhat Marine Supplies',
+    documentTypeCode: '381',
+    creditNoteNumber: number,
+    currencyCode: 'OMR',
+    creditedAmount: applied,
+    status: 'APPLIED',
+    balance: { applied, refunded: 0, remaining: 0 },
+    credits: {
+      billNumber: 'QMS-2209',
+      issueDate: '2026-09-01',
+      documentUuid: null,
+      billId,
+      applied: billId !== null,
+    },
+    heldAsDuplicate: false,
+  })
+  const page = (...items: unknown[]) =>
+    json(200, { items, page: 0, size: 200, total: items.length })
+
+  it.each(['en', 'ar'])(
+    'lists the note on this bill, linked, with what it credits (%s)',
+    async (language) => {
+      await i18n.changeLanguage(language)
+      billResponse = () => json(200, credited())
+      creditNotesResponse = () =>
+        page(
+          noteRow('cn-1', 'CN-77', ID, 21),
+          // Another bill's, and one released from this bill: its `billId` answers null.
+          noteRow('cn-2', 'CN-78', 'b-other', 5),
+          noteRow('cn-3', 'CN-79', null, 0),
+        )
+      renderBill()
+      const link = await screen.findByRole('link', { name: 'CN-77' })
+      expect(link.getAttribute('href')).toBe('/expenditure/credit-notes/cn-1')
+      expect(link.closest('li')?.textContent).toContain('21.000')
+      expect(screen.queryByRole('link', { name: 'CN-78' })).toBeNull()
+      expect(screen.queryByRole('link', { name: 'CN-79' })).toBeNull()
+      expect(creditNoteReads[0]).toContain('supplier_id=s-1')
+      expect(creditNoteReads[0]).toContain('page_size=200')
+      await i18n.changeLanguage('en')
+    },
+  )
+
+  /** Nothing else to list: no order, no file. */
+  const bare = () => {
+    const bill = credited()
+    return {
+      ...bill,
+      intake: null,
+      bill: { ...bill.bill, match: null, inboundDeliveryId: null },
+    }
+  }
+
+  it('a note held as a duplicate credits nothing, so is not listed', async () => {
+    billResponse = () => json(200, bare())
+    creditNotesResponse = () => page({ ...noteRow('cn-1', 'CN-77', ID, 21), heldAsDuplicate: true })
+    renderBill()
+    await screen.findByText(i18n.t('billDetail.linked.creditNotListed'))
+    expect(screen.queryByRole('link', { name: 'CN-77' })).toBeNull()
+  })
+
+  it('does not say nothing is linked while credit stands and no note can be named', async () => {
+    billResponse = () => json(200, bare())
+    creditNotesResponse = () => json(403, { type: 'about:blank', status: 403 })
+    renderBill()
+    await screen.findByText(i18n.t('billDetail.linked.creditNotListed'))
+    expect(screen.queryByText(i18n.t('billDetail.linked.none'))).toBeNull()
+  })
+
+  it('reads no notes for a bill with no credit on it', async () => {
+    renderBill()
+    await screen.findByText(i18n.t('billDetail.linked.title'))
+    expect(creditNoteReads).toEqual([])
   })
 })

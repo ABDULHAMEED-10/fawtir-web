@@ -5,6 +5,7 @@ import type {
   ReceiptReportDto,
 } from '../api/expenditure/bills'
 import type { ActivityItemDto } from '../api/compliance/activity'
+import type { CreditNoteRowDto } from '../api/expenditure/notes'
 import type { InboundInvoiceDto } from '../api/expenditure/inboundInvoice'
 import { canResubmit, correctionHeld } from './activityLedger'
 import { tddReportStateOf } from './taxAuthorityReport'
@@ -179,7 +180,10 @@ export function decisionsOf(
   const approver = can('invoice.approve') && decidable && !heldAsDuplicate(detail)
   const payer = can('invoice.payment.manage') && decidable
   return {
-    approve: approver && detail.readiness.state !== 'READY',
+    // Rejected is final (Abdul, 1 Nov 2026): there is no step that reopens it. The server itself does
+    // not refuse an approval after a rejection, so this is the screen's rule.
+    approve:
+      approver && detail.readiness.state !== 'READY' && detail.readiness.state !== 'REJECTED',
     // Not once any payment is recorded or the bill is in a payment run: a bill part paid, or
     // about to be paid, is not rejected (owner decision 2026-10-01; the server refuses it too).
     reject:
@@ -192,6 +196,18 @@ export function decisionsOf(
     // refused (BILL_HOLD_DUPLICATE_RELEASE_REFUSED), so the page offers the decision instead.
     release: can('invoice.payment.manage') && detail.hold !== null && !heldAsDuplicate(detail),
   }
+}
+
+/**
+ * The supplier's credit notes that stand on this bill. No bill read names them, so they come from
+ * the supplier's list, by the one bill each note reduces (`credits.billId`): null on a note released
+ * from its bill (backend #827) and on one spread over several. A held copy credits nothing.
+ */
+export function creditNotesOn(
+  billId: string,
+  rows: readonly CreditNoteRowDto[],
+): CreditNoteRowDto[] {
+  return rows.filter((row) => row.credits.billId === billId && row.heldAsDuplicate !== true)
 }
 
 /**
