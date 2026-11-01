@@ -163,9 +163,8 @@ const CONFLICT_REFUSALS: Record<string, string> = {
   BILL_REOPEN_HELD_AS_DUPLICATE: 'billDetail.duplicate.refused.reopenHeld',
   // Booking goods in (backend V519, DEC-30-08): the whole receipt is refused and nothing is received.
   PRODUCT_STOCK_UNIT_MISMATCH: 'apiErrors.refused.receiptStockUnitMismatch',
-  // A line written before V519 recorded no unit. The receipt form sends no `statedUnit` yet, so such
-  // a line cannot be received from this screen and the sentence promises no way out here (gap
-  // reported in closure/phase3/zf-bills/ZF-BILLS.md).
+  // A line written before V519 recorded no unit, and the receipt stated none (`statedUnit`): the
+  // sentence asks for the unit the goods were counted in, the one way past it (DEC-30-08).
   GOODS_RECEIPT_STOCK_UNIT_REQUIRED: 'apiErrors.refused.receiptStockUnitRequired',
 }
 

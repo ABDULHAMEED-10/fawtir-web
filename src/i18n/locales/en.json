@@ -20811,7 +20811,7 @@
       "debitNotePartlyPaid": "This debit note is partly paid. Record a refund from the supplier for the paid part first.",
       "debitNoteNotAccepted": "Accept the debit note before you pay it.",
       "receiptStockUnitMismatch": "Nothing was received. An item on this order is now counted in a different unit from the one it was ordered in. Check the item's unit, or order it again in the unit it is counted in now.",
-      "receiptStockUnitRequired": "Nothing was received. A line on this order was saved before Fawtir recorded the unit its stock is counted in, and this screen cannot state that unit yet. Contact Fawtir support."
+      "receiptStockUnitRequired": "Nothing was received. A line on this order was saved before Fawtir recorded the unit its stock is counted in, so the receipt must say which unit the goods were counted in. State that unit, then book the goods in again."
     },
     "selfBilling": {
       "generic": "The server refused this because of the self-billing agreement with this supplier. Check the agreement before trying again.",
