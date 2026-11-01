@@ -704,6 +704,62 @@ describe('the receipt of a company without a VAT number (retest N-8)', () => {
   })
 })
 
+describe('the receipt QR as the server states it (B2C only, owner batch 33 Q5)', () => {
+  const finish = (sale: ReturnType<typeof sold>, company: boolean) => {
+    const totals = totalsFor(SAMPLE_SALE, NO_SALE_DISCOUNT)
+    setFinishedSale({
+      lines: SAMPLE_SALE,
+      totals,
+      tip: 0,
+      change: 0,
+      company: company
+        ? {
+            id: 'c-3',
+            name: 'Ibri Traders SPC',
+            kind: 'BUSINESS',
+            vat: null,
+            identifier: { scheme: 'CR', value: '1468035' },
+          }
+        : null,
+      payments: [{ method: 'cash', amount: totals.sale }],
+      sale: sale as never,
+      queuedNumber: null,
+      finishedAt: '2026-10-29T11:35:22Z',
+    })
+  }
+
+  it('a company without a VAT number gets no QR and no promise of one', async () => {
+    finish(
+      sold('NZW-T01-INV-2026-000008', {
+        transactionType: 'FULL_TAX',
+        customerKind: 'BUSINESS',
+        receipt: { invoiceTotal: 5.649, tip: 0, qr: { status: 'NOT_APPLICABLE' } },
+      }),
+      true,
+    )
+    renderAt('/pos/receipt')
+    expect(await screen.findByText(i18n.t('pos.done.qrNone'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('pos.done.qrAlreadyUp'))).toBeNull()
+    expect(screen.queryByText(i18n.t('pos.done.qrComing'))).toBeNull()
+    expect(screen.queryByAltText(i18n.t('pos.done.qrAlt'))).toBeNull()
+  })
+
+  it('a walk-in whose QR is not ready yet is not told it is on the screen', async () => {
+    finish(sold('NZW-T01-INV-2026-000009'), false)
+    renderAt('/pos/receipt')
+    expect(await screen.findByText(i18n.t('pos.done.qrPending'))).toBeTruthy()
+    expect(screen.getByText(i18n.t('pos.done.qrNotReadyShort'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('pos.done.qrAlreadyUp'))).toBeNull()
+  })
+
+  it('says nothing on the receipt that claims a check with the Tax Authority', () => {
+    for (const language of ['en', 'ar']) {
+      const text = i18n.t('pos.done.scanToCheck', { lng: language })
+      expect(text).not.toMatch(/Tax Authority|جهاز الضرائب/)
+    }
+  })
+})
+
 describe('the receipt of a sale queued offline (retest N-6)', () => {
   const queued = () => {
     const totals = totalsFor(SAMPLE_SALE, NO_SALE_DISCOUNT)

@@ -2639,7 +2639,7 @@
       "contactPlaceholder": "To send the receipt",
       "peppolNote": "No Peppol ID needed. We’ll use the OTA substitute participant ID 997770000099 and generate the mandatory QR code on the receipt.",
       "receiptQr": "Receipt QR",
-      "receiptQrHint": "TLV-encoded per OTA spec.\nGenerated on submit."
+      "receiptQrHint": "Made by Fawtir from the issued invoice."
     },
     "summary": {
       "title": "Summary",
@@ -4500,6 +4500,8 @@
       "acceptedNote": "{{accepted}}",
       "giveReceipt": "Give them the receipt",
       "qrAlreadyUp": "the QR is already on the customer screen",
+      "qrNotReadyShort": "the QR is not ready yet",
+      "qrNone": "this receipt has no QR code",
       "printed": "Printed",
       "printedNote": "Came out of the counter printer",
       "email": "Email it",
@@ -4522,7 +4524,7 @@
       "tipNoVat": "Tip (no VAT)",
       "totalOmr": "Total OMR",
       "change": "Change",
-      "scanToCheck": "Scan to check this invoice with the Oman Tax Authority",
+      "scanToCheck": "This invoice's QR code",
       "thankYou": "Thank you",
       "queuedTitle": "Sold, sending when back online",
       "queuedSummary": "The till is offline. Invoice {{invoice}} is numbered and will be filed as soon as the connection is back. There is {{change}} change to hand back.",
@@ -4534,6 +4536,7 @@
       "cardApproval": "Card · approval {{code}}",
       "qrAlt": "The invoice's QR code",
       "qrComing": "The QR code comes up once the invoice is filed.",
+      "qrPending": "The QR code is not ready yet.",
       "qrAfterFiling": "the QR comes once the sale is filed",
       "rungUpWrongQueued": "Rung it up wrong? This sale is waiting to be filed. Once it is filed, a mistake is put right with a credit note, which the Tax Authority also sees.",
       "queuedBehindTitle": "Sold, filing after an earlier sale",

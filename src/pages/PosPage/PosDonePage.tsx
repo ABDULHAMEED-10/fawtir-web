@@ -128,6 +128,7 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
   const buyer = done.buyer ?? null
   // A full tax invoice prints as one in both languages: to a company, or to a named buyer (F-6).
   const fullInvoice = sale ? sale.transactionType === 'FULL_TAX' : !!company || !!buyer
+  const qrStatus = sale?.receipt.qr.status ?? null
   const accepted = !!sale?.filing.acceptedAt
   const sent = !!sale && sale.filing.dispatchState !== 'QUEUED'
   const stepDone = {
@@ -274,8 +275,17 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
                 {t('pos.done.giveReceipt')}
               </h2>
               <p className="mt-1 text-xs font-medium text-text-quaternary">
-                {/* A queued sale has no QR yet, and is not filed yet (retest N-6). */}
-                {sale ? t('pos.done.qrAlreadyUp') : t('pos.done.qrAfterFiling')}
+                {/* The server decides the QR (receipt.qr.status): B2C only, so a business or
+                    government buyer never gets one. A queued sale has none yet (retest N-6). */}
+                {t(
+                  qrStatus === 'READY'
+                    ? 'pos.done.qrAlreadyUp'
+                    : qrStatus === 'PENDING'
+                      ? 'pos.done.qrNotReadyShort'
+                      : qrStatus === 'NOT_APPLICABLE' || company
+                        ? 'pos.done.qrNone'
+                        : 'pos.done.qrAfterFiling',
+                )}
               </p>
             </div>
             {/* TODO(backend): only printing works; e-mailing or texting a receipt has no route
@@ -534,7 +544,11 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
                       {t('pos.done.scanToCheck')}
                     </p>
                   </>
-                ) : !company ? (
+                ) : qrStatus === 'PENDING' ? (
+                  <p className="text-[11px] font-medium leading-[1.5] text-text-quaternary">
+                    {t('pos.done.qrPending')}
+                  </p>
+                ) : !sale && !company ? (
                   <p className="text-[11px] font-medium leading-[1.5] text-text-quaternary">
                     {t('pos.done.qrComing')}
                   </p>
