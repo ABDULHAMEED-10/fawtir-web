@@ -29,6 +29,7 @@ import stepServe from '../../assets/home/step-serve.webp'
 import stepServeAr from '../../assets/home/step-serve-ar.webp'
 import posCurve from '../../assets/home/pos-curve.svg'
 import posCatalog from '../../assets/home/pos-catalog.webp'
+import posCatalogAr from '../../assets/home/pos-catalog-ar.webp'
 import posPaid from '../../assets/home/pos-paid.webp'
 import showcaseDashboard from '../../assets/home/showcase-dashboard.webp'
 import showcaseDashboardAr from '../../assets/home/showcase-dashboard-ar.webp'
@@ -414,6 +415,7 @@ function Steps() {
 
 function Counter() {
   const { t } = useTranslation()
+  const catalog = useShot(posCatalog, posCatalogAr)
   const items = ['taps', 'tabs', 'cashUp', 'offline'] as const
   return (
     <section className="relative mx-auto mt-[200px] w-full max-w-[1920px] overflow-x-clip max-md:mt-24">
@@ -435,7 +437,7 @@ function Counter() {
         <div className="flex w-full items-center justify-between gap-10 max-lg:flex-col">
           <div className="flex items-start gap-8">
             <img
-              src={posCatalog}
+              src={catalog}
               alt={t('landing.counter.catalogAlt')}
               className="landing-device h-[600px] w-[288.7px] rounded-[7.385px] max-sm:h-[520px] max-sm:w-[250px]"
               loading="lazy"
