@@ -303,6 +303,15 @@ export function rejectBill(billId: string, reason: string): Promise<unknown> {
   return apiRequest(`${billPath(billId)}/approval/reject`, { method: 'POST', body: { reason } })
 }
 
+/**
+ * Takes a rejection back (`bill.reopen`, backend V523). It approves nothing: the bill then reads
+ * PENDING with no approvals counted, because approvals given before the rejection never come back.
+ * A repeat answers the reopen already recorded, so a lost response is safe to send again.
+ */
+export function reopenBill(billId: string, reason: string): Promise<unknown> {
+  return apiRequest(`${billPath(billId)}/approval/reopen`, { method: 'POST', body: { reason } })
+}
+
 export function holdBill(billId: string, reason: string): Promise<unknown> {
   return apiRequest(`${billPath(billId)}/hold`, { method: 'POST', body: { reason } })
 }
@@ -428,7 +437,8 @@ export type BillDetailDto = {
     exemptionReason?: string | null
   }[]
   readiness: BillRowDto['readiness']
-  approvals: { id: string; decision: 'APPROVED' | 'REJECTED'; reason: string | null; decidedBy: string; decidedAt: string }[]
+  /** Newest first, in commit order (backend V523): kept as sent, never re-sorted by `decidedAt`. */
+  approvals: { id: string; decision: 'APPROVED' | 'REJECTED' | 'REOPENED'; reason: string | null; decidedBy: string; decidedAt: string }[]
   hold: BillHoldDto | null
   holdHistory: BillHoldDto[]
   settlement: {
@@ -533,6 +543,8 @@ export type BillDetailDto = {
       // the copy's own record. The activity panel already has words for both.
       | 'NOT_DUPLICATE'
       | 'CONFIRMED_DUPLICATE'
+      // A rejection taken back (backend V523); its detail is the reason given.
+      | 'REOPENED'
     detail: string | null
     actor: string | null
   }[]
