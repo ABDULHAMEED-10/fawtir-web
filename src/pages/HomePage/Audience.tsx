@@ -10,6 +10,8 @@ import whoPos from '../../assets/home/who-pos.webp'
 import whoPosAr from '../../assets/home/who-pos-ar.webp'
 import ownerPos from '../../assets/home/owner-pos.webp'
 import ownerPosAr from '../../assets/home/owner-pos-ar.webp'
+import photoSmeOffice from '../../assets/home/photo-sme-office.webp'
+import photoSmeOfficeAr from '../../assets/home/photo-sme-office-ar.webp'
 import { withRial } from '../../components/ui/Rial'
 import { Heading, SOFT, Texture } from './site'
 
@@ -217,28 +219,45 @@ function Card({ id }: { id: Audience }) {
 }
 
 /**
- * An Omani shop owner at his till (owner, 1 Nov 2026). The person and shop are AI-generated, so the
- * photo is never captioned as a customer; the tablet carries the app's real POS screen from the mock
- * API, in the page's language.
+ * One photo of Omani people above the cards (owner, 1 Nov 2026), a different one on each page that
+ * shows the section: the cafe owner at his till on the home page, the small trading office on the
+ * Features page. The people and places are AI-generated, so no photo is captioned as a customer;
+ * every screen in them carries the app's real screen from the mock API, in the page's language.
  */
-function OwnerPhoto() {
+const AUDIENCE_PHOTOS = {
+  shop: {
+    en: ownerPos,
+    ar: ownerPosAr,
+    alt: 'landing.audience.photoAlt',
+    focus: 'object-[50%_40%]',
+  },
+  office: {
+    en: photoSmeOffice,
+    ar: photoSmeOfficeAr,
+    alt: 'landing.audience.photos.sme',
+    focus: 'object-[50%_8%]',
+  },
+} as const
+
+function AudiencePhoto({ photo }: { photo: keyof typeof AUDIENCE_PHOTOS }) {
   const { t, i18n } = useTranslation()
   const ar = i18n.language.startsWith('ar')
+  const shot = AUDIENCE_PHOTOS[photo]
   return (
     <div className="w-full overflow-hidden rounded-lg border-[8px] border-[rgba(44,78,183,0.1)]">
       <img
-        src={ar ? ownerPosAr : ownerPos}
-        alt={t('landing.audience.photoAlt')}
+        src={ar ? shot.ar : shot.en}
+        alt={t(shot.alt)}
         width={3072}
         height={2048}
         loading="lazy"
-        className="aspect-[16/9] w-full object-cover object-[50%_40%] max-md:aspect-[4/3]"
+        className={`aspect-[16/9] w-full object-cover max-md:aspect-[4/3] ${shot.focus}`}
       />
     </div>
   )
 }
 
-export function Audience() {
+export function Audience({ photo = 'shop' }: { photo?: keyof typeof AUDIENCE_PHOTOS }) {
   const { t } = useTranslation()
   return (
     <section
@@ -254,7 +273,7 @@ export function Audience() {
         <p className="text-xl leading-8">{t('landing.audience.sub')}</p>
       </div>
       <div className="flex w-full flex-col gap-6">
-        <OwnerPhoto />
+        <AudiencePhoto photo={photo} />
         <div className="grid w-full gap-6 lg:grid-cols-2">
           <Card id="sme" />
           <Card id="pos" />
