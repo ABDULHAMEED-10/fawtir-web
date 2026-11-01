@@ -27,6 +27,21 @@ export type SaleBuyer = {
   identifierValue: string
 }
 
+/** Schemes the server treats as personal data (`BuyerIdentifierScheme`, V480). */
+const PERSONAL_SCHEMES = new Set(['CID', 'PASNUM'])
+const MASK = '••••'
+
+/**
+ * A buyer's identifier as a receipt shows it (Abdul, 1 Nov 2026): a person's civil ID or passport
+ * number masked the way the server masks it for a reader, to its last four characters, and whole
+ * when it has four or fewer. For display only: the invoice data keeps the number.
+ */
+export function maskedIdentifier(scheme: string, value: string): string {
+  if (!PERSONAL_SCHEMES.has(scheme) || value.startsWith(MASK)) return value
+  const compact = value.replace(/\s+/g, '')
+  return compact.length <= 4 ? MASK : `${MASK} ${compact.slice(-4)}`
+}
+
 export type OpenSale = {
   lines: SaleLine[]
   saleDiscount: SaleDiscount

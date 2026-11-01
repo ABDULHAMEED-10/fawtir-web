@@ -149,6 +149,12 @@ export function moneyBackMethod(
   return 'REDUCE_BALANCE'
 }
 
+/** Every way the sale was paid, in the server's order; a sale paid one way reads as `moneyBackMethod`. */
+export function waysPaid(sale: PosRefundLookupDto): string[] {
+  const paid = sale.paid.byMethod.filter((entry) => entry.amount > 0).map((entry) => entry.method)
+  return paid.length > 1 ? paid : [moneyBackMethod(sale)]
+}
+
 /**
  * The money back of a refund, in baisa (Abdul, 1 Nov 2026): filled from the server's quote, for the
  * cashier to change. What a company owes is not theirs to change: it goes back to the account.

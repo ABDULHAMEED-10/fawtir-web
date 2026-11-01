@@ -31,6 +31,35 @@ export const SOFT = 'text-[#494d56]'
 /** The site's pages, as the nav names and links them. */
 export type SitePage = 'home' | 'pricing' | 'features' | 'contact'
 
+/* -------------------------------------------------------------------- meta */
+
+function setMeta(attribute: 'name' | 'property', key: string, content: string) {
+  let tag = document.head.querySelector<HTMLMetaElement>(`meta[${attribute}="${key}"]`)
+  if (!tag) {
+    tag = document.createElement('meta')
+    tag.setAttribute(attribute, key)
+    document.head.appendChild(tag)
+  }
+  tag.content = content
+}
+
+/**
+ * A public page's title and description, in the reader's language, for search results and link
+ * previews. `index.html` carries the English defaults for crawlers that do not run the page.
+ */
+export function useSiteMeta(titleKey: string, descriptionKey: string) {
+  const { t, i18n } = useTranslation()
+  useEffect(() => {
+    const title = t(titleKey)
+    const description = t(descriptionKey)
+    document.title = title
+    setMeta('name', 'description', description)
+    setMeta('property', 'og:title', title)
+    setMeta('property', 'og:description', description)
+    setMeta('property', 'og:locale', i18n.language.startsWith('ar') ? 'ar_OM' : 'en_OM')
+  }, [t, i18n.language, titleKey, descriptionKey])
+}
+
 /* ------------------------------------------------------------------ pieces */
 
 export function Arrow() {

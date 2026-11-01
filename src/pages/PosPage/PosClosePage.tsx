@@ -18,6 +18,7 @@ import {
   countedTotal,
   denominationLabel,
   figuresOf,
+  startingCount,
   type Counted,
 } from '../../lib/posClose'
 import { posRefusalKey, refusalValues } from '../../lib/posRefusals'
@@ -247,7 +248,7 @@ function CloseForm({
   const locale = i18n.language.startsWith('ar') ? 'ar' : 'en-GB'
   const figures = figuresOf(preview)
   const [byNote, setByNote] = useState(false)
-  const [total, setTotal] = useState<number | null>(figures.expected)
+  const [total, setTotal] = useState<number | null>(startingCount(figures.expected))
   const [counted, setCounted] = useState<Counted>({})
   const [reason, setReason] = useState<OverShortReason | null>(null)
   const [note, setNote] = useState('')
@@ -716,6 +717,13 @@ function CloseForm({
             <Sum label={t('pos.close.refundedInCash')} value={omr(figures.cashRefunded)} money />
             {figures.cardRefunded > 0 ? (
               <Sum label={t('pos.close.refundedToCard')} value={omr(figures.cardRefunded)} money />
+            ) : null}
+            {figures.transferRefunded > 0 ? (
+              <Sum
+                label={t('pos.close.refundedByTransfer')}
+                value={omr(figures.transferRefunded)}
+                money
+              />
             ) : null}
             <Sum
               label={t('pos.close.drawer')}

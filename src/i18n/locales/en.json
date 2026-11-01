@@ -4683,6 +4683,7 @@
       "cashTaken": "Cash taken",
       "cashTakenNote": "{{sales}} sales paid in cash or part cash",
       "refundedToCard": "Refunded to card",
+      "refundedByTransfer": "Refunded by bank transfer",
       "terminalRefunded": "That is after {{amount}} refunded to the card.",
       "refundedInCash": "Refunded in cash",
       "refundedNote": "One credit note · wrong order at {{time}}",
@@ -4841,7 +4842,10 @@
       "stockReturnDone": "Return recorded. No credit note, nothing paid back.",
       "hsCodeMissing": "{{line}} has no HS code, and this credit note cannot be filed without one. Nothing was refunded. Someone who can edit items adds the code on the item (Other if none fits), then refund again.",
       "hsCodeLine": "Line {{line}} ({{name}})",
-      "hsCodeSomeLine": "One of these lines"
+      "hsCodeSomeLine": "One of these lines",
+      "drawerTooLow": "The drawer does not have that much cash: it should hold {{held}} and this refund gives back {{cash}} in cash. You can still go ahead. Check the drawer when you close.",
+      "approvalInvalid": "The approval code takes up to 40 English letters, digits or symbols, as on the slip. Leave it empty if you do not have one.",
+      "givenAwayOldServer": "This item was given away, so there is no money to give back, and Fawtir cannot record its return on its own yet. Nothing has changed. If it came back, count it on the shelf."
     },
     "saleDiscountLabel": "Discount on the whole sale",
     "saleDiscountNote": "Taken after the price rule and before VAT. It shows on the invoice as a document discount.",
@@ -4967,7 +4971,9 @@
       "ZR_MEDICAL_CHARGED_STANDARD": "Line {{line}} is on Oman's zero-rated medicines or medical equipment list but was charged 5% VAT. Check whether it should be zero-rated.",
       "ZR_MEDICAL_NOT_LISTED": "Line {{line}} is zero-rated as medical, but its HS code is not on Oman's zero-rated medicines or medical equipment lists. Check its VAT category or HS code.",
       "POS_DISCOUNT_ABOVE_LIMIT_ACCEPTED": "Sold offline with a discount above the cashier's limit. It is filed and recorded for the manager.",
-      "POS_PRINTED_NUMBER_DIFFERS": "A customer's receipt says {{printed}}, but that sale is filed as {{filed}}. Use {{filed}} to find it."
+      "POS_PRINTED_NUMBER_DIFFERS": "A customer's receipt says {{printed}}, but that sale is filed as {{filed}}. Use {{filed}} to find it.",
+      "POS_GOODS_FLAG_CLEARED": "Line {{line}} has no HS code, so it was filed without being marked as goods. Someone who can edit items adds the code on the item (Other if none fits) for next time.",
+      "POS_HS_CODE_MISSING_ACCEPTED": "Line {{line}} has no HS code. The sale is kept, but its full invoice is not filed until the item has one. Someone who can edit items adds the code on the item (Other if none fits)."
     },
     "day": {
       "title": "The day's shifts",
@@ -5030,7 +5036,8 @@
       "waitingOffline_one": "1 sale is waiting to be sent. It goes by itself as soon as the connection is back.",
       "waitingOffline_other": "{{count}} sales are waiting to be sent. They go by themselves as soon as the connection is back.",
       "waitingBehind_one": "1 later sale is waiting behind it. It goes by itself once the sale above is filed.",
-      "waitingBehind_other": "{{count}} later sales are waiting behind it. They go by themselves once the sale above is filed."
+      "waitingBehind_other": "{{count}} later sales are waiting behind it. They go by themselves once the sale above is filed.",
+      "buyerRemovedHint": "This sale cannot be filed from this device. This device cannot keep a buyer's ID safely, so the buyer was removed when the sale was refused, and a full invoice has to name them. The customer holds this invoice: contact Fawtir support."
     },
     "moneyNotAFigure": "That is not an amount. Type it like 4.510.",
     "lineDiscount": {
@@ -6231,7 +6238,10 @@
       "receiptAgainst": "Received against {{order}}",
       "originalNote": "The original file as the supplier sent it",
       "none": "Nothing is linked to this bill yet.",
-      "note": "Note: {{text}}"
+      "note": "Note: {{text}}",
+      "creditNote": "credit note",
+      "creditOnBill": "{{amount}} credited to this bill",
+      "creditNotListed": "Credit stands on this bill, but it cannot be tied to one credit note here. The amount is under Payment."
     },
     "activity": {
       "title": "Activity",
@@ -23006,16 +23016,18 @@
       "logIn": "Log In"
     },
     "cta": {
-      "demo": "Request For Demo"
+      "demo": "Request For Demo",
+      "tryNow": "Try now"
     },
     "hero": {
-      "lead": "Every sale filed before the",
-      "word": "customer",
-      "tail": "leaves",
+      "lead": "Oman's e-invoicing solution,",
+      "word": "built locally",
+      "tail": "for local business",
       "body": "Fawtir is a till, an invoicing system and a Tax Authority filing service in one. Ring up a coffee, and the invoice is cleared before the cup is.",
-      "dashboardAlt": "The Fawtir dashboard: today's sales, receivables, payables, revenue and compliance health",
-      "body1": "Fawtir is a till, an invoicing system and a Tax Authority filing service in one. Ring up a coffee,",
-      "body2": "and the invoice is cleared before the cup is."
+      "dashboardAlt": "Fawtir's invoices screen: outstanding, settled, awaiting payment and overdue totals, then every invoice with its status and its Peppol and Tax Authority answer",
+      "body1": "Fawtir issues, sends and reports every invoice the way the Oman Tax Authority requires, over Peppol.",
+      "body2": "One place for the till, the office and your ERP, made in Oman for companies, shops and sole traders.",
+      "eyebrow": "Built for Oman's Fawtara e-invoicing"
     },
     "overview": {
       "titleLead": "One sale Everything",
@@ -23038,32 +23050,32 @@
         "lead": "Smart ",
         "em": "till",
         "body": "Three taps from open to paid. Split payments, tips, held tabs, refunds, and a cash-up.",
-        "alt": "The till's product grid"
+        "alt": "The till: scan or search, the item groups and the items on the shelf"
       },
       "invoicing": {
         "lead": "Instant ",
         "em": "invoicing",
         "body": "Every sale becomes the right invoice B2C at the counter, B2B with the company details, B2G with the buyer reference. Fawtir picks, you do not.",
-        "alt": "The invoices list with outstanding, paid, awaiting and overdue totals"
+        "alt": "The invoices screen: outstanding, settled, awaiting payment and overdue totals above the invoice tabs"
       },
       "filing": {
         "lead": "Tax Authority ",
         "em": "filing",
-        "body": "Signed, submitted and cleared as part of the sale. Every invoice keeps a filing record.",
-        "alt": "An invoice's filing record: drafted, validated, signed and sent over Peppol"
+        "body": "Checked against Oman's PINT-OM rules, then reported to the Tax Authority for you. Every invoice keeps its filing record.",
+        "alt": "The Tax Authority screen: the typical time for an invoice to be accepted, 2 minutes 14 seconds"
       },
       "stock": {
         "lead": "Products ",
         "em": "and",
         "tail": " stock",
-        "body": "Prices, groups and barcodes in one place. Stock in days of cover, not counts milk runs out in 2 days.",
-        "alt": "Stock in days of cover, with the items running out first"
+        "body": "Prices, groups and barcodes in one place. Stock in days of cover, not just counts: you see what runs out first.",
+        "alt": "Stock: what is on hand and how long each item lasts, the ones running out first"
       },
       "dashboard": {
         "lead": "Business ",
         "em": "dashboard",
-        "body": "Sales by hour, product, branch or person. Your VAT position for the quarter. What is running low.",
-        "alt": "The business dashboard"
+        "body": "Twelve months of revenue, what customers owe you, your VAT position for the quarter and what needs your attention.",
+        "alt": "The dashboard's revenue chart: twelve months of invoiced sales"
       }
     },
     "steps": {
@@ -23074,28 +23086,32 @@
       "tabs": {
         "sale": "Sale",
         "invoice": "Invoice",
-        "cleared": "Cleared",
+        "cleared": "Filed",
         "serve": "Serve"
       },
       "sale": {
         "lead": "Make the ",
         "em": "Sale",
-        "body": "Tap the items. Tap charge. Take the money."
+        "body": "Tap the items. Tap charge. Take the money.",
+        "alt": "The till with three items on the sale and the total to pay"
       },
       "invoice": {
         "lead": "The right ",
         "em": "Invoice",
-        "body": "Made from the sale, for the buyer in front of you."
+        "body": "Made from the sale, for the buyer in front of you.",
+        "alt": "Taking payment at the till: cash, card or bank transfer, with the receipt and its QR code to come"
       },
       "cleared": {
-        "lead": "Filed and ",
-        "em": "Cleared",
-        "body": "Signed and sent to the Tax Authority as part of the sale."
+        "lead": "Checked and ",
+        "em": "Filed",
+        "body": "Checked against PINT-OM and reported to the Tax Authority in the background. Nobody at the counter waits for it.",
+        "alt": "The Tax Authority screen: invoices accepted by the Oman Tax Authority, each with its Fawtara reference"
       },
       "serve": {
         "lead": "Serve the ",
         "em": "Next customer",
-        "body": "The counter is free and the paperwork is done."
+        "body": "The counter is free and the paperwork is done.",
+        "alt": "The till ready for the next customer, with an empty sale"
       },
       "photoAlt": "A laptop showing Fawtir's reports"
     },
@@ -23126,7 +23142,7 @@
       "titleEm": "will actually enjoy using",
       "sub": "Designed for clarity, built for speed, and structured for real decision making",
       "cta": "Explore Live Dashboard",
-      "dashboardAlt": "The income report: invoiced, VAT charged, invoices sent and monthly and quarterly charts"
+      "dashboardAlt": "The Fawtir dashboard: twelve months of revenue, delivery to buyers, recent invoices, the month's documents and the VAT position"
     },
     "band": {
       "title": "Sell more, File Less",
@@ -23148,6 +23164,119 @@
         "terms": "terms of service"
       },
       "rights": "Fawtir © {{year}}. All rights reserved"
+    },
+    "meta": {
+      "home": {
+        "title": "Fawtir | E-Invoicing Software in Oman: Fawtara, POS and ERP",
+        "description": "Fawtir is Oman's e-invoicing solution, built locally. Issue VAT invoices over Peppol, report to the Oman Tax Authority's Fawtara system, sell at the till and connect your ERP. In Arabic and English."
+      },
+      "features": {
+        "title": "Features | Fawtir E-Invoicing, POS and Stock for Oman",
+        "description": "Invoicing, a point of sale, stock, bills and Tax Authority reporting in one Omani platform, built for the Fawtara e-invoicing rules."
+      },
+      "pricing": {
+        "title": "Pricing | Fawtir E-Invoicing for Oman",
+        "description": "Plans for Omani businesses of every size, from sole traders to companies with an ERP. Prices in Omani rials."
+      },
+      "contact": {
+        "title": "Contact | Fawtir E-Invoicing for Oman",
+        "description": "Talk to the Fawtir team in Muscat about e-invoicing, the Fawtara system, your till or your ERP."
+      }
+    },
+    "audience": {
+      "titleLead": "One platform for",
+      "titleEm": "every kind of business",
+      "sub": "From a single shop to a group running its own ERP, Fawtir fits the way you already work.",
+      "sme": {
+        "tag": "SMEs and service companies",
+        "title": "Invoicing that files itself",
+        "body": "Create VAT invoices, credit and debit notes and payment reminders. Each one reaches your customer over Peppol and is reported to the Tax Authority, with customers, suppliers and bills in the same place.",
+        "p1": "Full and simplified tax invoices",
+        "p2": "Peppol delivery and Tax Authority reporting",
+        "p3": "Bills, suppliers and VAT reports",
+        "alt": "Fawtir's invoices screen: outstanding, settled, awaiting payment and overdue totals above the list of invoices"
+      },
+      "pos": {
+        "tag": "Shops, cafés and restaurants",
+        "title": "A till that does the paperwork",
+        "body": "Ring up a sale on a tablet, phone or computer. Fawtir prints the receipt, issues the e-invoice and keeps your stock counted. If the connection drops, the till keeps selling and catches up when it is back.",
+        "p1": "Barcode scanning, sizes and add-ons",
+        "p2": "Cash, card and split payments",
+        "p3": "Stock and end-of-day closing",
+        "alt": "Fawtir's point of sale: the shelf of items on the left and the current sale with its total on the right"
+      },
+      "erp": {
+        "tag": "Companies with an ERP",
+        "title": "Keep your ERP, add compliance",
+        "body": "There is no need to replace the system your finance team knows. Fawtir takes invoices from your ERP by API or file, checks them against Oman's PINT-OM rules and sends them on to Peppol and the Tax Authority.",
+        "p1": "API push or file upload",
+        "p2": "Field mapping and checks before anything is sent",
+        "p3": "Every document tracked until it is accepted",
+        "flow": {
+          "erp": "Your ERP",
+          "fawtir": "Fawtir",
+          "checked": "Checked against PINT-OM",
+          "peppol": "Peppol network",
+          "ota": "Oman Tax Authority",
+          "caption": "Invoices go from your ERP to Fawtir, are checked against PINT-OM, then sent over Peppol and reported to the Oman Tax Authority.",
+          "peppolAlt": "Peppol logo",
+          "fawtaraAlt": "Fawtara logo, the Oman Tax Authority's e-invoicing system",
+          "erpSub": "Sends each invoice by API or file upload",
+          "fawtirSub": "Maps your fields and checks every invoice before it leaves",
+          "chips": {
+            "mapped": "Fields mapped",
+            "checked": "PINT-OM checked",
+            "tracked": "Tracked to acceptance"
+          },
+          "peppolSub": "Delivered to your buyer's system",
+          "otaSub": "Reported through Fawtara"
+        }
+      },
+      "solo": {
+        "tag": "Sole traders and freelancers",
+        "title": "E-invoicing without the learning curve",
+        "body": "Registered for VAT on your own? Send a correct e-invoice from your phone in minutes, with no accounting software to learn and no IT team to call.",
+        "p1": "Works on any phone or laptop",
+        "p2": "Arabic and English throughout",
+        "p3": "Every invoice stored and easy to find",
+        "preview": {
+          "kind": "Tax invoice",
+          "status": "Reported",
+          "to": "Billed to",
+          "customer": "Al Noor Trading LLC",
+          "caption": "An example invoice, as it looks once sent and reported."
+        }
+      },
+      "photoAlt": "An Omani coffee shop owner in a dishdasha and kumma at his counter, holding a tablet with Fawtir's point of sale open, a receipt printer and card machine beside him",
+      "photos": {
+        "solo": "An Omani freelance consultant in an abaya and hijab at her home office in Muscat, creating an invoice in Fawtir on her laptop",
+        "sme": "An Omani business owner in a dishdasha and kumma and his colleague in an abaya and hijab, reviewing their invoices in Fawtir on an office monitor",
+        "erp": "A finance team of Omani men and women in a Muscat office meeting, with the Fawtir dashboard on the wall screen"
+      }
+    },
+    "qr": {
+      "tag": "Fawtara QR code",
+      "titleLead": "A QR code on every",
+      "titleEm": "consumer invoice",
+      "sub": "The Oman Tax Authority asks for a QR code on every invoice to a consumer, full or simplified, made by the seller's own system. Fawtir makes it for you as the sale finishes, in the format the Authority sets.",
+      "p1": {
+        "title": "Made as the sale finishes",
+        "body": "No add-on and no extra step. The till raises the invoice, files it with the Tax Authority well inside the 24 hours the rules allow, and puts the QR on the receipt."
+      },
+      "p2": {
+        "title": "Wherever your customer looks",
+        "body": "On the customer screen at the counter, on the printed receipt, and on a receipt sent by email or text message."
+      },
+      "p3": {
+        "title": "Holds what the Authority asks for",
+        "body": "Your business name and VAT number, the invoice number, its date and time, the total and the VAT."
+      },
+      "p4": {
+        "title": "Business customers go over Peppol",
+        "body": "Invoices to companies and government bodies travel as full e-invoices over Peppol, straight into the buyer's own system."
+      },
+      "alt": "A real receipt from the Fawtir till: a simplified tax invoice for Al Bahja Coffee with its QR code",
+      "caption": "An example sale from the Fawtir till."
     }
   },
   "invoiceImport": {

@@ -4,37 +4,65 @@ import checkIcon from '../../assets/home/check.svg'
 import texture from '../../assets/home/texture.jpg'
 import heroLines from '../../assets/home/hero-lines.svg'
 import heroDashboard from '../../assets/home/hero-dashboard.webp'
+import heroDashboardAr from '../../assets/home/hero-dashboard-ar.webp'
 import owner1 from '../../assets/home/owner-1.webp'
 import owner2 from '../../assets/home/owner-2.webp'
 import overviewCurve from '../../assets/home/overview-curve.svg'
 import overviewPhone from '../../assets/home/overview-phone.webp'
 import mockTill from '../../assets/home/mock-till.webp'
+import mockTillAr from '../../assets/home/mock-till-ar.webp'
 import mockInvoices from '../../assets/home/mock-invoices.webp'
+import mockInvoicesAr from '../../assets/home/mock-invoices-ar.webp'
 import mockFiling from '../../assets/home/mock-filing.webp'
+import mockFilingAr from '../../assets/home/mock-filing-ar.webp'
 import mockStock from '../../assets/home/mock-stock.webp'
+import mockStockAr from '../../assets/home/mock-stock-ar.webp'
 import mockDashboard from '../../assets/home/mock-dashboard.webp'
-import stepsLaptop from '../../assets/home/steps-laptop.jpg'
+import mockDashboardAr from '../../assets/home/mock-dashboard-ar.webp'
+import stepSale from '../../assets/home/step-sale.webp'
+import stepSaleAr from '../../assets/home/step-sale-ar.webp'
+import stepInvoice from '../../assets/home/step-invoice.webp'
+import stepInvoiceAr from '../../assets/home/step-invoice-ar.webp'
+import stepFiled from '../../assets/home/step-filed.webp'
+import stepFiledAr from '../../assets/home/step-filed-ar.webp'
+import stepServe from '../../assets/home/step-serve.webp'
+import stepServeAr from '../../assets/home/step-serve-ar.webp'
 import posCurve from '../../assets/home/pos-curve.svg'
 import posCatalog from '../../assets/home/pos-catalog.webp'
+import posCatalogAr from '../../assets/home/pos-catalog-ar.webp'
 import posPaid from '../../assets/home/pos-paid.webp'
 import showcaseDashboard from '../../assets/home/showcase-dashboard.webp'
+import showcaseDashboardAr from '../../assets/home/showcase-dashboard-ar.webp'
 import './HomePage.css'
-import { ClosingBand, Cta, Footer, Heading, INK, Nav, SOFT, Texture } from './site'
+import { ClosingBand, Cta, Footer, Heading, INK, Nav, SOFT, Texture, useSiteMeta } from './site'
+import { QrSection } from './QrSection'
+import { Audience } from './Audience'
 import { useSiteMail } from './siteMail'
 
 /**
  * The public landing page (Figma "Website", 186:12615), laid out on the frame's own numbers:
  * 1920 wide, sections at 1220 / 1520 / 1720, 200 between sections, Urbanist throughout. Narrower
- * screens keep the same order and let the rows stack. The product mockups are the frame's own
- * renders; the words and layout are code. No motion for now (owner, 27 Sep 2026).
+ * screens keep the same order and let the rows stack. The product pictures are the live app against
+ * the mock API (`tools/mock-api`, demo data in `routes/dashboard.mjs`), captured at 2x and 3x in
+ * English and Arabic, each language showing its own (owner, 1 Nov 2026). No motion for now
+ * (owner, 27 Sep 2026).
  */
+
+/** The live app's picture in the reader's language. */
+function useShot(en: string, ar: string): string {
+  const { i18n } = useTranslation()
+  return i18n.language.startsWith('ar') ? ar : en
+}
 export function HomePage() {
+  useSiteMeta('landing.meta.home.title', 'landing.meta.home.description')
   return (
     <div className={`landing min-h-screen overflow-x-clip bg-white ${INK}`}>
       <Hero />
+      <Audience />
       <Overview />
       <Features />
       <Steps />
+      <QrSection />
       <Counter />
       <Showcase />
       <ClosingBand />
@@ -47,7 +75,7 @@ export function HomePage() {
 
 function Hero() {
   const { t } = useTranslation()
-  const mail = useSiteMail()
+  const shot = useShot(heroDashboard, heroDashboardAr)
   return (
     <header id="top" className="relative isolate pb-5">
       <div aria-hidden="true" className="absolute inset-x-0 top-0 -z-10 h-[1200px] overflow-hidden">
@@ -61,8 +89,13 @@ function Hero() {
       <div className="mx-auto flex w-full max-w-[1220px] flex-col items-center gap-[100px] px-4 pt-[25px] max-md:gap-16 xl:px-0">
         <Nav active="home" />
 
-        <div className="flex w-full max-w-[754px] flex-col items-center gap-6 text-center">
+        <div className="flex w-full max-w-[860px] flex-col items-center gap-6 text-center">
           <div className="flex w-full flex-col items-center gap-6">
+            {/* Says what Fawtir is in the words people search for, before the headline. */}
+            <p className="landing-shadow-brand inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium leading-5 text-[#2c4eb7]">
+              <span aria-hidden="true" className="size-2 rounded-full bg-[#2c4eb7]" />
+              {t('landing.hero.eyebrow')}
+            </p>
             <h1 className="landing-title landing-cap flex w-full flex-col items-center gap-2.5 font-semibold leading-[normal]">
               <span>{t('landing.hero.lead')}</span>
               <span className="flex flex-wrap items-center justify-center gap-4 max-md:gap-2">
@@ -72,18 +105,17 @@ function Hero() {
                 <span>{t('landing.hero.tail')}</span>
               </span>
             </h1>
-            <p className="landing-cap w-full text-base leading-6">
-              {t('landing.hero.body1')}
-              <br className="max-md:hidden" /> {t('landing.hero.body2')}
+            <p className={`w-full max-w-[640px] text-lg leading-7 ${SOFT}`}>
+              {t('landing.hero.body1')} {t('landing.hero.body2')}
             </p>
           </div>
-          <Cta href={mail.demo}>{t('landing.cta.demo')}</Cta>
+          <Cta to="/signup">{t('landing.cta.tryNow')}</Cta>
         </div>
 
         <div className="relative w-full">
           <div className="landing-hero-frame relative mt-[-1px] box-content aspect-[1200/750] w-[calc(100%-20px)] overflow-hidden rounded-lg border-[10px] border-[rgba(44,78,183,0.1)] max-md:w-[calc(100%-10px)] max-md:border-[5px]">
             <img
-              src={heroDashboard}
+              src={shot}
               alt={t('landing.hero.dashboardAlt')}
               className="size-full object-cover object-top"
             />
@@ -179,6 +211,7 @@ function Overview() {
 type Feature = {
   key: 'till' | 'invoicing' | 'filing' | 'stock' | 'dashboard'
   mock: string
+  mockAr: string
   /** Where the frame puts the mockup: centred at its drawn width, or pinned from the left. */
   mockStyle: CSSProperties
   wide?: boolean
@@ -192,18 +225,30 @@ const centred = (width: number): CSSProperties => ({
 
 const FEATURE_ROWS: Feature[][] = [
   [
-    { key: 'till', mock: mockTill, mockStyle: centred(412) },
-    { key: 'invoicing', mock: mockInvoices, mockStyle: centred(874), wide: true },
+    { key: 'till', mock: mockTill, mockAr: mockTillAr, mockStyle: centred(412) },
+    {
+      key: 'invoicing',
+      mock: mockInvoices,
+      mockAr: mockInvoicesAr,
+      mockStyle: centred(874),
+      wide: true,
+    },
   ],
   [
-    { key: 'filing', mock: mockFiling, mockStyle: centred(412) },
-    { key: 'stock', mock: mockStock, mockStyle: centred(412) },
-    { key: 'dashboard', mock: mockDashboard, mockStyle: { width: 451, insetInlineStart: 38.67 } },
+    { key: 'filing', mock: mockFiling, mockAr: mockFilingAr, mockStyle: centred(412) },
+    { key: 'stock', mock: mockStock, mockAr: mockStockAr, mockStyle: centred(412) },
+    {
+      key: 'dashboard',
+      mock: mockDashboard,
+      mockAr: mockDashboardAr,
+      mockStyle: { width: 451, insetInlineStart: 38.67 },
+    },
   ],
 ]
 
 function FeatureCard({ feature }: { feature: Feature }) {
   const { t } = useTranslation()
+  const mock = useShot(feature.mock, feature.mockAr)
   const base = `landing.features.${feature.key}`
   return (
     <article
@@ -229,7 +274,7 @@ function FeatureCard({ feature }: { feature: Feature }) {
         </p>
       </div>
       <img
-        src={feature.mock}
+        src={mock}
         alt={t(`${base}.alt`)}
         className="absolute bottom-0 max-w-none rtl:!translate-x-1/2"
         style={feature.mockStyle}
@@ -267,8 +312,17 @@ function Features() {
 
 const STEPS = ['sale', 'invoice', 'cleared', 'serve'] as const
 
+/** Each step's own screen from the live till and filing pages, English then Arabic. */
+const STEP_SHOTS: Record<(typeof STEPS)[number], [string, string]> = {
+  sale: [stepSale, stepSaleAr],
+  invoice: [stepInvoice, stepInvoiceAr],
+  cleared: [stepFiled, stepFiledAr],
+  serve: [stepServe, stepServeAr],
+}
+
 function Steps() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const ar = i18n.language.startsWith('ar')
   const mail = useSiteMail()
   const [active, setActive] = useState(0)
   const step = STEPS[active]
@@ -336,13 +390,21 @@ function Steps() {
         </div>
 
         <div className="absolute end-0 top-[106.66px] box-content h-[500px] w-[786px] overflow-hidden rounded-ss-lg border-[13px] border-[rgba(44,78,183,0.1)] max-xl:w-[50%] max-lg:static max-lg:mt-10 max-lg:h-[300px] max-lg:w-auto max-lg:rounded-none max-lg:border-x-0 max-lg:border-b-0">
-          <img
-            src={stepsLaptop}
-            alt={t('landing.steps.photoAlt')}
-            className="absolute left-[-7.12%] top-[-3.45%] h-[118.63%] w-[113.96%] max-w-none object-cover"
-            loading="lazy"
-          />
-          <div aria-hidden="true" className="absolute inset-0 bg-[#2c4eb7] mix-blend-hue" />
+          {/* All four load with the section and stay mounted, so a tab switch only fades between
+              pictures the browser already has (owner, 1 Nov 2026: no wait on switching). */}
+          {STEPS.map((id) => (
+            <img
+              key={id}
+              src={ar ? STEP_SHOTS[id][1] : STEP_SHOTS[id][0]}
+              alt={id === step ? t(`landing.steps.${id}.alt`) : ''}
+              aria-hidden={id === step ? undefined : true}
+              decoding="async"
+              className={[
+                'absolute inset-0 size-full object-cover object-left-top transition-opacity duration-300 rtl:object-right-top',
+                id === step ? 'opacity-100' : 'opacity-0',
+              ].join(' ')}
+            />
+          ))}
         </div>
       </div>
     </section>
@@ -353,6 +415,7 @@ function Steps() {
 
 function Counter() {
   const { t } = useTranslation()
+  const catalog = useShot(posCatalog, posCatalogAr)
   const items = ['taps', 'tabs', 'cashUp', 'offline'] as const
   return (
     <section className="relative mx-auto mt-[200px] w-full max-w-[1920px] overflow-x-clip max-md:mt-24">
@@ -374,7 +437,7 @@ function Counter() {
         <div className="flex w-full items-center justify-between gap-10 max-lg:flex-col">
           <div className="flex items-start gap-8">
             <img
-              src={posCatalog}
+              src={catalog}
               alt={t('landing.counter.catalogAlt')}
               className="landing-device h-[600px] w-[288.7px] rounded-[7.385px] max-sm:h-[520px] max-sm:w-[250px]"
               loading="lazy"
@@ -421,6 +484,7 @@ function Counter() {
 
 function Showcase() {
   const { t } = useTranslation()
+  const shot = useShot(showcaseDashboard, showcaseDashboardAr)
   return (
     <section className="mx-auto mt-[200px] w-full max-w-[1720px] px-4 max-md:mt-24 md:px-8 min-[1800px]:px-0">
       <div className="relative h-[1401px] overflow-hidden rounded-lg border-x border-t border-[#eaedf8] max-lg:h-auto max-lg:pb-16">
@@ -444,7 +508,7 @@ function Showcase() {
           />
           <div className="relative mx-auto mt-[2px] box-content aspect-[1200/750] w-[calc(100%-16px)] max-w-[1200px] overflow-hidden rounded-lg border-8 border-[#f4f7ff]">
             <img
-              src={showcaseDashboard}
+              src={shot}
               alt={t('landing.showcase.dashboardAlt')}
               className="size-full object-cover object-top"
               loading="lazy"

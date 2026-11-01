@@ -26,12 +26,14 @@ import {
   splitFromQuote,
   splitProblem,
   standsAt,
+  waysPaid,
   type MoneySplit,
   type PutRightChoice,
   type ReturnLine,
   type StockChoice,
   type WhyId,
 } from '../../lib/posRefund'
+import { approvalCodeOk } from '../../lib/posPayment'
 import { posRefusalKey, problemNumber, refusalCode, refusalValues } from '../../lib/posRefusals'
 import { creditCapRefusal } from '../../lib/salesNote'
 import { useApiRead } from '../../hooks'
@@ -41,7 +43,9 @@ import {
   loadPosSale,
   newPosKey,
   quotePosRefund,
+  closePreviewPath,
   refundLookupPath,
+  type PosClosePreviewDto,
   type PosSaleDto,
   type PosRefundDto,
   type PosRefundLookupDto,
@@ -235,6 +239,29 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
   const back = quoted ? toBaisa(quoted.total) : (expected ?? credit.back)
   const cardLimit = quoted ? toBaisa(quoted.cardLimit) : 0
   const moneyProblem = quoted && split ? splitProblem(split, back, cardLimit) : null
+  const approvalWrong = Boolean(
+    quoted && split && cardLimit > 0 && split.card > 0 && !approvalCodeOk(approval),
+  )
+  // Only a given-away line, on a server that does not mark it: it takes no refund of no money
+  // (`POS_REFUND_MONEY_INVALID`) and has no return without one, so nothing is sent.
+  const nothingToSend = credit.items > 0 && !stockReturn && quote === 'none' && back === 0
+  // What this refund takes out of the drawer. All-cash refunds stay allowed (Abdul, 1 Nov 2026), so
+  // a drawer that cannot cover it is only told. The figure is on the close preview (`pos.close`);
+  // without that, or with no shift open yet, nothing is said.
+  const cashOut =
+    done || credit.items <= 0 || stockReturn || quote === 'loading'
+      ? 0
+      : quoted && split
+        ? split.cash
+        : moneyBackMethod(sale) === 'CASH'
+          ? back
+          : 0
+  const shiftId = till.till.openShift?.shiftId
+  const drawer = useApiRead<PosClosePreviewDto>(
+    cashOut > 0 && shiftId && till.can.close ? closePreviewPath(shiftId) : null,
+  )
+  const inDrawer =
+    cashOut > 0 && drawer.read.status === 'ready' ? toBaisa(drawer.read.data.expectedCash) : null
   const anything = credit.items > 0 || stockReturn
   const was = toBaisa(sale.total)
   const credited = toBaisa(sale.credited)
@@ -538,7 +565,10 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
                           ? t('pos.refund.moneyBackNoteSplit', { amount: omr(back) })
                           : t(`pos.refund.${option}NoteLive`, {
                               amount: omr(back),
-                              method: t(`pos.refund.method.${moneyBackMethod(sale)}`),
+                              // Without a quote the refund really goes one way, so it says that one.
+                              method: (quote === 'none' ? [moneyBackMethod(sale)] : waysPaid(sale))
+                                .map((method) => t(`pos.refund.method.${method}`))
+                                .join(' · '),
                             })}
                       </span>
                     </span>
@@ -582,8 +612,14 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
                       dir="ltr"
                       onChange={(event) => setApproval(event.target.value)}
                       placeholder={t('pos.pay.optional')}
+                      aria-invalid={approvalWrong || undefined}
                       className={MONEY_FIELD}
                     />
+                    {approvalWrong ? (
+                      <span role="alert" className="text-xs font-medium text-pending-700">
+                        {t('pos.refund.approvalInvalid')}
+                      </span>
+                    ) : null}
                   </label>
                 ) : null}
                 <label className="flex flex-col gap-1.5 text-sm font-medium text-text-secondary">
@@ -752,6 +788,27 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
             </div>
           </div>
 
+          {nothingToSend && !done ? (
+            <p
+              role="status"
+              className="mx-5 mt-4 rounded-sm bg-pending-100 px-4 py-3 text-sm font-medium text-pending-700"
+            >
+              {t('pos.refund.givenAwayOldServer')}
+            </p>
+          ) : null}
+          {inDrawer !== null && cashOut > inDrawer ? (
+            <p
+              role="status"
+              className="mx-5 mt-4 rounded-sm bg-pending-100 px-4 py-3 text-sm font-medium text-pending-700"
+            >
+              {withRial(
+                t('pos.refund.drawerTooLow', {
+                  held: `OMR ${omr(Math.max(0, inDrawer))}`,
+                  cash: `OMR ${omr(cashOut)}`,
+                }),
+              )}
+            </p>
+          ) : null}
           {refusal ? (
             <p
               role="alert"
@@ -802,6 +859,8 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
                   busy ||
                   quote === 'loading' ||
                   moneyProblem !== null ||
+                  approvalWrong ||
+                  nothingToSend ||
                   (why === 'other' && !note.trim())
                 }
                 onClick={() => void refund()}

@@ -114,6 +114,15 @@ export function typedBaisa(text: string): number | null {
   return /^(\d+\.?\d*|\.\d+)$/.test(plain) ? Math.round(Number(plain) * BAISA) : null
 }
 
+/**
+ * A card approval code as the server takes it on a sale (`PosSaleService`, `POS_PAYMENT_INVALID`):
+ * optional, and otherwise 1 to 40 printable ASCII characters once trimmed.
+ */
+export function approvalCodeOk(code: string): boolean {
+  const typed = code.trim()
+  return typed === '' || /^[\x20-\x7E]{1,40}$/.test(typed)
+}
+
 /** The tip is paid in cash when cash was taken, else on the card; never by transfer or account. */
 export function tipMethodOf(taken: Taken[]): 'CASH' | 'CARD' | null {
   if (taken.some((entry) => entry.method === 'cash')) return 'CASH'

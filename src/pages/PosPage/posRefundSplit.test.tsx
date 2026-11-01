@@ -101,6 +101,7 @@ const json = (body: unknown, status = 200) =>
     headers: { 'Content-Type': status >= 400 ? 'application/problem+json' : 'application/json' },
   })
 
+let lookup: typeof LOOKUP
 let quote: () => Response
 let refund: () => Response
 let quotes: unknown[]
@@ -125,6 +126,7 @@ beforeEach(async () => {
   window.localStorage.clear()
   quotes = []
   refunds = []
+  lookup = LOOKUP
   quote = () => json(QUOTE)
   refund = () => json(REFUNDED, 201)
   vi.stubGlobal(
@@ -136,7 +138,7 @@ beforeEach(async () => {
         return json([{ id: 'b-1', code: 'NZW', name: 'Nizwa', type: 'BRANCH', city: 'Nizwa' }])
       }
       if (url.startsWith('/api/v1/pos/tills')) return json([TILL])
-      if (url.startsWith('/api/v1/pos/refund-lookup')) return json(LOOKUP)
+      if (url.startsWith('/api/v1/pos/refund-lookup')) return json(lookup)
       if (url === '/api/v1/pos/sales/sale-1/refund-quote') {
         quotes.push(JSON.parse(String(init?.body)))
         return quote()
@@ -152,7 +154,7 @@ beforeEach(async () => {
 
 afterEach(() => vi.unstubAllGlobals())
 
-const open = async () => {
+const showPage = () =>
   render(
     <MemoryRouter initialEntries={['/pos/refund?invoice=NZW-T01-INV-2026-000001']}>
       <Routes>
@@ -160,6 +162,9 @@ const open = async () => {
       </Routes>
     </MemoryRouter>,
   )
+
+const open = async () => {
+  showPage()
   fireEvent.click(await screen.findByText(i18n.t('pos.refund.allOfIt')))
 }
 
@@ -184,6 +189,19 @@ describe('the refund page on a server with the quote', () => {
       { method: 'CARD', amount: 10, reference: 'AUTH-77' },
       { method: 'CASH', amount: 4.025 },
     ])
+  })
+
+  it('takes the reference the sale takes: up to the 40 the field allows, no Arabic figures', async () => {
+    await open()
+    await waitFor(() => expect(field('Card').value).toBe('10.000'))
+    const approval = field(i18n.t('pos.pay.approvalCode'))
+    expect(approval.maxLength).toBe(40)
+    fireEvent.change(approval, { target: { value: 'رقم١٢' } })
+    expect(refundButton().disabled).toBe(true)
+    fireEvent.change(approval, { target: { value: 'AUTH-12' } })
+    fireEvent.click(refundButton())
+    await waitFor(() => expect(refunds).toHaveLength(1))
+    expect(refunds[0].moneyBack[0]).toMatchObject({ method: 'CARD', reference: 'AUTH-12' })
   })
 
   it('uses the server total over the estimate', async () => {
@@ -263,6 +281,45 @@ describe('the refund page on a server with the quote', () => {
     expect(i18n.t('pos.refusal.POS_REFUND_CARD_MORE_THAN_PAID', { maxCard: '1.000' })).toContain(
       '1.000',
     )
+  })
+})
+
+describe('the money back sentence before a line is ticked', () => {
+  const paidBy = (...byMethod: { method: string; amount: number }[]) => {
+    lookup = { ...LOOKUP, paid: { ...LOOKUP.paid, byMethod } } as typeof LOOKUP
+  }
+
+  it('names every way a split sale was paid, not just cash', async () => {
+    showPage()
+    await screen.findByText(/the way it was paid: Card · Cash\./)
+  })
+
+  it('names the one way a sale paid once was paid', async () => {
+    paidBy({ method: 'CARD', amount: 14.025 })
+    showPage()
+    await screen.findByText(/the way it was paid: Card\./)
+  })
+
+  it('names on account too, as the server lists a part left on account', async () => {
+    paidBy({ method: 'CASH', amount: 4 }, { method: 'ON_ACCOUNT', amount: 10.025 })
+    lookup = { ...lookup, owed: 10.025 }
+    showPage()
+    await screen.findByText(/the way it was paid: Cash · On account\./)
+  })
+
+  it('reads in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    showPage()
+    const card = i18n.t('pos.refund.method.CARD')
+    const cash = i18n.t('pos.refund.method.CASH')
+    await screen.findByText(new RegExp(`${card} · ${cash}\\.`))
+  })
+
+  it('on a server without the quote, names the one way the refund really goes', async () => {
+    quote = () => json({ type: 'about:blank', status: 404 }, 404)
+    await open()
+    await waitFor(() => expect(quotes).toHaveLength(1))
+    await screen.findByText(/the way it was paid: Cash\./)
   })
 })
 
