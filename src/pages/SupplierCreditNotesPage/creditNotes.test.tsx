@@ -1641,6 +1641,24 @@ describe("releasing a note's credit from a bill (backend #827)", () => {
     expect(screen.queryByRole('button', { name: 'Release' })).toBeNull()
   })
 
+  it('does not name the bill as what the credit waits for once released from it', async () => {
+    notes = [
+      note({
+        status: 'UNAPPLIED',
+        balance: { applied: 0, refunded: 0, remaining: 200 },
+        credits: { ...note().credits, billId: 'b-9', billNumber: 'QMS-7781', applied: false },
+      }),
+    ]
+    settlements = [
+      APPLIED,
+      { ...APPLIED, id: 'released-1', kind: 'RELEASED', releasedSettlementId: APPLIED.id },
+    ]
+    renderDetail()
+    expect(await screen.findByText('Released from QMS-7781')).toBeTruthy()
+    expect(screen.queryByText('Until it is, QMS-7781 still shows its full amount')).toBeNull()
+    expect(screen.getAllByText('Waiting for a bill').length).toBeGreaterThan(0)
+  })
+
   it('sends no reason when none was given', async () => {
     settlements = [APPLIED]
     renderDetail()
