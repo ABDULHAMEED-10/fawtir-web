@@ -702,6 +702,47 @@ describe('a refused sale never stops the till (E2E 30 Oct 2026, H-1)', () => {
     }
   })
 
+  it('a full invoice held for an HS code (PENDING_VALIDATION) stays unissued, and goes on the same key and number', async () => {
+    fakeServer()
+    await submitSale(TILL, BODY, 'pos-sale-key-hs')
+    online = true
+    const reply = saleReply
+    saleReply = () =>
+      new Response(
+        JSON.stringify({
+          type: 'https://api.fawtir.om/problems/x',
+          status: 422,
+          code: 'POS_QUEUED_SALE_HS_CODE_REQUIRED',
+          lines: [1, 3],
+          invoiceNumber: 'NZW-T01-INV-2026-000049',
+          state: 'PENDING_VALIDATION',
+        }),
+        { status: 422, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+    await flushQueue('till-1')
+    const [held] = queuedFor('till-1')
+    expect(held).toMatchObject({
+      refusal: 'POS_QUEUED_SALE_HS_CODE_REQUIRED',
+      number: 'NZW-T01-INV-2026-000049',
+      refusalValues: { lines: '1, 3' },
+    })
+    // Cleared only by a person adding the code, so it is never given up on and never final.
+    expect(held.final).toBeUndefined()
+    expect(
+      isFinalRefusal(
+        new ApiError({ status: 422, problemType: null, code: 'POS_QUEUED_SALE_HS_CODE_REQUIRED' }),
+      ),
+    ).toBe(false)
+
+    saleReply = reply
+    await retryQueuedSale('till-1', 'pos-sale-key-hs')
+    const posts = calls.filter((call) => call.init?.method === 'POST')
+    const last = posts.at(-1)!
+    expect(new Headers(last.init?.headers).get('Idempotency-Key')).toBe('pos-sale-key-hs')
+    expect(JSON.parse(String(last.init?.body)).invoiceNumber).toBe('NZW-T01-INV-2026-000049')
+    expect(queuedFor('till-1')).toEqual([])
+  })
+
   it('on the current server an unreviewed refusal holds later numbers only as far as number order forces', async () => {
     const server = fakeServer()
     await submitSale(TILL, WALK_IN, 'pos-sale-key-u1')

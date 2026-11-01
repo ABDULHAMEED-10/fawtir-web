@@ -230,6 +230,10 @@ function Problem({
     }
   }
   const validAmounts = amounts.every((value) => Number.isFinite(Number(value)) && Number(value) > 0)
+  // Held before issue for a goods line with no HS code: not issued, so the item's code is what
+  // lets it through, not a correction of the payments.
+  const pendingValidation = entry.refusal === 'POS_QUEUED_SALE_HS_CODE_REQUIRED'
+  const heldLines = pendingValidation ? entry.refusalValues?.lines : undefined
 
   return (
     <li className="rounded-sm bg-surface-card px-4 py-3 text-text-primary">
@@ -245,13 +249,16 @@ function Problem({
       </p>
       <p className="mt-1 text-sm font-medium text-danger-700">
         {t(queueRefusalKey(entry.refusal, entry.refusalType ?? null), entry.refusalValues ?? {})}
+        {heldLines ? ` ${t('pos.queue.hsCodeLines', { lines: heldLines })}` : null}
       </p>
       <p className="mt-1 text-xs font-medium text-text-tertiary">
         {entry.buyerRemoved
           ? t('pos.queue.buyerRemovedHint')
           : entry.final
             ? t('pos.queue.finalHint')
-            : t('pos.queue.heldHint')}
+            : pendingValidation
+              ? t('pos.queue.hsCodeHint')
+              : t('pos.queue.heldHint')}
       </p>
       {entry.setAside || onServer?.setAsideAt ? (
         <SetAsideNote reason={onServer?.setAsideReason ?? null} />

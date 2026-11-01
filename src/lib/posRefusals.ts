@@ -67,6 +67,7 @@ const WORDED = new Set([
   'POS_REFUND_KEY_REUSED',
   'POS_SLIP_INVALID',
   'DISCOUNT_ABOVE_LIMIT',
+  'HS_CODE_REQUIRED',
 ])
 
 /** Problem slugs (no `code`) the till words too. */
@@ -110,6 +111,7 @@ const QUEUE_WORDED = new Set([
   'POS_SOLD_AT_IN_FUTURE',
   'SELLER_PARTICIPANT_NOT_VERIFIED',
   'INDUSTRIAL_CLASSIFICATION_REQUIRED',
+  'POS_QUEUED_SALE_HS_CODE_REQUIRED',
 ])
 
 const QUEUE_SLUGS: Record<string, string> = {
@@ -180,5 +182,8 @@ export function refusalValues(error: unknown): Record<string, string> {
     const value = error.problem[name]
     if (value != null) values[name] = String(value)
   }
+  // POS_QUEUED_SALE_HS_CODE_REQUIRED names every goods line it holds the sale for, not one `line`.
+  const lines = error.problem.lines
+  if (Array.isArray(lines) && lines.length > 0) values.lines = lines.map(String).join(', ')
   return values
 }

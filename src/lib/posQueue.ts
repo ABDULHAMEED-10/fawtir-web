@@ -175,6 +175,12 @@ function verdictOf(status: number, code: string | null, slug: string | null): Re
   if (status >= 500 || WAIT_STATUS.has(status)) return 'wait'
   if (/^HTTP_(5\d\d|401|408|425|429)$/.test(code ?? '')) return 'wait'
   if (code === 'POS_QUEUED_SALE_TOO_EARLY') return 'wait'
+  // Held before issue (PENDING_VALIDATION): nothing is stored or numbered on the server, and the same
+  // key goes through once the item has its HS code, which the server takes on the resend. It clears
+  // only when a person adds the code, and every attempt is audited (PosOfflineSaleHeldForValidation),
+  // so it backs off like an unknown refusal instead of `held`'s every-minute retry; Try again sends
+  // it at once.
+  if (code === 'POS_QUEUED_SALE_HS_CODE_REQUIRED') return 'unknown'
   if (status === 403 || code === 'HTTP_403') return 'till'
   if ((code && TILL_WIDE.has(code)) || (slug && TILL_WIDE_SLUGS.has(slug))) return 'till'
   if ((code && HELD.has(code)) || (slug && HELD_SLUGS.has(slug))) return 'held'
@@ -326,7 +332,7 @@ type NumberNote = {
   line?: number | null
 }
 
-const SAID_ON_NEXT_SALE = new Set(['POS_GOODS_FLAG_CLEARED', 'POS_HS_CODE_MISSING_ACCEPTED'])
+const SAID_ON_NEXT_SALE = new Set(['POS_GOODS_FLAG_CLEARED'])
 
 function noteForNextSale(entry: QueuedSale, sale: PosSaleDto) {
   const notes = (sale.warnings ?? []).flatMap<NumberNote>((warning) =>
