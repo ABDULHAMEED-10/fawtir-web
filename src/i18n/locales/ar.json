@@ -4958,6 +4958,7 @@
       "cashTaken": "النقد المحصّل",
       "cashTakenNote": "{{sales}} عملية دُفعت نقدًا كليًا أو جزئيًا",
       "refundedToCard": "مسترد إلى البطاقة",
+      "refundedByTransfer": "مسترد بتحويل بنكي",
       "terminalRefunded": "هذا بعد إعادة {{amount}} إلى البطاقة.",
       "refundedInCash": "مسترد نقدًا",
       "refundedNote": "إشعار دائن واحد · طلب خاطئ {{time}}",

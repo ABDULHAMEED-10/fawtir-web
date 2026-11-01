@@ -817,6 +817,64 @@ describe('closing the till (F-13)', () => {
   })
 })
 
+describe('closing the till with a refund by bank transfer', () => {
+  const preview = (transferRefunded: number) => ({
+    shiftId: 'sh-1',
+    tillId: 'till-1',
+    tillNumber: 1,
+    branchId: 'b-1',
+    cashier: { userId: 'u-1', name: 'Maryam' },
+    status: 'OPEN',
+    businessDate: '2026-10-29',
+    openedAt: '2026-10-29T03:00:00Z',
+    endedAt: null,
+    openingFloat: 30,
+    openingFloatSource: 'DEFAULT',
+    salesCount: 1,
+    salesAmount: 5.649,
+    byMethod: [
+      { method: 'CASH', sales: 1, taken: 5.649, refunded: 0, tips: 0 },
+      { method: 'CARD', sales: 0, taken: 0, refunded: 0, tips: 0 },
+      { method: 'TRANSFER', sales: 0, taken: 0, refunded: transferRefunded, tips: 0 },
+      { method: 'ON_ACCOUNT', sales: 0, taken: 0, refunded: 0, tips: 0 },
+    ],
+    companyInvoices: 0,
+    vatWithin: 0.269,
+    discounts: 0,
+    tips: 0,
+    paidOut: 0,
+    paidIn: 0,
+    cashRefunded: 0,
+    expectedCash: 35.649,
+    looseEnds: {
+      onAccountOpen: { count: 0, amount: 0 },
+      notYetAccepted: 0,
+      cardSalesForTerminalCheck: { count: 0, amount: 0 },
+    },
+    movements: [],
+    at: '2026-10-29T14:00:00Z',
+  })
+
+  it.each(['en', 'ar'])('names it in the summary, the drawer unchanged (%s)', async (language) => {
+    await i18n.changeLanguage(language)
+    answer = (url) =>
+      url.startsWith('/api/v1/pos/shifts/sh-1/close-preview') ? json(preview(14.025)) : null
+    renderAt('/pos/close')
+    const label = await screen.findByText(i18n.t('pos.close.refundedByTransfer'))
+    expect(label.parentElement?.textContent).toContain('14.025')
+    expect(screen.getAllByText(i18n.t('pos.close.refundedInCash')).length).toBeGreaterThan(0)
+    await i18n.changeLanguage('en')
+  })
+
+  it('stays out of the summary when there is none', async () => {
+    answer = (url) =>
+      url.startsWith('/api/v1/pos/shifts/sh-1/close-preview') ? json(preview(0)) : null
+    renderAt('/pos/close')
+    await screen.findAllByText(i18n.t('pos.close.refundedInCash'))
+    expect(screen.queryByText(i18n.t('pos.close.refundedByTransfer'))).toBeNull()
+  })
+})
+
 describe('a till refund the credit cap refuses (DA-1 option B)', () => {
   it.each([
     ['en', /^Only .* left to credit in the Standard category/],
