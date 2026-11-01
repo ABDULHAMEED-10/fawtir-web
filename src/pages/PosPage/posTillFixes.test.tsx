@@ -540,7 +540,9 @@ describe('the full invoice receipt (F-6)', () => {
     expect(screen.getByText('فاتورة ضريبية')).toBeTruthy()
     expect(screen.queryByText('فاتورة ضريبية مبسطة')).toBeNull()
     expect(screen.getByText('Saif Al Busaidi')).toBeTruthy()
-    expect(screen.getByText('12345678')).toBeTruthy()
+    // Masked on the receipt (Abdul, 1 Nov 2026); the invoice data keeps the number.
+    expect(screen.getByText('•••• 5678')).toBeTruthy()
+    expect(screen.queryByText('12345678')).toBeNull()
     // The server's food-list warning in its own words, not "Fawtir noted something" (F-8).
     expect(screen.getByText(/Line 3 is on Oman's zero-rated food list/)).toBeTruthy()
     expect(screen.queryByText(i18n.t('pos.warning.other'))).toBeNull()

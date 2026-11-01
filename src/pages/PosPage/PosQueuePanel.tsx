@@ -247,7 +247,11 @@ function Problem({
         {t(queueRefusalKey(entry.refusal, entry.refusalType ?? null), entry.refusalValues ?? {})}
       </p>
       <p className="mt-1 text-xs font-medium text-text-tertiary">
-        {entry.final ? t('pos.queue.finalHint') : t('pos.queue.heldHint')}
+        {entry.buyerRemoved
+          ? t('pos.queue.buyerRemovedHint')
+          : entry.final
+            ? t('pos.queue.finalHint')
+            : t('pos.queue.heldHint')}
       </p>
       {entry.setAside || onServer?.setAsideAt ? (
         <SetAsideNote reason={onServer?.setAsideReason ?? null} />
@@ -296,10 +300,12 @@ function Problem({
         />
       ) : (
         <div className="mt-3 flex flex-wrap gap-2">
-          <button type="button" disabled={busy} onClick={() => void retry()} className={BUTTON}>
-            {t('pos.queue.retry')}
-          </button>
-          {entry.refusal && PAYMENTS_CAN_BE_CORRECTED.has(entry.refusal) ? (
+          {entry.buyerRemoved ? null : (
+            <button type="button" disabled={busy} onClick={() => void retry()} className={BUTTON}>
+              {t('pos.queue.retry')}
+            </button>
+          )}
+          {!entry.buyerRemoved && entry.refusal && PAYMENTS_CAN_BE_CORRECTED.has(entry.refusal) ? (
             <button type="button" onClick={() => setMode('correct')} className={QUIET_BUTTON}>
               {t('pos.queue.correct')}
             </button>

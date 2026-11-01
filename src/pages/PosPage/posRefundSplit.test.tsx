@@ -191,15 +191,17 @@ describe('the refund page on a server with the quote', () => {
     ])
   })
 
-  it('takes the reference the server takes: Arabic figures, up to the 40 the field allows', async () => {
+  it('takes the reference the sale takes: up to the 40 the field allows, no Arabic figures', async () => {
     await open()
     await waitFor(() => expect(field('Card').value).toBe('10.000'))
     const approval = field(i18n.t('pos.pay.approvalCode'))
     expect(approval.maxLength).toBe(40)
     fireEvent.change(approval, { target: { value: 'رقم١٢' } })
+    expect(refundButton().disabled).toBe(true)
+    fireEvent.change(approval, { target: { value: 'AUTH-12' } })
     fireEvent.click(refundButton())
     await waitFor(() => expect(refunds).toHaveLength(1))
-    expect(refunds[0].moneyBack[0]).toMatchObject({ method: 'CARD', reference: 'رقم١٢' })
+    expect(refunds[0].moneyBack[0]).toMatchObject({ method: 'CARD', reference: 'AUTH-12' })
   })
 
   it('uses the server total over the estimate', async () => {
