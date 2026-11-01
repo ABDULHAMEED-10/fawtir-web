@@ -2190,9 +2190,9 @@ describe('why a bill was refused, in its own sentence', () => {
   })
 
   it.each([
-    ['en', "This bill can't be rejected while supplier credit is set against it. Open the credit note and release its credit from this bill first. Credit kept from an overpayment can't be released yet."],
-    ['ar', 'لا يمكن رفض هذه الفاتورة ما دام رصيد دائن للمورد مخصومًا منها. افتح الإشعار الدائن وحرّر رصيده من هذه الفاتورة أولًا. لا يمكن بعد تحرير رصيد محتفظ به من دفعة زائدة.'],
-  ])('says a rejection is refused while credit is set against the bill, and how to release it (%s)', async (language, sentence) => {
+    ['en', "This bill can't be rejected while supplier credit is set against it. Open the credit note and remove its credit from this bill first. Credit kept from an overpayment can't be removed yet."],
+    ['ar', 'لا يمكن رفض هذه الفاتورة ما دام رصيد دائن للمورد مخصومًا منها. افتح الإشعار الدائن وألغِ خصم رصيده من هذه الفاتورة أولًا. لا يمكن بعد إلغاء خصم رصيد محتفظ به من دفعة زائدة.'],
+  ])('says a rejection is refused while credit is set against the bill, and how to remove it (%s)', async (language, sentence) => {
     await i18n.changeLanguage(language)
     actionResponse = refusal('BILL_REJECTION_HAS_APPLIED_CREDIT')
     renderBill()
@@ -2210,7 +2210,7 @@ describe('why a bill was refused, in its own sentence', () => {
     await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
     fireEvent.click(screen.getAllByRole('button', { name: 'Reject' })[0])
     expect(
-      await screen.findByText("This bill can't be rejected while supplier credit is set against it. Open the credit note and release its credit from this bill first. Credit kept from an overpayment can't be released yet."),
+      await screen.findByText("This bill can't be rejected while supplier credit is set against it. Open the credit note and remove its credit from this bill first. Credit kept from an overpayment can't be removed yet."),
     ).toBeTruthy()
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(calls().some((call) => call.includes('/reject'))).toBe(false)

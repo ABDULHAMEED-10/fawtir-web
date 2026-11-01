@@ -1624,7 +1624,7 @@ describe("releasing a note's credit from a bill (backend #827)", () => {
     )
   const openRelease = async () => {
     await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
-    fireEvent.click(await screen.findByRole('button', { name: 'Release' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove from bill' }))
     return screen.findByRole('dialog')
   }
 
@@ -1634,11 +1634,30 @@ describe("releasing a note's credit from a bill (backend #827)", () => {
     const dialog = await openRelease()
     expect(releaseBody).toBeNull()
     fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: ' Wrong bill ' } })
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Release credit' }))
-    expect(await screen.findByText('The credit was released from that bill.')).toBeTruthy()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove credit' }))
+    expect(await screen.findByText('The credit was removed from that bill.')).toBeTruthy()
     expect(releaseBody).toEqual({ billId: 'b-9', reason: 'Wrong bill' })
-    await waitFor(() => expect(screen.getByText('Released from QMS-7781')).toBeTruthy())
-    expect(screen.queryByRole('button', { name: 'Release' })).toBeNull()
+    await waitFor(() => expect(screen.getByText('Removed from QMS-7781')).toBeTruthy())
+    expect(screen.queryByRole('button', { name: 'Remove from bill' })).toBeNull()
+  })
+
+  it.each([
+    ['en', 'Remove from bill', 'Remove the credit from QMS-7781?', 'Removed from QMS-7781'],
+    ['ar', 'إلغاء الخصم من الفاتورة', 'إلغاء خصم الرصيد من QMS-7781؟', 'أُلغي خصمه من فاتورة QMS-7781'],
+  ])('shows the rial sign, not the letters, in the confirmation and the trail (%s)', async (language, action, title, trail) => {
+    await i18n.changeLanguage(language)
+    settlements = [APPLIED, { ...APPLIED, id: 'released-1', kind: 'RELEASED', reason: 'Wrong bill', releasedSettlementId: 'other' }]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    const line = (await screen.findByText(trail)).parentElement!.querySelector('p:last-child')!
+    expect(line.querySelector('svg')).not.toBeNull()
+    expect(line.querySelector('.sr-only')?.textContent).toBe('OMR')
+    fireEvent.click(await screen.findByRole('button', { name: action }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(title)).toBeTruthy()
+    const body = dialog.querySelector('p.leading-\\[1\\.5\\]')!
+    expect(body.querySelector('svg')).not.toBeNull()
+    expect(body.querySelector('.sr-only')?.textContent).toBe('OMR')
   })
 
   it('does not name the bill as what the credit waits for once released from it', async () => {
@@ -1654,7 +1673,7 @@ describe("releasing a note's credit from a bill (backend #827)", () => {
       { ...APPLIED, id: 'released-1', kind: 'RELEASED', releasedSettlementId: APPLIED.id },
     ]
     renderDetail()
-    expect(await screen.findByText('Released from QMS-7781')).toBeTruthy()
+    expect(await screen.findByText('Removed from QMS-7781')).toBeTruthy()
     expect(screen.queryByText('Until it is, QMS-7781 still shows its full amount')).toBeNull()
     expect(screen.getAllByText('Waiting for a bill').length).toBeGreaterThan(0)
   })
@@ -1663,8 +1682,8 @@ describe("releasing a note's credit from a bill (backend #827)", () => {
     settlements = [APPLIED]
     renderDetail()
     const dialog = await openRelease()
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Release credit' }))
-    await screen.findByText('The credit was released from that bill.')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove credit' }))
+    await screen.findByText('The credit was removed from that bill.')
     expect(releaseBody).toEqual({ billId: 'b-9', reason: null })
   })
 
@@ -1686,7 +1705,7 @@ describe("releasing a note's credit from a bill (backend #827)", () => {
     renderDetail()
     await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
     await screen.findByText('Used against QMS-7781')
-    expect(screen.queryByRole('button', { name: 'Release' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Remove from bill' })).toBeNull()
   })
 
   it('offers nothing to someone without the right to settle', async () => {
@@ -1694,17 +1713,17 @@ describe("releasing a note's credit from a bill (backend #827)", () => {
     settlements = [APPLIED]
     renderDetail()
     await screen.findByText('Used against QMS-7781')
-    expect(screen.queryByRole('button', { name: 'Release' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Remove from bill' })).toBeNull()
   })
 
   it.each([
     [
       'CREDIT_NOTE_RELEASE_BILL_IN_PAYMENT_RUN',
-      'This bill is in payment run PR-7. Take it out of the run before releasing credit from it.',
+      'This bill is in payment run PR-7. Take it out of the run before removing credit from it.',
     ],
     [
       'CREDIT_NOTE_RELEASE_OVERPAYMENT_SETTLED',
-      "This credit can't be released: part of what the bill was overpaid by has already been refunded or used on another bill.",
+      "This credit can't be removed: part of what the bill was overpaid by has already been refunded or used on another bill.",
     ],
     [
       'CREDIT_NOTE_APPLICATION_ALREADY_RELEASED',
@@ -1715,7 +1734,7 @@ describe("releasing a note's credit from a bill (backend #827)", () => {
     releaseResponse = conflict(code, { paymentRunReference: 'PR-7' })
     renderDetail()
     const dialog = await openRelease()
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Release credit' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove credit' }))
     expect(await screen.findByText(new RegExp(sentence.replace(/[.]/g, '\\.')))).toBeTruthy()
   })
 
@@ -1724,8 +1743,8 @@ describe("releasing a note's credit from a bill (backend #827)", () => {
     releaseResponse = () => new Response(null, { status: 404 })
     renderDetail()
     const dialog = await openRelease()
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Release credit' }))
-    expect(await screen.findByText("Credit can't be released yet.")).toBeTruthy()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove credit' }))
+    expect(await screen.findByText("Credit can't be removed from a bill yet.")).toBeTruthy()
   })
 
   it('has every sentence in Arabic', () => {
