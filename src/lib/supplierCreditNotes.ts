@@ -185,8 +185,9 @@ export function creditActivity(
   const credited = row.creditedAmount ?? 0
   const state = creditStateOf(row)
   // Released from its bill: the server refuses setting it there again, so the bill is not what it waits for.
+  // After a release the row keeps the bill's number but answers `billId` null, so the number is what matches.
   const releasedFromBill = settlements.some(
-    (settlement) => settlement.kind === 'RELEASED' && settlement.billId === row.credits.billId,
+    (settlement) => settlement.kind === 'RELEASED' && settlement.billNumber === row.credits.billNumber,
   )
   const current: NoteActivity =
     state === 'PARTLY_USED'
