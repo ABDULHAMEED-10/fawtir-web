@@ -9535,6 +9535,14 @@
         "productNotFound": "A product on this order is no longer in your catalogue. Pick it again or type the line instead.",
         "variantRequired": "A product on this order has sizes or options. Choose the one each line buys.",
         "variantNotOnProduct": "A size or option on this order no longer belongs to its product. Choose it again."
+      },
+      "statedUnit": {
+        "legacyNote": "This line was saved before Fawtir recorded the unit its stock is counted in. Say which unit you counted the goods in.",
+        "confirm": "I counted these in {{unit}}, the unit the catalogue counts this item in",
+        "choose": "Choose a unit",
+        "chooseFor": "Unit you counted {{item}} in",
+        "checking": "Reading the unit this item is counted in…",
+        "missing": "Say which unit you counted {{item}} in before booking it in."
       }
     }
   },
