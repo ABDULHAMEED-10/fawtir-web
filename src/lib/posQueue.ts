@@ -66,6 +66,11 @@ export type QueuedSale = {
   attempts?: number
   /** A manager set it aside on the server: not sent by itself, still open, still shown. */
   setAside?: boolean
+  /**
+   * The buyer was in plain text on a device that cannot seal, and went at the final refusal: the
+   * sale cannot be sent from this device any more, since a full invoice has to name them.
+   */
+  buyerRemoved?: boolean
 }
 
 const QUEUE_KEY = 'fawtir.pos.queue'
@@ -310,14 +315,37 @@ async function forget(entry: QueuedSale) {
  * A sale the server had already filed before its queued copy arrived (the online answer was lost)
  * can be filed under another number than its receipt. The server says so only on that replay, while
  * the queue sends in the background, so the till keeps it and tells the cashier on the next sale's
- * Done screen, with the other warnings.
+ * Done screen, with the other warnings. A queued line with no HS code is said the same way: the
+ * server says so only on that send too, and nobody is looking at it then.
  */
-type NumberNote = { tillId: string; printed: string; filed: string }
+type NumberNote = {
+  tillId: string
+  filed: string
+  printed?: string
+  code?: string
+  line?: number | null
+}
 
-function notePrintedNumberDiffers(entry: QueuedSale, sale: PosSaleDto) {
-  if (!sale.warnings?.some((warning) => warning.code === 'POS_PRINTED_NUMBER_DIFFERS')) return
-  const note = { tillId: entry.tillId, printed: entry.number, filed: sale.invoiceNumber }
-  write(NUMBER_NOTES_KEY, [...read<NumberNote[]>(NUMBER_NOTES_KEY, []), note])
+const SAID_ON_NEXT_SALE = new Set(['POS_GOODS_FLAG_CLEARED', 'POS_HS_CODE_MISSING_ACCEPTED'])
+
+function noteForNextSale(entry: QueuedSale, sale: PosSaleDto) {
+  const notes = (sale.warnings ?? []).flatMap<NumberNote>((warning) =>
+    warning.code === 'POS_PRINTED_NUMBER_DIFFERS'
+      ? [{ tillId: entry.tillId, printed: entry.number, filed: sale.invoiceNumber }]
+      : SAID_ON_NEXT_SALE.has(warning.code)
+        ? [
+            {
+              tillId: entry.tillId,
+              filed: sale.invoiceNumber,
+              code: warning.code,
+              line: warning.line,
+            },
+          ]
+        : [],
+  )
+  if (notes.length > 0) {
+    write(NUMBER_NOTES_KEY, [...read<NumberNote[]>(NUMBER_NOTES_KEY, []), ...notes])
+  }
 }
 
 function withNumberNotes(tillId: string, sale: PosSaleDto): PosSaleDto {
@@ -332,12 +360,11 @@ function withNumberNotes(tillId: string, sale: PosSaleDto): PosSaleDto {
     ...sale,
     warnings: [
       ...sale.warnings,
-      ...mine.map(({ printed, filed }) => ({
-        code: 'POS_PRINTED_NUMBER_DIFFERS',
-        line: null,
-        printed,
-        filed,
-      })),
+      ...mine.map(({ printed, filed, code, line }) =>
+        code
+          ? { code, line: line ?? null, filed }
+          : { code: 'POS_PRINTED_NUMBER_DIFFERS', line: null, printed, filed },
+      ),
     ],
   }
 }
@@ -470,6 +497,7 @@ function refusedEntry(entry: QueuedSale, error: ApiError, verdict: RefusalVerdic
     const customer = { ...refused.body.customer }
     delete customer.consumer
     refused.body = { ...refused.body, customer }
+    refused.buyerRemoved = true
   }
   return refused
 }
@@ -492,7 +520,7 @@ export async function flushQueue(tillId: string): Promise<FlushOutcome> {
       }
       try {
         const sale = await sendNumbered(await bodyToSend(entry), entry.key, canSkip)
-        notePrintedNumberDiffers(entry, sale)
+        noteForNextSale(entry, sale)
         save(queue.filter((other) => other.key !== entry.key))
         await forget(entry)
         void sendSlipPhotos(entry.key, sale.saleId, tillId)

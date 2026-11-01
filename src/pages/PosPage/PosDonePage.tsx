@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react'
-import { startNewSale, useFinishedSale, type FinishedSale } from '../../lib/posSale'
+import {
+  maskedIdentifier,
+  startNewSale,
+  useFinishedSale,
+  type FinishedSale,
+} from '../../lib/posSale'
 import { useTranslation } from 'react-i18next'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
@@ -185,6 +190,13 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
           <ul className="flex flex-col gap-1 text-sm font-medium text-pending-700">
             {sale.warnings.map((warning, index) => (
               <li key={`${warning.code}-${index}`}>
+                {/* Said of an earlier sale, sent in the background: which one it is. */}
+                {warning.filed && !warning.printed ? (
+                  <>
+                    <span dir="ltr">{warning.filed}</span>
+                    {': '}
+                  </>
+                ) : null}
                 {t(`pos.warning.${warning.code}`, {
                   line: warning.line ?? '',
                   printed: warning.printed ?? '',
@@ -428,7 +440,7 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
                     ) : company.identifier ? (
                       <ReceiptRow
                         label={t(`customerForm.identifier.schemes.${company.identifier.scheme}`)}
-                        value={company.identifier.value}
+                        value={maskedIdentifier(company.identifier.scheme, company.identifier.value)}
                       />
                     ) : null}
                   </>
@@ -437,7 +449,7 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
                     <ReceiptRow label={buyer.name} value="" />
                     <ReceiptRow
                       label={t(`customerForm.identifier.schemes.${buyer.identifierScheme}`)}
-                      value={buyer.identifierValue}
+                      value={maskedIdentifier(buyer.identifierScheme, buyer.identifierValue)}
                     />
                   </>
                 ) : null}

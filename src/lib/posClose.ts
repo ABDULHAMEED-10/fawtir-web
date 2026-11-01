@@ -82,6 +82,15 @@ export function figuresOf(preview: PosClosePreviewDto): Figures {
   }
 }
 
+/**
+ * Where the count starts: what the drawer should hold, or 0 when refunds took that below zero
+ * (Abdul, 1 Nov 2026). A drawer cannot hold less than nothing, and the server refuses a negative
+ * count (`POS_COUNT_INVALID`).
+ */
+export function startingCount(expected: number): number {
+  return Math.max(0, expected)
+}
+
 /** Why the count came up short or over: a guess is fine, the point is that somebody looked. */
 export const SHORT_REASONS: { id: OverShortReason; labelKey: string; noteKey: string }[] = [
   { id: 'CHANGE_WRONG', labelKey: 'pos.close.changeWrong', noteKey: 'pos.close.changeWrongNote' },
