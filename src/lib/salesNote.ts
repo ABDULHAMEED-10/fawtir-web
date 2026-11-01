@@ -809,6 +809,11 @@ export function toNoteRequest(
             : {}),
           // The invoice line's links, so reports net the note off against its bundle and rule.
           ...(line.fromInvoice && line.bundleId ? { bundleId: line.bundleId } : {}),
+          // The invoice line a credit note's copied line credits (backend #834): its own cap is
+          // judged against that line. A line added on the note names none.
+          ...(line.fromInvoice && kind === 'CREDIT_NOTE'
+            ? { originalLineNumber: line.lineNumber }
+            : {}),
           ...(priceRuleIds.length > 0 ? { priceRuleIds } : {}),
         }
       }),

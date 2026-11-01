@@ -50,6 +50,11 @@ export type DraftLineRequest = {
    * false included, is refused `BACK_ON_SHELF_ONLY_ON_CREDIT_NOTES`.
    */
   backOnShelf?: boolean
+  /**
+   * Credit notes (backend #834, V510): the corrected invoice's line this one credits. A server
+   * before it refuses the field as unknown.
+   */
+  originalLineNumber?: number
 }
 
 /** `InvoiceDraftRequest`. Unknown fields are refused, so this carries only what the API reads. */

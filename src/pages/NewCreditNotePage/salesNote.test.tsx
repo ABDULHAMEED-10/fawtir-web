@@ -353,6 +353,33 @@ describe('the note rules', () => {
     expect(lines[2].classification).toEqual({ goodsOrService: 'S' })
   })
 
+  describe('the invoice line a note’s line credits (backend #834)', () => {
+    const full = { ...fromInvoice(INVOICE, 'CREDIT_NOTE'), reason: 'returnedGoods' }
+
+    it('a credit note’s copied line names its invoice line, even with lines left out', () => {
+      const form = { ...full, lines: full.lines.map((line) => ({ ...line })) }
+      form.lines[0].include = false
+      const { lines } = toNoteRequest(form, INVOICE, 'CREDIT_NOTE')
+      expect(lines[0]).toMatchObject({
+        lineNumber: 1,
+        originalLineNumber: INVOICE.lines[1].lineNumber,
+      })
+    })
+
+    it('a line added on the note names none', () => {
+      const added = { ...full, lines: [...full.lines, addedLine(full, INVOICE, 'goods')] }
+      const { lines } = toNoteRequest(added, INVOICE, 'CREDIT_NOTE')
+      expect(lines[lines.length - 1]).not.toHaveProperty('originalLineNumber')
+      expect(lines[0]).toHaveProperty('originalLineNumber')
+    })
+
+    it('a debit note sends none', () => {
+      const debit = fromInvoice(INVOICE, 'DEBIT_NOTE')
+      const { lines } = toNoteRequest(debit, INVOICE, 'DEBIT_NOTE')
+      for (const line of lines) expect(line).not.toHaveProperty('originalLineNumber')
+    })
+  })
+
   describe('the invoice line’s price rule and bundle (Z-22, backend #842)', () => {
     const RULED: InvoiceDetailDto = {
       ...INVOICE,
