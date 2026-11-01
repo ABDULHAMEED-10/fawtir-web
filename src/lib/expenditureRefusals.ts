@@ -101,6 +101,8 @@ const REFUSALS: Record<string, string> = {
   BILL_PAYMENT_REVERSAL_IN_SENT_RUN: 'apiErrors.refused.paymentReversalInSentRun',
   APPROVAL_ALREADY_GIVEN: 'apiErrors.refused.approvalAlreadyGiven',
   APPROVAL_REJECTION_REASON_REQUIRED: 'apiErrors.refused.approvalReasonRequired',
+  // Reopening a rejected bill (backend V523) with no reason.
+  APPROVAL_REOPEN_REASON_REQUIRED: 'billDetail.refused.reopenReasonRequired',
   // Exporting or marking paid a run that holds a held bill. The payment run screens name this
   // code themselves (`RUN_REFUSALS`), so this is what any other screen says.
   PAYMENT_RUN_BILL_ON_HOLD: 'apiErrors.refused.paymentRunBillOnHold',
@@ -155,6 +157,15 @@ const CONFLICT_REFUSALS: Record<string, string> = {
   BILL_REJECTION_HELD_AS_DUPLICATE: 'billDetail.duplicate.refused.rejectionHeld',
   // Accepting a debit note that became a held duplicate after the screen was read.
   DEBIT_NOTE_HELD_AS_DUPLICATE: 'supplierDebitNotes.held.refused',
+  // A rejection is taken back by a reopen, never by an approval (backend V523, owner batch 29).
+  BILL_APPROVAL_REJECTED_NEEDS_REOPEN: 'billDetail.refused.needsReopen',
+  BILL_REOPEN_NOT_REJECTED: 'billDetail.refused.changed',
+  BILL_REOPEN_HELD_AS_DUPLICATE: 'billDetail.duplicate.refused.reopenHeld',
+  // Booking goods in (backend V519, DEC-30-08): the whole receipt is refused and nothing is received.
+  PRODUCT_STOCK_UNIT_MISMATCH: 'apiErrors.refused.receiptStockUnitMismatch',
+  // A line written before V519 recorded no unit, and the receipt stated none (`statedUnit`): the
+  // sentence asks for the unit the goods were counted in, the one way past it (DEC-30-08).
+  GOODS_RECEIPT_STOCK_UNIT_REQUIRED: 'apiErrors.refused.receiptStockUnitRequired',
 }
 
 function conflictRefusalKey(error: unknown): string | null {

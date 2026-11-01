@@ -52,6 +52,13 @@ const WORDED = new Set([
   'POS_REFUND_LINE_INVALID',
   'POS_REFUND_MONEY_INVALID',
   'POS_REFUND_REASON_NOTE_REQUIRED',
+  // DEC-30-05 (owner, 1 Nov 2026): cash back never takes the drawer below zero; the refusal names
+  // `cashInDrawer` and `cashRequested`. A server before it sends neither.
+  'POS_REFUND_CASH_EXCEEDS_DRAWER',
+  // DEC-30-01: a line whose credit history cannot say whether goods came back is refunded from the
+  // invoice, never at the till.
+  'POS_REFUND_LINE_CREDIT_UNCLEAR',
+  'POS_SALE_CANCELLED',
   'POS_REFUND_QUANTITY_EXCEEDS',
   'POS_REFUND_MONEY_DOES_NOT_MATCH',
   'POS_REFUND_MORE_THAN_PAID',
@@ -163,6 +170,8 @@ export function refusalValues(error: unknown): Record<string, string> {
     'counted',
     'cardTerminalTotal',
     'fawtirCardTotal',
+    'cashInDrawer',
+    'cashRequested',
   ]) {
     const value = problemNumber(error, name)
     if (value != null && Number.isFinite(value)) values[name] = value.toFixed(3)
