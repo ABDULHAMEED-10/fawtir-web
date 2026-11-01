@@ -4,20 +4,27 @@ import checkIcon from '../../assets/home/check.svg'
 import texture from '../../assets/home/texture.jpg'
 import heroLines from '../../assets/home/hero-lines.svg'
 import heroDashboard from '../../assets/home/hero-dashboard.webp'
+import heroDashboardAr from '../../assets/home/hero-dashboard-ar.webp'
 import owner1 from '../../assets/home/owner-1.webp'
 import owner2 from '../../assets/home/owner-2.webp'
 import overviewCurve from '../../assets/home/overview-curve.svg'
 import overviewPhone from '../../assets/home/overview-phone.webp'
 import mockTill from '../../assets/home/mock-till.webp'
+import mockTillAr from '../../assets/home/mock-till-ar.webp'
 import mockInvoices from '../../assets/home/mock-invoices.webp'
+import mockInvoicesAr from '../../assets/home/mock-invoices-ar.webp'
 import mockFiling from '../../assets/home/mock-filing.webp'
+import mockFilingAr from '../../assets/home/mock-filing-ar.webp'
 import mockStock from '../../assets/home/mock-stock.webp'
+import mockStockAr from '../../assets/home/mock-stock-ar.webp'
 import mockDashboard from '../../assets/home/mock-dashboard.webp'
+import mockDashboardAr from '../../assets/home/mock-dashboard-ar.webp'
 import stepsLaptop from '../../assets/home/steps-laptop.jpg'
 import posCurve from '../../assets/home/pos-curve.svg'
 import posCatalog from '../../assets/home/pos-catalog.webp'
 import posPaid from '../../assets/home/pos-paid.webp'
 import showcaseDashboard from '../../assets/home/showcase-dashboard.webp'
+import showcaseDashboardAr from '../../assets/home/showcase-dashboard-ar.webp'
 import './HomePage.css'
 import { ClosingBand, Cta, Footer, Heading, INK, Nav, SOFT, Texture, useSiteMeta } from './site'
 import { Audience } from './Audience'
@@ -26,9 +33,17 @@ import { useSiteMail } from './siteMail'
 /**
  * The public landing page (Figma "Website", 186:12615), laid out on the frame's own numbers:
  * 1920 wide, sections at 1220 / 1520 / 1720, 200 between sections, Urbanist throughout. Narrower
- * screens keep the same order and let the rows stack. The product mockups are the frame's own
- * renders; the words and layout are code. No motion for now (owner, 27 Sep 2026).
+ * screens keep the same order and let the rows stack. The product pictures are the live app against
+ * the mock API (`tools/mock-api`, demo data in `routes/dashboard.mjs`), captured at 2x and 3x in
+ * English and Arabic, each language showing its own (owner, 1 Nov 2026). No motion for now
+ * (owner, 27 Sep 2026).
  */
+
+/** The live app's picture in the reader's language. */
+function useShot(en: string, ar: string): string {
+  const { i18n } = useTranslation()
+  return i18n.language.startsWith('ar') ? ar : en
+}
 export function HomePage() {
   useSiteMeta('landing.meta.home.title', 'landing.meta.home.description')
   return (
@@ -50,7 +65,7 @@ export function HomePage() {
 
 function Hero() {
   const { t } = useTranslation()
-  const mail = useSiteMail()
+  const shot = useShot(heroDashboard, heroDashboardAr)
   return (
     <header id="top" className="relative isolate pb-5">
       <div aria-hidden="true" className="absolute inset-x-0 top-0 -z-10 h-[1200px] overflow-hidden">
@@ -84,13 +99,13 @@ function Hero() {
               {t('landing.hero.body1')} {t('landing.hero.body2')}
             </p>
           </div>
-          <Cta href={mail.demo}>{t('landing.cta.demo')}</Cta>
+          <Cta to="/signup">{t('landing.cta.tryNow')}</Cta>
         </div>
 
         <div className="relative w-full">
           <div className="landing-hero-frame relative mt-[-1px] box-content aspect-[1200/750] w-[calc(100%-20px)] overflow-hidden rounded-lg border-[10px] border-[rgba(44,78,183,0.1)] max-md:w-[calc(100%-10px)] max-md:border-[5px]">
             <img
-              src={heroDashboard}
+              src={shot}
               alt={t('landing.hero.dashboardAlt')}
               className="size-full object-cover object-top"
             />
@@ -186,6 +201,7 @@ function Overview() {
 type Feature = {
   key: 'till' | 'invoicing' | 'filing' | 'stock' | 'dashboard'
   mock: string
+  mockAr: string
   /** Where the frame puts the mockup: centred at its drawn width, or pinned from the left. */
   mockStyle: CSSProperties
   wide?: boolean
@@ -199,18 +215,19 @@ const centred = (width: number): CSSProperties => ({
 
 const FEATURE_ROWS: Feature[][] = [
   [
-    { key: 'till', mock: mockTill, mockStyle: centred(412) },
-    { key: 'invoicing', mock: mockInvoices, mockStyle: centred(874), wide: true },
+    { key: 'till', mock: mockTill, mockAr: mockTillAr, mockStyle: centred(412) },
+    { key: 'invoicing', mock: mockInvoices, mockAr: mockInvoicesAr, mockStyle: centred(874), wide: true },
   ],
   [
-    { key: 'filing', mock: mockFiling, mockStyle: centred(412) },
-    { key: 'stock', mock: mockStock, mockStyle: centred(412) },
-    { key: 'dashboard', mock: mockDashboard, mockStyle: { width: 451, insetInlineStart: 38.67 } },
+    { key: 'filing', mock: mockFiling, mockAr: mockFilingAr, mockStyle: centred(412) },
+    { key: 'stock', mock: mockStock, mockAr: mockStockAr, mockStyle: centred(412) },
+    { key: 'dashboard', mock: mockDashboard, mockAr: mockDashboardAr, mockStyle: { width: 451, insetInlineStart: 38.67 } },
   ],
 ]
 
 function FeatureCard({ feature }: { feature: Feature }) {
   const { t } = useTranslation()
+  const mock = useShot(feature.mock, feature.mockAr)
   const base = `landing.features.${feature.key}`
   return (
     <article
@@ -236,7 +253,7 @@ function FeatureCard({ feature }: { feature: Feature }) {
         </p>
       </div>
       <img
-        src={feature.mock}
+        src={mock}
         alt={t(`${base}.alt`)}
         className="absolute bottom-0 max-w-none rtl:!translate-x-1/2"
         style={feature.mockStyle}
@@ -428,6 +445,7 @@ function Counter() {
 
 function Showcase() {
   const { t } = useTranslation()
+  const shot = useShot(showcaseDashboard, showcaseDashboardAr)
   return (
     <section className="mx-auto mt-[200px] w-full max-w-[1720px] px-4 max-md:mt-24 md:px-8 min-[1800px]:px-0">
       <div className="relative h-[1401px] overflow-hidden rounded-lg border-x border-t border-[#eaedf8] max-lg:h-auto max-lg:pb-16">
@@ -451,7 +469,7 @@ function Showcase() {
           />
           <div className="relative mx-auto mt-[2px] box-content aspect-[1200/750] w-[calc(100%-16px)] max-w-[1200px] overflow-hidden rounded-lg border-8 border-[#f4f7ff]">
             <img
-              src={showcaseDashboard}
+              src={shot}
               alt={t('landing.showcase.dashboardAlt')}
               className="size-full object-cover object-top"
               loading="lazy"

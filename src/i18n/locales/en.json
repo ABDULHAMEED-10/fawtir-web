@@ -23010,14 +23010,15 @@
       "logIn": "Log In"
     },
     "cta": {
-      "demo": "Request For Demo"
+      "demo": "Request For Demo",
+      "tryNow": "Try now"
     },
     "hero": {
       "lead": "Oman's e-invoicing solution,",
       "word": "built locally",
       "tail": "for local business",
       "body": "Fawtir is a till, an invoicing system and a Tax Authority filing service in one. Ring up a coffee, and the invoice is cleared before the cup is.",
-      "dashboardAlt": "The Fawtir dashboard: today's sales, receivables, payables, revenue and compliance health",
+      "dashboardAlt": "Fawtir's invoices screen: outstanding, settled, awaiting payment and overdue totals, then every invoice with its status and its Peppol and Tax Authority answer",
       "body1": "Fawtir issues, sends and reports every invoice the way the Oman Tax Authority requires, over Peppol.",
       "body2": "One place for the till, the office and your ERP, made in Oman for companies, shops and sole traders.",
       "eyebrow": "Built for Oman's Fawtara e-invoicing"
@@ -23043,32 +23044,32 @@
         "lead": "Smart ",
         "em": "till",
         "body": "Three taps from open to paid. Split payments, tips, held tabs, refunds, and a cash-up.",
-        "alt": "The till's product grid"
+        "alt": "The till: scan or search, the item groups and the items on the shelf"
       },
       "invoicing": {
         "lead": "Instant ",
         "em": "invoicing",
         "body": "Every sale becomes the right invoice B2C at the counter, B2B with the company details, B2G with the buyer reference. Fawtir picks, you do not.",
-        "alt": "The invoices list with outstanding, paid, awaiting and overdue totals"
+        "alt": "The invoices screen: outstanding, settled, awaiting payment and overdue totals above the invoice tabs"
       },
       "filing": {
         "lead": "Tax Authority ",
         "em": "filing",
-        "body": "Signed, submitted and cleared as part of the sale. Every invoice keeps a filing record.",
-        "alt": "An invoice's filing record: drafted, validated, signed and sent over Peppol"
+        "body": "Checked against Oman's PINT-OM rules, then reported to the Tax Authority for you. Every invoice keeps its filing record.",
+        "alt": "The Tax Authority screen: the typical time for an invoice to be accepted, 2 minutes 14 seconds"
       },
       "stock": {
         "lead": "Products ",
         "em": "and",
         "tail": " stock",
-        "body": "Prices, groups and barcodes in one place. Stock in days of cover, not counts milk runs out in 2 days.",
-        "alt": "Stock in days of cover, with the items running out first"
+        "body": "Prices, groups and barcodes in one place. Stock in days of cover, not just counts: you see what runs out first.",
+        "alt": "Stock: what is on hand and how long each item lasts, the ones running out first"
       },
       "dashboard": {
         "lead": "Business ",
         "em": "dashboard",
-        "body": "Sales by hour, product, branch or person. Your VAT position for the quarter. What is running low.",
-        "alt": "The business dashboard"
+        "body": "Twelve months of revenue, what customers owe you, your VAT position for the quarter and what needs your attention.",
+        "alt": "The dashboard's revenue chart: twelve months of invoiced sales"
       }
     },
     "steps": {
@@ -23131,7 +23132,7 @@
       "titleEm": "will actually enjoy using",
       "sub": "Designed for clarity, built for speed, and structured for real decision making",
       "cta": "Explore Live Dashboard",
-      "dashboardAlt": "The income report: invoiced, VAT charged, invoices sent and monthly and quarterly charts"
+      "dashboardAlt": "The Fawtir dashboard: twelve months of revenue, delivery to buyers, recent invoices, the month's documents and the VAT position"
     },
     "band": {
       "title": "Sell more, File Less",
