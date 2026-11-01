@@ -1,5 +1,9 @@
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import checkIcon from '../../assets/home/check.svg'
+import logoFawtara from '../../assets/home/logo-fawtara.png'
+import logoPeppol from '../../assets/home/logo-peppol.png'
+import { BrandLogo } from '../../components/BrandLogo'
 import whoInvoicing from '../../assets/home/who-invoicing.webp'
 import whoInvoicingAr from '../../assets/home/who-invoicing-ar.webp'
 import whoPos from '../../assets/home/who-pos.webp'
@@ -54,12 +58,7 @@ function Shot({ src, alt }: { src: string; alt: string }) {
   return (
     <div className="relative mt-10 h-[300px] ps-10 max-md:h-[220px] max-md:ps-6">
       <div className="h-full overflow-hidden rounded-ss-lg border-s-[8px] border-t-[8px] border-[rgba(44,78,183,0.1)]">
-        <img
-          src={src}
-          alt={alt}
-          loading="lazy"
-          className="w-[960px] max-w-none max-md:w-[640px]"
-        />
+        <img src={src} alt={alt} loading="lazy" className="w-[960px] max-w-none max-md:w-[640px]" />
       </div>
       <div
         aria-hidden="true"
@@ -69,11 +68,11 @@ function Shot({ src, alt }: { src: string; alt: string }) {
   )
 }
 
-function Node({ children, strong = false }: { children: string; strong?: boolean }) {
+function Node({ children, strong = false }: { children: ReactNode; strong?: boolean }) {
   return (
     <div
       className={[
-        'rounded-lg px-4 py-3 text-center text-base font-semibold leading-5',
+        'flex items-center justify-center rounded-lg px-4 py-3 text-center text-base font-semibold leading-5',
         strong
           ? 'bg-[#2c4eb7] text-white shadow-[0_8px_24px_rgba(44,78,183,0.25)]'
           : 'border border-[#d6dcf0] bg-white text-[#151c2d]',
@@ -84,9 +83,32 @@ function Node({ children, strong = false }: { children: string; strong?: boolean
   )
 }
 
+/** A partner's own logo on a white tile, with its name under it in words. */
+function LogoNode({
+  src,
+  alt,
+  label,
+  logoClass,
+}: {
+  src: string
+  alt: string
+  label: string
+  logoClass: string
+}) {
+  return (
+    <div className="flex flex-col items-center gap-2 rounded-lg border border-[#d6dcf0] bg-white px-4 py-3">
+      <img src={src} alt={alt} className={`${logoClass} w-auto object-contain`} loading="lazy" />
+      <span className={`text-xs font-medium leading-4 ${SOFT}`}>{label}</span>
+    </div>
+  )
+}
+
 function Flow() {
   return (
-    <span aria-hidden="true" className="text-xl leading-none text-[#9aa6cf] max-sm:rotate-90 rtl:-scale-x-100 rtl:max-sm:rotate-90">
+    <span
+      aria-hidden="true"
+      className="text-xl leading-none text-[#9aa6cf] max-sm:rotate-90 rtl:-scale-x-100 rtl:max-sm:rotate-90"
+    >
       →
     </span>
   )
@@ -142,13 +164,25 @@ function ErpFlow() {
         <Node>{t(`${base}.erp`)}</Node>
         <Flow />
         <div className="flex flex-col items-center gap-2">
-          <Node strong>{t(`${base}.fawtir`)}</Node>
+          <Node strong>
+            <BrandLogo tone="onDark" size="sm" to="" />
+          </Node>
           <span className={`text-xs font-medium leading-4 ${SOFT}`}>{t(`${base}.checked`)}</span>
         </div>
         <Flow />
         <div className="flex flex-col gap-2">
-          <Node>{t(`${base}.peppol`)}</Node>
-          <Node>{t(`${base}.ota`)}</Node>
+          <LogoNode
+            src={logoPeppol}
+            alt={t(`${base}.peppolAlt`)}
+            label={t(`${base}.peppol`)}
+            logoClass="h-7"
+          />
+          <LogoNode
+            src={logoFawtara}
+            alt={t(`${base}.fawtaraAlt`)}
+            label={t(`${base}.ota`)}
+            logoClass="h-12"
+          />
         </div>
       </div>
       <figcaption className="sr-only">{t(`${base}.caption`)}</figcaption>
@@ -188,7 +222,10 @@ export function Audience() {
       aria-labelledby="who-its-for-title"
       className="mx-auto mt-[160px] flex w-full max-w-[1520px] flex-col items-center gap-[60px] px-4 max-md:mt-20 md:px-8 min-[1600px]:px-0"
     >
-      <div id="who-its-for-title" className="flex w-full max-w-[760px] flex-col items-center gap-6 text-center">
+      <div
+        id="who-its-for-title"
+        className="flex w-full max-w-[760px] flex-col items-center gap-6 text-center"
+      >
         <Heading lead={t('landing.audience.titleLead')} em={t('landing.audience.titleEm')} />
         <p className="text-xl leading-8">{t('landing.audience.sub')}</p>
       </div>

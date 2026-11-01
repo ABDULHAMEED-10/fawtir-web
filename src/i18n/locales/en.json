@@ -23080,28 +23080,32 @@
       "tabs": {
         "sale": "Sale",
         "invoice": "Invoice",
-        "cleared": "Cleared",
+        "cleared": "Filed",
         "serve": "Serve"
       },
       "sale": {
         "lead": "Make the ",
         "em": "Sale",
-        "body": "Tap the items. Tap charge. Take the money."
+        "body": "Tap the items. Tap charge. Take the money.",
+        "alt": "The till with three items on the sale and the total to pay"
       },
       "invoice": {
         "lead": "The right ",
         "em": "Invoice",
-        "body": "Made from the sale, for the buyer in front of you."
+        "body": "Made from the sale, for the buyer in front of you.",
+        "alt": "Taking payment at the till: cash, card or bank transfer, with the receipt and its QR code to come"
       },
       "cleared": {
-        "lead": "Filed and ",
-        "em": "Cleared",
-        "body": "Signed and sent to the Tax Authority as part of the sale."
+        "lead": "Checked and ",
+        "em": "Filed",
+        "body": "Checked against PINT-OM and reported to the Tax Authority in the background. Nobody at the counter waits for it.",
+        "alt": "The Tax Authority screen: invoices accepted by the Oman Tax Authority, each with its Fawtara reference"
       },
       "serve": {
         "lead": "Serve the ",
         "em": "Next customer",
-        "body": "The counter is free and the paperwork is done."
+        "body": "The counter is free and the paperwork is done.",
+        "alt": "The till ready for the next customer, with an empty sale"
       },
       "photoAlt": "A laptop showing Fawtir's reports"
     },
@@ -23208,7 +23212,9 @@
           "checked": "Checked against PINT-OM",
           "peppol": "Peppol network",
           "ota": "Oman Tax Authority",
-          "caption": "Invoices go from your ERP to Fawtir, are checked against PINT-OM, then sent over Peppol and reported to the Oman Tax Authority."
+          "caption": "Invoices go from your ERP to Fawtir, are checked against PINT-OM, then sent over Peppol and reported to the Oman Tax Authority.",
+          "peppolAlt": "Peppol logo",
+          "fawtaraAlt": "Fawtara logo, the Oman Tax Authority's e-invoicing system"
         }
       },
       "solo": {

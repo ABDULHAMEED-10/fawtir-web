@@ -19,7 +19,14 @@ import mockStock from '../../assets/home/mock-stock.webp'
 import mockStockAr from '../../assets/home/mock-stock-ar.webp'
 import mockDashboard from '../../assets/home/mock-dashboard.webp'
 import mockDashboardAr from '../../assets/home/mock-dashboard-ar.webp'
-import stepsLaptop from '../../assets/home/steps-laptop.jpg'
+import stepSale from '../../assets/home/step-sale.webp'
+import stepSaleAr from '../../assets/home/step-sale-ar.webp'
+import stepInvoice from '../../assets/home/step-invoice.webp'
+import stepInvoiceAr from '../../assets/home/step-invoice-ar.webp'
+import stepFiled from '../../assets/home/step-filed.webp'
+import stepFiledAr from '../../assets/home/step-filed-ar.webp'
+import stepServe from '../../assets/home/step-serve.webp'
+import stepServeAr from '../../assets/home/step-serve-ar.webp'
 import posCurve from '../../assets/home/pos-curve.svg'
 import posCatalog from '../../assets/home/pos-catalog.webp'
 import posPaid from '../../assets/home/pos-paid.webp'
@@ -291,11 +298,20 @@ function Features() {
 
 const STEPS = ['sale', 'invoice', 'cleared', 'serve'] as const
 
+/** Each step's own screen from the live till and filing pages, English then Arabic. */
+const STEP_SHOTS: Record<(typeof STEPS)[number], [string, string]> = {
+  sale: [stepSale, stepSaleAr],
+  invoice: [stepInvoice, stepInvoiceAr],
+  cleared: [stepFiled, stepFiledAr],
+  serve: [stepServe, stepServeAr],
+}
+
 function Steps() {
   const { t } = useTranslation()
   const mail = useSiteMail()
   const [active, setActive] = useState(0)
   const step = STEPS[active]
+  const shot = useShot(...STEP_SHOTS[step])
 
   return (
     <section className="mx-auto mt-[200px] flex w-full max-w-[1520px] flex-col items-center gap-[60px] px-4 max-md:mt-24 md:px-8 min-[1600px]:px-0">
@@ -361,12 +377,12 @@ function Steps() {
 
         <div className="absolute end-0 top-[106.66px] box-content h-[500px] w-[786px] overflow-hidden rounded-ss-lg border-[13px] border-[rgba(44,78,183,0.1)] max-xl:w-[50%] max-lg:static max-lg:mt-10 max-lg:h-[300px] max-lg:w-auto max-lg:rounded-none max-lg:border-x-0 max-lg:border-b-0">
           <img
-            src={stepsLaptop}
-            alt={t('landing.steps.photoAlt')}
-            className="absolute left-[-7.12%] top-[-3.45%] h-[118.63%] w-[113.96%] max-w-none object-cover"
+            key={step}
+            src={shot}
+            alt={t(`landing.steps.${step}.alt`)}
+            className="absolute inset-0 size-full object-cover object-left-top rtl:object-right-top"
             loading="lazy"
           />
-          <div aria-hidden="true" className="absolute inset-0 bg-[#2c4eb7] mix-blend-hue" />
         </div>
       </div>
     </section>
