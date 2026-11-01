@@ -23275,10 +23275,10 @@
       "tag": "Fawtara QR code",
       "titleLead": "A QR code on every",
       "titleEm": "consumer invoice",
-      "sub": "The Oman Tax Authority asks for a QR code on every invoice to a consumer, full or simplified, made by the seller's own system. Fawtir makes it for you as the sale finishes, in the format the Authority sets.",
+      "sub": "The Oman Tax Authority asks for a QR code on every invoice to a consumer, full or simplified, made by the seller's own system. Fawtir makes it for you from the issued invoice as the sale finishes.",
       "p1": {
         "title": "Made as the sale finishes",
-        "body": "No add-on and no extra step. The till raises the invoice, files it with the Tax Authority well inside the 24 hours the rules allow, and puts the QR on the receipt."
+        "body": "No add-on and no extra step. The till raises the invoice and puts the QR on the receipt."
       },
       "p2": {
         "title": "Wherever your customer looks",
