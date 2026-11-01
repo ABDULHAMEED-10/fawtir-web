@@ -184,6 +184,10 @@ export function creditActivity(
   const bill = row.credits.billNumber ?? ''
   const credited = row.creditedAmount ?? 0
   const state = creditStateOf(row)
+  // Released from its bill: the server refuses setting it there again, so the bill is not what it waits for.
+  const releasedFromBill = settlements.some(
+    (settlement) => settlement.kind === 'RELEASED' && settlement.billId === row.credits.billId,
+  )
   // R8: "Waiting to be set against the bill" contradicted the Rejected chip (Agent 10 N27), since
   // the server refuses every apply of a rejected note. Its current entry says that instead, in the
   // words the decision card already uses; a spent note keeps the entry of where its credit went.
@@ -211,10 +215,13 @@ export function creditActivity(
       : state === 'UNAPPLIED'
         ? {
             id: 'now',
-            titleKey: 'supplierCreditNotes.detail.activity.waiting',
-            detailKey: bill
-              ? 'supplierCreditNotes.detail.activity.waitingDetail'
-              : 'supplierCreditNotes.detail.activity.waitingNoBill',
+            titleKey: releasedFromBill
+              ? 'supplierCreditNotes.state.waitingForBill'
+              : 'supplierCreditNotes.detail.activity.waiting',
+            detailKey:
+              bill && !releasedFromBill
+                ? 'supplierCreditNotes.detail.activity.waitingDetail'
+                : 'supplierCreditNotes.detail.activity.waitingNoBill',
             values: { bill, amount: fmt.money(credited), left: fmt.money(row.balance.remaining) },
             tone: 'current',
           }
