@@ -4683,6 +4683,7 @@
       "cashTaken": "Cash taken",
       "cashTakenNote": "{{sales}} sales paid in cash or part cash",
       "refundedToCard": "Refunded to card",
+      "refundedByTransfer": "Refunded by bank transfer",
       "terminalRefunded": "That is after {{amount}} refunded to the card.",
       "refundedInCash": "Refunded in cash",
       "refundedNote": "One credit note · wrong order at {{time}}",

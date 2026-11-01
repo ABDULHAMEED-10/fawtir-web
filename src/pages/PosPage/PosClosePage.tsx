@@ -717,6 +717,13 @@ function CloseForm({
             {figures.cardRefunded > 0 ? (
               <Sum label={t('pos.close.refundedToCard')} value={omr(figures.cardRefunded)} money />
             ) : null}
+            {figures.transferRefunded > 0 ? (
+              <Sum
+                label={t('pos.close.refundedByTransfer')}
+                value={omr(figures.transferRefunded)}
+                money
+              />
+            ) : null}
             <Sum
               label={t('pos.close.drawer')}
               value={

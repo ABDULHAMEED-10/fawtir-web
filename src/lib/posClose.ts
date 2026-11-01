@@ -45,6 +45,8 @@ export type Figures = {
   sales: number
   /** Given back to cards this shift: it comes off the machine's batch, not the drawer. */
   cardRefunded: number
+  /** Given back by bank transfer this shift: neither the drawer nor the machine, so only the summary names it. */
+  transferRefunded: number
   /** Whether the server's terminal figure below already takes card refunds off. */
   terminalNet: boolean
   /** What the bank machine's batch should show: card takings plus card tips, less card refunds. */
@@ -72,6 +74,7 @@ export function figuresOf(preview: PosClosePreviewDto): Figures {
     taken: toBaisa(preview.salesAmount),
     sales: preview.salesCount,
     cardRefunded: toBaisa(card?.refunded),
+    transferRefunded: toBaisa(by('TRANSFER')?.refunded),
     terminalNet:
       toBaisa(preview.looseEnds.cardSalesForTerminalCheck.amount) !==
       toBaisa(card?.taken) + toBaisa(card?.tips),
