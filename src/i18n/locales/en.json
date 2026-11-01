@@ -2225,12 +2225,12 @@
       "sellerContact": "Your company telephone number was missing when this invoice was issued, so it cannot be sent: cancel it and issue a new one after adding the number.",
       "buyerAddress": "The customer's address on this invoice is incomplete. It was fixed at issue, so this invoice cannot be sent: cancel it and issue a new one after completing the customer's address.",
       "lineClassification": "A line on this invoice is missing its goods/services classification or business activity, so it cannot be sent: cancel it and issue a corrected invoice.",
-      "lineHsCode": "A goods line on this invoice has no HS code, so it cannot be sent: cancel it and issue a corrected invoice. Adding the HS code to the item now does not change this invoice, because an issued invoice cannot be edited.",
+      "lineHsCode": "This invoice was issued with a goods line that has no HS code, so it cannot be sent. Issued invoices cannot be changed, and adding an HS code to the item now does not release this invoice. How to correct it has not been decided yet.",
       "lineTaxReason": "A zero-rated or exempt line on this invoice has no reason code, so it cannot be sent: cancel it and issue a corrected invoice.",
       "unsupportedShape": "This kind of self-billed invoice cannot be sent electronically.",
       "correctionReason": "This note has no correction reason, so it cannot be sent: cancel it and issue a corrected note.",
       "precedingUnavailable": "The invoice this note corrects could not be read. Sending will be retried.",
-      "validationFailed": "The e-invoice failed validation, so it was not sent. Cancel it and issue a corrected invoice, or contact support with the invoice number.",
+      "validationFailed": "The e-invoice failed validation, so it was not sent. Issued invoices cannot be changed. Contact support with the invoice number.",
       "notSupported": "This invoice cannot be expressed as an e-invoice, so it was not sent. Contact support with the invoice number.",
       "duplicateConflict": "Another document was already submitted under this invoice number, so this one was not sent. Contact support with the invoice number.",
       "noLongerIssued": "The invoice is no longer issued, so it will not be sent.",
@@ -4972,8 +4972,7 @@
       "ZR_MEDICAL_NOT_LISTED": "Line {{line}} is zero-rated as medical, but its HS code is not on Oman's zero-rated medicines or medical equipment lists. Check its VAT category or HS code.",
       "POS_DISCOUNT_ABOVE_LIMIT_ACCEPTED": "Sold offline with a discount above the cashier's limit. It is filed and recorded for the manager.",
       "POS_PRINTED_NUMBER_DIFFERS": "A customer's receipt says {{printed}}, but that sale is filed as {{filed}}. Use {{filed}} to find it.",
-      "POS_GOODS_FLAG_CLEARED": "Line {{line}} has no HS code, so it was filed without being marked as goods. Someone who can edit items adds the code on the item (Other if none fits) for next time.",
-      "POS_HS_CODE_MISSING_ACCEPTED": "Line {{line}} has no HS code, so this full invoice was issued but cannot be sent. Adding the code to the item now does not change an invoice already issued: open the invoice to see what it needs."
+      "POS_GOODS_FLAG_CLEARED": "Line {{line}} has no HS code, so it was filed without being marked as goods. Someone who can edit items adds the code on the item (Other if none fits) for next time."
     },
     "day": {
       "title": "The day's shifts",

@@ -332,7 +332,7 @@ type NumberNote = {
   line?: number | null
 }
 
-const SAID_ON_NEXT_SALE = new Set(['POS_GOODS_FLAG_CLEARED', 'POS_HS_CODE_MISSING_ACCEPTED'])
+const SAID_ON_NEXT_SALE = new Set(['POS_GOODS_FLAG_CLEARED'])
 
 function noteForNextSale(entry: QueuedSale, sale: PosSaleDto) {
   const notes = (sale.warnings ?? []).flatMap<NumberNote>((warning) =>

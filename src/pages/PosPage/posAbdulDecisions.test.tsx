@@ -565,18 +565,12 @@ describe('the civil ID on the receipt (decision 4)', () => {
 describe('the warnings of a queued sale with no HS code (decision 5)', () => {
   it.each(['en', 'ar'])('both have real wording (%s)', async (language) => {
     await i18n.changeLanguage(language)
-    for (const code of ['POS_GOODS_FLAG_CLEARED', 'POS_HS_CODE_MISSING_ACCEPTED']) {
-      expect(i18n.exists(`pos.warning.${code}`)).toBe(true)
-      expect(i18n.t(`pos.warning.${code}`, { line: 2 })).toContain(
-        language === 'ar' ? '2' : 'Line 2',
-      )
-    }
-    if (language === 'en') {
-      // An issued invoice is immutable: a catalogue change must never read as what releases it.
-      const issued = i18n.t('pos.warning.POS_HS_CODE_MISSING_ACCEPTED', { line: 2 })
-      expect(issued).toMatch(/does not change an invoice already issued/)
-      expect(issued).not.toMatch(/until the item has one/)
-    }
+    expect(i18n.exists('pos.warning.POS_GOODS_FLAG_CLEARED')).toBe(true)
+    expect(i18n.t('pos.warning.POS_GOODS_FLAG_CLEARED', { line: 2 })).toContain(
+      language === 'ar' ? '2' : 'Line 2',
+    )
+    // RC2 never sends it, and its "filed once the item has a code" was false (held-invoice contract §4).
+    expect(i18n.exists('pos.warning.POS_HS_CODE_MISSING_ACCEPTED')).toBe(false)
     await i18n.changeLanguage('en')
   })
 
@@ -586,10 +580,7 @@ describe('the warnings of a queued sale with no HS code (decision 5)', () => {
       customer: { kind: 'WALK_IN' },
     }) as unknown as PosSaleRequest
 
-  it.each([
-    ['POS_HS_CODE_MISSING_ACCEPTED', 'the sale kept'],
-    ['POS_GOODS_FLAG_CLEARED', 'filed without the flag'],
-  ])('%s from the background send reaches the next sale, named (%s)', async (code) => {
+  it.each([['POS_GOODS_FLAG_CLEARED', 'filed without the flag']])('%s from the background send reaches the next sale, named (%s)', async (code) => {
     saleReply = () => {
       throw new TypeError('Failed to fetch')
     }
