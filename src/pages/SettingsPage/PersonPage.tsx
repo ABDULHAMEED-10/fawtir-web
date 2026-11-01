@@ -53,6 +53,13 @@ import { roleLabel } from '../../lib/roleLabels'
 import { OwnerPill } from './people'
 import { seesEveryBranch, useBranchNames, useManagesPeople, useRoleNames } from './peopleView'
 import { typedOneOfCompanyNames } from '../../lib/typedCompanyName'
+import {
+  POS_SELL,
+  ownSellLimit,
+  parseSellLimit,
+  roleSellLimit,
+  withSellLimit,
+} from '../../lib/posSellLimit'
 
 /**
  * Settings › Team members › one person (Business Rules BA-1, OW-1, OW-4, RL-1, RL-2, RL-3, LG-3).
@@ -519,6 +526,9 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
   ).read
   const roles = useApiRead<RoleDto[]>(fixed || !mayListRoles ? null : ROLES_PATH, loadRoles).read
   const [wanted, setWanted] = useState<Set<string> | null>(null)
+  // The till's discount ceiling typed for this person; null while untouched, so what is stored
+  // is sent back unchanged.
+  const [limitText, setLimitText] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -607,8 +617,19 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
   // tick, and says so while it differs from what is saved (E15).
   const branchAdministratorPending =
     isBranchAdministrator !== effective.has(BRANCH_ADMINISTRATOR_GRANT)
+  const heldRoles = view.roleCodes.length ? view.roleCodes : view.role ? [view.role] : []
+  const fromRoles = roles.status === 'ready' ? roleSellLimit(roles.data, heldRoles) : undefined
+  const ownLimit = ownSellLimit(view.grants)
+  const typedLimit = limitText === null ? undefined : parseSellLimit(limitText)
+  const limitChanged =
+    current.has(POS_SELL) &&
+    typedLimit !== undefined &&
+    typedLimit !== 'invalid' &&
+    typedLimit !== (ownLimit ?? null)
   const changed =
-    current.size !== effective.size || [...current].some((code) => !effective.has(code))
+    current.size !== effective.size ||
+    [...current].some((code) => !effective.has(code)) ||
+    limitChanged
 
   const toggle = (code: string, on: boolean) => {
     setSaved(false)
@@ -625,15 +646,19 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
     setSaving(true)
     setFailure(null)
     const previous = new Map(view.grants.map((grant) => [grant.code, grant]))
-    const grants: PersonGrant[] = [...current]
+    const kept: PersonGrant[] = [...current]
       .filter((code) => !roleCodes.has(code) || previous.has(code))
       // A reserved code is never given to a person (RL-5); one they already hold stays as it was.
       .filter((code) => !isReservedPermission(code) || previous.has(code))
       .map((code) => previous.get(code) ?? { code, qualifier: null, value: null })
+    const grants = limitChanged
+      ? withSellLimit(kept, typedLimit, roleCodes.has(POS_SELL))
+      : kept
     const denials = [...roleCodes].filter((code) => !current.has(code))
     try {
       await savePersonPermissions(person.id, grants, denials)
       setWanted(null)
+      setLimitText(null)
       setSaved(true)
       permissions.retry()
     } catch (error) {
@@ -730,6 +755,40 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
                   )
                 })}
               </div>
+              {entries.some((row) => row.code === POS_SELL) && current.has(POS_SELL) ? (
+                <div className="max-w-[320px]">
+                  <Input
+                    bordered
+                    name="posSellLimit"
+                    inputMode="decimal"
+                    dir="ltr"
+                    label={t('branchAccess.person.sellLimit')}
+                    value={
+                      limitText ?? (ownLimit != null ? String(ownLimit) : '')
+                    }
+                    onChange={(event) => {
+                      setSaved(false)
+                      setFailure(null)
+                      setLimitText(event.target.value)
+                    }}
+                    placeholder={t('branchAccess.person.sellLimitPlaceholder')}
+                    error={
+                      typedLimit === 'invalid' ? t('branchAccess.person.sellLimitInvalid') : undefined
+                    }
+                    hint={
+                      ownLimit !== undefined && limitText === null
+                        ? ownLimit === null
+                          ? t('branchAccess.person.sellLimitOwnNone')
+                          : t('branchAccess.person.sellLimitOwn', { percent: ownLimit })
+                        : fromRoles === undefined
+                          ? t('branchAccess.person.sellLimitRoleUnknown')
+                          : fromRoles === null
+                            ? t('branchAccess.person.sellLimitRoleNone')
+                            : t('branchAccess.person.sellLimitRole', { percent: fromRoles })
+                    }
+                  />
+                </div>
+              ) : null}
             </fieldset>
           ))}
         </div>
