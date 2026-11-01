@@ -67,9 +67,9 @@ describe('the till discount ceiling (pos.sell MAX_PERCENT)', () => {
     expect(
       withSellLimit([other, { code: 'pos.sell', qualifier: 'MAX_PERCENT', value: 10 }], null, true),
     ).toEqual([other])
-    expect(withSellLimit([other], null, false)).toEqual([
-      other,
-      { code: 'pos.sell', qualifier: null, value: null },
-    ])
+    // No role gives pos.sell: clearing keeps the stored ceiling, never an unlimited grant.
+    const own = { code: 'pos.sell', qualifier: 'MAX_PERCENT' as const, value: 10 }
+    expect(withSellLimit([other, own], null, false)).toEqual([other, own])
+    expect(withSellLimit([other], null, false)).toEqual([other])
   })
 })

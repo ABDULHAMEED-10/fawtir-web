@@ -620,11 +620,19 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
   const heldRoles = view.roleCodes.length ? view.roleCodes : view.role ? [view.role] : []
   const fromRoles = roles.status === 'ready' ? roleSellLimit(roles.data, heldRoles) : undefined
   const ownLimit = ownSellLimit(view.grants)
-  const typedLimit = limitText === null ? undefined : parseSellLimit(limitText)
+  // Without the role list `roleCodes` holds only what was not granted to the person, so an own
+  // pos.sell then reads as not from a role: blank is refused rather than guessed (fails narrow).
+  const sellFromRole = roleCodes.has(POS_SELL)
+  const parsedLimit = limitText === null ? undefined : parseSellLimit(limitText)
+  // A stored ceiling with no role behind it cannot be blanked: the only thing left would be an
+  // unlimited grant (PRV-F review). Taking the right away is unticking it.
+  const typedLimit =
+    parsedLimit === null && !sellFromRole && typeof ownLimit === 'number' ? 'required' : parsedLimit
   const limitChanged =
     current.has(POS_SELL) &&
     typedLimit !== undefined &&
     typedLimit !== 'invalid' &&
+    typedLimit !== 'required' &&
     typedLimit !== (ownLimit ?? null)
   const changed =
     current.size !== effective.size ||
@@ -652,7 +660,7 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
       .filter((code) => !isReservedPermission(code) || previous.has(code))
       .map((code) => previous.get(code) ?? { code, qualifier: null, value: null })
     const grants = limitChanged
-      ? withSellLimit(kept, typedLimit, roleCodes.has(POS_SELL))
+      ? withSellLimit(kept, typedLimit, sellFromRole)
       : kept
     const denials = [...roleCodes].filter((code) => !current.has(code))
     try {
@@ -771,20 +779,34 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
                       setFailure(null)
                       setLimitText(event.target.value)
                     }}
-                    placeholder={t('branchAccess.person.sellLimitPlaceholder')}
+                    placeholder={
+                      sellFromRole
+                        ? t('branchAccess.person.sellLimitPlaceholder')
+                        : typeof ownLimit === 'number'
+                          ? t('branchAccess.person.sellLimitPlaceholderOwn')
+                          : t('branchAccess.person.sellLimitPlaceholderNone')
+                    }
                     error={
-                      typedLimit === 'invalid' ? t('branchAccess.person.sellLimitInvalid') : undefined
+                      typedLimit === 'invalid'
+                        ? t('branchAccess.person.sellLimitInvalid')
+                        : typedLimit === 'required'
+                          ? t('branchAccess.person.sellLimitRequired')
+                          : undefined
                     }
                     hint={
-                      ownLimit !== undefined && limitText === null
-                        ? ownLimit === null
-                          ? t('branchAccess.person.sellLimitOwnNone')
-                          : t('branchAccess.person.sellLimitOwn', { percent: ownLimit })
-                        : fromRoles === undefined
-                          ? t('branchAccess.person.sellLimitRoleUnknown')
-                          : fromRoles === null
-                            ? t('branchAccess.person.sellLimitRoleNone')
-                            : t('branchAccess.person.sellLimitRole', { percent: fromRoles })
+                      !sellFromRole
+                        ? typeof ownLimit === 'number'
+                          ? t('branchAccess.person.sellLimitOwnOnly', { percent: ownLimit })
+                          : t('branchAccess.person.sellLimitNoRole')
+                        : ownLimit !== undefined && limitText === null
+                          ? ownLimit === null
+                            ? t('branchAccess.person.sellLimitOwnNone')
+                            : t('branchAccess.person.sellLimitOwn', { percent: ownLimit })
+                          : fromRoles === undefined
+                            ? t('branchAccess.person.sellLimitRoleUnknown')
+                            : fromRoles === null
+                              ? t('branchAccess.person.sellLimitRoleNone')
+                              : t('branchAccess.person.sellLimitRole', { percent: fromRoles })
                     }
                   />
                 </div>

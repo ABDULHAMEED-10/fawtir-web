@@ -4848,7 +4848,8 @@
       "quoteUnavailable": "Fawtir cannot work out this refund right now, so it cannot be made at the till. Nothing was refunded. Try again in a moment.",
       "creditUnclear": "{{name}}: a credit note from the invoice screens does not say whether it came back, so it is refunded from the invoice, not here.",
       "hsCodeFor": "HS code for {{name}}",
-      "toChoose": "{{amount}} cannot go back the way the sale was paid. Choose how it goes back: type it under cash or transfer."
+      "toChoose": "{{amount}} cannot go back the way the sale was paid. Choose how it goes back: type it under cash or transfer.",
+      "hsCodeNeeded": "Line {{line}} is goods and has no HS code, so nothing was refunded. Choose its code on the line below (Other if none fits); the refund is worked out again."
     },
     "saleDiscountLabel": "Discount on the whole sale",
     "saleDiscountNote": "Taken after the price rule and before VAT. It shows on the invoice as a document discount.",
@@ -24550,7 +24551,12 @@
       "sellLimitOwnNone": "Set for them: no discount limit. Clear it to use their role's limit.",
       "sellLimitRole": "From their role: discounts up to {{percent}}%. Type a number to set a different limit for them.",
       "sellLimitRoleNone": "From their role: no discount limit. Type a number to set one for them.",
-      "sellLimitRoleUnknown": "Blank means their role's limit applies. Type a number to set one for them."
+      "sellLimitRoleUnknown": "Blank means their role's limit applies. Type a number to set one for them.",
+      "sellLimitPlaceholderOwn": "Type a limit",
+      "sellLimitPlaceholderNone": "No limit",
+      "sellLimitRequired": "No role gives them till selling, so this limit cannot be left blank. Type a percentage, or untick selling to take the right away.",
+      "sellLimitOwnOnly": "Set for them: discounts up to {{percent}}%. No role gives them till selling, so this is their only limit: change it here, or untick selling to take the right away.",
+      "sellLimitNoRole": "No role gives them till selling: blank means no discount limit. Type a number to set one."
     },
     "handover": {
       "open": "Hand over ownership",

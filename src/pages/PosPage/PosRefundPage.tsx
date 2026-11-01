@@ -144,6 +144,11 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
   // A refund issues its credit note through the same cap as the composer (DA-1, backend #817):
   // the category and rate refused, and what is left there, in the till's own refusal line.
   const refusalSentence = (error: unknown) => {
+    // Here the line's HS code is chosen on the page (RC2 lines[].hsCode), so the refund says that
+    // one remedy; the general sentence sends the cashier to edit the item instead (PRV-F review).
+    if (refusalCode(error) === 'HS_CODE_REQUIRED' && problemNumber(error, 'line') != null) {
+      return t('pos.refund.hsCodeNeeded', { line: String(problemNumber(error, 'line')) })
+    }
     const capped = creditCapRefusal(error, t, 'OMR', i18n.language)
     return capped
       ? withRial(t(capped.key, capped.values))
@@ -308,6 +313,8 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
     } catch (error) {
       setRefusal(error)
       setNeedsHs((held) => withHsLine(held, error))
+      // The server judged the drawer as it is now: read it again so a pay-in made since shows.
+      if (refusalCode(error) === 'POS_REFUND_CASH_EXCEEDS_DRAWER') drawer.retry()
       // The credit note's own total: the money back is set to it, for the cashier to confirm.
       const server = problemNumber(error, 'expected')
       if (

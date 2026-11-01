@@ -51,8 +51,10 @@ export function parseSellLimit(text: string): number | null | 'invalid' {
 
 /**
  * The grants to save with the person's own `pos.sell` ceiling set (`limit` a number) or removed
- * (`limit` null). Removing it keeps a plain grant when the role does not give `pos.sell`, so the
- * person keeps the right itself; when the role does, its own limit applies again.
+ * (`limit` null). Removing it hands the person back to their role's limit only when the role gives
+ * `pos.sell`. When it does not, the own grant is the only one there is, and replacing it with a plain
+ * grant would make the person unlimited (PRV-F review): it is kept exactly as stored instead, so
+ * clearing never widens what they may discount. Taking the right away is unticking it.
  */
 export function withSellLimit(
   grants: PersonGrant[],
@@ -61,5 +63,5 @@ export function withSellLimit(
 ): PersonGrant[] {
   const others = grants.filter((grant) => grant.code !== POS_SELL)
   if (limit != null) return [...others, { code: POS_SELL, qualifier: 'MAX_PERCENT', value: limit }]
-  return fromRole ? others : [...others, { code: POS_SELL, qualifier: null, value: null }]
+  return fromRole ? others : grants
 }
