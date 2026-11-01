@@ -23214,7 +23214,16 @@
           "ota": "Oman Tax Authority",
           "caption": "Invoices go from your ERP to Fawtir, are checked against PINT-OM, then sent over Peppol and reported to the Oman Tax Authority.",
           "peppolAlt": "Peppol logo",
-          "fawtaraAlt": "Fawtara logo, the Oman Tax Authority's e-invoicing system"
+          "fawtaraAlt": "Fawtara logo, the Oman Tax Authority's e-invoicing system",
+          "erpSub": "Sends each invoice by API or file upload",
+          "fawtirSub": "Maps your fields and checks every invoice before it leaves",
+          "chips": {
+            "mapped": "Fields mapped",
+            "checked": "PINT-OM checked",
+            "tracked": "Tracked to acceptance"
+          },
+          "peppolSub": "Delivered to your buyer's system",
+          "otaSub": "Reported through Fawtara"
         }
       },
       "solo": {

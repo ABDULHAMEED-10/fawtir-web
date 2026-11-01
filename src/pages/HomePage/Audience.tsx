@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import checkIcon from '../../assets/home/check.svg'
 import logoFawtara from '../../assets/home/logo-fawtara.png'
 import logoPeppol from '../../assets/home/logo-peppol.png'
-import { BrandLogo } from '../../components/BrandLogo'
+import logoMarkLight from '../../assets/brand/logo-mark-light.svg'
 import whoInvoicing from '../../assets/home/who-invoicing.webp'
 import whoInvoicingAr from '../../assets/home/who-invoicing-ar.webp'
 import whoPos from '../../assets/home/who-pos.webp'
@@ -72,52 +72,6 @@ function Shot({ src, alt }: { src: string; alt: string }) {
   )
 }
 
-function Node({ children, strong = false }: { children: ReactNode; strong?: boolean }) {
-  return (
-    <div
-      className={[
-        'flex items-center justify-center rounded-lg px-4 py-3 text-center text-base font-semibold leading-5',
-        strong
-          ? 'bg-[#2c4eb7] text-white shadow-[0_8px_24px_rgba(44,78,183,0.25)]'
-          : 'border border-[#d6dcf0] bg-white text-[#151c2d]',
-      ].join(' ')}
-    >
-      {children}
-    </div>
-  )
-}
-
-/** A partner's own logo on a white tile, with its name under it in words. */
-function LogoNode({
-  src,
-  alt,
-  label,
-  logoClass,
-}: {
-  src: string
-  alt: string
-  label: string
-  logoClass: string
-}) {
-  return (
-    <div className="flex flex-col items-center gap-2 rounded-lg border border-[#d6dcf0] bg-white px-4 py-3">
-      <img src={src} alt={alt} className={`${logoClass} w-auto object-contain`} loading="lazy" />
-      <span className={`text-xs font-medium leading-4 ${SOFT}`}>{label}</span>
-    </div>
-  )
-}
-
-function Flow() {
-  return (
-    <span
-      aria-hidden="true"
-      className="text-xl leading-none text-[#9aa6cf] max-sm:rotate-90 rtl:-scale-x-100 rtl:max-sm:rotate-90"
-    >
-      →
-    </span>
-  )
-}
-
 /**
  * A sole trader's invoice as it reads once sent: drawn in code, labelled as an example, so it shows
  * the outcome without inventing a screen the app does not have.
@@ -158,34 +112,139 @@ function InvoicePreview() {
   )
 }
 
-/** Your ERP, then Fawtir checking the invoice, then the network and the Tax Authority. */
+/** The ERP step's mark: a stack of records, drawn so it needs no product's logo. */
+function ErpIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="size-7 text-[#2c4eb7]">
+      <ellipse cx="12" cy="5.5" rx="7.5" ry="2.75" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M4.5 5.5v6.5c0 1.52 3.36 2.75 7.5 2.75s7.5-1.23 7.5-2.75V5.5M4.5 12v6.5c0 1.52 3.36 2.75 7.5 2.75s7.5-1.23 7.5-2.75V12"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+    </svg>
+  )
+}
+
+/** The guide between two steps: a short line under the icon column, ending in a chevron. */
+function Link() {
+  return (
+    <div aria-hidden="true" className="flex h-8 w-14 flex-col items-center">
+      <span className="w-0.5 flex-1 rounded-full bg-gradient-to-b from-[#c9d3f3] to-[#2c4eb7]" />
+      <svg viewBox="0 0 10 6" className="h-1.5 w-2.5 text-[#2c4eb7]">
+        <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.6" fill="none" />
+      </svg>
+    </div>
+  )
+}
+
+/** One step: a fixed tile for its mark, then what happens there. */
+function Step({
+  tile,
+  title,
+  body,
+  strong = false,
+  children,
+}: {
+  tile: ReactNode
+  title: string
+  body: string
+  strong?: boolean
+  children?: ReactNode
+}) {
+  return (
+    <div className="flex items-start gap-4">
+      <div
+        className={[
+          'flex size-14 shrink-0 items-center justify-center rounded-xl',
+          strong
+            ? 'bg-[#2c4eb7] shadow-[0_10px_24px_rgba(44,78,183,0.3)]'
+            : 'border border-[#d6dcf0] bg-white shadow-[0_4px_12px_rgba(21,28,45,0.05)]',
+        ].join(' ')}
+      >
+        {tile}
+      </div>
+      <div className="min-w-0 pt-1">
+        <p className="text-base font-semibold leading-6 text-[#151c2d]">{title}</p>
+        <p className={`text-sm leading-5 ${SOFT}`}>{body}</p>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+/** Where the invoice ends up: the partner's own logo in a fixed box, then its name and role. */
+function Destination({
+  src,
+  alt,
+  logoClass,
+  title,
+  body,
+}: {
+  src: string
+  alt: string
+  logoClass: string
+  title: string
+  body: string
+}) {
+  return (
+    <div className="flex flex-col items-center rounded-xl border border-[#d6dcf0] bg-white px-4 py-5 text-center shadow-[0_4px_12px_rgba(21,28,45,0.05)]">
+      <div className="flex h-14 w-full items-center justify-center">
+        <img src={src} alt={alt} className={`${logoClass} w-auto object-contain`} loading="lazy" />
+      </div>
+      <p className="mt-3 text-sm font-semibold leading-5 text-[#151c2d]">{title}</p>
+      <p className={`text-xs leading-4 ${SOFT}`}>{body}</p>
+    </div>
+  )
+}
+
+/**
+ * Your ERP, then Fawtir mapping and checking each invoice, then its two destinations: the buyer
+ * over Peppol and the Tax Authority's Fawtara (owner, 1 Nov 2026: real logos, a flow that reads as
+ * a product diagram rather than three boxes). One column at every width, so it never crowds.
+ */
 function ErpFlow() {
   const { t } = useTranslation()
   const base = 'landing.audience.erp.flow'
+  const chips = ['mapped', 'checked', 'tracked'] as const
   return (
     <figure className="relative mt-10 px-10 pb-10 max-md:px-6 max-md:pb-6">
-      <div className="flex items-center justify-between gap-3 rounded-lg border border-[#eaedf8] bg-[#f7f9ff] p-6 max-sm:flex-col">
-        <Node>{t(`${base}.erp`)}</Node>
-        <Flow />
-        <div className="flex flex-col items-center gap-2">
-          <Node strong>
-            <BrandLogo tone="onDark" size="sm" to="" />
-          </Node>
-          <span className={`text-xs font-medium leading-4 ${SOFT}`}>{t(`${base}.checked`)}</span>
-        </div>
-        <Flow />
-        <div className="flex flex-col gap-2">
-          <LogoNode
+      <div className="rounded-xl border border-[#e3e8f6] bg-gradient-to-b from-[#f7f9ff] to-white p-6 max-md:p-4">
+        <Step tile={<ErpIcon />} title={t(`${base}.erp`)} body={t(`${base}.erpSub`)} />
+        <Link />
+        <Step
+          strong
+          tile={<img src={logoMarkLight} alt="" className="h-7 w-auto" />}
+          title={t(`${base}.fawtir`)}
+          body={t(`${base}.fawtirSub`)}
+        >
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {chips.map((id) => (
+              <li
+                key={id}
+                className="inline-flex items-center gap-1.5 rounded-full bg-[#eef2ff] px-2.5 py-1 text-xs font-medium leading-4 text-[#2c4eb7]"
+              >
+                <img src={checkIcon} alt="" className="size-3.5" />
+                {t(`${base}.chips.${id}`)}
+              </li>
+            ))}
+          </ul>
+        </Step>
+        <Link />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Destination
             src={logoPeppol}
             alt={t(`${base}.peppolAlt`)}
-            label={t(`${base}.peppol`)}
-            logoClass="h-7"
+            logoClass="h-8"
+            title={t(`${base}.peppol`)}
+            body={t(`${base}.peppolSub`)}
           />
-          <LogoNode
+          <Destination
             src={logoFawtara}
             alt={t(`${base}.fawtaraAlt`)}
-            label={t(`${base}.ota`)}
-            logoClass="h-12"
+            logoClass="h-14"
+            title={t(`${base}.ota`)}
+            body={t(`${base}.otaSub`)}
           />
         </div>
       </div>
