@@ -34,6 +34,7 @@ import showcaseDashboard from '../../assets/home/showcase-dashboard.webp'
 import showcaseDashboardAr from '../../assets/home/showcase-dashboard-ar.webp'
 import './HomePage.css'
 import { ClosingBand, Cta, Footer, Heading, INK, Nav, SOFT, Texture, useSiteMeta } from './site'
+import { SitePhoto } from './photos'
 import { QrSection } from './QrSection'
 import { Audience } from './Audience'
 import { useSiteMail } from './siteMail'
@@ -187,17 +188,20 @@ function Overview() {
           </div>
         </div>
 
-        <div className="relative mx-auto mt-auto h-[600px] w-[442px] max-w-full overflow-hidden max-xl:mt-16 max-sm:h-[460px]">
-          <div className="absolute inset-x-0 top-0 h-[913px]">
-            <img
-              src={overviewPhone}
-              alt={t('landing.overview.phoneAlt')}
-              className="absolute left-[-97.96%] top-[-3.72%] h-[107.45%] w-[295.93%] max-w-none"
-            />
-            <div
-              aria-hidden="true"
-              className="absolute inset-0 bg-gradient-to-b from-white/0 from-50% to-white to-[65%]"
-            />
+        <div className="mt-auto flex items-center justify-center gap-16 max-xl:mt-16 max-lg:flex-col max-lg:gap-10">
+          <SitePhoto id="erp" className="w-full max-w-[560px] lg:mb-16" />
+          <div className="relative h-[600px] w-[442px] max-w-full shrink-0 overflow-hidden max-sm:h-[460px]">
+            <div className="absolute inset-x-0 top-0 h-[913px]">
+              <img
+                src={overviewPhone}
+                alt={t('landing.overview.phoneAlt')}
+                className="absolute left-[-97.96%] top-[-3.72%] h-[107.45%] w-[295.93%] max-w-none"
+              />
+              <div
+                aria-hidden="true"
+                className="absolute inset-0 bg-gradient-to-b from-white/0 from-50% to-white to-[65%]"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -471,6 +475,7 @@ function Counter() {
                 </li>
               ))}
             </ul>
+            <SitePhoto id="pos" className="w-full max-w-[600px]" />
           </div>
         </div>
       </div>

@@ -4,26 +4,17 @@ import checkIcon from '../../assets/home/check.svg'
 import logoFawtara from '../../assets/home/logo-fawtara.png'
 import logoPeppol from '../../assets/home/logo-peppol.png'
 import { BrandLogo } from '../../components/BrandLogo'
-import whoInvoicing from '../../assets/home/who-invoicing.webp'
-import whoInvoicingAr from '../../assets/home/who-invoicing-ar.webp'
 import whoPos from '../../assets/home/who-pos.webp'
 import whoPosAr from '../../assets/home/who-pos-ar.webp'
-import ownerPos from '../../assets/home/owner-pos.webp'
-import ownerPosAr from '../../assets/home/owner-pos-ar.webp'
-import photoErpTeam from '../../assets/home/photo-erp-team.webp'
-import photoErpTeamAr from '../../assets/home/photo-erp-team-ar.webp'
-import photoFreelancer from '../../assets/home/photo-freelancer.webp'
-import photoFreelancerAr from '../../assets/home/photo-freelancer-ar.webp'
-import photoSmeOffice from '../../assets/home/photo-sme-office.webp'
-import photoSmeOfficeAr from '../../assets/home/photo-sme-office-ar.webp'
-import { withRial } from '../../components/ui/Rial'
+import { SitePhoto } from './photos'
 import { Heading, SOFT, Texture } from './site'
 
 /**
  * "Who Fawtir is for" (owner, 1 Nov 2026): the four kinds of business the product serves, each with
  * what it does for them. No Figma frame; drawn in the site's own pieces (Heading, the feature cards'
- * border, texture and type). The two screenshots are the live app against the mock API, cropped to
- * the work area; the ERP card draws its flow in code so it stays sharp and true to the product.
+ * border, texture and type). The SME and sole-trader cards carry their photos (./photos), the till
+ * card the live app against the mock API, and the ERP card draws its flow in code so it stays sharp
+ * and true to the product.
  */
 
 type Audience = 'sme' | 'pos' | 'erp' | 'solo'
@@ -122,46 +113,6 @@ function Flow() {
   )
 }
 
-/**
- * A sole trader's invoice as it reads once sent: drawn in code, labelled as an example, so it shows
- * the outcome without inventing a screen the app does not have.
- */
-function InvoicePreview() {
-  const { t } = useTranslation()
-  const base = 'landing.audience.solo.preview'
-  return (
-    <figure className="relative mt-10 px-10 pb-10 max-md:px-6 max-md:pb-6">
-      <div className="rounded-lg border border-[#eaedf8] bg-[#f7f9ff] p-6">
-        <div className="mx-auto max-w-[360px] rounded-lg border border-[#e3e8f6] bg-white p-5 shadow-[0_12px_32px_rgba(21,28,45,0.08)]">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-[0.06em] text-[#737781]">
-                {t(`${base}.kind`)}
-              </p>
-              <p dir="ltr" className="mt-1 text-sm font-semibold text-[#151c2d] rtl:text-end">
-                INV-2026-0012
-              </p>
-            </div>
-            <span className="rounded-full bg-[#e8f6ee] px-2.5 py-1 text-xs font-medium text-[#1f7a4c]">
-              {t(`${base}.status`)}
-            </span>
-          </div>
-          <div className="mt-5 flex items-end justify-between gap-3 border-t border-[#eef1f8] pt-4">
-            <div>
-              <p className="text-xs text-[#737781]">{t(`${base}.to`)}</p>
-              <p className="text-sm font-medium text-[#151c2d]">{t(`${base}.customer`)}</p>
-            </div>
-            <p dir="ltr" className="text-xl font-semibold text-[#151c2d]">
-              {withRial('OMR 105.000')}
-            </p>
-          </div>
-        </div>
-      </div>
-      <figcaption className={`mt-3 text-center text-xs ${SOFT}`}>{t(`${base}.caption`)}</figcaption>
-    </figure>
-  )
-}
-
 /** Your ERP, then Fawtir checking the invoice, then the network and the Tax Authority. */
 function ErpFlow() {
   const { t } = useTranslation()
@@ -209,57 +160,17 @@ function Card({ id }: { id: Audience }) {
       <Texture flip="rotate" />
       <CardCopy id={id} />
       <div className="mt-auto">
-        {id === 'sme' ? (
-          <Shot src={ar ? whoInvoicingAr : whoInvoicing} alt={t('landing.audience.sme.alt')} />
+        {id === 'sme' || id === 'solo' ? (
+          <div className="mt-10 px-10 pb-10 max-md:px-6 max-md:pb-6">
+            <SitePhoto id={id} imgClassName="aspect-[16/9] object-[50%_25%]" />
+          </div>
         ) : null}
         {id === 'pos' ? (
           <Shot src={ar ? whoPosAr : whoPos} alt={t('landing.audience.pos.alt')} />
         ) : null}
         {id === 'erp' ? <ErpFlow /> : null}
-        {id === 'solo' ? <InvoicePreview /> : null}
       </div>
     </article>
-  )
-}
-
-/**
- * Four photos, one per kind of business, so the page does not read as a till product (owner,
- * 1 Nov 2026). The people and places are AI-generated, so no photo is captioned as a customer; each
- * screen in them carries the app's real screen from the mock API, in the page's language. Each
- * photo is labelled with its card's tag and jumps to that card.
- */
-const PHOTOS: Record<Audience, { en: string; ar: string; alt: string }> = {
-  sme: { en: photoSmeOffice, ar: photoSmeOfficeAr, alt: 'landing.audience.photos.sme' },
-  pos: { en: ownerPos, ar: ownerPosAr, alt: 'landing.audience.photoAlt' },
-  erp: { en: photoErpTeam, ar: photoErpTeamAr, alt: 'landing.audience.photos.erp' },
-  solo: { en: photoFreelancer, ar: photoFreelancerAr, alt: 'landing.audience.photos.solo' },
-}
-
-function Photos() {
-  const { t, i18n } = useTranslation()
-  const ar = i18n.language.startsWith('ar')
-  return (
-    <div className="grid w-full gap-6 md:grid-cols-2">
-      {(Object.keys(PHOTOS) as Audience[]).map((id) => (
-        <a
-          key={id}
-          href={`#for-${id}`}
-          className="group relative block overflow-hidden rounded-lg border-[8px] border-[rgba(44,78,183,0.1)]"
-        >
-          <img
-            src={ar ? PHOTOS[id].ar : PHOTOS[id].en}
-            alt={t(PHOTOS[id].alt)}
-            width={3}
-            height={2}
-            loading="lazy"
-            className="aspect-[3/2] w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
-          />
-          <span className="absolute bottom-3 start-3 rounded-full bg-white/90 px-3 py-1 text-sm font-medium leading-5 text-[#2c4eb7] shadow-[0_4px_12px_rgba(21,28,45,0.12)]">
-            {t(`landing.audience.${id}.tag`)}
-          </span>
-        </a>
-      ))}
-    </div>
   )
 }
 
@@ -278,14 +189,11 @@ export function Audience() {
         <Heading lead={t('landing.audience.titleLead')} em={t('landing.audience.titleEm')} />
         <p className="text-xl leading-8">{t('landing.audience.sub')}</p>
       </div>
-      <div className="flex w-full flex-col gap-6">
-        <Photos />
-        <div className="grid w-full gap-6 lg:grid-cols-2">
-          <Card id="sme" />
-          <Card id="pos" />
-          <Card id="erp" />
-          <Card id="solo" />
-        </div>
+      <div className="grid w-full gap-6 lg:grid-cols-2">
+        <Card id="sme" />
+        <Card id="pos" />
+        <Card id="erp" />
+        <Card id="solo" />
       </div>
     </section>
   )
