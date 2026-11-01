@@ -34,6 +34,7 @@ import showcaseDashboard from '../../assets/home/showcase-dashboard.webp'
 import showcaseDashboardAr from '../../assets/home/showcase-dashboard-ar.webp'
 import './HomePage.css'
 import { ClosingBand, Cta, Footer, Heading, INK, Nav, SOFT, Texture, useSiteMeta } from './site'
+import { QrSection } from './QrSection'
 import { Audience } from './Audience'
 import { useSiteMail } from './siteMail'
 
@@ -60,6 +61,7 @@ export function HomePage() {
       <Overview />
       <Features />
       <Steps />
+      <QrSection />
       <Counter />
       <Showcase />
       <ClosingBand />
