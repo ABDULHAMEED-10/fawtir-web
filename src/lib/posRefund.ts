@@ -245,33 +245,46 @@ export function onlyGivenAway(sale: PosRefundLookupDto, returning: ReturnLine[])
   return chosen.length > 0 && chosen.every((line) => line?.givenFree === true)
 }
 
+/**
+ * The lines of a quote or a refund, numbered by the sale line. A code is stated only for a line the
+ * server asked about (`HS_CODE_REQUIRED` names the sale line); RC2 takes it for that line alone.
+ */
+export function refundLines(
+  returning: ReturnLine[],
+  backOnShelf: boolean,
+  hsCodes: Record<number, string> = {},
+): PosRefundRequest['lines'] {
+  return returning
+    .filter((entry) => entry.qty > 0)
+    .map((entry) => {
+      const hsCode = hsCodes[entry.lineNumber]?.trim()
+      const line = { lineNumber: entry.lineNumber, quantity: entry.qty, backOnShelf }
+      return hsCode ? { ...line, hsCode } : line
+    })
+}
+
+/**
+ * Money back only as the quote and the cashier settled it. There is deliberately no single-method
+ * fallback: without a quote it paid a card or split sale back all in cash (A-03), so the screen sends
+ * nothing then.
+ */
 export function refundRequest(input: {
   tillId: string
   why: WhyId
   note: string
   returning: ReturnLine[]
   backOnShelf: boolean
-  method: 'CASH' | 'CARD' | 'TRANSFER' | 'REDUCE_BALANCE'
-  amount: number
+  hsCodes?: Record<number, string>
   /** Only given-away lines: there is no money to say anything about. */
   noMoney?: boolean
-  /** The split the cashier confirmed; without it, one line as a server without quotes takes. */
-  moneyBack?: PosRefundRequest['moneyBack']
+  moneyBack: PosRefundRequest['moneyBack']
 }): PosRefundRequest {
   return {
     tillId: input.tillId,
     reason: REASON_CODE[input.why],
     reasonNote: input.note.trim() || null,
-    lines: input.returning
-      .filter((entry) => entry.qty > 0)
-      .map((entry) => ({
-        lineNumber: entry.lineNumber,
-        quantity: entry.qty,
-        backOnShelf: input.backOnShelf,
-      })),
-    moneyBack: input.noMoney
-      ? []
-      : (input.moneyBack ?? [{ method: input.method, amount: toRials(input.amount) }]),
+    lines: refundLines(input.returning, input.backOnShelf, input.hsCodes),
+    moneyBack: input.noMoney ? [] : input.moneyBack,
   }
 }
 

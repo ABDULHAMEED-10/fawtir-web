@@ -10,6 +10,7 @@ import {
 } from '../../components/feedback/ApiNotice'
 import { PosFootNote } from './PosFootNote'
 import { TillMoneyInput } from './TillMoneyInput'
+import { ClassificationField } from '../../components/invoice/ClassificationField'
 import { PosTillGate } from './PosTillGate'
 import { CheckIcon, DocumentIcon } from './posIcons'
 import { omr, omrSigned, tillTime, toBaisa } from '../../lib/pos'
@@ -18,8 +19,8 @@ import {
   changeSplit,
   creditFor,
   moneyBackLines,
-  moneyBackMethod,
   onlyGivenAway,
+  refundLines,
   refundRequest,
   remaining,
   splitFromQuote,
@@ -33,7 +34,14 @@ import {
   type WhyId,
 } from '../../lib/posRefund'
 import { approvalCodeOk } from '../../lib/posPayment'
-import { posRefusalKey, problemNumber, refusalCode, refusalValues } from '../../lib/posRefusals'
+import { containsCardNumber } from '../../lib/cardNumbers'
+import {
+  posRefusalKey,
+  problemNumber,
+  quoteUnavailable,
+  refusalCode,
+  refusalValues,
+} from '../../lib/posRefusals'
 import { creditCapRefusal } from '../../lib/salesNote'
 import { useApiRead } from '../../hooks'
 import { ApiError } from '../../api'
@@ -143,6 +151,7 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
   }
   const navigate = useNavigate()
   const refundable = sale.lines.filter((line) => line.refundable && line.role !== 'ADD_ON')
+  const unclear = sale.lines.filter((line) => line.creditUnclear && line.role !== 'ADD_ON')
   const [returning, setReturning] = useState<ReturnLine[]>(
     refundable.map((line) => ({ lineNumber: line.lineNumber, qty: 0 })),
   )
@@ -158,10 +167,15 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
   const [expected, setExpected] = useState<number | null>(null)
   const attempt = useRef<{ fingerprint: string; key: string } | null>(null)
   /**
-   * The server's figure and split for the lines chosen. 'none': it cannot say (an older server, or
-   * the quote failed), and the refund goes as one line of money as it always did.
+   * The server's figure and split for the lines chosen. 'unavailable': it cannot say (a server
+   * without the route, or a fault), and nothing is refunded: the old one-method fallback paid card
+   * and split sales back all in cash (A-03). A refusal of the lines is held in `quoteRefusal`.
    */
-  const [quote, setQuote] = useState<PosRefundQuoteDto | 'loading' | 'none' | null>(null)
+  const [quote, setQuote] = useState<PosRefundQuoteDto | 'loading' | 'unavailable' | null>(null)
+  const [quoteRefusal, setQuoteRefusal] = useState<unknown>(null)
+  /** Sale lines the server asked an HS code for (`HS_CODE_REQUIRED`), and the codes chosen. */
+  const [needsHs, setNeedsHs] = useState<number[]>([])
+  const [hsCodes, setHsCodes] = useState<Record<number, string>>({})
   const [split, setSplit] = useState<MoneySplit | null>(null)
   const [approval, setApproval] = useState('')
   const [transferReference, setTransferReference] = useState('')
@@ -170,18 +184,15 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
 
   const credit = creditFor(sale, returning)
   const stockReturn = onlyGivenAway(sale, returning)
+  const stock: StockChoice = stockAnswer ?? (stockReturn ? 'backInStock' : 'thrownAway')
+  // The quote is asked with the same lines the refund sends, shelf answer and HS codes included,
+  // so its figure and refusals are the refund's own (RC2 plans both the same way).
   const chosen = useMemo(
-    () =>
-      returning
-        .filter((entry) => entry.qty > 0)
-        .map((entry) => ({
-          lineNumber: entry.lineNumber,
-          quantity: entry.qty,
-          backOnShelf: false,
-        })),
-    [returning],
+    () => refundLines(returning, stock === 'backInStock', hsCodes),
+    [returning, stock, hsCodes],
   )
   useEffect(() => {
+    setQuoteRefusal(null)
     if (chosen.length === 0 || stockReturn) {
       setQuote(null)
       setSplit(null)
@@ -193,15 +204,23 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
       (answer) => {
         if (!current) return
         if (!Array.isArray(answer?.suggested)) {
-          setQuote('none')
+          setQuote('unavailable')
           return
         }
         setQuote(answer)
         setSplit(splitFromQuote(answer))
         setExpected(null)
       },
-      () => {
-        if (current) setQuote('none')
+      (error: unknown) => {
+        if (!current) return
+        if (quoteUnavailable(error)) {
+          setQuote('unavailable')
+          return
+        }
+        setQuote(null)
+        setSplit(null)
+        setQuoteRefusal(error)
+        setNeedsHs((held) => withHsLine(held, error))
       },
     )
     return () => {
@@ -209,7 +228,7 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
     }
   }, [chosen, stockReturn, sale.saleId, till.till.id, askAgain])
   const quoted = quote && typeof quote === 'object' ? quote : null
-  const stock: StockChoice = stockAnswer ?? (stockReturn ? 'backInStock' : 'thrownAway')
+  const toChoose = quoted?.toChoose ? toBaisa(quoted.toChoose) : 0
   // The tip the customer paid on top, which is never refunded (F-11): on the lookup since backend
   // #810; from an older server, read from the sale itself (`pos.read`), 0 without it.
   const mayReadSale = useCan('pos.read')
@@ -229,29 +248,29 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
   const back = quoted ? toBaisa(quoted.total) : (expected ?? credit.back)
   const cardLimit = quoted ? toBaisa(quoted.cardLimit) : 0
   const moneyProblem = quoted && split ? splitProblem(split, back, cardLimit) : null
+  // FIN-5: RC2 refuses a card number in the refund's card reference (POS_REFUND_MONEY_INVALID).
+  const approvalHoldsCard = containsCardNumber(approval)
   const approvalWrong = Boolean(
-    quoted && split && cardLimit > 0 && split.card > 0 && !approvalCodeOk(approval),
+    quoted &&
+      split &&
+      cardLimit > 0 &&
+      split.card > 0 &&
+      (!approvalCodeOk(approval) || approvalHoldsCard),
   )
-  // Only a given-away line, on a server that does not mark it: it takes no refund of no money
-  // (`POS_REFUND_MONEY_INVALID`) and has no return without one, so nothing is sent.
-  const nothingToSend = credit.items > 0 && !stockReturn && quote === 'none' && back === 0
-  // What this refund takes out of the drawer. All-cash refunds stay allowed (Abdul, 1 Nov 2026), so
-  // a drawer that cannot cover it is only told. The figure is on the close preview (`pos.close`);
-  // without that, or with no shift open yet, nothing is said.
-  const cashOut =
-    done || credit.items <= 0 || stockReturn || quote === 'loading'
-      ? 0
-      : quoted && split
-        ? split.cash
-        : moneyBackMethod(sale) === 'CASH'
-          ? back
-          : 0
+  // What this refund takes out of the drawer. RC2 refuses cash beyond what the drawer should hold,
+  // judged against the expected cash floored at zero (DEC-30-05, 422 POS_REFUND_CASH_EXCEEDS_DRAWER),
+  // so the screen stops it first. The figure is on the close preview (`pos.close`); without that,
+  // or with no shift open yet, the server's refusal is the only check.
+  const cashOut = done || credit.items <= 0 || stockReturn || !quoted || !split ? 0 : split.cash
   const shiftId = till.till.openShift?.shiftId
   const drawer = useApiRead<PosClosePreviewDto>(
     cashOut > 0 && shiftId && till.can.close ? closePreviewPath(shiftId) : null,
   )
   const inDrawer =
-    cashOut > 0 && drawer.read.status === 'ready' ? toBaisa(drawer.read.data.expectedCash) : null
+    cashOut > 0 && drawer.read.status === 'ready'
+      ? Math.max(0, toBaisa(drawer.read.data.expectedCash))
+      : null
+  const drawerShort = inDrawer !== null && cashOut > inDrawer
   const anything = credit.items > 0 || stockReturn
   const was = toBaisa(sale.total)
   const credited = toBaisa(sale.credited)
@@ -276,13 +295,9 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
       note,
       returning,
       backOnShelf: stock === 'backInStock',
-      method: moneyBackMethod(sale),
-      amount: back,
+      hsCodes,
       noMoney: stockReturn,
-      moneyBack:
-        quoted && split
-          ? moneyBackLines(split, { approval, transfer: transferReference })
-          : undefined,
+      moneyBack: split ? moneyBackLines(split, { approval, transfer: transferReference }) : [],
     })
     const fingerprint = JSON.stringify(body)
     if (!attempt.current || attempt.current.fingerprint !== fingerprint) {
@@ -292,6 +307,7 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
       setDone(await createPosRefund(sale.saleId, body, attempt.current.key))
     } catch (error) {
       setRefusal(error)
+      setNeedsHs((held) => withHsLine(held, error))
       // The credit note's own total: the money back is set to it, for the cashier to confirm.
       const server = problemNumber(error, 'expected')
       if (
@@ -476,9 +492,31 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
                     <span className="w-[80px] shrink-0 text-end text-base font-semibold text-text-primary">
                       {omr(creditFor(sale, [{ lineNumber: line.lineNumber, qty }]).back)}
                     </span>
+                    {needsHs.includes(line.lineNumber) && qty > 0 ? (
+                      <span className="block basis-full">
+                        <ClassificationField
+                          kind="goods"
+                          compact
+                          value={hsCodes[line.lineNumber] ?? ''}
+                          onChange={(code) =>
+                            setHsCodes((current) => ({ ...current, [line.lineNumber]: code }))
+                          }
+                          ariaLabel={t('pos.refund.hsCodeFor', { name: line.description })}
+                        />
+                      </span>
+                    ) : null}
                   </li>
                 )
               })}
+              {/* DEC-30-01: not offered at the till, and said why, rather than left out unexplained. */}
+              {unclear.map((line) => (
+                <li
+                  key={`unclear-${line.lineNumber}`}
+                  className="border-b border-border-subtle px-5 py-3.5 text-xs font-medium text-text-quaternary last:border-b-0"
+                >
+                  {t('pos.refund.creditUnclear', { name: line.description })}
+                </li>
+              ))}
             </ul>
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle px-5 py-4">
@@ -555,8 +593,7 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
                           ? t('pos.refund.moneyBackNoteSplit', { amount: omr(back) })
                           : t(`pos.refund.${option}NoteLive`, {
                               amount: omr(back),
-                              // Without a quote the refund really goes one way, so it says that one.
-                              method: (quote === 'none' ? [moneyBackMethod(sale)] : waysPaid(sale))
+                              method: waysPaid(sale)
                                 .map((method) => t(`pos.refund.method.${method}`))
                                 .join(' · '),
                             })}
@@ -607,7 +644,9 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
                     />
                     {approvalWrong ? (
                       <span role="alert" className="text-xs font-medium text-pending-700">
-                        {t('pos.refund.approvalInvalid')}
+                        {approvalHoldsCard
+                          ? t('pos.pay.approvalIsCardNumber')
+                          : t('pos.refund.approvalInvalid')}
                       </span>
                     ) : null}
                   </label>
@@ -644,6 +683,11 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
                       className={MONEY_FIELD}
                     />
                   </label>
+                ) : null}
+                {toChoose > 0 ? (
+                  <p className="col-span-full text-xs font-medium leading-[1.5] text-text-quaternary">
+                    {withRial(t('pos.refund.toChoose', { amount: `OMR ${omr(toChoose)}` }))}
+                  </p>
                 ) : null}
                 {moneyProblem ? (
                   <p role="alert" className="col-span-full text-xs font-medium text-pending-700">
@@ -778,22 +822,30 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
             </div>
           </div>
 
-          {nothingToSend && !done ? (
+          {quote === 'unavailable' && !done ? (
             <p
-              role="status"
+              role="alert"
               className="mx-5 mt-4 rounded-sm bg-pending-100 px-4 py-3 text-sm font-medium text-pending-700"
             >
-              {t('pos.refund.givenAwayOldServer')}
+              {t('pos.refund.quoteUnavailable')}
             </p>
           ) : null}
-          {inDrawer !== null && cashOut > inDrawer ? (
+          {quoteRefusal && !done && !refusal ? (
             <p
-              role="status"
+              role="alert"
+              className="mx-5 mt-4 rounded-sm bg-pending-100 px-4 py-3 text-sm font-medium text-pending-700"
+            >
+              {refusalSentence(quoteRefusal)}
+            </p>
+          ) : null}
+          {drawerShort ? (
+            <p
+              role="alert"
               className="mx-5 mt-4 rounded-sm bg-pending-100 px-4 py-3 text-sm font-medium text-pending-700"
             >
               {withRial(
                 t('pos.refund.drawerTooLow', {
-                  held: `OMR ${omr(Math.max(0, inDrawer))}`,
+                  held: `OMR ${omr(inDrawer ?? 0)}`,
                   cash: `OMR ${omr(cashOut)}`,
                 }),
               )}
@@ -847,10 +899,10 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
                 disabled={
                   !anything ||
                   busy ||
-                  quote === 'loading' ||
+                  (!stockReturn && !quoted) ||
                   moneyProblem !== null ||
                   approvalWrong ||
-                  nothingToSend ||
+                  drawerShort ||
                   (why === 'other' && !note.trim())
                 }
                 onClick={() => void refund()}
@@ -867,6 +919,15 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
       </div>
     </>
   )
+}
+
+/** HS_CODE_REQUIRED names the sale line, the number the request states `hsCode` against. */
+function withHsLine(current: number[], error: unknown): number[] {
+  const line = problemNumber(error, 'line')
+  if (refusalCode(error) !== 'HS_CODE_REQUIRED' || line == null || !Number.isInteger(line)) {
+    return current
+  }
+  return current.includes(line) ? current : [...current, line]
 }
 
 function Row({ label, value }: { label: string; value: string }) {

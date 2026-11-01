@@ -4,7 +4,13 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { PosRefundPage } from './PosRefundPage'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
-import { changeSplit, moneyBackLines, splitFromQuote, splitProblem } from '../../lib/posRefund'
+import {
+  changeSplit,
+  moneyBackLines,
+  refundLines,
+  splitFromQuote,
+  splitProblem,
+} from '../../lib/posRefund'
 import { figuresOf } from '../../lib/posClose'
 import { resetOpenSale } from '../../lib/posSale'
 import { resetPosQueue } from '../../lib/posQueue'
@@ -315,25 +321,75 @@ describe('the money back sentence before a line is ticked', () => {
     await screen.findByText(new RegExp(`${card} · ${cash}\\.`))
   })
 
-  it('on a server without the quote, names the one way the refund really goes', async () => {
+  it('on a server without the quote, still names every way it was paid', async () => {
     quote = () => json({ type: 'about:blank', status: 404 }, 404)
     await open()
     await waitFor(() => expect(quotes).toHaveLength(1))
-    await screen.findByText(/the way it was paid: Cash\./)
+    await screen.findByText(/the way it was paid: Card · Cash\./)
   })
 })
 
-describe('the refund page on a server without the quote', () => {
-  it('keeps one line of money, the way it was paid, with no split fields', async () => {
-    quote = () => json({ type: 'about:blank', status: 404 }, 404)
+describe('the refund page without a quote (A-03: no one-method fallback)', () => {
+  it.each([404, 503])('refunds nothing when the quote route answers %s', async (status) => {
+    quote = () => json({ type: 'about:blank', status }, status)
     await open()
     await waitFor(() => expect(quotes).toHaveLength(1))
-    await waitFor(() => expect(refundButton().disabled).toBe(false))
+    await screen.findByText(i18n.t('pos.refund.quoteUnavailable'))
     expect(screen.queryByText(i18n.t('pos.refund.howItGoesBack'))).toBeNull()
+    expect(refundButton().disabled).toBe(true)
+    fireEvent.click(refundButton())
+    expect(refunds).toEqual([])
+  })
+
+  it('words a refusal of the lines by its code, and refunds nothing', async () => {
+    quote = () =>
+      json({ status: 422, code: 'POS_REFUND_LINE_INVALID', detail: 'not shown' }, 422)
+    await open()
+    await screen.findByText(i18n.t('pos.refusal.POS_REFUND_LINE_INVALID'))
+    expect(document.body.textContent).not.toContain('not shown')
+    expect(refundButton().disabled).toBe(true)
+  })
+})
+
+describe('money the quote leaves to choose', () => {
+  it('is never put in cash: the split does not add up until the cashier routes it', async () => {
+    quote = () =>
+      json({ ...QUOTE, suggested: [{ method: 'CARD', amount: 10 }], toChoose: 4.025 })
+    await open()
+    await waitFor(() => expect(field('Card').value).toBe('10.000'))
+    expect(field('Cash').value).toBe('0.000')
+    expect(document.body.textContent).toMatch(/4\.025 cannot go back the way the sale was paid/)
+    expect(refundButton().disabled).toBe(true)
+    fireEvent.change(field('Bank transfer'), { target: { value: '4.025' } })
+    fireEvent.blur(field('Bank transfer'))
+    await waitFor(() => expect(refundButton().disabled).toBe(false))
     fireEvent.click(refundButton())
     await waitFor(() => expect(refunds).toHaveLength(1))
-    expect(refunds[0].moneyBack).toHaveLength(1)
-    expect(refunds[0].moneyBack[0]).toMatchObject({ method: 'CASH' })
+    expect(refunds[0].moneyBack).toEqual([
+      { method: 'CARD', amount: 10, reference: null },
+      { method: 'TRANSFER', amount: 4.025, reference: null },
+    ])
+  })
+})
+
+describe('a line with an unclear credit (DEC-30-01)', () => {
+  it('is not offered, and the page says why', async () => {
+    lookup = {
+      ...LOOKUP,
+      lines: [
+        ...LOOKUP.lines,
+        {
+          ...LOOKUP.lines[0],
+          lineNumber: 2,
+          description: 'Juice',
+          refundable: false,
+          creditUnclear: true,
+        },
+      ],
+    } as typeof LOOKUP
+    showPage()
+    await screen.findByText(i18n.t('pos.refund.creditUnclear', { name: 'Juice' }))
+    expect(screen.getAllByRole('checkbox')).toHaveLength(1)
   })
 })
 
@@ -365,6 +421,25 @@ describe('the split in baisa', () => {
         { approval: ' ', transfer: '' },
       ),
     ).toEqual([{ method: 'CARD', amount: 0.5, reference: null }])
+  })
+})
+
+describe('refundLines', () => {
+  it('numbers lines by the sale and states an HS code only where one was chosen', () => {
+    expect(
+      refundLines(
+        [
+          { lineNumber: 1, qty: 2 },
+          { lineNumber: 3, qty: 0 },
+          { lineNumber: 4, qty: 1 },
+        ],
+        true,
+        { 4: '000000000000', 1: '  ' },
+      ),
+    ).toEqual([
+      { lineNumber: 1, quantity: 2, backOnShelf: true },
+      { lineNumber: 4, quantity: 1, backOnShelf: true, hsCode: '000000000000' },
+    ])
   })
 })
 

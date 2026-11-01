@@ -4482,7 +4482,8 @@
       "slipRead": "Read from the slip: {{card}} {{rrn}}",
       "slipCheck": "Check the marked field before you press Paid.",
       "slipDiffers": "The slip says {{slip}}, the payment is {{payment}}.",
-      "slipKeptOffline": "The till is offline. The slip photo is kept with this sale and sent once the connection is back. Type the approval code if you need it now."
+      "slipKeptOffline": "The till is offline. The slip photo is kept with this sale and sent once the connection is back. Type the approval code if you need it now.",
+      "approvalIsCardNumber": "That looks like the card number. Type the approval code from the bank slip, never the card number."
     },
     "done": {
       "title": "Paid and filed",
@@ -4764,7 +4765,8 @@
       "cardNote_one": "{{count}} sale",
       "cardNote_other": "{{count}} sales",
       "notCounted": "Not counted yet",
-      "countFirst": "Type what is actually in the drawer, then close the till."
+      "countFirst": "Type what is actually in the drawer, then close the till.",
+      "terminalNetNote": "Card taken {{gross}} across {{payments}} payments, tips included; paid back to cards {{refunds}}. Fawtir's net card figure is {{net}}. Type the total from the bank machine's end-of-day report. The machine may print sales and refunds separately, so its figure may not be this net."
     },
     "refund": {
       "title": "Putting something right",
@@ -4789,7 +4791,7 @@
       "makeAnother": "Make them another one",
       "makeAnotherNote": "Credit note and a fresh sale at the same price. Nothing changes hands.",
       "why": "Why?",
-      "whyNote": "goes on the credit note and the Tax Authority sees it",
+      "whyNote": "goes on the credit note",
       "anythingToAdd": "Anything worth adding?",
       "reason": {
         "madeWrong": "Made wrong",
@@ -4800,7 +4802,7 @@
         "other": "Other"
       },
       "creditNote": "The credit note",
-      "filedStraightAway": "{{number}} · will be filed straight away",
+      "filedStraightAway": "{{number}} · issued against the original invoice",
       "nothingSelected": "Tick a line to start the credit note.",
       "tipNotRefunded": "Tip · not refunded",
       "backToThem": "Back to them",
@@ -4829,20 +4831,24 @@
       "doesNotAdd": "The money back has to add up to {{amount}}.",
       "moneyBackNoteLive": "A credit note for {{amount}}, paid back the way it was paid: {{method}}.",
       "makeAnotherNoteLive": "A credit note for {{amount}}, then a fresh sale for the replacement.",
-      "willBeFiled": "filed with the Tax Authority straight away",
+      "willBeFiled": "issued against the original invoice",
       "discountsBack": "Discounts on these lines",
-      "done": "Refunded. Credit note {{number}} is filed.",
+      "done": "Refunded. Credit note {{number}} is issued.",
       "ringNew": "Ring up the replacement",
-      "filedNoteLive": "The credit note is filed with the Tax Authority like any invoice and counts toward your monthly documents. Cash paid back shows on the shift's close.",
+      "filedNoteLive": "The credit note is issued against the original invoice like any invoice and counts toward your monthly documents. Cash paid back shows on the shift's close.",
       "alreadyRefunded": "This sale has already been refunded in full. Credit notes: {{numbers}}.",
       "nothingToRefund": "Nothing on this sale can be refunded.",
       "givenFreeLine": "Given free: goes back on the shelf, no credit note",
       "noCreditNote": "Given free, so no credit note and no money back",
       "stockReturnButton": "Put back with no refund",
       "stockReturnDone": "Return recorded. No credit note, nothing paid back.",
-      "drawerTooLow": "The drawer does not have that much cash: it should hold {{held}} and this refund gives back {{cash}} in cash. You can still go ahead. Check the drawer when you close.",
+      "drawerTooLow": "The drawer should hold only {{held}}, and this refund gives back {{cash}} in cash, so it cannot go. Give the rest back by card or transfer, or pay cash into the drawer first.",
       "approvalInvalid": "The approval code takes up to 40 English letters, digits or symbols, as on the slip. Leave it empty if you do not have one.",
-      "givenAwayOldServer": "This item was given away, so there is no money to give back, and Fawtir cannot record its return on its own yet. Nothing has changed. If it came back, count it on the shelf."
+      "givenAwayOldServer": "This item was given away, so there is no money to give back, and Fawtir cannot record its return on its own yet. Nothing has changed. If it came back, count it on the shelf.",
+      "quoteUnavailable": "Fawtir cannot work out this refund right now, so it cannot be made at the till. Nothing was refunded. Try again in a moment.",
+      "creditUnclear": "{{name}}: a credit note from the invoice screens does not say whether it came back, so it is refunded from the invoice, not here.",
+      "hsCodeFor": "HS code for {{name}}",
+      "toChoose": "{{amount}} cannot go back the way the sale was paid. Choose how it goes back: type it under cash or transfer."
     },
     "saleDiscountLabel": "Discount on the whole sale",
     "saleDiscountNote": "Taken after the price rule and before VAT. It shows on the invoice as a document discount.",
@@ -24536,7 +24542,15 @@
         "confirm": "Change my role"
       },
       "subtitleNoBranches": "Their role and permissions.",
-      "branchAdminPending": "Not saved yet: press Save permissions to apply it."
+      "branchAdminPending": "Not saved yet: press Save permissions to apply it.",
+      "sellLimit": "Discount limit at the till (%)",
+      "sellLimitPlaceholder": "Their role's limit",
+      "sellLimitInvalid": "Type a percentage above 0 and up to 100, with at most two decimals, or leave it blank.",
+      "sellLimitOwn": "Set for them: discounts up to {{percent}}%. Clear it to use their role's limit.",
+      "sellLimitOwnNone": "Set for them: no discount limit. Clear it to use their role's limit.",
+      "sellLimitRole": "From their role: discounts up to {{percent}}%. Type a number to set a different limit for them.",
+      "sellLimitRoleNone": "From their role: no discount limit. Type a number to set one for them.",
+      "sellLimitRoleUnknown": "Blank means their role's limit applies. Type a number to set one for them."
     },
     "handover": {
       "open": "Hand over ownership",
