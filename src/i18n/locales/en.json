@@ -2225,7 +2225,7 @@
       "sellerContact": "Your company telephone number was missing when this invoice was issued, so it cannot be sent: cancel it and issue a new one after adding the number.",
       "buyerAddress": "The customer's address on this invoice is incomplete. It was fixed at issue, so this invoice cannot be sent: cancel it and issue a new one after completing the customer's address.",
       "lineClassification": "A line on this invoice is missing its goods/services classification or business activity, so it cannot be sent: cancel it and issue a corrected invoice.",
-      "lineHsCode": "A goods line on this invoice has no HS code, so it cannot be sent: cancel it and issue a corrected invoice.",
+      "lineHsCode": "A goods line on this invoice has no HS code, so it cannot be sent: cancel it and issue a corrected invoice. Adding the HS code to the item now does not change this invoice, because an issued invoice cannot be edited.",
       "lineTaxReason": "A zero-rated or exempt line on this invoice has no reason code, so it cannot be sent: cancel it and issue a corrected invoice.",
       "unsupportedShape": "This kind of self-billed invoice cannot be sent electronically.",
       "correctionReason": "This note has no correction reason, so it cannot be sent: cancel it and issue a corrected note.",
@@ -4947,7 +4947,8 @@
       "CUSTOMER_NOT_INVOICE_ELIGIBLE": "This company cannot get a full invoice yet: {{missing}} is missing.",
       "customerIncomplete": "This company's record is missing something a full invoice needs.",
       "completeCompany": "Complete it on the company screen",
-      "DISCOUNT_ABOVE_LIMIT": "This discount takes {{requestedPercent}}% off and your limit is {{limitPercent}}%. Lower it, or ask a manager."
+      "DISCOUNT_ABOVE_LIMIT": "This discount takes {{requestedPercent}}% off and your limit is {{limitPercent}}%. Lower it, or ask a manager.",
+      "HS_CODE_REQUIRED": "Line {{line}} is goods and has no HS code, so nothing was done. Someone who can edit items adds the code on the item (Other if none fits), then try again."
     },
     "warning": {
       "STOCK_BELOW_ZERO": "Line {{line}} took the stock below zero. Count it when you can.",
@@ -4969,7 +4970,7 @@
       "POS_DISCOUNT_ABOVE_LIMIT_ACCEPTED": "Sold offline with a discount above the cashier's limit. It is filed and recorded for the manager.",
       "POS_PRINTED_NUMBER_DIFFERS": "A customer's receipt says {{printed}}, but that sale is filed as {{filed}}. Use {{filed}} to find it.",
       "POS_GOODS_FLAG_CLEARED": "Line {{line}} has no HS code, so it was filed without being marked as goods. Someone who can edit items adds the code on the item (Other if none fits) for next time.",
-      "POS_HS_CODE_MISSING_ACCEPTED": "Line {{line}} has no HS code. The sale is kept, but its full invoice is not filed until the item has one. Someone who can edit items adds the code on the item (Other if none fits)."
+      "POS_HS_CODE_MISSING_ACCEPTED": "Line {{line}} has no HS code, so this full invoice was issued but cannot be sent. Adding the code to the item now does not change an invoice already issued: open the invoice to see what it needs."
     },
     "day": {
       "title": "The day's shifts",
@@ -4997,6 +4998,8 @@
       "waiting_one": "1 sale is waiting to be sent. It goes by itself as soon as it can.",
       "waiting_other": "{{count}} sales are waiting to be sent. They go by themselves as soon as they can.",
       "heldHint": "The customer holds this invoice. The till tries again by itself and keeps selling meanwhile. Nothing is charged or filed twice.",
+      "hsCodeHint": "The customer holds this invoice. Someone who can edit items adds the HS code on the item (Other if none fits), then press Try again. It goes again as the same sale on the same number, so nothing is charged or filed twice. The till keeps selling meanwhile.",
+      "hsCodeLines": "Lines without an HS code: {{lines}}.",
       "finalHint": "The customer holds this invoice and it stays open here until it is filed. Sending it again as it stands will not work. Correct it if you can, or contact Fawtir support. The till keeps selling meanwhile.",
       "retry": "Try again",
       "reason": {
@@ -5007,6 +5010,7 @@
         "POS_SOLD_AT_IN_FUTURE": "This device's clock is ahead of the right time. Correct the clock and the sale goes.",
         "SELLER_PARTICIPANT_NOT_VERIFIED": "The company's Participant ID is not verified yet. The sale goes once it is.",
         "INDUSTRIAL_CLASSIFICATION_REQUIRED": "The company's business activity code is missing. Add it in Settings and the sale goes.",
+        "POS_QUEUED_SALE_HS_CODE_REQUIRED": "Not issued yet, waiting for an HS code: this full invoice has a goods line with no HS code, so Fawtir has not issued it and has not used its number.",
         "other": "Fawtir would not accept this sale as it stands."
       },
       "askManager": "The till keeps selling. Ask a manager to deal with it.",
@@ -21013,6 +21017,7 @@
       "notDraft": "This invoice is no longer a draft.",
       "unavailable": "Issuing isn't available on this server yet.",
       "activityRequired": "Set your business activity in Company settings before creating a business or government invoice.",
+      "hsCodeRequired": "A goods line on this draft has no HS code, so it was not issued. Open the draft, choose the line's HS code (Other if none fits), save, then issue again.",
       "buyerAddressIncomplete": "This customer's address is incomplete for Peppol: add the street, additional street, city, postal code and address line 3, then issue again.",
       "buyerAddressAction": "Complete the customer"
     },

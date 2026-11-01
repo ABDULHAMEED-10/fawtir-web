@@ -572,9 +572,10 @@ describe('the warnings of a queued sale with no HS code (decision 5)', () => {
       )
     }
     if (language === 'en') {
-      expect(i18n.t('pos.warning.POS_HS_CODE_MISSING_ACCEPTED', { line: 2 })).toMatch(
-        /not filed until.*Someone who can edit items/,
-      )
+      // An issued invoice is immutable: a catalogue change must never read as what releases it.
+      const issued = i18n.t('pos.warning.POS_HS_CODE_MISSING_ACCEPTED', { line: 2 })
+      expect(issued).toMatch(/does not change an invoice already issued/)
+      expect(issued).not.toMatch(/until the item has one/)
     }
     await i18n.changeLanguage('en')
   })

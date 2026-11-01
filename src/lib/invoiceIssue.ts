@@ -77,6 +77,9 @@ export const ISSUE_REFUSALS: Record<string, { field: IssueField | null; key: str
   // Send would dead-letter for good.
   BUYER_ADDRESS_INCOMPLETE: { field: null, key: 'invoiceIssue.refused.buyerAddressIncomplete' },
   INDUSTRIAL_CLASSIFICATION_REQUIRED: { field: null, key: 'invoiceIssue.refused.activityRequired' },
+  // A draft saved before the goods/HS rule (GoodsHsCodeRequirement) and issued as it stands; the
+  // composer checks the line before it saves, so this is the server's own refusal at issue.
+  HS_CODE_REQUIRED: { field: null, key: 'invoiceIssue.refused.hsCodeRequired' },
   CUSTOMER_NOT_SELECTABLE: { field: null, key: 'invoiceIssue.refused.customerNotSelectable' },
   PAYMENT_TERMS_REQUIRED: { field: null, key: 'invoiceIssue.refused.termsRequired' },
   BRANCH_NOT_ACTIVE: { field: null, key: 'invoiceIssue.refused.branchInactive' },
