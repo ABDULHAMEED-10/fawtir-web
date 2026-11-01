@@ -229,8 +229,8 @@ function OwnerPhoto() {
       <img
         src={ar ? ownerPosAr : ownerPos}
         alt={t('landing.audience.photoAlt')}
-        width={1536}
-        height={1024}
+        width={3072}
+        height={2048}
         loading="lazy"
         className="aspect-[16/9] w-full object-cover object-[50%_40%] max-md:aspect-[4/3]"
       />
