@@ -269,6 +269,31 @@ export function refundRequest(input: {
   }
 }
 
+/**
+ * The sale's line behind a credit note's line number. A refund's refusal names the note's line, and
+ * the note numbers only what comes back: the items chosen and the add-ons above them that are left
+ * (an add-on belongs to the closest item above it with the same product), in the sale's order, less
+ * what credits nothing. Null when the number is past that: the caller says so rather than guess.
+ */
+export function creditLineOfSale(
+  sale: PosRefundLookupDto,
+  returning: ReturnLine[],
+  creditLine: number,
+): PosRefundLookupLine | null {
+  const ordered = [...sale.lines].sort((a, b) => a.lineNumber - b.lineNumber)
+  const chosen = new Set(returning.filter((e) => e.qty > 0).map((e) => e.lineNumber))
+  const comesBack = ordered.filter((line, index) => {
+    if (line.givenFree === true) return false
+    if (line.role !== 'ADD_ON') return chosen.has(line.lineNumber)
+    const item = ordered
+      .slice(0, index)
+      .reverse()
+      .find((above) => above.role === 'ITEM' && above.productId === line.productId)
+    return item !== undefined && chosen.has(item.lineNumber) && remaining(line) > 0
+  })
+  return comesBack[creditLine - 1] ?? null
+}
+
 /** What the original invoice is worth once the credit note is filed against it. */
 export function standsAt(was: number, credited: number, back: number): number {
   return was - credited - back

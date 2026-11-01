@@ -244,7 +244,10 @@ function Problem({
         </span>
       </p>
       <p className="mt-1 text-sm font-medium text-danger-700">
-        {t(queueRefusalKey(entry.refusal, entry.refusalType ?? null), entry.refusalValues ?? {})}
+        {t(
+          queueRefusalKey(entry.refusal, entry.refusalType ?? null, entry.refusalValues),
+          entry.refusalValues ?? {},
+        )}
       </p>
       <p className="mt-1 text-xs font-medium text-text-tertiary">
         {entry.final ? t('pos.queue.finalHint') : t('pos.queue.heldHint')}

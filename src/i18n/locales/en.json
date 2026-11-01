@@ -4838,7 +4838,10 @@
       "givenFreeLine": "Given free: goes back on the shelf, no credit note",
       "noCreditNote": "Given free, so no credit note and no money back",
       "stockReturnButton": "Put back with no refund",
-      "stockReturnDone": "Return recorded. No credit note, nothing paid back."
+      "stockReturnDone": "Return recorded. No credit note, nothing paid back.",
+      "hsCodeMissing": "{{line}} has no HS code, and this credit note cannot be filed without one. Nothing was refunded. Someone who can edit items adds the code on the item (Other if none fits), then refund again.",
+      "hsCodeLine": "Line {{line}} ({{name}})",
+      "hsCodeSomeLine": "One of these lines"
     },
     "saleDiscountLabel": "Discount on the whole sale",
     "saleDiscountNote": "Taken after the price rule and before VAT. It shows on the invoice as a document discount.",
@@ -4943,7 +4946,8 @@
       "CUSTOMER_NOT_INVOICE_ELIGIBLE": "This company cannot get a full invoice yet: {{missing}} is missing.",
       "customerIncomplete": "This company's record is missing something a full invoice needs.",
       "completeCompany": "Complete it on the company screen",
-      "DISCOUNT_ABOVE_LIMIT": "This discount takes {{requestedPercent}}% off and your limit is {{limitPercent}}%. Lower it, or ask a manager."
+      "DISCOUNT_ABOVE_LIMIT": "This discount takes {{requestedPercent}}% off and your limit is {{limitPercent}}%. Lower it, or ask a manager.",
+      "HS_CODE_REQUIRED": "Line {{line}} is goods with no HS code, so it cannot be sold yet. Take it off the sale, or ask someone who can edit items to add the code on the item (Other if none fits), then try again."
     },
     "warning": {
       "STOCK_BELOW_ZERO": "Line {{line}} took the stock below zero. Count it when you can.",
@@ -5001,7 +5005,9 @@
         "POS_SOLD_AT_IN_FUTURE": "This device's clock is ahead of the right time. Correct the clock and the sale goes.",
         "SELLER_PARTICIPANT_NOT_VERIFIED": "The company's Participant ID is not verified yet. The sale goes once it is.",
         "INDUSTRIAL_CLASSIFICATION_REQUIRED": "The company's business activity code is missing. Add it in Settings and the sale goes.",
-        "other": "Fawtir would not accept this sale as it stands."
+        "other": "Fawtir would not accept this sale as it stands.",
+        "HS_CODE_REQUIRED": "Line {{line}} is goods with no HS code. Ask someone who can edit items to add the code on the item (Other if none fits), and it goes.",
+        "HS_CODE_REQUIRED_noLine": "A line of this sale is goods with no HS code. Ask someone who can edit items to add the code on the item (Other if none fits), and it goes."
       },
       "askManager": "The till keeps selling. Ask a manager to deal with it.",
       "orderHint": "Later sales are still numbered and printed, but cannot be filed until this one is: Fawtir files a till's numbers strictly in order for now.",

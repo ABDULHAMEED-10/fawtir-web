@@ -60,6 +60,7 @@ const WORDED = new Set([
   'POS_REFUND_KEY_REUSED',
   'POS_SLIP_INVALID',
   'DISCOUNT_ABOVE_LIMIT',
+  'HS_CODE_REQUIRED',
 ])
 
 /** Problem slugs (no `code`) the till words too. */
@@ -103,6 +104,7 @@ const QUEUE_WORDED = new Set([
   'POS_SOLD_AT_IN_FUTURE',
   'SELLER_PARTICIPANT_NOT_VERIFIED',
   'INDUSTRIAL_CLASSIFICATION_REQUIRED',
+  'HS_CODE_REQUIRED',
 ])
 
 const QUEUE_SLUGS: Record<string, string> = {
@@ -112,7 +114,14 @@ const QUEUE_SLUGS: Record<string, string> = {
 }
 
 /** The sentence for a queued sale's stored refusal (handbook 3.3: never the server's `detail`). */
-export function queueRefusalKey(code: string | null, slug: string | null): string {
+export function queueRefusalKey(
+  code: string | null,
+  slug: string | null,
+  values?: Record<string, string>,
+): string {
+  // A row from another till carries the code alone: no line number to put in the sentence.
+  if (code === 'HS_CODE_REQUIRED' && !values?.line)
+    return 'pos.queue.reason.HS_CODE_REQUIRED_noLine'
   if (code?.startsWith('SUBSCRIPTION_')) return 'pos.queue.reason.readOnly'
   if (code && QUEUE_WORDED.has(code)) return `pos.queue.reason.${code}`
   if (slug && QUEUE_SLUGS[slug]) return QUEUE_SLUGS[slug]

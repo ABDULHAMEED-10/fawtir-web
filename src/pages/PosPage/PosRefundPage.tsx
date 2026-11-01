@@ -17,6 +17,7 @@ import {
   WHY_OPTIONS,
   changeSplit,
   creditFor,
+  creditLineOfSale,
   moneyBackLines,
   moneyBackMethod,
   onlyGivenAway,
@@ -132,6 +133,15 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
   // A refund issues its credit note through the same cap as the composer (DA-1, backend #817):
   // the category and rate refused, and what is left there, in the till's own refusal line.
   const refusalSentence = (error: unknown) => {
+    // The server's `line` is the credit note's: named here as the sale's line and its item.
+    if (refusalCode(error) === 'HS_CODE_REQUIRED') {
+      const refused = creditLineOfSale(sale, returning, problemNumber(error, 'line') ?? 0)
+      return t('pos.refund.hsCodeMissing', {
+        line: refused
+          ? t('pos.refund.hsCodeLine', { line: refused.lineNumber, name: refused.description })
+          : t('pos.refund.hsCodeSomeLine'),
+      })
+    }
     const capped = creditCapRefusal(error, t, 'OMR', i18n.language)
     return capped
       ? withRial(t(capped.key, capped.values))
