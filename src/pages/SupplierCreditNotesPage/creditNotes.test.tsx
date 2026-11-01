@@ -1663,7 +1663,7 @@ describe("releasing a note's credit from a bill (backend #827)", () => {
       note({
         status: 'UNAPPLIED',
         balance: { applied: 0, refunded: 0, remaining: 200 },
-        credits: { ...note().credits, billId: 'b-9', billNumber: 'QMS-7781', applied: false },
+        credits: { ...note().credits, billId: null, billNumber: 'QMS-7781', applied: false },
       }),
     ]
     settlements = [
