@@ -4453,7 +4453,7 @@
       "receiptWithQr_one": "{{count}} item · receipt with a QR code",
       "receiptWithQr_other": "{{count}} items · receipt with a QR code",
       "finish": "Finish the sale",
-      "finishNote": "Finishing raises the invoice, files it with the Tax Authority and opens the drawer. Takes about a second. The QR code comes up for the customer straight after. {{change}} change to hand back.",
+      "finishNote": "Finishing raises the invoice and opens the drawer. Takes about a second. For a consumer, the QR code comes up once it is ready. {{change}} change to hand back.",
       "tipRow": {
         "none": "Tip",
         "p5": "Tip · 5%",
@@ -4533,8 +4533,8 @@
       "taxInvoice": "Tax invoice",
       "cardApproval": "Card · approval {{code}}",
       "qrAlt": "The invoice's QR code",
-      "qrComing": "The QR code comes up once the invoice is filed.",
-      "qrAfterFiling": "the QR comes once the sale is filed",
+      "qrComing": "The QR code comes up once it is ready.",
+      "qrAfterFiling": "the QR comes up once it is ready",
       "rungUpWrongQueued": "Rung it up wrong? This sale is waiting to be filed. Once it is filed, a mistake is put right with a credit note, which the Tax Authority also sees.",
       "queuedBehindTitle": "Sold, filing after an earlier sale",
       "queuedBehindSummary": "Invoice {{invoice}} is numbered and will be filed after an earlier sale the till is holding. See the till screen for what it needs. There is {{change}} change to hand back.",
@@ -4947,7 +4947,10 @@
       "CUSTOMER_NOT_INVOICE_ELIGIBLE": "This company cannot get a full invoice yet: {{missing}} is missing.",
       "customerIncomplete": "This company's record is missing something a full invoice needs.",
       "completeCompany": "Complete it on the company screen",
-      "DISCOUNT_ABOVE_LIMIT": "This discount takes {{requestedPercent}}% off and your limit is {{limitPercent}}%. Lower it, or ask a manager."
+      "DISCOUNT_ABOVE_LIMIT": "This discount takes {{requestedPercent}}% off and your limit is {{limitPercent}}%. Lower it, or ask a manager.",
+      "POS_REFUND_CASH_EXCEEDS_DRAWER": "The drawer should hold only {{cashInDrawer}}, and this refund gives back {{cashRequested}} in cash. Give the rest back by card or transfer, or pay cash into the drawer first.",
+      "POS_REFUND_LINE_CREDIT_UNCLEAR": "Line {{line}} already has a credit note that does not say whether goods came back, so it cannot be refunded at the till. Refund it from the invoice. Nothing was refunded.",
+      "POS_SALE_CANCELLED": "This sale's invoice was cancelled, so there is nothing to refund."
     },
     "warning": {
       "STOCK_BELOW_ZERO": "Line {{line}} took the stock below zero. Count it when you can.",
@@ -5007,7 +5010,8 @@
         "POS_SOLD_AT_IN_FUTURE": "This device's clock is ahead of the right time. Correct the clock and the sale goes.",
         "SELLER_PARTICIPANT_NOT_VERIFIED": "The company's Participant ID is not verified yet. The sale goes once it is.",
         "INDUSTRIAL_CLASSIFICATION_REQUIRED": "The company's business activity code is missing. Add it in Settings and the sale goes.",
-        "other": "Fawtir would not accept this sale as it stands."
+        "other": "Fawtir would not accept this sale as it stands.",
+        "POS_QUEUED_SALE_HS_CODE_REQUIRED": "This full invoice has a goods line with no HS code, so it has not been filed and its number is kept for it. Ask someone who can edit items to add the code on the item (Other if none fits), and it goes."
       },
       "askManager": "The till keeps selling. Ask a manager to deal with it.",
       "orderHint": "Later sales are still numbered and printed, but cannot be filed until this one is: Fawtir files a till's numbers strictly in order for now.",
@@ -6142,7 +6146,8 @@
       "download": "Download",
       "reject": "Reject",
       "approve": "Approve",
-      "recordPayment": "Record payment"
+      "recordPayment": "Record payment",
+      "reopen": "Reopen"
     },
     "steps": {
       "arrived": "Arrived",
@@ -6173,7 +6178,8 @@
       "arrivedVia": "{{date}} · {{source}}",
       "notYet": "Not yet",
       "paidOf": "Paid OMR {{paid}} of OMR {{total}}",
-      "settledByCredit": "Settled by credit"
+      "settledByCredit": "Settled by credit",
+      "reopened": "Reopened, waiting for approval"
     },
     "match": {
       "ordered": "Ordered",
@@ -6263,7 +6269,8 @@
         "OVERPAYMENT_CREDIT_RECEIVED": "Credit from another bill set against this one",
         "HELD_AS_DUPLICATE": "Held as a possible duplicate",
         "CONFIRMED_DUPLICATE": "Confirmed as a duplicate",
-        "NOT_DUPLICATE": "Decided not a duplicate"
+        "NOT_DUPLICATE": "Decided not a duplicate",
+        "REOPENED": "Reopened"
       }
     },
     "decision": {
@@ -6281,7 +6288,10 @@
       "release": "Release",
       "queryIt": "Query it",
       "inRun": "Approved for payment and in payment run {{run}}. It is paid when the run is marked paid.",
-      "settledByCredit": "Settled in full by credit. Nothing was paid."
+      "settledByCredit": "Settled in full by credit. Nothing was paid.",
+      "reopen": "Reopen for approval",
+      "reopened": "Reopened: “{{reason}}”. It is not approved. It needs approving again before it can be paid.",
+      "reopenedNeedsMore": "Reopened: “{{reason}}”. It is not approved. It cannot be paid until {{required}} different people have approved it again."
     },
     "compliance": {
       "title": "Compliance",
@@ -6389,7 +6399,9 @@
       "reasonTooLong": "That reason is too long. Shorten it and reject again.",
       "holdReasonRequired": "A hold has to say why.",
       "holdReasonTooLong": "That reason is too long. Shorten it and put the bill on hold again.",
-      "appliedCredit": "This bill can't be rejected: supplier credit is set against it, and credit can't be released yet."
+      "appliedCredit": "This bill can't be rejected: supplier credit is set against it, and credit can't be released yet.",
+      "needsReopen": "This bill was rejected. It has to be reopened, with a reason, before it can be approved.",
+      "reopenReasonRequired": "Reopening needs a reason."
     },
     "done": {
       "approved": "Approved.",
@@ -6398,7 +6410,8 @@
       "released": "Released from hold.",
       "matched": "Matched to the order.",
       "unmatched": "The match was removed.",
-      "recorded": "Payment recorded."
+      "recorded": "Payment recorded.",
+      "reopened": "Reopened. It needs approving before it can be paid."
     },
     "notStated": "Not stated",
     "terms": {
@@ -6442,7 +6455,8 @@
     "inputVat": {
       "debitNoteNotAccepted": "Not counted in VAT until you accept it.",
       "rejected": "Not counted in VAT while rejected.",
-      "noSupplierTaxInvoice": "Not counted in VAT: no supplier tax invoice yet."
+      "noSupplierTaxInvoice": "Not counted in VAT: no supplier tax invoice yet.",
+      "reopened": "Not counted in VAT until it is approved again."
     },
     "duplicate": {
       "title": {
@@ -6505,10 +6519,16 @@
         "noteRequired": "Add a note saying why.",
         "noteTooLong": "That note is too long. Keep it to 500 characters or fewer.",
         "approvalHeld": "This bill is held as a possible duplicate, so it can't be approved. Decide the duplicate check first.",
-        "rejectionHeld": "This bill is held as a possible duplicate, so it can't be rejected. Decide the duplicate check first."
+        "rejectionHeld": "This bill is held as a possible duplicate, so it can't be rejected. Decide the duplicate check first.",
+        "reopenHeld": "This bill is held as a possible duplicate, so it can't be reopened. Decide the duplicate check first."
       },
       "decided": "Decided {{date}}",
       "sameUuidCreditNote": "Both copies carry the same document UUID, so this one cannot be released as a separate credit note. Confirm it as a duplicate."
+    },
+    "reopen": {
+      "title": "Reopen this bill",
+      "body": "Reopening takes the rejection back so the bill can be approved again. It does not approve the bill: it still needs approving before it can be paid, and approvals given before the rejection do not count. The rejection and this reason stay in the bill's history.",
+      "confirm": "Reopen the bill"
     }
   },
   "uploadBill": {
@@ -11435,7 +11455,8 @@
       "ota_delivery_submit": "Send documents to the Tax Authority",
       "smp_participant_view": "See the company's Peppol listing",
       "smp_participant_manage": "Add, change and remove the company's Peppol listing",
-      "smp_reconcile": "Bring in Fawtara records and match the Peppol listing to them"
+      "smp_reconcile": "Bring in Fawtara records and match the Peppol listing to them",
+      "bill_reopen": "Reopen a rejected supplier bill so it can be approved again. Reopening approves nothing"
     }
   },
   "makeRole": {
@@ -20789,7 +20810,9 @@
       "debitNoteAlreadyPaid": "This debit note is already paid. Record a refund from the supplier instead.",
       "paymentReversalInSentRun": "This bill is in payment run {{run}}, whose bank file is already made. Use the run's Mark paid or Cancel instead.",
       "debitNotePartlyPaid": "This debit note is partly paid. Record a refund from the supplier for the paid part first.",
-      "debitNoteNotAccepted": "Accept the debit note before you pay it."
+      "debitNoteNotAccepted": "Accept the debit note before you pay it.",
+      "receiptStockUnitMismatch": "Nothing was received. An item on this order is now counted in a different unit from the one it was ordered in. Check the item's unit, or order it again in the unit it is counted in now.",
+      "receiptStockUnitRequired": "Nothing was received. A line on this order was saved before Fawtir recorded the unit its stock is counted in, and this screen cannot state that unit yet. Contact Fawtir support."
     },
     "selfBilling": {
       "generic": "The server refused this because of the self-billing agreement with this supplier. Check the agreement before trying again.",
