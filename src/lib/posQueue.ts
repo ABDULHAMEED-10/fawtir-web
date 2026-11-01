@@ -497,10 +497,7 @@ export async function flushQueue(tillId: string): Promise<FlushOutcome> {
         await forget(entry)
         void sendSlipPhotos(entry.key, sale.saleId, tillId)
       } catch (error) {
-        if (!(error instanceof ApiError)) return 'offline'
-        const verdict = refusalVerdict(error)
-        if (verdict === 'wait') {
-          // Not a problem with the sale: it only waits, and whatever a past refusal said is over.
+        const refusalOver = () =>
           save(
             queue.map((other) =>
               other.key === entry.key
@@ -508,6 +505,15 @@ export async function flushQueue(tillId: string): Promise<FlushOutcome> {
                 : other,
             ),
           )
+        if (!(error instanceof ApiError)) {
+          // No answer: the server may have filed it, so an old refusal no longer says where it stands.
+          if (error instanceof NetworkError) refusalOver()
+          return 'offline'
+        }
+        const verdict = refusalVerdict(error)
+        if (verdict === 'wait') {
+          // Not a problem with the sale: it only waits, and whatever a past refusal said is over.
+          refusalOver()
           retryAfter(tillId, error)
           return { verdict, error }
         }
