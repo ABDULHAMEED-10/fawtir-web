@@ -23232,7 +23232,12 @@
           "caption": "An example invoice, as it looks once sent and reported."
         }
       },
-      "photoAlt": "An Omani coffee shop owner in a dishdasha and kumma at his counter, holding a tablet with Fawtir's point of sale open, a receipt printer and card machine beside him"
+      "photoAlt": "An Omani coffee shop owner in a dishdasha and kumma at his counter, holding a tablet with Fawtir's point of sale open, a receipt printer and card machine beside him",
+      "photos": {
+        "solo": "An Omani freelance consultant in an abaya and hijab at her home office in Muscat, creating an invoice in Fawtir on her laptop",
+        "sme": "An Omani business owner in a dishdasha and kumma and his colleague in an abaya and hijab, reviewing their invoices in Fawtir on an office monitor",
+        "erp": "A finance team of Omani men and women in a Muscat office meeting, with the Fawtir dashboard on the wall screen"
+      }
     }
   },
   "invoiceImport": {

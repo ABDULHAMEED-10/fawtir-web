@@ -10,6 +10,12 @@ import whoPos from '../../assets/home/who-pos.webp'
 import whoPosAr from '../../assets/home/who-pos-ar.webp'
 import ownerPos from '../../assets/home/owner-pos.webp'
 import ownerPosAr from '../../assets/home/owner-pos-ar.webp'
+import photoErpTeam from '../../assets/home/photo-erp-team.webp'
+import photoErpTeamAr from '../../assets/home/photo-erp-team-ar.webp'
+import photoFreelancer from '../../assets/home/photo-freelancer.webp'
+import photoFreelancerAr from '../../assets/home/photo-freelancer-ar.webp'
+import photoSmeOffice from '../../assets/home/photo-sme-office.webp'
+import photoSmeOfficeAr from '../../assets/home/photo-sme-office-ar.webp'
 import { withRial } from '../../components/ui/Rial'
 import { Heading, SOFT, Texture } from './site'
 
@@ -217,23 +223,42 @@ function Card({ id }: { id: Audience }) {
 }
 
 /**
- * An Omani shop owner at his till (owner, 1 Nov 2026). The person and shop are AI-generated, so the
- * photo is never captioned as a customer; the tablet carries the app's real POS screen from the mock
- * API, in the page's language.
+ * Four photos, one per kind of business, so the page does not read as a till product (owner,
+ * 1 Nov 2026). The people and places are AI-generated, so no photo is captioned as a customer; each
+ * screen in them carries the app's real screen from the mock API, in the page's language. Each
+ * photo is labelled with its card's tag and jumps to that card.
  */
-function OwnerPhoto() {
+const PHOTOS: Record<Audience, { en: string; ar: string; alt: string }> = {
+  sme: { en: photoSmeOffice, ar: photoSmeOfficeAr, alt: 'landing.audience.photos.sme' },
+  pos: { en: ownerPos, ar: ownerPosAr, alt: 'landing.audience.photoAlt' },
+  erp: { en: photoErpTeam, ar: photoErpTeamAr, alt: 'landing.audience.photos.erp' },
+  solo: { en: photoFreelancer, ar: photoFreelancerAr, alt: 'landing.audience.photos.solo' },
+}
+
+function Photos() {
   const { t, i18n } = useTranslation()
   const ar = i18n.language.startsWith('ar')
   return (
-    <div className="w-full overflow-hidden rounded-lg border-[8px] border-[rgba(44,78,183,0.1)]">
-      <img
-        src={ar ? ownerPosAr : ownerPos}
-        alt={t('landing.audience.photoAlt')}
-        width={3072}
-        height={2048}
-        loading="lazy"
-        className="aspect-[16/9] w-full object-cover object-[50%_40%] max-md:aspect-[4/3]"
-      />
+    <div className="grid w-full gap-6 md:grid-cols-2">
+      {(Object.keys(PHOTOS) as Audience[]).map((id) => (
+        <a
+          key={id}
+          href={`#for-${id}`}
+          className="group relative block overflow-hidden rounded-lg border-[8px] border-[rgba(44,78,183,0.1)]"
+        >
+          <img
+            src={ar ? PHOTOS[id].ar : PHOTOS[id].en}
+            alt={t(PHOTOS[id].alt)}
+            width={3}
+            height={2}
+            loading="lazy"
+            className="aspect-[3/2] w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+          />
+          <span className="absolute bottom-3 start-3 rounded-full bg-white/90 px-3 py-1 text-sm font-medium leading-5 text-[#2c4eb7] shadow-[0_4px_12px_rgba(21,28,45,0.12)]">
+            {t(`landing.audience.${id}.tag`)}
+          </span>
+        </a>
+      ))}
     </div>
   )
 }
@@ -254,7 +279,7 @@ export function Audience() {
         <p className="text-xl leading-8">{t('landing.audience.sub')}</p>
       </div>
       <div className="flex w-full flex-col gap-6">
-        <OwnerPhoto />
+        <Photos />
         <div className="grid w-full gap-6 lg:grid-cols-2">
           <Card id="sme" />
           <Card id="pos" />
