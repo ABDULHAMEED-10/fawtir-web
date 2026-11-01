@@ -8,6 +8,8 @@ import whoInvoicing from '../../assets/home/who-invoicing.webp'
 import whoInvoicingAr from '../../assets/home/who-invoicing-ar.webp'
 import whoPos from '../../assets/home/who-pos.webp'
 import whoPosAr from '../../assets/home/who-pos-ar.webp'
+import whoPosClothes from '../../assets/home/who-pos-clothes.webp'
+import whoPosClothesAr from '../../assets/home/who-pos-clothes-ar.webp'
 import ownerPos from '../../assets/home/owner-pos.webp'
 import ownerPosAr from '../../assets/home/owner-pos-ar.webp'
 import photoSmeOffice from '../../assets/home/photo-sme-office.webp'
@@ -253,7 +255,13 @@ function ErpFlow() {
   )
 }
 
-function Card({ id }: { id: Audience }) {
+/** The till card's screenshot, a different trade on each page: Omani food at home, clothes on Features. */
+const TILLS = {
+  food: { en: whoPos, ar: whoPosAr },
+  clothes: { en: whoPosClothes, ar: whoPosClothesAr },
+} as const
+
+function Card({ id, till }: { id: Audience; till: keyof typeof TILLS }) {
   const { t, i18n } = useTranslation()
   const ar = i18n.language.startsWith('ar')
   return (
@@ -268,7 +276,7 @@ function Card({ id }: { id: Audience }) {
           <Shot src={ar ? whoInvoicingAr : whoInvoicing} alt={t('landing.audience.sme.alt')} />
         ) : null}
         {id === 'pos' ? (
-          <Shot src={ar ? whoPosAr : whoPos} alt={t('landing.audience.pos.alt')} />
+          <Shot src={ar ? TILLS[till].ar : TILLS[till].en} alt={t('landing.audience.pos.alt')} />
         ) : null}
         {id === 'erp' ? <ErpFlow /> : null}
         {id === 'solo' ? <InvoicePreview /> : null}
@@ -316,7 +324,13 @@ function AudiencePhoto({ photo }: { photo: keyof typeof AUDIENCE_PHOTOS }) {
   )
 }
 
-export function Audience({ photo = 'shop' }: { photo?: keyof typeof AUDIENCE_PHOTOS }) {
+export function Audience({
+  photo = 'shop',
+  till = 'food',
+}: {
+  photo?: keyof typeof AUDIENCE_PHOTOS
+  till?: keyof typeof TILLS
+}) {
   const { t } = useTranslation()
   return (
     <section
@@ -334,10 +348,10 @@ export function Audience({ photo = 'shop' }: { photo?: keyof typeof AUDIENCE_PHO
       <div className="flex w-full flex-col gap-6">
         <AudiencePhoto photo={photo} />
         <div className="grid w-full gap-6 lg:grid-cols-2">
-          <Card id="sme" />
-          <Card id="pos" />
-          <Card id="erp" />
-          <Card id="solo" />
+          <Card id="sme" till={till} />
+          <Card id="pos" till={till} />
+          <Card id="erp" till={till} />
+          <Card id="solo" till={till} />
         </div>
       </div>
     </section>

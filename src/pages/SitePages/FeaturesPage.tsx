@@ -68,7 +68,7 @@ export function FeaturesPage() {
             row.wave ? <OpenRow key={row.key} row={row} /> : <BoxedRow key={row.key} row={row} />,
           )}
         </div>
-        <Audience photo="office" />
+        <Audience photo="office" till="clothes" />
         <Parts />
       </main>
       <ClosingBand />
