@@ -5000,7 +5000,7 @@
       "waiting_one": "1 sale is waiting to be sent. It goes by itself as soon as it can.",
       "waiting_other": "{{count}} sales are waiting to be sent. They go by themselves as soon as they can.",
       "heldHint": "The customer holds this invoice. The till tries again by itself and keeps selling meanwhile. Nothing is charged or filed twice.",
-      "hsCodeHint": "The customer holds this invoice. Someone who can edit items adds the HS code on the item (Other if none fits), then press Try again. It goes again as the same sale on the same number, so nothing is charged or filed twice. The till keeps selling meanwhile.",
+      "hsCodeHint": "The customer has the printed receipt; the invoice is not issued yet. Someone who can edit items adds the HS code on the item (Other if none fits), then press Try again. It goes again as the same sale on the same number, so nothing is charged or filed twice. The till keeps selling meanwhile.",
       "hsCodeLines": "Lines without an HS code: {{lines}}.",
       "finalHint": "The customer holds this invoice and it stays open here until it is filed. Sending it again as it stands will not work. Correct it if you can, or contact Fawtir support. The till keeps selling meanwhile.",
       "retry": "Try again",
