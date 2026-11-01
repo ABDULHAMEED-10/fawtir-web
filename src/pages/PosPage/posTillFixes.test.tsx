@@ -584,6 +584,47 @@ describe('the full invoice receipt (F-6)', () => {
   })
 })
 
+describe('a receipt whose number differs from the filed one', () => {
+  const differs = () => {
+    const totals = totalsFor(SAMPLE_SALE, NO_SALE_DISCOUNT)
+    setFinishedSale({
+      lines: SAMPLE_SALE,
+      totals,
+      tip: 0,
+      change: 0,
+      company: null,
+      buyer: null,
+      payments: [{ method: 'card', amount: totals.sale }],
+      sale: sold('NZW-T01-INV-2026-000006', {
+        warnings: [
+          {
+            code: 'POS_PRINTED_NUMBER_DIFFERS',
+            line: null,
+            printed: 'NZW-T01-INV-2026-000005',
+            filed: 'NZW-T01-INV-2026-000004',
+          },
+        ],
+      }) as never,
+      queuedNumber: null,
+      finishedAt: '2026-10-29T11:35:22Z',
+    })
+    renderAt('/pos/receipt')
+  }
+
+  it('says both numbers in English', async () => {
+    differs()
+    expect(await screen.findByText(/receipt says NZW-T01-INV-2026-000005/)).toBeTruthy()
+    expect(screen.queryByText(i18n.t('pos.warning.other'))).toBeNull()
+  })
+
+  it('says both numbers in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    differs()
+    expect(await screen.findByText(/NZW-T01-INV-2026-000005.*NZW-T01-INV-2026-000004/)).toBeTruthy()
+    expect(screen.queryByText(i18n.t('pos.warning.other'))).toBeNull()
+  })
+})
+
 describe('the receipt in Arabic (31 Oct browser check)', () => {
   it('says the title and the thanks once, and counts one item as one', async () => {
     await i18n.changeLanguage('ar')
@@ -667,7 +708,7 @@ describe('the refund page (F-11)', () => {
     fireEvent.click(await screen.findByRole('checkbox', { name: /Butter croissant/ }))
     const tipRow = (await screen.findByText(i18n.t('pos.refund.tipNotRefunded'))).parentElement!
     expect(tipRow.textContent).toContain('0.412')
-    expect(calls.some((call) => call.url.startsWith('/api/v1/pos/sales/s-1'))).toBe(false)
+    expect(calls.some((call) => call.url === '/api/v1/pos/sales/s-1')).toBe(false)
   })
 })
 

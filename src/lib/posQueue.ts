@@ -37,9 +37,12 @@ import { forgetBuyer, openBuyer, sealBuyer } from './posVault'
  * is made by the server once the sale is sent (INCOME.md row P.28).
  *
  * A full invoice names its buyer, and their civil ID or passport number is personal data: the
- * queue entry never holds it where the device can seal it (`posVault`), and it is removed the
- * moment the sale is filed or finally refused. A slip photo taken offline waits with the sale
- * and is attached once it is filed (`posSlipOutbox`).
+ * queue entry never holds it where the device can seal it (`posVault`). The sealed copy stays until
+ * the sale is filed, whatever the server has answered meanwhile, so Try again and "Correct and send
+ * again" can still name the buyer (Abdul, 1 Nov 2026); it is deleted the moment the sale is filed
+ * and is never shown. A device that cannot seal keeps the buyer in the entry only until a final
+ * refusal: nothing personal stays in plain text for a sale that may never go. A slip photo taken
+ * offline waits with the sale, also until it is filed, and is then attached (`posSlipOutbox`).
  */
 
 export type QueuedSale = {
@@ -51,7 +54,7 @@ export type QueuedSale = {
   refusal: string | null
   /** The buyer was taken out of `body` and sealed on the device, to be put back as it is sent. */
   sealed?: boolean
-  /** Refused for good: not sent again by itself, and nothing personal is kept for it. */
+  /** Refused for good: not sent again by itself. A sealed buyer stays until a person resends it. */
   final?: boolean
   /** The refusal as the server gave it, for its sentence on the till. */
   refusalType?: string | null
@@ -66,6 +69,7 @@ export type QueuedSale = {
 }
 
 const QUEUE_KEY = 'fawtir.pos.queue'
+const NUMBER_NOTES_KEY = 'fawtir.pos.numberNotes'
 const nextKey = (tillId: string) => `fawtir.pos.next.${tillId}`
 
 function read<T>(key: string, fallback: T): T {
@@ -297,9 +301,45 @@ async function bodyToSend(entry: QueuedSale): Promise<PosSaleRequest> {
   return consumer ? { ...entry.body, customer: { ...entry.body.customer, consumer } } : entry.body
 }
 
-/** Nothing personal is left of a sale the server has, or will never take. */
+/** Nothing personal is left of a sale the server has filed. */
 async function forget(entry: QueuedSale) {
   await forgetBuyer(entry.key)
+}
+
+/**
+ * A sale the server had already filed before its queued copy arrived (the online answer was lost)
+ * can be filed under another number than its receipt. The server says so only on that replay, while
+ * the queue sends in the background, so the till keeps it and tells the cashier on the next sale's
+ * Done screen, with the other warnings.
+ */
+type NumberNote = { tillId: string; printed: string; filed: string }
+
+function notePrintedNumberDiffers(entry: QueuedSale, sale: PosSaleDto) {
+  if (!sale.warnings?.some((warning) => warning.code === 'POS_PRINTED_NUMBER_DIFFERS')) return
+  const note = { tillId: entry.tillId, printed: entry.number, filed: sale.invoiceNumber }
+  write(NUMBER_NOTES_KEY, [...read<NumberNote[]>(NUMBER_NOTES_KEY, []), note])
+}
+
+function withNumberNotes(tillId: string, sale: PosSaleDto): PosSaleDto {
+  const notes = read<NumberNote[]>(NUMBER_NOTES_KEY, [])
+  const mine = notes.filter((note) => note.tillId === tillId)
+  if (mine.length === 0) return sale
+  write(
+    NUMBER_NOTES_KEY,
+    notes.filter((note) => note.tillId !== tillId),
+  )
+  return {
+    ...sale,
+    warnings: [
+      ...sale.warnings,
+      ...mine.map(({ printed, filed }) => ({
+        code: 'POS_PRINTED_NUMBER_DIFFERS',
+        line: null,
+        printed,
+        filed,
+      })),
+    ],
+  }
 }
 
 /**
@@ -340,7 +380,7 @@ export async function submitSale(
       const sale = await createPosSale(body, key)
       noteNumberUsed(till.id, sale.invoiceNumber)
       void sendSlipPhotos(key, sale.saleId, till.id)
-      return { sale }
+      return { sale: withNumberNotes(till.id, sale) }
     } catch (error) {
       if (error instanceof NetworkError) return enqueue()
       void dropSlipPhotos(key)
@@ -355,7 +395,7 @@ export async function submitSale(
       const sale = await createPosSale(body, key)
       noteNumberUsed(till.id, sale.invoiceNumber)
       void sendSlipPhotos(key, sale.saleId, till.id)
-      return { sale }
+      return { sale: withNumberNotes(till.id, sale) }
     } catch (error) {
       if (error instanceof NetworkError) return enqueue()
       void dropSlipPhotos(key)
@@ -425,6 +465,7 @@ function refusedEntry(entry: QueuedSale, error: ApiError, verdict: RefusalVerdic
       : undefined,
     ...(final ? { final: true } : {}),
   }
+  // Only a buyer this device could not seal: plain text does not stay for a sale that may never go.
   if (final && refused.body.customer.consumer) {
     const customer = { ...refused.body.customer }
     delete customer.consumer
@@ -451,6 +492,7 @@ export async function flushQueue(tillId: string): Promise<FlushOutcome> {
       }
       try {
         const sale = await sendNumbered(await bodyToSend(entry), entry.key, canSkip)
+        notePrintedNumberDiffers(entry, sale)
         save(queue.filter((other) => other.key !== entry.key))
         await forget(entry)
         void sendSlipPhotos(entry.key, sale.saleId, tillId)
@@ -470,10 +512,7 @@ export async function flushQueue(tillId: string): Promise<FlushOutcome> {
           return { verdict, error }
         }
         const final = verdict === 'final'
-        if (final) {
-          await forget(entry)
-          await dropSlipPhotos(entry.key)
-        }
+        // Refused is not filed: the sealed buyer and any slip photo stay for Try again.
         save(
           queue.map((other) =>
             other.key === entry.key ? refusedEntry(other, error, verdict) : other,

@@ -1,6 +1,8 @@
 import type {
   PosRefundLookupDto,
   PosRefundLookupLine,
+  PosRefundMoneyMethod,
+  PosRefundQuoteDto,
   PosRefundReason,
   PosRefundRequest,
 } from '../api/pos/pos'
@@ -148,6 +150,85 @@ export function moneyBackMethod(
 }
 
 /**
+ * The money back of a refund, in baisa (Abdul, 1 Nov 2026): filled from the server's quote, for the
+ * cashier to change. What a company owes is not theirs to change: it goes back to the account.
+ */
+export type MoneySplit = { card: number; cash: number; transfer: number; reduce: number }
+
+export function splitFromQuote(quote: PosRefundQuoteDto): MoneySplit {
+  const of = (method: PosRefundMoneyMethod) =>
+    quote.suggested
+      .filter((entry) => entry.method === method)
+      .reduce((sum, entry) => sum + toBaisa(entry.amount), 0)
+  return {
+    card: of('CARD'),
+    cash: of('CASH'),
+    transfer: of('TRANSFER'),
+    reduce: of('REDUCE_BALANCE'),
+  }
+}
+
+/**
+ * The cashier typed one figure; the others make up the rest. Card or transfer changed: cash takes
+ * the difference. Cash changed: the card takes the rest up to its limit, then transfer. A figure
+ * that cannot be made up is left for `splitProblem` to say so.
+ */
+export function changeSplit(
+  split: MoneySplit,
+  total: number,
+  cardLimit: number,
+  edited: 'card' | 'cash' | 'transfer',
+  value: number,
+): MoneySplit {
+  const payOut = total - split.reduce
+  const next = { ...split, [edited]: value }
+  if (edited === 'cash') {
+    const rest = Math.max(0, payOut - value)
+    next.card = Math.min(rest, cardLimit)
+    next.transfer = rest - next.card
+  } else {
+    next.cash = Math.max(0, payOut - next.card - next.transfer)
+  }
+  return next
+}
+
+/** Why this money back cannot go: over what the card can take, or not adding up to the note. */
+export function splitProblem(
+  split: MoneySplit,
+  total: number,
+  cardLimit: number,
+): 'overCard' | 'doesNotAdd' | null {
+  if (split.card > cardLimit) return 'overCard'
+  if (split.card + split.cash + split.transfer + split.reduce !== total) return 'doesNotAdd'
+  return null
+}
+
+/** The refund's money back lines; a method given nothing is left out. */
+export function moneyBackLines(
+  split: MoneySplit,
+  references: { approval: string; transfer: string },
+): PosRefundRequest['moneyBack'] {
+  const lines: PosRefundRequest['moneyBack'] = []
+  if (split.reduce > 0) lines.push({ method: 'REDUCE_BALANCE', amount: toRials(split.reduce) })
+  if (split.card > 0) {
+    lines.push({
+      method: 'CARD',
+      amount: toRials(split.card),
+      reference: references.approval.trim() || null,
+    })
+  }
+  if (split.transfer > 0) {
+    lines.push({
+      method: 'TRANSFER',
+      amount: toRials(split.transfer),
+      reference: references.transfer.trim() || null,
+    })
+  }
+  if (split.cash > 0) lines.push({ method: 'CASH', amount: toRials(split.cash) })
+  return lines
+}
+
+/**
  * Only given-away lines are going back (Abdul, 31 Oct 2026): no credit note and no money. False on
  * a server that does not mark such lines, where the refund goes as before.
  */
@@ -168,6 +249,8 @@ export function refundRequest(input: {
   amount: number
   /** Only given-away lines: there is no money to say anything about. */
   noMoney?: boolean
+  /** The split the cashier confirmed; without it, one line as a server without quotes takes. */
+  moneyBack?: PosRefundRequest['moneyBack']
 }): PosRefundRequest {
   return {
     tillId: input.tillId,
@@ -180,7 +263,9 @@ export function refundRequest(input: {
         quantity: entry.qty,
         backOnShelf: input.backOnShelf,
       })),
-    moneyBack: input.noMoney ? [] : [{ method: input.method, amount: toRials(input.amount) }],
+    moneyBack: input.noMoney
+      ? []
+      : (input.moneyBack ?? [{ method: input.method, amount: toRials(input.amount) }]),
   }
 }
 

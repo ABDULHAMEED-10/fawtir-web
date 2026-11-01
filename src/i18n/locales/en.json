@@ -4356,6 +4356,11 @@
     "nothingYet": "Nothing on this sale yet. Tap something on the shelf.",
     "lullApplied": "Afternoon lull applied {{percent}}% off the drinks, it is {{time}} on a weekday.",
     "takePayment": "Take payment",
+    "phoneBar": {
+      "seeSale": "See this sale",
+      "itemCount_one": "{{count}} item",
+      "itemCount_other": "{{count}} items"
+    },
     "discount": "Discount",
     "filter": {
       "active": "Active",
@@ -4679,6 +4684,8 @@
       "floatNote": "Set at {{time}}",
       "cashTaken": "Cash taken",
       "cashTakenNote": "{{sales}} sales paid in cash or part cash",
+      "refundedToCard": "Refunded to card",
+      "terminalRefunded": "That is after {{amount}} refunded to the card.",
       "refundedInCash": "Refunded in cash",
       "refundedNote": "One credit note · wrong order at {{time}}",
       "paidOut": "Paid out of the drawer",
@@ -4815,6 +4822,12 @@
       },
       "eachLessDiscount": "{{each}} each, less {{discount}}",
       "eachNoDiscountLive": "{{each}} each, no discount applied",
+      "moneyBackNoteSplit": "A credit note for {{amount}}, paid back as set out below.",
+      "howItGoesBack": "How it goes back",
+      "offWhatTheyOwe": "{{amount}} comes off what they owe, back to their account, not from the drawer.",
+      "cardLimit": "Up to {{amount}} can go back to the card.",
+      "overCard": "At most {{amount}} can go back to the card. The rest goes back in cash or by transfer.",
+      "doesNotAdd": "The money back has to add up to {{amount}}.",
       "moneyBackNoteLive": "A credit note for {{amount}}, paid back the way it was paid: {{method}}.",
       "makeAnotherNoteLive": "A credit note for {{amount}}, then a fresh sale for the replacement.",
       "willBeFiled": "filed with the Tax Authority straight away",
@@ -4924,6 +4937,7 @@
       "POS_REFUND_REASON_NOTE_REQUIRED": "Say what happened in the note.",
       "POS_REFUND_QUANTITY_EXCEEDS": "Only {{remaining}} is left of line {{line}}.",
       "POS_REFUND_MONEY_DOES_NOT_MATCH": "The credit note comes to {{expected}}. The money back is set to it: check it and refund again.",
+      "POS_REFUND_CARD_MORE_THAN_PAID": "At most {{maxCard}} can go back to the card. The rest goes back in cash or by transfer.",
       "POS_REFUND_MORE_THAN_PAID": "At most {{maxMoneyBack}} can go back.",
       "POS_REFUND_MORE_THAN_OWED": "The company owes only {{owed}}.",
       "POS_REFUND_KEY_REUSED": "This refund was already sent with different contents.",
@@ -4953,7 +4967,8 @@
       "ZR_MEDICAL_CHARGED_STANDARD": "Line {{line}} is on Oman's zero-rated medicines or medical equipment list but was charged 5% VAT. Check whether it should be zero-rated.",
       "ZR_MEDICAL_NOT_LISTED": "Line {{line}} is zero-rated as medical, but its HS code is not on Oman's zero-rated medicines or medical equipment lists. Check its VAT category or HS code.",
       "POS_PRICE_RULE_STALE_ACCEPTED": "Line {{line}} was sold offline with a discount the price rules no longer give; it stands.",
-      "POS_DISCOUNT_ABOVE_LIMIT_ACCEPTED": "Sold offline with a discount above the cashier's limit. It is filed and recorded for the manager."
+      "POS_DISCOUNT_ABOVE_LIMIT_ACCEPTED": "Sold offline with a discount above the cashier's limit. It is filed and recorded for the manager.",
+      "POS_PRINTED_NUMBER_DIFFERS": "A customer's receipt says {{printed}}, but that sale is filed as {{filed}}. Use {{filed}} to find it."
     },
     "day": {
       "title": "The day's shifts",

@@ -76,7 +76,7 @@ export async function holdSlipPhotos(
   }
 }
 
-/** A sale that will never be filed: its photos go too. */
+/** A sale that was never queued and went no further (refused at the counter): its photos go too. */
 export async function dropSlipPhotos(saleKey: string): Promise<void> {
   try {
     const store = await posVault()

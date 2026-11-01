@@ -43,7 +43,11 @@ export type Figures = {
   companyInvoices: number
   taken: number
   sales: number
-  /** What the bank machine's batch should show: card takings plus card tips. */
+  /** Given back to cards this shift: it comes off the machine's batch, not the drawer. */
+  cardRefunded: number
+  /** Whether the server's terminal figure below already takes card refunds off. */
+  terminalNet: boolean
+  /** What the bank machine's batch should show: card takings plus card tips, less card refunds. */
   terminal: number
 }
 
@@ -67,6 +71,10 @@ export function figuresOf(preview: PosClosePreviewDto): Figures {
     companyInvoices: preview.companyInvoices,
     taken: toBaisa(preview.salesAmount),
     sales: preview.salesCount,
+    cardRefunded: toBaisa(card?.refunded),
+    terminalNet:
+      toBaisa(preview.looseEnds.cardSalesForTerminalCheck.amount) !==
+      toBaisa(card?.taken) + toBaisa(card?.tips),
     terminal: toBaisa(preview.looseEnds.cardSalesForTerminalCheck.amount),
   }
 }

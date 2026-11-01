@@ -234,7 +234,14 @@ export type PosFiling = {
   channel: 'TAX_AUTHORITY' | 'PEPPOL'
 }
 
-export type PosWarning = { code: string; line: number | null; message?: string }
+export type PosWarning = {
+  code: string
+  line: number | null
+  message?: string
+  /** `POS_PRINTED_NUMBER_DIFFERS`, added by the queue: what the receipt says, and the filed number. */
+  printed?: string
+  filed?: string
+}
 
 export type PosTotals = {
   subtotal: number
@@ -674,7 +681,30 @@ export type PosRefundRequest = {
   reason: PosRefundReason
   reasonNote: string | null
   lines: { lineNumber: number; quantity: number; backOnShelf: boolean }[]
-  moneyBack: { method: 'CASH' | 'CARD' | 'TRANSFER' | 'REDUCE_BALANCE'; amount: number }[]
+  moneyBack: {
+    method: PosRefundMoneyMethod
+    amount: number
+    /** On card, the machine's approval reference, optional as on a card sale. */
+    reference?: string | null
+  }[]
+}
+
+export type PosRefundMoneyMethod = 'CASH' | 'CARD' | 'TRANSFER' | 'REDUCE_BALANCE'
+
+/**
+ * What a refund of these lines comes to, from the server's own figures, and how its money goes back
+ * unless the cashier changes it (backend `POST .../refund-quote`). Issues nothing.
+ */
+export type PosRefundQuoteDto = {
+  total: number
+  lastRefund: boolean
+  suggested: { method: PosRefundMoneyMethod; amount: number }[]
+  /** What the card can still get back: paid by card, less earlier card refunds. */
+  cardLimit: number
+  /** The most that may go out in cash, card or transfer. */
+  payOutLimit: number
+  /** What must come off what the customer owes. */
+  reduceBalance: number
 }
 
 export type PosRefundDto = {
@@ -691,6 +721,16 @@ export type PosRefundDto = {
 
 export function refundLookupPath(invoiceNumber: string): string {
   return withQuery(POS_REFUND_LOOKUP_PATH, { invoiceNumber: invoiceNumber.trim() })
+}
+
+export function quotePosRefund(
+  saleId: string,
+  body: Pick<PosRefundRequest, 'tillId' | 'lines'>,
+): Promise<PosRefundQuoteDto> {
+  return apiRequest<PosRefundQuoteDto>(`${POS_SALES_PATH}/${id(saleId)}/refund-quote`, {
+    method: 'POST',
+    body,
+  })
 }
 
 export function createPosRefund(
