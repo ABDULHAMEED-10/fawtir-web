@@ -200,7 +200,10 @@ const tile = (name: string) =>
 
 const sale = () => screen.getByTestId('sale').textContent
 const panel = () =>
-  screen.getByRole('button', { name: 'Take payment' }).closest('aside') as HTMLElement
+  screen
+    .getAllByRole('button', { name: 'Take payment' })
+    .map((button) => button.closest('aside'))
+    .find(Boolean) as HTMLElement
 
 const mixedItem = (): PosItem => shelfItem(MIXED as never, false)
 const mixedLine = () =>
