@@ -1,4 +1,4 @@
-import { Fragment, useRef, useState } from 'react'
+import { Fragment, useRef, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
@@ -29,6 +29,12 @@ import {
   type BillOverpaymentDto,
   type PurchaseOrderOptionDto,
 } from '../../api/expenditure/bills'
+import {
+  creditNoteListPath,
+  loadCreditNotePage,
+  type CreditNoteRowDto,
+} from '../../api/expenditure/notes'
+import type { Page } from '../../api/page'
 import { loadSupplier, supplierPath, type SupplierDetailDto } from '../../api/expenditure/suppliers'
 import {
   inboundInvoicePath,
@@ -57,6 +63,7 @@ import {
   complianceOf,
   lineVatOf,
   decisionNoteOf,
+  creditNotesOn,
   decisionsOf,
   discountLineOf,
   inputVatNoteKey,
@@ -237,6 +244,29 @@ function BillScreen() {
   const paidBeyond = bill.read.status === 'ready' && paidBeyondTotal(bill.read.data)
   const overpaymentPath = overpaid > 0 || paidBeyond ? billOverpaymentPath(id) : null
   const overpayment = useApiRead<BillOverpaymentDto>(overpaymentPath, () => loadBillOverpayment(id))
+
+  // Linked documents names the credit notes on the bill. Read only once credit stands on it; the
+  // newest page of the supplier's notes, the largest the list answers.
+  const creditedBill = bill.read.status === 'ready' ? bill.read.data : null
+  const creditNotesPath =
+    creditedBill &&
+    creditedBill.settlement.creditedAmount > 0 &&
+    can(session, 'invoice.read') &&
+    (creditedBill.bill.supplierId || creditedBill.bill.supplierBillNumber)
+      ? creditNoteListPath(
+          'ALL',
+          0,
+          {
+            q: creditedBill.bill.supplierId ? '' : (creditedBill.bill.supplierBillNumber ?? ''),
+            supplierId: creditedBill.bill.supplierId,
+            sort: 'NEWEST',
+          },
+          200,
+        )
+      : null
+  const creditNotes = useApiRead<Page<CreditNoteRowDto>>(creditNotesPath, () =>
+    loadCreditNotePage(creditNotesPath ?? ''),
+  )
 
   // The document a held Peppol copy is compared with. Its id is kept while the bill is read
   // again after a decision, so the page keeps the comparison instead of reading the earlier
@@ -796,6 +826,11 @@ function BillScreen() {
             onOpenMatch={() => setMatching(true)}
             onRemoveMatch={() => act(() => unmatchBill(id), 'billDetail.done.unmatched')}
             onDownload={original ? download : null}
+            creditNotes={
+              creditNotes.read.status === 'ready'
+                ? creditNotesOn(id, creditNotes.read.data.items)
+                : []
+            }
           />
 
           <Card title={t('billDetail.activity.title')}>
@@ -1492,6 +1527,7 @@ function LinkedDocuments({
   onOpenMatch,
   onRemoveMatch,
   onDownload,
+  creditNotes,
 }: {
   detail: BillDetailDto
   language: string
@@ -1500,6 +1536,7 @@ function LinkedDocuments({
   onOpenMatch: () => void
   onRemoveMatch: () => void
   onDownload: (() => void) | null
+  creditNotes: CreditNoteRowDto[]
 }) {
   const { t } = useTranslation()
   const match = detail.bill.match
@@ -1515,7 +1552,7 @@ function LinkedDocuments({
     title: string
     to?: string
     kindKey: string
-    detail: string
+    detail: ReactNode
     /** The sub-line is a typed note: kept to one line, with the whole of it on hover. */
     detailIsNote?: boolean
     onClick?: () => void
@@ -1547,6 +1584,20 @@ function LinkedDocuments({
       // TODO(backend): "Received 28 Jul · checked in by Yusuf Al Balushi" needs the receipt's
       // date and who recorded it; neither is on the bill.
       detail: t('billDetail.linked.receiptAgainst', { order: order.purchaseOrderNumber ?? '' }),
+    })
+  }
+  for (const note of creditNotes) {
+    docs.push({
+      id: `credit-${note.id}`,
+      icon: fileIcon,
+      title: note.creditNoteNumber ?? '',
+      to: `/expenditure/credit-notes/${note.id}`,
+      kindKey: 'billDetail.linked.creditNote',
+      detail: withRial(
+        t('billDetail.linked.creditOnBill', {
+          amount: `${note.currencyCode} ${formatAmount(note.balance.applied, note.currencyCode, language)}`,
+        }),
+      ),
     })
   }
   if (originalName) {
@@ -1593,7 +1644,14 @@ function LinkedDocuments({
       }
     >
       {docs.length === 0 ? (
-        <p className="text-sm font-medium text-text-quaternary">{t('billDetail.linked.none')}</p>
+        <p className="text-sm font-medium text-text-quaternary">
+          {/* Credit stands on the bill, but no single note can be named for it: never "nothing". */}
+          {t(
+            detail.settlement.creditedAmount > 0
+              ? 'billDetail.linked.creditNotListed'
+              : 'billDetail.linked.none',
+          )}
+        </p>
       ) : (
         <ul className="flex flex-col">
           {docs.map((doc, index) => (
@@ -1630,7 +1688,7 @@ function LinkedDocuments({
                   </span>
                 </p>
                 <p
-                  title={doc.detailIsNote ? doc.detail : undefined}
+                  title={doc.detailIsNote && typeof doc.detail === 'string' ? doc.detail : undefined}
                   className={[
                     'mt-1 text-xs font-medium leading-[1.2] text-text-quaternary',
                     doc.detailIsNote ? 'truncate' : '',
