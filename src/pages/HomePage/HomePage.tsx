@@ -223,12 +223,23 @@ const centred = (width: number): CSSProperties => ({
 const FEATURE_ROWS: Feature[][] = [
   [
     { key: 'till', mock: mockTill, mockAr: mockTillAr, mockStyle: centred(412) },
-    { key: 'invoicing', mock: mockInvoices, mockAr: mockInvoicesAr, mockStyle: centred(874), wide: true },
+    {
+      key: 'invoicing',
+      mock: mockInvoices,
+      mockAr: mockInvoicesAr,
+      mockStyle: centred(874),
+      wide: true,
+    },
   ],
   [
     { key: 'filing', mock: mockFiling, mockAr: mockFilingAr, mockStyle: centred(412) },
     { key: 'stock', mock: mockStock, mockAr: mockStockAr, mockStyle: centred(412) },
-    { key: 'dashboard', mock: mockDashboard, mockAr: mockDashboardAr, mockStyle: { width: 451, insetInlineStart: 38.67 } },
+    {
+      key: 'dashboard',
+      mock: mockDashboard,
+      mockAr: mockDashboardAr,
+      mockStyle: { width: 451, insetInlineStart: 38.67 },
+    },
   ],
 ]
 
@@ -307,11 +318,11 @@ const STEP_SHOTS: Record<(typeof STEPS)[number], [string, string]> = {
 }
 
 function Steps() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const ar = i18n.language.startsWith('ar')
   const mail = useSiteMail()
   const [active, setActive] = useState(0)
   const step = STEPS[active]
-  const shot = useShot(...STEP_SHOTS[step])
 
   return (
     <section className="mx-auto mt-[200px] flex w-full max-w-[1520px] flex-col items-center gap-[60px] px-4 max-md:mt-24 md:px-8 min-[1600px]:px-0">
@@ -376,13 +387,21 @@ function Steps() {
         </div>
 
         <div className="absolute end-0 top-[106.66px] box-content h-[500px] w-[786px] overflow-hidden rounded-ss-lg border-[13px] border-[rgba(44,78,183,0.1)] max-xl:w-[50%] max-lg:static max-lg:mt-10 max-lg:h-[300px] max-lg:w-auto max-lg:rounded-none max-lg:border-x-0 max-lg:border-b-0">
-          <img
-            key={step}
-            src={shot}
-            alt={t(`landing.steps.${step}.alt`)}
-            className="absolute inset-0 size-full object-cover object-left-top rtl:object-right-top"
-            loading="lazy"
-          />
+          {/* All four load with the section and stay mounted, so a tab switch only fades between
+              pictures the browser already has (owner, 1 Nov 2026: no wait on switching). */}
+          {STEPS.map((id) => (
+            <img
+              key={id}
+              src={ar ? STEP_SHOTS[id][1] : STEP_SHOTS[id][0]}
+              alt={id === step ? t(`landing.steps.${id}.alt`) : ''}
+              aria-hidden={id === step ? undefined : true}
+              decoding="async"
+              className={[
+                'absolute inset-0 size-full object-cover object-left-top transition-opacity duration-300 rtl:object-right-top',
+                id === step ? 'opacity-100' : 'opacity-0',
+              ].join(' ')}
+            />
+          ))}
         </div>
       </div>
     </section>
