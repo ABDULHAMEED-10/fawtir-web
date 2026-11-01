@@ -110,10 +110,6 @@ const QUEUE_WORDED = new Set([
   'POS_SOLD_AT_IN_FUTURE',
   'SELLER_PARTICIPANT_NOT_VERIFIED',
   'INDUSTRIAL_CLASSIFICATION_REQUIRED',
-  // A queued full-tax sale with a goods line no product gives an HS code (owner batch 33, Q1): held
-  // unissued and unnumbered on the server, PENDING_VALIDATION. Its `lines` are a list, which the
-  // stored entry does not keep, so the sentence names no line.
-  'POS_QUEUED_SALE_HS_CODE_REQUIRED',
 ])
 
 const QUEUE_SLUGS: Record<string, string> = {

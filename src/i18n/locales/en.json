@@ -5010,8 +5010,7 @@
         "POS_SOLD_AT_IN_FUTURE": "This device's clock is ahead of the right time. Correct the clock and the sale goes.",
         "SELLER_PARTICIPANT_NOT_VERIFIED": "The company's Participant ID is not verified yet. The sale goes once it is.",
         "INDUSTRIAL_CLASSIFICATION_REQUIRED": "The company's business activity code is missing. Add it in Settings and the sale goes.",
-        "other": "Fawtir would not accept this sale as it stands.",
-        "POS_QUEUED_SALE_HS_CODE_REQUIRED": "This full invoice has a goods line with no HS code, so it has not been filed and its number is kept for it. Ask someone who can edit items to add the code on the item (Other if none fits), and it goes."
+        "other": "Fawtir would not accept this sale as it stands."
       },
       "askManager": "The till keeps selling. Ask a manager to deal with it.",
       "orderHint": "Later sales are still numbered and printed, but cannot be filed until this one is: Fawtir files a till's numbers strictly in order for now.",
