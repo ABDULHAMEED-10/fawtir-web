@@ -139,6 +139,16 @@ export function problemNumber(error: unknown, name: string): number | null {
   return typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : null
 }
 
+/**
+ * The quote route is missing or failing (a server before it, or a fault), as opposed to a refusal of
+ * these lines. The till then refunds nothing rather than send a split the screen guessed (A-03).
+ */
+export function quoteUnavailable(error: unknown): boolean {
+  if (!(error instanceof ApiError)) return false
+  if (error.status >= 500) return true
+  return (error.status === 404 || error.status === 405) && error.code === null
+}
+
 export function refusalCode(error: unknown): string | null {
   return error instanceof ApiError ? error.code : null
 }

@@ -456,13 +456,15 @@ function DaySummary({ day }: { day: PosDaySummaryDto }) {
                 ? t('pos.day.open')
                 : shift.uncountedHandover
                   ? t('pos.day.handedOver')
-                  : shift.overShort == null || toBaisa(shift.overShort) === 0
-                    ? t('pos.close.balances')
-                    : toBaisa(shift.overShort) < 0
-                      ? t('pos.close.shortValue', {
-                          amount: omr(Math.abs(toBaisa(shift.overShort))),
-                        })
-                      : t('pos.day.overValue', { amount: omr(toBaisa(shift.overShort)) })}
+                  : shift.overShort == null
+                    ? t('pos.close.notCounted')
+                    : toBaisa(shift.overShort) === 0
+                      ? t('pos.close.balances')
+                      : toBaisa(shift.overShort) < 0
+                        ? t('pos.close.shortValue', {
+                            amount: omr(Math.abs(toBaisa(shift.overShort))),
+                          })
+                        : t('pos.day.overValue', { amount: omr(toBaisa(shift.overShort)) })}
             </span>
             {shift.cardTerminalDifference != null && toBaisa(shift.cardTerminalDifference) !== 0 ? (
               <span className="text-xs font-medium text-pending-700">

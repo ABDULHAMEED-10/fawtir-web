@@ -630,6 +630,11 @@ export type PosRefundLookupLine = {
    * server that cannot take such a return yet, and the till then refunds as before.
    */
   givenFree?: boolean
+  /**
+   * DEC-30-01: an earlier credit note from the invoice screens does not say whether goods came back,
+   * so the server marks the line not refundable here and refuses it (`POS_REFUND_LINE_CREDIT_UNCLEAR`).
+   */
+  creditUnclear?: boolean
 }
 
 export type PosRefundLookupDto = {
@@ -661,7 +666,12 @@ export type PosRefundRequest = {
   tillId: string
   reason: PosRefundReason
   reasonNote: string | null
-  lines: { lineNumber: number; quantity: number; backOnShelf: boolean }[]
+  /**
+   * Numbered by the sale line. `hsCode` only for a goods line of a full tax invoice that has none,
+   * after the server asked for it (`HS_CODE_REQUIRED`, IBR-174-OM); the server checks it against
+   * CL-08-OM-HS (`HS_CODE_UNKNOWN`).
+   */
+  lines: { lineNumber: number; quantity: number; backOnShelf: boolean; hsCode?: string }[]
   moneyBack: {
     method: PosRefundMoneyMethod
     amount: number
@@ -686,6 +696,11 @@ export type PosRefundQuoteDto = {
   payOutLimit: number
   /** What must come off what the customer owes. */
   reduceBalance: number
+  /**
+   * Money no way the sale was paid can take back. It is never put in `suggested`, so the cashier
+   * routes it: guessing cash is what paid card sales back from the drawer before the quote.
+   */
+  toChoose?: number
 }
 
 export type PosRefundDto = {

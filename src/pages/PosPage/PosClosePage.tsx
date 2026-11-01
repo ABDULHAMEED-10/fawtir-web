@@ -18,6 +18,7 @@ import {
   countedTotal,
   denominationLabel,
   figuresOf,
+  parseSignedBaisa,
   startingCount,
   type Counted,
 } from '../../lib/posClose'
@@ -252,7 +253,11 @@ function CloseForm({
   const [counted, setCounted] = useState<Counted>({})
   const [reason, setReason] = useState<OverShortReason | null>(null)
   const [note, setNote] = useState('')
-  const [terminalText, setTerminalText] = useState((figures.terminal / 1000).toFixed(3))
+  // A net card figure below zero is not prefilled: RC2 takes no negative machine total, and a machine
+  // may print sales and refunds apart, so the cashier types what it shows.
+  const [terminalText, setTerminalText] = useState(
+    figures.terminal < 0 ? '' : (figures.terminal / 1000).toFixed(3),
+  )
   const [cardNote, setCardNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [refusal, setRefusal] = useState<unknown>(null)
@@ -262,7 +267,8 @@ function CloseForm({
   const cash = byNote ? countedTotal(counted) : (total ?? 0)
   const gap = cash - figures.expected
   const share = figures.cashTaken ? Math.abs(gap) / figures.cashTaken : 0
-  const terminal = terminalText.trim() ? parseBaisa(terminalText) : null
+  const terminal = terminalText.trim() ? parseSignedBaisa(terminalText) : null
+  const terminalNegative = terminal != null && terminal < 0
   const cardDiffers = terminal != null && terminal !== figures.terminal
   const floatLeft = Math.min(toBaisa(till.till.defaultFloat), Math.max(0, cash))
   const day = new Date(`${preview.businessDate}T12:00:00`).toLocaleDateString(locale, {
@@ -277,6 +283,7 @@ function CloseForm({
     !closed &&
     countKnown &&
     !needsReason &&
+    !terminalNegative &&
     (!cardDiffers || cardNote.trim().length > 0)
 
   const close = async () => {
@@ -646,14 +653,21 @@ function CloseForm({
                   </span>
                   <span className="block text-xs font-medium leading-[1.5] text-text-quaternary">
                     {withRial(
-                      t('pos.close.terminalTotalNote', {
-                        amount: `OMR ${omr(figures.terminal)}`,
-                        count: preview.looseEnds.cardSalesForTerminalCheck.count,
-                        payments: preview.looseEnds.cardSalesForTerminalCheck.count,
-                      }),
+                      figures.terminal < 0
+                        ? t('pos.close.terminalNetNote', {
+                            gross: `OMR ${omr(figures.terminal + figures.cardRefunded)}`,
+                            refunds: `OMR ${omr(figures.cardRefunded)}`,
+                            net: `OMR ${omrSigned(figures.terminal)}`,
+                            payments: preview.looseEnds.cardSalesForTerminalCheck.count,
+                          })
+                        : t('pos.close.terminalTotalNote', {
+                            amount: `OMR ${omr(figures.terminal)}`,
+                            count: preview.looseEnds.cardSalesForTerminalCheck.count,
+                            payments: preview.looseEnds.cardSalesForTerminalCheck.count,
+                          }),
                     )}
                   </span>
-                  {figures.cardRefunded > 0 && figures.terminalNet ? (
+                  {figures.cardRefunded > 0 && figures.terminalNet && figures.terminal >= 0 ? (
                     <span className="block text-xs font-medium leading-[1.5] text-text-quaternary">
                       {withRial(
                         t('pos.close.terminalRefunded', {
@@ -672,7 +686,11 @@ function CloseForm({
                     aria-label={t('pos.close.terminalTotal')}
                     className={`${FIELD} max-w-[220px] text-end`}
                   />
-                  {cardDiffers && terminal != null ? (
+                  {terminalNegative ? (
+                    <span role="alert" className="text-xs font-medium text-pending-700">
+                      {t('pos.refusal.POS_CARD_TERMINAL_TOTAL_INVALID')}
+                    </span>
+                  ) : cardDiffers && terminal != null ? (
                     <>
                       <span className="text-xs font-medium text-pending-700">
                         {t('pos.close.terminalDiffers', {

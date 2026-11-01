@@ -5,6 +5,7 @@ import type {
   PosShiftCloseRequest,
 } from '../api/pos/pos'
 import { toBaisa, toRials } from './pos'
+import { parseBaisa } from './posPayment'
 
 /**
  * Cashing up (Figma 143:20055): one close per cashier shift (Abdul 17), from the shift's close
@@ -89,6 +90,18 @@ export function figuresOf(preview: PosClosePreviewDto): Figures {
  */
 export function startingCount(expected: number): number {
   return Math.max(0, expected)
+}
+
+/**
+ * A typed bank-machine total with its sign kept. `parseBaisa` drops a minus, which read a net card
+ * figure below zero (refunds over takings) as a positive one and sent that (A-05). RC2 refuses a
+ * negative total (`PosMoney.cash`, POS_CARD_TERMINAL_TOTAL_INVALID), so the screen must see it.
+ */
+export function parseSignedBaisa(text: string): number {
+  const trimmed = text.trim()
+  const negative = trimmed.startsWith('-') || trimmed.startsWith('−')
+  const baisa = parseBaisa(trimmed)
+  return negative ? -baisa : baisa
 }
 
 /** Why the count came up short or over: a guess is fine, the point is that somebody looked. */

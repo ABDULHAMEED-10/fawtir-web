@@ -45,6 +45,7 @@ import { tillContact } from '../../lib/posContact'
 import { useBuyerMatch } from '../../lib/posBuyerMatch'
 import { missingFieldsSentence, notEligiblePaths } from '../../lib/customerEligibility'
 import type { TillState } from '../../lib/posTill'
+import { containsCardNumber } from '../../lib/cardNumbers'
 
 type Ready = Extract<TillState, { status: 'ready' }>
 
@@ -148,6 +149,9 @@ function Payment({ till }: { till: Ready }) {
   const [handedOver, setHandedOver] = useState<number | null>(null)
   const [partTyped, setPartTyped] = useState<number | null>(null)
   const [approval, setApproval] = useState('')
+  // FIN-5: a card number in the approval field is stopped here, before it can be taken into the
+  // sale body that an offline till keeps in local storage until it is filed.
+  const approvalHoldsCard = method === 'card' && containsCardNumber(approval)
   const [reference2, setReference2] = useState('')
   const [slip, setSlip] = useState<HeldSlip | null>(null)
   const [slipState, setSlipState] = useState<'idle' | 'reading' | 'failed'>('idle')
@@ -481,11 +485,19 @@ function Payment({ till }: { till: Ready }) {
                         dir="ltr"
                         onChange={(event) => setApproval(event.target.value)}
                         placeholder={t('pos.pay.optional')}
+                        aria-invalid={approvalHoldsCard || undefined}
                         className={[
                           FIELD,
-                          slip?.reading.unsure.includes('authCode') ? 'border-pending-700' : '',
+                          slip?.reading.unsure.includes('authCode') || approvalHoldsCard
+                            ? 'border-pending-700'
+                            : '',
                         ].join(' ')}
                       />
+                      {approvalHoldsCard ? (
+                        <span role="alert" className="text-xs font-medium text-pending-700">
+                          {t('pos.pay.approvalIsCardNumber')}
+                        </span>
+                      ) : null}
                     </Field>
                   ) : null}
                   {method === 'transfer' ? (
@@ -509,7 +521,7 @@ function Payment({ till }: { till: Ready }) {
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    disabled={partAmount <= 0}
+                    disabled={partAmount <= 0 || approvalHoldsCard}
                     onClick={() =>
                       take({
                         method,

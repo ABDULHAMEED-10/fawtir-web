@@ -127,6 +127,16 @@ const json = (body: unknown, status = 200) =>
   })
 
 const NOT_FOUND = () => json({ type: 'about:blank', status: 404 }, 404)
+const CASH_QUOTE = () =>
+  json({
+    total: 21,
+    lastRefund: true,
+    suggested: [{ method: 'CASH', amount: 21 }],
+    cardLimit: 0,
+    payOutLimit: 21,
+    reduceBalance: 0,
+    toChoose: 0,
+  })
 
 let lookup: unknown
 let quote: () => Response
@@ -145,7 +155,7 @@ beforeEach(async () => {
   forgetWorkingBranch()
   window.localStorage.clear()
   lookup = LOOKUP
-  quote = NOT_FOUND
+  quote = CASH_QUOTE
   drawer = 100
   refunds = []
   closes = []
@@ -211,7 +221,7 @@ const refundPage = () => at('/pos/refund?invoice=NZW-T01-INV-2026-000001')
 
 const warnings = () =>
   screen
-    .queryAllByRole('status')
+    .queryAllByRole('alert')
     .map((element) => element.textContent ?? '')
     .filter((text) => text.includes('2.500') && text.includes('21.000'))
 
@@ -260,7 +270,7 @@ describe('a drawer below zero (decision 1)', () => {
   })
 
   it.each(['en', 'ar'])(
-    'warns at a cash refund the drawer cannot cover, on the server without a quote, and still lets it go (%s)',
+    'stops a cash refund the drawer cannot cover, as RC2 refuses it (DEC-30-05) (%s)',
     async (language) => {
       await i18n.changeLanguage(language)
       drawer = 2.5
@@ -270,10 +280,9 @@ describe('a drawer below zero (decision 1)', () => {
       const go = screen.getByRole('button', {
         name: i18n.t('pos.refund.refundAmount', { amount: '21.000' }),
       }) as HTMLButtonElement
-      expect(go.disabled).toBe(false)
+      expect(go.disabled).toBe(true)
       fireEvent.click(go)
-      await waitFor(() => expect(refunds).toHaveLength(1))
-      expect(refunds[0].moneyBack).toEqual([{ method: 'CASH', amount: 21 }])
+      expect(refunds).toEqual([])
       await i18n.changeLanguage('en')
     },
   )
@@ -634,13 +643,14 @@ describe('a given-away line alone on a server that cannot take it (decision 6)',
   const GIVEN = { ...LINE, discount: { type: 'PERCENTAGE', value: 100 } }
 
   it.each(['en', 'ar'])(
-    'says so in plain words and sends nothing, in place of the money refusal (%s)',
+    'sends nothing without the quote, and says the refund cannot be worked out (%s)',
     async (language) => {
       await i18n.changeLanguage(language)
+      quote = NOT_FOUND
       lookup = { ...LOOKUP, lines: [GIVEN], total: 0 }
       refundPage()
       fireEvent.click(await screen.findByRole('checkbox'))
-      expect(await screen.findByText(i18n.t('pos.refund.givenAwayOldServer'))).toBeTruthy()
+      expect(await screen.findByText(i18n.t('pos.refund.quoteUnavailable'))).toBeTruthy()
       const go = screen.getByRole('button', {
         name: i18n.t('pos.refund.refundAmount', { amount: '0.000' }),
       }) as HTMLButtonElement
@@ -658,7 +668,7 @@ describe('a given-away line alone on a server that cannot take it (decision 6)',
     await screen.findByRole('button', {
       name: i18n.t('pos.refund.refundAmount', { amount: '21.000' }),
     })
-    expect(screen.queryByText(i18n.t('pos.refund.givenAwayOldServer'))).toBeNull()
+    expect(screen.queryByText(i18n.t('pos.refund.quoteUnavailable'))).toBeNull()
   })
 
   it('a line the server marks given free is the stock return, not this', async () => {
@@ -666,6 +676,6 @@ describe('a given-away line alone on a server that cannot take it (decision 6)',
     refundPage()
     fireEvent.click(await screen.findByRole('checkbox'))
     await screen.findByRole('button', { name: i18n.t('pos.refund.stockReturnButton') })
-    expect(screen.queryByText(i18n.t('pos.refund.givenAwayOldServer'))).toBeNull()
+    expect(screen.queryByText(i18n.t('pos.refund.quoteUnavailable'))).toBeNull()
   })
 })
