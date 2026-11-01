@@ -25,6 +25,7 @@ import {
   splitFromQuote,
   splitProblem,
   standsAt,
+  waysPaid,
   type MoneySplit,
   type PutRightChoice,
   type ReturnLine,
@@ -528,7 +529,10 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
                           ? t('pos.refund.moneyBackNoteSplit', { amount: omr(back) })
                           : t(`pos.refund.${option}NoteLive`, {
                               amount: omr(back),
-                              method: t(`pos.refund.method.${moneyBackMethod(sale)}`),
+                              // Without a quote the refund really goes one way, so it says that one.
+                              method: (quote === 'none' ? [moneyBackMethod(sale)] : waysPaid(sale))
+                                .map((method) => t(`pos.refund.method.${method}`))
+                                .join(' · '),
                             })}
                       </span>
                     </span>

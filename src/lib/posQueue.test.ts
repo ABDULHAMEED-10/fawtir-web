@@ -643,6 +643,33 @@ describe('a refused sale never stops the till (E2E 30 Oct 2026, H-1)', () => {
     expect(server.next).toBe(50)
   })
 
+  it('a person tries a refused sale again and the answer is lost: the old refusal goes, filed next try', async () => {
+    fakeServer()
+    await submitSale(TILL, WALK_IN, 'pos-sale-key-lost2')
+    online = true
+    const reply = saleReply
+    saleReply = () => refusal(422, 'POS_PAYMENTS_DO_NOT_MATCH_TOTAL')
+    await flushQueue('till-1')
+    expect(queuedFor('till-1')[0]).toMatchObject({
+      refusal: 'POS_PAYMENTS_DO_NOT_MATCH_TOTAL',
+      final: true,
+    })
+
+    // The server has filed it; the connection drops before its answer comes back.
+    saleReply = () => {
+      throw new TypeError('Failed to fetch')
+    }
+    expect(await retryQueuedSale('till-1', 'pos-sale-key-lost2')).toBe('offline')
+    const [waiting] = queuedFor('till-1')
+    expect(waiting).toMatchObject({ refusal: null, refusalType: null, refusalValues: {} })
+    expect(waiting.final).toBeUndefined()
+
+    // The same key: the next try is answered as the same sale.
+    saleReply = reply
+    await flushQueue('till-1')
+    expect(queuedFor('till-1')).toEqual([])
+  })
+
   it('an unreviewed refusal is never given up on: shown, tried again later and later, and not final', async () => {
     fakeServer()
     await submitSale(TILL, WALK_IN, 'pos-sale-key-new')
