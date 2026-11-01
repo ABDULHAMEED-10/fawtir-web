@@ -1,8 +1,10 @@
 import type { ItemType } from './invoiceDraft'
 import { addDays } from './dates'
 import { ApiError } from '../api/errors'
+import type { ProductDto } from '../api/catalog/products'
 import type {
   GoodsReceiptDto,
+  GoodsReceiptLineRequest,
   PurchaseOrderLineRequest,
   PurchaseOrderAction,
   PurchaseOrderDto,
@@ -172,6 +174,94 @@ const ORDER_STOCK_REFUSALS: Record<string, string> = {
 export function orderStockRefusalKey(error: unknown): string | null {
   if (!(error instanceof ApiError) || error.code === null) return null
   return ORDER_STOCK_REFUSALS[error.code] ?? null
+}
+
+/**
+ * Whether the server reads a receipt line's `statedUnit` (backend #844): it then answers
+ * `productStockUnit` on every line, null included. A server before it answers no such key and
+ * refuses the unknown field with a 400 for the whole receipt, so nothing is sent to it.
+ */
+export function readsStockUnits(order: Pick<PurchaseOrderDto, 'lines'>): boolean {
+  return order.lines.some((line) => Object.hasOwn(line, 'productStockUnit'))
+}
+
+/**
+ * What the person booking a line in has to say about its unit before it can go (DEC-30-08).
+ *
+ * Only a product line written before V519 asks: a later line carries its unit and the server
+ * ignores a stated one. The answer is the person's, never filled in for them, because the rule
+ * exists so that someone confirms the goods were counted in the unit the order converted into;
+ * receiving under whatever the catalogue says today is the silent conversion the 409 closes.
+ */
+export type StatedUnitAsk =
+  | { kind: 'none' }
+  | { kind: 'checking' }
+  /** The catalogue's unit, read: the person confirms it. */
+  | { kind: 'confirm'; unit: string }
+  /** The product could not be read (no `product.read`, or the read failed): the person picks a unit. */
+  | { kind: 'choose' }
+
+/** The products behind the lines that ask, as far as the screen could read them. */
+export type StockUnitSource =
+  | { status: 'checking' }
+  | {
+      status: 'known'
+      products: ReadonlyMap<string, Pick<ProductDto, 'defaultUnitCode' | 'keepCount'>>
+    }
+  | { status: 'unknown' }
+
+const NO_ASK: StatedUnitAsk = { kind: 'none' }
+
+/** True for a product line that recorded no unit, on a server that reads `statedUnit`. */
+export function lacksStockUnit(line: PurchaseOrderLineDto, reads: boolean): boolean {
+  return reads && Boolean(line.productId) && line.productStockUnit == null
+}
+
+export function statedUnitAsk(
+  line: PurchaseOrderLineDto,
+  reads: boolean,
+  source: StockUnitSource,
+): StatedUnitAsk {
+  if (!lacksStockUnit(line, reads) || !line.productId) return NO_ASK
+  if (source.status === 'checking') return { kind: 'checking' }
+  const product = source.status === 'known' ? source.products.get(line.productId) : undefined
+  if (!product) return { kind: 'choose' }
+  // A product no longer counted moves no stock, so the server asks no unit for it. An answer
+  // without the flag is treated as counted: asking once too often costs a click, not a receipt.
+  if (product.keepCount === false) return NO_ASK
+  return { kind: 'confirm', unit: product.defaultUnitCode }
+}
+
+/** The unit the person stated for a line that asks, or null while they have not. */
+export function statedUnitOf(ask: StatedUnitAsk, answer: string | undefined): string | null {
+  if (ask.kind === 'confirm') return answer === ask.unit ? ask.unit : null
+  if (ask.kind === 'choose') return answer?.trim() ? answer.trim() : null
+  return null
+}
+
+/** One receipt line; `statedUnit` only when the line asks and the person answered. */
+export function receiptLineRequest(
+  line: PurchaseOrderLineDto,
+  quantityReceived: number,
+  statedUnit: string | null,
+): GoodsReceiptLineRequest {
+  return {
+    purchaseOrderLineId: line.id,
+    quantityReceived,
+    ...(statedUnit ? { statedUnit } : {}),
+  }
+}
+
+/**
+ * The two refusals that mean the unit the screen showed is no longer right (the product's unit or
+ * its counting moved after it was read), so the product is read again before another try.
+ */
+export function receiptUnitRefused(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    (error.code === 'PRODUCT_STOCK_UNIT_MISMATCH' ||
+      error.code === 'GOODS_RECEIPT_STOCK_UNIT_REQUIRED')
+  )
 }
 
 function positive(value: string): boolean {
