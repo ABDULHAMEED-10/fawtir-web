@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Audience } from '../HomePage/Audience'
 import tillShot from '../../assets/site/feature-till.webp'
 import invoiceShot from '../../assets/site/feature-invoice.webp'
 import proofShot from '../../assets/site/feature-proof.webp'
@@ -28,6 +29,7 @@ import {
   SOFT,
   Texture,
   Washes,
+  useSiteMeta,
 } from '../HomePage/site'
 
 /**
@@ -49,6 +51,7 @@ const ITEMS = ['a', 'b', 'c', 'd', 'e']
 
 export function FeaturesPage() {
   const { t } = useTranslation()
+  useSiteMeta('landing.meta.features.title', 'landing.meta.features.description')
   return (
     <div className={`landing min-h-screen overflow-x-clip bg-white ${INK}`}>
       <PageHero
@@ -65,6 +68,7 @@ export function FeaturesPage() {
             row.wave ? <OpenRow key={row.key} row={row} /> : <BoxedRow key={row.key} row={row} />,
           )}
         </div>
+        <Audience />
         <Parts />
       </main>
       <ClosingBand />

@@ -23013,13 +23013,14 @@
       "demo": "Request For Demo"
     },
     "hero": {
-      "lead": "Every sale filed before the",
-      "word": "customer",
-      "tail": "leaves",
+      "lead": "Oman's e-invoicing solution,",
+      "word": "built locally",
+      "tail": "for local business",
       "body": "Fawtir is a till, an invoicing system and a Tax Authority filing service in one. Ring up a coffee, and the invoice is cleared before the cup is.",
       "dashboardAlt": "The Fawtir dashboard: today's sales, receivables, payables, revenue and compliance health",
-      "body1": "Fawtir is a till, an invoicing system and a Tax Authority filing service in one. Ring up a coffee,",
-      "body2": "and the invoice is cleared before the cup is."
+      "body1": "Fawtir issues, sends and reports every invoice the way the Oman Tax Authority requires, over Peppol.",
+      "body2": "One place for the till, the office and your ERP, made in Oman for companies, shops and sole traders.",
+      "eyebrow": "Built for Oman's Fawtara e-invoicing"
     },
     "overview": {
       "titleLead": "One sale Everything",
@@ -23152,6 +23153,78 @@
         "terms": "terms of service"
       },
       "rights": "Fawtir © {{year}}. All rights reserved"
+    },
+    "meta": {
+      "home": {
+        "title": "Fawtir | E-Invoicing Software in Oman: Fawtara, POS and ERP",
+        "description": "Fawtir is Oman's e-invoicing solution, built locally. Issue VAT invoices over Peppol, report to the Oman Tax Authority's Fawtara system, sell at the till and connect your ERP. In Arabic and English."
+      },
+      "features": {
+        "title": "Features | Fawtir E-Invoicing, POS and Stock for Oman",
+        "description": "Invoicing, a point of sale, stock, bills and Tax Authority reporting in one Omani platform, built for the Fawtara e-invoicing rules."
+      },
+      "pricing": {
+        "title": "Pricing | Fawtir E-Invoicing for Oman",
+        "description": "Plans for Omani businesses of every size, from sole traders to companies with an ERP. Prices in Omani rials."
+      },
+      "contact": {
+        "title": "Contact | Fawtir E-Invoicing for Oman",
+        "description": "Talk to the Fawtir team in Muscat about e-invoicing, the Fawtara system, your till or your ERP."
+      }
+    },
+    "audience": {
+      "titleLead": "One platform for",
+      "titleEm": "every kind of business",
+      "sub": "From a single shop to a group running its own ERP, Fawtir fits the way you already work.",
+      "sme": {
+        "tag": "SMEs and service companies",
+        "title": "Invoicing that files itself",
+        "body": "Create VAT invoices, credit and debit notes and payment reminders. Each one reaches your customer over Peppol and is reported to the Tax Authority, with customers, suppliers and bills in the same place.",
+        "p1": "Full and simplified tax invoices",
+        "p2": "Peppol delivery and Tax Authority reporting",
+        "p3": "Bills, suppliers and VAT reports",
+        "alt": "Fawtir's invoices screen: outstanding, settled, awaiting payment and overdue totals above the list of invoices"
+      },
+      "pos": {
+        "tag": "Shops, cafés and restaurants",
+        "title": "A till that does the paperwork",
+        "body": "Ring up a sale on a tablet, phone or computer. Fawtir prints the receipt, issues the e-invoice and keeps your stock counted. If the connection drops, the till keeps selling and catches up when it is back.",
+        "p1": "Barcode scanning, sizes and add-ons",
+        "p2": "Cash, card and split payments",
+        "p3": "Stock and end-of-day closing",
+        "alt": "Fawtir's point of sale: the shelf of items on the left and the current sale with its total on the right"
+      },
+      "erp": {
+        "tag": "Companies with an ERP",
+        "title": "Keep your ERP, add compliance",
+        "body": "There is no need to replace the system your finance team knows. Fawtir takes invoices from your ERP by API or file, checks them against Oman's PINT-OM rules and sends them on to Peppol and the Tax Authority.",
+        "p1": "API push or file upload",
+        "p2": "Field mapping and checks before anything is sent",
+        "p3": "Every document tracked until it is accepted",
+        "flow": {
+          "erp": "Your ERP",
+          "fawtir": "Fawtir",
+          "checked": "Checked against PINT-OM",
+          "peppol": "Peppol network",
+          "ota": "Oman Tax Authority",
+          "caption": "Invoices go from your ERP to Fawtir, are checked against PINT-OM, then sent over Peppol and reported to the Oman Tax Authority."
+        }
+      },
+      "solo": {
+        "tag": "Sole traders and freelancers",
+        "title": "E-invoicing without the learning curve",
+        "body": "Registered for VAT on your own? Send a correct e-invoice from your phone in minutes, with no accounting software to learn and no IT team to call.",
+        "p1": "Works on any phone or laptop",
+        "p2": "Arabic and English throughout",
+        "p3": "Every invoice stored and easy to find",
+        "preview": {
+          "kind": "Tax invoice",
+          "status": "Reported",
+          "to": "Billed to",
+          "customer": "Al Noor Trading LLC",
+          "caption": "An example invoice, as it looks once sent and reported."
+        }
+      }
     }
   },
   "invoiceImport": {

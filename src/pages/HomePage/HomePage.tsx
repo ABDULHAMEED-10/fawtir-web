@@ -19,7 +19,8 @@ import posCatalog from '../../assets/home/pos-catalog.webp'
 import posPaid from '../../assets/home/pos-paid.webp'
 import showcaseDashboard from '../../assets/home/showcase-dashboard.webp'
 import './HomePage.css'
-import { ClosingBand, Cta, Footer, Heading, INK, Nav, SOFT, Texture } from './site'
+import { ClosingBand, Cta, Footer, Heading, INK, Nav, SOFT, Texture, useSiteMeta } from './site'
+import { Audience } from './Audience'
 import { useSiteMail } from './siteMail'
 
 /**
@@ -29,9 +30,11 @@ import { useSiteMail } from './siteMail'
  * renders; the words and layout are code. No motion for now (owner, 27 Sep 2026).
  */
 export function HomePage() {
+  useSiteMeta('landing.meta.home.title', 'landing.meta.home.description')
   return (
     <div className={`landing min-h-screen overflow-x-clip bg-white ${INK}`}>
       <Hero />
+      <Audience />
       <Overview />
       <Features />
       <Steps />
@@ -61,8 +64,13 @@ function Hero() {
       <div className="mx-auto flex w-full max-w-[1220px] flex-col items-center gap-[100px] px-4 pt-[25px] max-md:gap-16 xl:px-0">
         <Nav active="home" />
 
-        <div className="flex w-full max-w-[754px] flex-col items-center gap-6 text-center">
+        <div className="flex w-full max-w-[860px] flex-col items-center gap-6 text-center">
           <div className="flex w-full flex-col items-center gap-6">
+            {/* Says what Fawtir is in the words people search for, before the headline. */}
+            <p className="landing-shadow-brand inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium leading-5 text-[#2c4eb7]">
+              <span aria-hidden="true" className="size-2 rounded-full bg-[#2c4eb7]" />
+              {t('landing.hero.eyebrow')}
+            </p>
             <h1 className="landing-title landing-cap flex w-full flex-col items-center gap-2.5 font-semibold leading-[normal]">
               <span>{t('landing.hero.lead')}</span>
               <span className="flex flex-wrap items-center justify-center gap-4 max-md:gap-2">
@@ -72,9 +80,8 @@ function Hero() {
                 <span>{t('landing.hero.tail')}</span>
               </span>
             </h1>
-            <p className="landing-cap w-full text-base leading-6">
-              {t('landing.hero.body1')}
-              <br className="max-md:hidden" /> {t('landing.hero.body2')}
+            <p className={`w-full max-w-[640px] text-lg leading-7 ${SOFT}`}>
+              {t('landing.hero.body1')} {t('landing.hero.body2')}
             </p>
           </div>
           <Cta href={mail.demo}>{t('landing.cta.demo')}</Cta>
