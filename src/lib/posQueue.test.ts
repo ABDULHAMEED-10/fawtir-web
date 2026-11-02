@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, resetSharedRequests } from '../api'
+import { ApiError, NetworkError, resetSharedRequests } from '../api'
 import type { PosSaleRequest, PosTillDto } from '../api/pos/pos'
 import {
   correctQueuedSale,
   flushQueue,
   isFinalRefusal,
+  numberPrefix,
   numbersBefore,
   queuedFor,
   resetPosQueue,
@@ -815,5 +816,65 @@ describe('a refused sale never stops the till (E2E 30 Oct 2026, H-1)', () => {
       'NZW-T01-INV-2026-000050',
     ])
     expect(numbersBefore('NZW-T01-INV-2026-000049', 'NZW-T01-INV-2026-000049')).toEqual([])
+  })
+})
+
+describe('offline numbers across a new year (B36 OFF-1)', () => {
+  const NEW_YEAR_TILL = {
+    ...TILL,
+    series: { INVOICE: { series: 'NZW-T01-INV', year: 2027, nextValue: 1 } },
+  } as unknown as PosTillDto
+  // 1 Jan 2027 00:30 in Muscat (UTC+4), while UTC still reads 31 Dec 2026.
+  const JUST_AFTER_MIDNIGHT = '2026-12-31T20:30:00Z'
+  const LAST_MINUTE = '2026-12-31T19:59:00Z'
+
+  it('prints no number for a new-year sale on a till last read in the old year, and keeps nothing', async () => {
+    await expect(
+      submitSale(TILL, { ...BODY, soldAt: JUST_AFTER_MIDNIGHT }, 'pos-sale-key-ny01'),
+    ).rejects.toBeInstanceOf(NetworkError)
+    expect(queuedFor('till-1')).toEqual([])
+  })
+
+  it("still numbers the old year's last minute on the old year's series", async () => {
+    const result = await submitSale(TILL, { ...BODY, soldAt: LAST_MINUTE }, 'pos-sale-key-ny02')
+    expect('queued' in result && result.queued.number).toBe('NZW-T01-INV-2026-000049')
+  })
+
+  it("starts the new year at the server's value: the old year's counter and queue do not carry over", async () => {
+    await submitSale(TILL, BODY, 'pos-sale-key-ny03')
+    await submitSale(TILL, BODY, 'pos-sale-key-ny04')
+    expect(queuedFor('till-1').map((entry) => entry.number)).toEqual([
+      'NZW-T01-INV-2026-000049',
+      'NZW-T01-INV-2026-000050',
+    ])
+
+    const first = await submitSale(
+      NEW_YEAR_TILL,
+      { ...BODY, soldAt: '2027-01-01T08:00:00Z' },
+      'pos-sale-key-ny05',
+    )
+    const second = await submitSale(
+      NEW_YEAR_TILL,
+      { ...BODY, soldAt: '2027-01-01T08:05:00Z' },
+      'pos-sale-key-ny06',
+    )
+    expect('queued' in first && first.queued.number).toBe('NZW-T01-INV-2027-000001')
+    expect('queued' in second && second.queued.number).toBe('NZW-T01-INV-2027-000002')
+  })
+
+  it('adopts a counter kept before it was per year once, into the year in use, and drops it', async () => {
+    window.localStorage.setItem('fawtir.pos.next.till-1', '60')
+    const first = await submitSale(TILL, BODY, 'pos-sale-key-ny07')
+    expect('queued' in first && first.queued.number).toBe('NZW-T01-INV-2026-000060')
+    expect(window.localStorage.getItem('fawtir.pos.next.till-1')).toBeNull()
+    expect(window.localStorage.getItem('fawtir.pos.next.till-1.NZW-T01-INV-2026')).toBe('61')
+
+    const second = await submitSale(TILL, BODY, 'pos-sale-key-ny08')
+    expect('queued' in second && second.queued.number).toBe('NZW-T01-INV-2026-000061')
+  })
+
+  it('reads the series and year a number runs in', () => {
+    expect(numberPrefix('NZW-T01-INV-2026-000123')).toBe('NZW-T01-INV-2026')
+    expect(numberPrefix('not a till number')).toBeNull()
   })
 })

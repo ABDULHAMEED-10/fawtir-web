@@ -14,6 +14,7 @@ import {
   type SlipPhoto,
 } from './posSlipOutbox'
 import { refusalValues } from './posRefusals'
+import { BUSINESS_TIME_ZONE } from './format'
 import { forgetBuyer, openBuyer, sealBuyer } from './posVault'
 
 /**
@@ -75,7 +76,8 @@ export type QueuedSale = {
 
 const QUEUE_KEY = 'fawtir.pos.queue'
 const NUMBER_NOTES_KEY = 'fawtir.pos.numberNotes'
-const nextKey = (tillId: string) => `fawtir.pos.next.${tillId}`
+const legacyNextKey = (tillId: string) => `fawtir.pos.next.${tillId}`
+const nextKey = (tillId: string, prefix: string) => `fawtir.pos.next.${tillId}.${prefix}`
 
 function read<T>(key: string, fallback: T): T {
   try {
@@ -222,23 +224,78 @@ export function formatTillNumber(series: string, year: number, value: number): s
   return `${series}-${year}-${String(value).padStart(6, '0')}`
 }
 
-/** The next number this till will print offline: the server's, or further on if it sold since. */
-export function nextTillNumber(till: PosTillDto): string | null {
-  const series = till.series?.INVOICE
-  if (!series) return null
-  const local = read<number>(nextKey(till.id), 0)
-  const queued = queue
-    .filter((entry) => entry.tillId === till.id)
-    .map((entry) => (numberValue(entry.number) ?? 0) + 1)
-  const value = Math.max(series.nextValue, local, ...queued)
-  return formatTillNumber(series.series, series.year, value)
+/** `NZW-T01-INV-2026-000123` is `NZW-T01-INV-2026`: the series and year one sequence runs in. */
+export function numberPrefix(invoiceNumber: string): string | null {
+  const match = /^(.+-\d{4})-\d+$/.exec(invoiceNumber)
+  return match ? match[1] : null
 }
 
-/** After a sale is numbered, offline numbering continues from the one after it. */
+const BUSINESS_YEAR = new Intl.DateTimeFormat('en-CA', {
+  timeZone: BUSINESS_TIME_ZONE,
+  year: 'numeric',
+})
+
+function businessYear(instant?: string): number {
+  const at = instant ? new Date(instant) : new Date()
+  return Number(BUSINESS_YEAR.format(Number.isNaN(at.getTime()) ? new Date() : at))
+}
+
+function removeStored(key: string) {
+  try {
+    window.localStorage.removeItem(key)
+  } catch {
+    // Nothing stored, nothing to forget.
+  }
+}
+
+/**
+ * A counter written before it was kept per series and year (B36 OFF-1) belongs to no year, so it is
+ * adopted once, into the sequence in use now, and dropped. Adopting it at the first read after the
+ * update, rather than ignoring it, keeps a till with a stale `nextValue` from reprinting a number it
+ * has already used this year; it can only be wrong for a device left unused across both the update
+ * and a new year, and then it prints too high (a gap the server refuses), never a repeat.
+ */
+function adoptLegacyCounter(tillId: string, prefix: string) {
+  const legacy = read<number | null>(legacyNextKey(tillId), null)
+  if (typeof legacy !== 'number') return
+  if (legacy > read<number>(nextKey(tillId, prefix), 0)) write(nextKey(tillId, prefix), legacy)
+  removeStored(legacyNextKey(tillId))
+}
+
+/**
+ * The next number this till will print offline: the server's, or further on if it sold since.
+ *
+ * The server numbers each series per year from 1 and refuses a number whose year is not the sale's
+ * business year (`InvoiceNumberAdapter.claimTillNumber`, POS_TILL_NUMBER_WRONG_SERIES), so only this
+ * year's counter and this year's queued numbers count. When the till's series is of another year
+ * than the sale (it was read before midnight and the till has been offline since) this device does
+ * not know where the new year's sequence stands, and any number it printed could repeat one the
+ * server already gave: no number, so no receipt, until the till is read again online (B36 OFF-1).
+ * Before, the old year was printed on a new-year sale and refused for good, and once the year was
+ * read again the old year's counter carried over and left a gap every later sale waited behind.
+ */
+export function nextTillNumber(till: PosTillDto, soldAt?: string): string | null {
+  const series = till.series?.INVOICE
+  if (!series) return null
+  const year = businessYear(soldAt)
+  if (series.year !== year) return null
+  const prefix = `${series.series}-${year}`
+  adoptLegacyCounter(till.id, prefix)
+  const local = read<number>(nextKey(till.id, prefix), 0)
+  const queued = queue
+    .filter((entry) => entry.tillId === till.id && numberPrefix(entry.number) === prefix)
+    .map((entry) => (numberValue(entry.number) ?? 0) + 1)
+  const value = Math.max(series.nextValue, local, ...queued)
+  return formatTillNumber(series.series, year, value)
+}
+
+/** After a sale is numbered, offline numbering continues from the one after it, in its own year. */
 export function noteNumberUsed(tillId: string, invoiceNumber: string) {
   const value = numberValue(invoiceNumber)
-  if (value == null) return
-  if (value + 1 > read<number>(nextKey(tillId), 0)) write(nextKey(tillId), value + 1)
+  const prefix = numberPrefix(invoiceNumber)
+  if (value == null || prefix == null) return
+  adoptLegacyCounter(tillId, prefix)
+  if (value + 1 > read<number>(nextKey(tillId, prefix), 0)) write(nextKey(tillId, prefix), value + 1)
 }
 
 export function queuedFor(tillId: string): QueuedSale[] {
@@ -387,7 +444,7 @@ export async function submitSale(
   photos: SlipPhoto[] = [],
 ): Promise<SubmitResult> {
   const enqueue = async (): Promise<SubmitResult> => {
-    const number = nextTillNumber(till)
+    const number = nextTillNumber(till, body.soldAt)
     if (!number) throw new NetworkError('offline')
     // Taken now, before the awaits below: a second sale must not print the same number.
     noteNumberUsed(till.id, number)
