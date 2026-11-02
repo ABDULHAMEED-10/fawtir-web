@@ -4919,7 +4919,8 @@
         "CASHIER_MISMATCH": "Signed for another cashier",
         "SIGNATURE": "The signature does not match the sale",
         "KEY_REVOKED": "Signed with a revoked key",
-        "OUTSIDE_KEY_WINDOW": "Sold outside the key’s time",
+        "OUTSIDE_KEY_WINDOW": "Sold outside the key’s time or after its shift ended",
+        "SHIFT_END_UNPROVEN": "Arrived after the shift ended; its time is only the device’s",
         "PROOF_TOO_OLD": "Arrived more than 72 hours after the key was registered",
         "OUT_OF_SEQUENCE": "Arrived out of order"
       },
