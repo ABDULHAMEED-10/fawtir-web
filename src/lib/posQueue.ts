@@ -92,7 +92,7 @@ function write(key: string, value: unknown) {
   try {
     window.localStorage.setItem(key, JSON.stringify(value))
   } catch {
-    // A till without storage still sells online; the queue lives in memory for this tab.
+    // A till without storage still sells online.
   }
 }
 
@@ -207,10 +207,55 @@ let queue: QueuedSale[] =
   typeof window === 'undefined' ? [] : read<QueuedSale[]>(QUEUE_KEY, []).map(revived)
 const listeners = new Set<() => void>()
 
+/** The queue text this tab last read or wrote; undefined until it has. */
+let seenText: string | null | undefined
+/** False once a write failed: this tab's memory then holds sales storage does not, and stays in charge. */
+let storageHoldsQueue = true
+
+/**
+ * The queue as storage holds it now. Another tab of the till (or a second window) writes the same key,
+ * and this tab used to keep the copy it loaded and write it back whole: a sale the other tab had queued,
+ * printed and not yet sent vanished from the device, and its number with it (B37 OFF-4). Every change
+ * is made to this fresh copy, in the same task as its write.
+ */
+function synced(): QueuedSale[] {
+  if (typeof window === 'undefined' || !storageHoldsQueue) return queue
+  let text: string | null
+  try {
+    text = window.localStorage.getItem(QUEUE_KEY)
+  } catch {
+    return queue
+  }
+  if (text === seenText) return queue
+  try {
+    queue = text ? (JSON.parse(text) as QueuedSale[]).map(revived) : []
+    seenText = text
+  } catch {
+    // Unreadable text is never taken for an empty queue: this tab keeps what it has.
+  }
+  return queue
+}
+
 function save(next: QueuedSale[]) {
   queue = next
-  write(QUEUE_KEY, next)
+  const text = JSON.stringify(next)
+  try {
+    window.localStorage.setItem(QUEUE_KEY, text)
+    seenText = text
+    storageHoldsQueue = true
+  } catch {
+    // A till without storage still sells online; the queue lives in memory for this tab.
+    storageHoldsQueue = false
+  }
   listeners.forEach((listener) => listener())
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.key !== QUEUE_KEY && event.key !== null) return
+    const before = queue
+    if (synced() !== before) listeners.forEach((listener) => listener())
+  })
 }
 
 /** The number's running part: `NZW-T01-INV-2026-000123` is 123. */
@@ -230,14 +275,23 @@ export function numberPrefix(invoiceNumber: string): string | null {
   return match ? match[1] : null
 }
 
-const BUSINESS_YEAR = new Intl.DateTimeFormat('en-CA', {
-  timeZone: BUSINESS_TIME_ZONE,
-  year: 'numeric',
-})
-
-function businessYear(instant?: string): number {
+/**
+ * The sale's year in the zone the server counts the till's series in (`series.timeZone`, the tenant's
+ * business zone), so a tenant outside Oman is not numbered on Muscat's new year (B37 OFF-6). Asia/Muscat
+ * only for a server that does not say. A zone this browser cannot read gives no year, so no offline
+ * number, rather than a guess that could be refused for good.
+ */
+function businessYear(instant: string | undefined, timeZone: string | undefined): number | null {
   const at = instant ? new Date(instant) : new Date()
-  return Number(BUSINESS_YEAR.format(Number.isNaN(at.getTime()) ? new Date() : at))
+  try {
+    const year = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timeZone ?? BUSINESS_TIME_ZONE,
+      year: 'numeric',
+    }).format(Number.isNaN(at.getTime()) ? new Date() : at)
+    return Number(year)
+  } catch {
+    return null
+  }
 }
 
 function removeStored(key: string) {
@@ -277,12 +331,12 @@ function adoptLegacyCounter(tillId: string, prefix: string) {
 export function nextTillNumber(till: PosTillDto, soldAt?: string): string | null {
   const series = till.series?.INVOICE
   if (!series) return null
-  const year = businessYear(soldAt)
-  if (series.year !== year) return null
+  const year = businessYear(soldAt, series.timeZone)
+  if (year == null || series.year !== year) return null
   const prefix = `${series.series}-${year}`
   adoptLegacyCounter(till.id, prefix)
   const local = read<number>(nextKey(till.id, prefix), 0)
-  const queued = queue
+  const queued = synced()
     .filter((entry) => entry.tillId === till.id && numberPrefix(entry.number) === prefix)
     .map((entry) => (numberValue(entry.number) ?? 0) + 1)
   const value = Math.max(series.nextValue, local, ...queued)
@@ -299,7 +353,7 @@ export function noteNumberUsed(tillId: string, invoiceNumber: string) {
 }
 
 export function queuedFor(tillId: string): QueuedSale[] {
-  return queue
+  return synced()
     .filter((entry) => entry.tillId === tillId)
     .sort((a, b) => (numberValue(a.number) ?? 0) - (numberValue(b.number) ?? 0))
 }
@@ -378,8 +432,11 @@ async function forget(entry: QueuedSale) {
  * A sale the server had already filed before its queued copy arrived (the online answer was lost)
  * can be filed under another number than its receipt. The server says so only on that replay, while
  * the queue sends in the background, so the till keeps it and tells the cashier on the next sale's
- * Done screen, with the other warnings. A queued line with no HS code is said the same way: the
- * server says so only on that send too, and nobody is looking at it then.
+ * Done screen, with the other warnings. Every other warning of a queued sale is said the same way,
+ * naming the sale: the server says it only on that send, nobody is looking at it then, and a warning
+ * the server gives for a sale filed past a rule (stock below zero, a discount above the cashier's
+ * limit, filed while restricted) is the one the manager is meant to see. Only the HS-code warning
+ * used to be kept, so the rest were dropped on the floor (B37 OFF-8).
  */
 type NumberNote = {
   tillId: string
@@ -389,22 +446,11 @@ type NumberNote = {
   line?: number | null
 }
 
-const SAID_ON_NEXT_SALE = new Set(['POS_GOODS_FLAG_CLEARED'])
-
 function noteForNextSale(entry: QueuedSale, sale: PosSaleDto) {
-  const notes = (sale.warnings ?? []).flatMap<NumberNote>((warning) =>
+  const notes = (sale.warnings ?? []).map<NumberNote>((warning) =>
     warning.code === 'POS_PRINTED_NUMBER_DIFFERS'
-      ? [{ tillId: entry.tillId, printed: entry.number, filed: sale.invoiceNumber }]
-      : SAID_ON_NEXT_SALE.has(warning.code)
-        ? [
-            {
-              tillId: entry.tillId,
-              filed: sale.invoiceNumber,
-              code: warning.code,
-              line: warning.line,
-            },
-          ]
-        : [],
+      ? { tillId: entry.tillId, printed: entry.number, filed: sale.invoiceNumber }
+      : { tillId: entry.tillId, filed: sale.invoiceNumber, code: warning.code, line: warning.line },
   )
   if (notes.length > 0) {
     write(NUMBER_NOTES_KEY, [...read<NumberNote[]>(NUMBER_NOTES_KEY, []), ...notes])
@@ -455,7 +501,7 @@ export async function submitSale(
       body: { ...body, queuedOffline: true, invoiceNumber: number },
       refusal: null,
     })
-    save([...queue, entry])
+    save([...synced(), entry])
     return { queued: entry }
   }
   await holdSlipPhotos(key, till.id, photos)
@@ -584,13 +630,13 @@ export async function flushQueue(tillId: string): Promise<FlushOutcome> {
       try {
         const sale = await sendNumbered(await bodyToSend(entry), entry.key, canSkip)
         noteForNextSale(entry, sale)
-        save(queue.filter((other) => other.key !== entry.key))
+        save(synced().filter((other) => other.key !== entry.key))
         await forget(entry)
         void sendSlipPhotos(entry.key, sale.saleId, tillId)
       } catch (error) {
         const refusalOver = () =>
           save(
-            queue.map((other) =>
+            synced().map((other) =>
               other.key === entry.key
                 ? { ...other, refusal: null, refusalType: null, refusalValues: {} }
                 : other,
@@ -611,7 +657,7 @@ export async function flushQueue(tillId: string): Promise<FlushOutcome> {
         const final = verdict === 'final'
         // Refused is not filed: the sealed buyer and any slip photo stay for Try again.
         save(
-          queue.map((other) =>
+          synced().map((other) =>
             other.key === entry.key ? refusedEntry(other, error, verdict) : other,
           ),
         )
@@ -632,7 +678,7 @@ export async function flushQueue(tillId: string): Promise<FlushOutcome> {
  */
 export async function retryQueuedSale(tillId: string, key: string): Promise<FlushOutcome> {
   save(
-    queue.map((entry) => {
+    synced().map((entry) => {
       if (entry.key !== key) return entry
       const { final: _final, notBefore: _notBefore, setAside: _setAside, ...again } = entry
       void _final
@@ -646,7 +692,7 @@ export async function retryQueuedSale(tillId: string, key: string): Promise<Flus
 
 /** The server has it set aside: this device stops sending it by itself, and keeps it. */
 export function markQueuedSaleSetAside(key: string) {
-  save(queue.map((entry) => (entry.key === key ? { ...entry, setAside: true } : entry)))
+  save(synced().map((entry) => (entry.key === key ? { ...entry, setAside: true } : entry)))
 }
 
 /**
@@ -660,7 +706,7 @@ export async function correctQueuedSale(
   payments: PosSaleRequest['payments'],
 ): Promise<FlushOutcome> {
   save(
-    queue.map((entry) => {
+    synced().map((entry) => {
       if (entry.key !== key) return entry
       const { final: _final, notBefore: _notBefore, setAside: _setAside, ...again } = entry
       void _final
