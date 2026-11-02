@@ -941,6 +941,20 @@ describe('a till refund the credit cap refuses (DA-1 option B)', () => {
     await i18n.changeLanguage(language)
     answer = (url, init) => {
       if (url.startsWith('/api/v1/pos/refund-lookup')) return json(LOOKUP)
+      // The button waits for the server's quote since wave B's 91956f4b ("refund only on the
+      // server's quote", owner batch 27 item 5 and batch 28 item 5, reg:367/394); without one this
+      // test never reached the refusal it is about. The cap then refuses the refund itself, as when
+      // another refund spent the category between quote and refund.
+      if (url === '/api/v1/pos/sales/s-1/refund-quote')
+        return json({
+          total: 1.68,
+          lastRefund: true,
+          suggested: [{ method: 'CASH', amount: 1.68 }],
+          cardLimit: 0,
+          payOutLimit: 1.68,
+          reduceBalance: 0,
+          toChoose: 0,
+        })
       if (url.includes('/refunds') && init?.method === 'POST')
         return json(
           {
