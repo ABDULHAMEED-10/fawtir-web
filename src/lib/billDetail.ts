@@ -581,9 +581,13 @@ export function complianceOf(
         : { key: 'billDetail.compliance.noPintOm', ok: false },
     ...(facts
       ? [replyOf(facts)]
-      : peppol && received?.kind === 'unavailable'
-        ? [{ key: 'billDetail.compliance.reply.unavailable', ok: false }]
-        : []),
+      : // The bill's own `peppol` block (batch 39 EXP) answers the reply while the delivery record
+        // is loading or unreadable. Only the reply: the reporting line keeps its proven source.
+        peppol && detail.peppol
+        ? [replyNote(detail.peppol.mlsCode, detail.peppol.mlsTransportState)]
+        : peppol && received?.kind === 'unavailable'
+          ? [{ key: 'billDetail.compliance.reply.unavailable', ok: false }]
+          : []),
     reporting,
     kept
       ? { key: 'billDetail.compliance.originalKept', ok: true }
