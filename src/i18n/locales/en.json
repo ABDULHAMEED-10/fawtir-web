@@ -6389,8 +6389,12 @@
         "HELD_AS_DUPLICATE": "Held as a possible duplicate",
         "CONFIRMED_DUPLICATE": "Confirmed as a duplicate",
         "NOT_DUPLICATE": "Decided not a duplicate",
-        "REOPENED": "Reopened"
-      }
+        "REOPENED": "Reopened",
+        "DUPLICATE_OVERRIDDEN": "Recorded over possible duplicates"
+      },
+      "byName": "by {{name}}",
+      "overrideReason": "Why: {{reason}}",
+      "reasonRecorded": "A reason was recorded. Approvers can read it."
     },
     "decision": {
       "title": "Your decision",

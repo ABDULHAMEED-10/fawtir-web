@@ -6798,8 +6798,12 @@
         "HELD_AS_DUPLICATE": "حُجزت لاحتمال كونها مكررة",
         "CONFIRMED_DUPLICATE": "تم تأكيد أنها مكررة",
         "NOT_DUPLICATE": "تقرّر أنها ليست مكررة",
-        "REOPENED": "أُعيد فتحها"
-      }
+        "REOPENED": "أُعيد فتحها",
+        "DUPLICATE_OVERRIDDEN": "سُجّلت رغم احتمال التكرار"
+      },
+      "byName": "بواسطة {{name}}",
+      "overrideReason": "السبب: {{reason}}",
+      "reasonRecorded": "سُجّل سبب. يمكن للمعتمِدين الاطلاع عليه."
     },
     "decision": {
       "title": "قرارك",

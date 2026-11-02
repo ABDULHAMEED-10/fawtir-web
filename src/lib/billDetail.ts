@@ -698,6 +698,18 @@ export type ActivityEntry = {
   byYou: boolean
   /** On an overpayment step, its amount for the rial sign and the rest of its detail. */
   overpayment?: { amount: number; currency: string; rest: string | null } | null
+  /**
+   * On a bill recorded over possible duplicates: who did it, the bills it was said to differ from,
+   * each to be linked, and the reason as this reader may see it (withheld by the server unless they
+   * approve bills). Only this step names its actor: the approval asked for the override's actor
+   * (owner batches 12 and 13), and the other steps keep "by you" until the #824 names are ported.
+   */
+  duplicateOverride?: {
+    by: string | null
+    bills: { billId: string; number: string | null }[]
+    reason: string | null
+    reasonRecorded: boolean
+  } | null
 }
 
 /**
@@ -736,6 +748,7 @@ const KNOWN_KINDS = new Set([
   'CONFIRMED_DUPLICATE',
   'NOT_DUPLICATE',
   'REOPENED',
+  'DUPLICATE_OVERRIDDEN',
 ])
 
 /** A kind this page has no wording for reads "Recorded", as the invoice history does; never the key. */
@@ -786,6 +799,12 @@ export function activityOf(detail: BillDetailDto, userId: string | null): Activi
   return detail.activity.map((entry) => {
     const duplicateHeld =
       entry.kind === 'HELD' && entry.at !== null && duplicateOpenings.has(entry.at)
+    // The server's detail is the same bills' numbers as text; they are drawn as links instead.
+    const override =
+      entry.kind === 'DUPLICATE_OVERRIDDEN' && entry.duplicateOverride
+        ? entry.duplicateOverride
+        : null
+    const byYou = userId !== null && entry.actor === userId
     return {
       key: duplicateHeld
         ? 'billDetail.activity.kind.HELD_AS_DUPLICATE'
@@ -804,8 +823,17 @@ export function activityOf(detail: BillDetailDto, userId: string | null): Activi
               ? null
               : (detail.bill.match?.summary ?? null)
             : entry.detail,
-      byYou: userId !== null && entry.actor === userId,
+      byYou,
       overpayment: overpaymentStepOf(entry.kind, entry.detail),
+      duplicateOverride: override && {
+        by: byYou ? null : (entry.actorName ?? null),
+        bills: override.overriddenBills.map((bill) => ({
+          billId: bill.billId,
+          number: bill.billNumber,
+        })),
+        reason: override.reason ?? null,
+        reasonRecorded: override.reasonRecorded,
+      },
     }
   })
 }

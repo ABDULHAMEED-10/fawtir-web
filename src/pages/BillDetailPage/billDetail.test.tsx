@@ -3734,3 +3734,117 @@ describe('the reply line from the bill’s own peppol block (batch 39 EXP)', () 
     )
   })
 })
+
+// NOT RUN (batch 41, static only). FIN-6: RD 5312a71b ported onto wave B-2 without the #824 names;
+// owner batches 12 and 13 approved the reason, actor, time and overridden bills in Activity.
+describe('a bill recorded over possible duplicates, in its activity', () => {
+  const OTHER_A = '22222222-2222-2222-2222-22222222aaaa'
+  const OTHER_B = '22222222-2222-2222-2222-22222222bbbb'
+  const overridden = (
+    duplicateOverride?: NonNullable<BillDetailDto['activity'][number]['duplicateOverride']>,
+    detailText = 'INV-7, INV-8',
+    actor = 'u-2',
+  ) =>
+    json(
+      200,
+      detail({
+        activity: [
+          {
+            at: '2026-10-30T09:15:00Z',
+            kind: 'DUPLICATE_OVERRIDDEN',
+            detail: detailText,
+            actor,
+            actorName: 'Huda',
+            ...(duplicateOverride ? { duplicateOverride } : {}),
+          },
+        ],
+      }),
+    )
+  const bills = [
+    { billId: OTHER_A, billNumber: 'INV-7', issueDate: '2026-10-01' },
+    { billId: OTHER_B, billNumber: null, issueDate: null },
+  ]
+  const event = async () =>
+    (await screen.findByText(/Recorded over possible duplicates/)).closest('li') as HTMLElement
+
+  it('links each bill it was said to differ from, names who did it and shows an approver the reason', async () => {
+    billResponse = () =>
+      overridden({ overriddenBills: bills, reasonRecorded: true, reason: 'Second delivery, same week' })
+    renderBill()
+    const item = await event()
+    expect(within(item).getByRole('link', { name: 'INV-7' }).getAttribute('href')).toBe(
+      `/expenditure/bills/${OTHER_A}`,
+    )
+    // A bill with no number is still linked, by the word the credit-note rows use.
+    expect(
+      within(item).getByRole('link', { name: i18n.t('supplierCreditNotes.rows.unnumbered') }).getAttribute('href'),
+    ).toBe(`/expenditure/bills/${OTHER_B}`)
+    expect(within(item).getByText(/by Huda/)).toBeTruthy()
+    expect(within(item).getByText('Why: Second delivery, same week')).toBeTruthy()
+    expect(within(item).queryByText(/A reason was recorded/)).toBeNull()
+    // The server's own text of the same numbers is not drawn beside the links.
+    expect(within(item).queryByText(/INV-7, INV-8/)).toBeNull()
+  })
+
+  it('tells a reader who cannot approve only that a reason was kept', async () => {
+    billResponse = () => overridden({ overriddenBills: bills, reasonRecorded: true })
+    renderBill()
+    const item = await event()
+    expect(within(item).getByRole('link', { name: 'INV-7' })).toBeTruthy()
+    expect(within(item).getByText('A reason was recorded. Approvers can read it.')).toBeTruthy()
+    expect(within(item).queryByText(/^Why:/)).toBeNull()
+  })
+
+  it('shows no reason line for a historical override that took none', async () => {
+    billResponse = () => overridden({ overriddenBills: bills.slice(0, 1), reasonRecorded: false })
+    renderBill()
+    const item = await event()
+    expect(within(item).getByRole('link', { name: 'INV-7' })).toBeTruthy()
+    expect(within(item).queryByText(/^Why:/)).toBeNull()
+    expect(within(item).queryByText(/A reason was recorded/)).toBeNull()
+    expect(item.querySelectorAll('p')).toHaveLength(2)
+  })
+
+  it('says "by you" rather than the name when the reader made the override', async () => {
+    billResponse = () => overridden({ overriddenBills: bills.slice(0, 1), reasonRecorded: false }, 'INV-7', 'u-1')
+    renderBill()
+    const item = await event()
+    expect(within(item).getByText(/by you/)).toBeTruthy()
+    expect(within(item).queryByText(/by Huda/)).toBeNull()
+  })
+
+  it('reads an entry without the override block as text, as any other step', async () => {
+    billResponse = () => overridden(undefined, 'INV-7')
+    renderBill()
+    const item = await event()
+    expect(within(item).getByText(/^INV-7 · /)).toBeTruthy()
+    expect(within(item).queryByRole('link')).toBeNull()
+    expect(within(item).queryByText(/by Huda/)).toBeNull()
+    expect(item.querySelectorAll('p')).toHaveLength(2)
+  })
+
+  it('draws no override when the bill has none, and an unknown step keeps its fallback', async () => {
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          activity: [{ at: '2026-10-30T09:15:00Z', kind: 'BRAND_NEW', detail: null, actor: null }],
+        } as Parameters<typeof detail>[0]),
+      )
+    renderBill()
+    expect(await screen.findByText(new RegExp(i18n.t('invoiceDetails.event.other')))).toBeTruthy()
+    expect(screen.queryByText(/Recorded over possible duplicates/)).toBeNull()
+    expect(screen.queryByText(/^Why:/)).toBeNull()
+    expect(screen.queryByText(/A reason was recorded/)).toBeNull()
+  })
+
+  it('reads in Arabic', async () => {
+    billResponse = () => overridden({ overriddenBills: bills, reasonRecorded: true })
+    await i18n.changeLanguage('ar')
+    renderBill()
+    const item = (await screen.findByText(/سُجّلت رغم احتمال التكرار/)).closest('li') as HTMLElement
+    expect(within(item).getByRole('link', { name: 'INV-7' })).toBeTruthy()
+    expect(within(item).getByText('سُجّل سبب. يمكن للمعتمِدين الاطلاع عليه.')).toBeTruthy()
+    expect(within(item).queryByText(/Recorded over|A reason was recorded/)).toBeNull()
+  })
+})

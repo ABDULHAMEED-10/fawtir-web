@@ -560,8 +560,23 @@ export type BillDetailDto = {
       | 'CONFIRMED_DUPLICATE'
       // A rejection taken back (backend V523); its detail is the reason given.
       | 'REOPENED'
+      // Recorded over the possible duplicates it was refused for (backend 9e768276b).
+      | 'DUPLICATE_OVERRIDDEN'
     detail: string | null
     actor: string | null
+    /** `actor` by the team list's name; null when no person acted or they left the company. */
+    actorName?: string | null
+    /**
+     * On `DUPLICATE_OVERRIDDEN` only. The server sends `reason` only to a reader holding
+     * `invoice.approve` (owner batch 12); `reasonRecorded` says one was kept whoever reads. A
+     * historical single-field override took no reason (owner batch 13). A bill that no longer
+     * resolves is left out.
+     */
+    duplicateOverride?: {
+      overriddenBills: { billId: string; billNumber: string | null; issueDate: string | null }[]
+      reasonRecorded: boolean
+      reason?: string
+    }
   }[]
 }
 

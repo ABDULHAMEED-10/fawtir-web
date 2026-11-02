@@ -915,10 +915,32 @@ function BillScreen() {
                           {' '}
                           · {t('billDetail.activity.byYou')}
                         </span>
+                      ) : event.duplicateOverride?.by ? (
+                        <span className="font-medium text-text-quaternary">
+                          {' '}
+                          · {t('billDetail.activity.byName', { name: event.duplicateOverride.by })}
+                        </span>
                       ) : null}
                     </p>
                     <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">
-                      {event.overpayment ? (
+                      {event.duplicateOverride ? (
+                        <>
+                          {event.duplicateOverride.bills.map((other, at) => (
+                            <Fragment key={other.billId}>
+                              {at > 0 ? ', ' : null}
+                              <Link
+                                to={`/expenditure/bills/${other.billId}`}
+                                className="font-semibold text-primary-700 hover:underline"
+                              >
+                                {other.number ?? t('supplierCreditNotes.rows.unnumbered')}
+                              </Link>
+                            </Fragment>
+                          ))}
+                          {event.at
+                            ? `${event.duplicateOverride.bills.length > 0 ? ' · ' : ''}${formatInstant(event.at, language)}`
+                            : null}
+                        </>
+                      ) : event.overpayment ? (
                         // What became of an overpayment: its amount with its currency's sign.
                         <RialInText
                           currency={event.overpayment.currency}
@@ -939,6 +961,18 @@ function BillScreen() {
                         )
                       )}
                     </p>
+                    {event.duplicateOverride?.reason ? (
+                      <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">
+                        {t('billDetail.activity.overrideReason', {
+                          reason: event.duplicateOverride.reason,
+                        })}
+                      </p>
+                    ) : event.duplicateOverride?.reasonRecorded ? (
+                      // The server withholds the text from a reader who does not approve bills.
+                      <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">
+                        {t('billDetail.activity.reasonRecorded')}
+                      </p>
+                    ) : null}
                   </div>
                 </li>
               ))}
