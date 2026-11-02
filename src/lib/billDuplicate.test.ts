@@ -10,7 +10,7 @@ import {
 } from './billDuplicate'
 import { activityOf, canRecordPayment, decisionNoteOf, decisionsOf, stepsOf } from './billDetail'
 import { REFUSAL_FALLBACK_KEY, refusalMessageKey } from './expenditureRefusals'
-import { BILL_TABS, rowActionOf, toBillListItem, visibleBillTabs } from './billList'
+import { BILL_TABS, rowActionOf, toBillListItem, twinOf, visibleBillTabs } from './billList'
 import { billByNumber } from '../components/debit/noteBill'
 
 const ORIGINAL = '22222222-2222-2222-2222-222222222222'
@@ -401,5 +401,73 @@ describe('a bill credit settled with nothing paid (B-12)', () => {
     expect(
       decisionNoteOf({ ...base, settlement: { ...base.settlement, paidAmount: 40, creditedAmount: 60 } }),
     ).toEqual({ key: 'billDetail.decision.paid' })
+  })
+})
+
+describe('the duplicate-payable flag on the Bills list (EXP-38-1 interim)', () => {
+  const OTHER = '33333333-3333-3333-3333-333333333333'
+  const owed = { workflowState: 'AWAITING_APPROVAL' as const, hold: null }
+
+  it('flags an upload the server reads as a sure copy of a Peppol bill, and links the other copy', () => {
+    const item = toBillListItem(row({ ...owed, source: 'UPLOADED', duplicateOf: OTHER }))
+    expect(item.twin).toEqual({ certainty: 'sure', otherId: OTHER })
+    expect(item.status).toBe('awaitingApproval')
+  })
+
+  it('flags either side of a less certain pair as possible', () => {
+    expect(toBillListItem(row({ ...owed, possibleDuplicateOf: OTHER })).twin).toEqual({
+      certainty: 'possible',
+      otherId: OTHER,
+    })
+  })
+
+  it('says sure when the server sends both', () => {
+    expect(twinOf({ duplicateOf: OTHER, possibleDuplicateOf: ORIGINAL })).toEqual({
+      certainty: 'sure',
+      otherId: OTHER,
+    })
+  })
+
+  it('flags nothing on a plain bill, nor on a server before the fields', () => {
+    expect(toBillListItem(row(owed)).twin).toBeNull()
+    expect(toBillListItem(row({ ...owed, duplicateOf: null, possibleDuplicateOf: null })).twin).toBeNull()
+  })
+
+  it('leaves a held copy to its duplicate chip', () => {
+    const held = row({
+      possibleDuplicateOf: OTHER,
+      duplicateHold: { duplicateOfBillId: ORIGINAL, duplicateOfBillNumber: 'QMS-7781', resolution: null, sameDocumentUuid: false },
+    })
+    expect(toBillListItem(held).twin).toBeNull()
+  })
+
+  it('changes no action the row offers', () => {
+    const access = { canApprove: true, canCapture: true }
+    const plain = toBillListItem(row(owed))
+    const flagged = toBillListItem(row({ ...owed, duplicateOf: OTHER }))
+    expect(rowActionOf(flagged, access)).toBe(rowActionOf(plain, access))
+  })
+})
+
+// PRV-b39 E-1 (EXP 11103f65c): the upload whose Peppol copy is held is the bill to pay.
+describe('the upload whose Peppol copy is held for review', () => {
+  const HELD = '44444444-4444-4444-4444-444444444444'
+  const owed = { workflowState: 'AWAITING_APPROVAL' as const, hold: null }
+
+  it('says where its copy is and links it, never "the same as another bill"', () => {
+    const item = toBillListItem(row({ ...owed, source: 'UPLOADED', heldCopyId: HELD, duplicateOf: null }))
+    expect(item.twin).toEqual({ certainty: 'heldCopy', otherId: HELD })
+  })
+
+  it('wins over a stale duplicateOf sent alongside it', () => {
+    expect(twinOf({ heldCopyId: HELD, duplicateOf: ORIGINAL, possibleDuplicateOf: null })).toEqual({
+      certainty: 'heldCopy',
+      otherId: HELD,
+    })
+  })
+
+  it('reads as before on a server without the field, and after NOT_DUPLICATE (both null)', () => {
+    expect(twinOf({ duplicateOf: ORIGINAL })).toEqual({ certainty: 'sure', otherId: ORIGINAL })
+    expect(twinOf({ heldCopyId: null, duplicateOf: null, possibleDuplicateOf: null })).toBeNull()
   })
 })

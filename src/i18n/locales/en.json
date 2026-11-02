@@ -6089,7 +6089,12 @@
       "noDueDate": "No due date",
       "noOrderNote": "No order behind it",
       "noAmount": "No amount yet",
-      "queried": "Queried {{date}}"
+      "queried": "Queried {{date}}",
+      "twin": {
+        "sure": "Same supplier bill as another on file",
+        "possible": "May be the same supplier bill as another on file",
+        "heldCopy": "Its Peppol copy was flagged as a duplicate of this bill"
+      }
     },
     "state": {
       "newNotReviewed": "New, not reviewed",
