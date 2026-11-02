@@ -24371,6 +24371,55 @@
       "open": "See what's waiting"
     }
   },
+  "rejectedDocuments": {
+    "breadcrumb": "Rejected by Fawtir",
+    "title": "Rejected by Fawtir",
+    "subtitle": "Supplier documents Fawtir refused when they arrived",
+    "countTitle_one": "Fawtir rejected {{n}} supplier document",
+    "countTitle_other": "Fawtir rejected {{n}} supplier documents",
+    "explain": "Each one was answered with a rejection (RE) and did not become a bill, so nothing here is owed. The reason went to the supplier with the rejection: they can correct the document and send it again. The last column says whether the rejection has reached them.",
+    "noneTitle": "Nothing was rejected",
+    "noneBody": "Fawtir has not rejected any document your suppliers sent.",
+    "notStated": "Not stated",
+    "col": {
+      "sender": "Sent by",
+      "type": "Type",
+      "received": "Received",
+      "rejected": "Rejected",
+      "delivery": "Rejection sent to supplier"
+    },
+    "type": {
+      "plain": {
+        "INVOICE": "Invoice",
+        "CREDIT_NOTE": "Credit note"
+      },
+      "selfBilled": {
+        "INVOICE": "Self-billed invoice",
+        "CREDIT_NOTE": "Self-billed credit note"
+      }
+    },
+    "delivery": {
+      "sending": "Being sent to the supplier",
+      "awaitingReceipt": "Sent, awaiting receipt",
+      "delivered": "Delivered {{date}}",
+      "deliveredUndated": "Delivered",
+      "failed": "Could not be delivered",
+      "notQueued": "Not yet queued",
+      "unknown": "Status not known"
+    },
+    "pager": {
+      "nav": "Pages of rejected documents",
+      "previous": "Previous page",
+      "next": "Next page"
+    },
+    "banner": {
+      "title_one": "Fawtir rejected {{n}} supplier document when it arrived.",
+      "title_other": "Fawtir rejected {{n}} supplier documents when they arrived.",
+      "body": "They did not become bills.",
+      "open": "See rejected documents",
+      "dismiss": "Dismiss"
+    }
+  },
   "quotaWarning": {
     "near": {
       "title": "You have used {{percent}}% of this period's documents.",
