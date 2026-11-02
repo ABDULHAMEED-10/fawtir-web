@@ -134,6 +134,12 @@ export type BillRowDto = {
    * number, but another total or no VAT number to compare), for the user to confirm.
    */
   possibleDuplicateOf?: string | null
+  /**
+   * On an uploaded or scanned bill: its Peppol copy, held on an open duplicate hold that names it
+   * (undecided, or CONFIRMED_DUPLICATE, which never closes). While set, `duplicateOf` is null:
+   * this is the bill to pay (EXP batch 39, PRV-b39 E-1). Absent from a server before it.
+   */
+  heldCopyId?: string | null
 }
 
 export type DuplicateResolutionDto = 'CONFIRMED_DUPLICATE' | 'NOT_DUPLICATE'

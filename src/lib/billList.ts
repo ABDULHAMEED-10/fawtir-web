@@ -77,8 +77,11 @@ export type BillListItem = {
    * for a person to look at, never a decision, so the row offers no action of its own. Until ACC-8
    * (RC5) both copies stay owed bills; after it the Peppol copy is held. Null while a duplicate hold
    * already says more.
+   *
+   * `heldCopy` is the upload whose Peppol copy is held against it (`BillRow.heldCopyId`): the bill
+   * to pay, so it is told where its copy is, never that it is "the same as another bill".
    */
-  twin?: { certainty: 'sure' | 'possible'; otherId: string } | null
+  twin?: BillTwin | null
   canApprove: boolean
   currency: string
   amount: number | null
@@ -171,9 +174,14 @@ function statusOf(row: BillRowDto): BillStatusChip {
  * copy is two owed bills, and these read-time fields were their only sign, with no screen. A sure
  * pair wins over a possible one.
  */
+export type BillTwin = { certainty: 'heldCopy' | 'sure' | 'possible'; otherId: string }
+
 export function twinOf(
-  row: Pick<BillRowDto, 'duplicateOf' | 'possibleDuplicateOf'>,
-): { certainty: 'sure' | 'possible'; otherId: string } | null {
+  row: Pick<BillRowDto, 'duplicateOf' | 'possibleDuplicateOf' | 'heldCopyId'>,
+): BillTwin | null {
+  // Checked first: the server nulls duplicateOf while it is set, and a stale or older reply that
+  // sent both must still not call the bill to pay a duplicate.
+  if (row.heldCopyId) return { certainty: 'heldCopy', otherId: row.heldCopyId }
   if (row.duplicateOf) return { certainty: 'sure', otherId: row.duplicateOf }
   if (row.possibleDuplicateOf) return { certainty: 'possible', otherId: row.possibleDuplicateOf }
   return null

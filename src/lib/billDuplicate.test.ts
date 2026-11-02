@@ -448,3 +448,26 @@ describe('the duplicate-payable flag on the Bills list (EXP-38-1 interim)', () =
     expect(rowActionOf(flagged, access)).toBe(rowActionOf(plain, access))
   })
 })
+
+// PRV-b39 E-1 (EXP 11103f65c): the upload whose Peppol copy is held is the bill to pay.
+describe('the upload whose Peppol copy is held for review', () => {
+  const HELD = '44444444-4444-4444-4444-444444444444'
+  const owed = { workflowState: 'AWAITING_APPROVAL' as const, hold: null }
+
+  it('says where its copy is and links it, never "the same as another bill"', () => {
+    const item = toBillListItem(row({ ...owed, source: 'UPLOADED', heldCopyId: HELD, duplicateOf: null }))
+    expect(item.twin).toEqual({ certainty: 'heldCopy', otherId: HELD })
+  })
+
+  it('wins over a stale duplicateOf sent alongside it', () => {
+    expect(twinOf({ heldCopyId: HELD, duplicateOf: ORIGINAL, possibleDuplicateOf: null })).toEqual({
+      certainty: 'heldCopy',
+      otherId: HELD,
+    })
+  })
+
+  it('reads as before on a server without the field, and after NOT_DUPLICATE (both null)', () => {
+    expect(twinOf({ duplicateOf: ORIGINAL })).toEqual({ certainty: 'sure', otherId: ORIGINAL })
+    expect(twinOf({ heldCopyId: null, duplicateOf: null, possibleDuplicateOf: null })).toBeNull()
+  })
+})
