@@ -124,6 +124,20 @@ export function saleState(sale: PosTodaySaleRow): TodaySaleState {
   return sale.displayState
 }
 
+/**
+ * The badge's words. Batch 39 FIN-1 answers `failed` also for a company invoice the buyer's Peppol
+ * access point refused or could not be reached on: that invoice was issued and sent, so "Not filed"
+ * would be false. Only the pair `failed` + UNDELIVERABLE reads "Not delivered"; a server that sends
+ * no `peppolDelivery` keeps today's words.
+ */
+export function saleStateText(sale: PosTodaySaleRow): { key: string; hintKey?: string } {
+  const state = saleState(sale)
+  if (state === 'failed' && sale.filing?.peppolDelivery === 'UNDELIVERABLE') {
+    return { key: 'pos.today.state.notDelivered', hintKey: 'pos.today.state.notDeliveredHint' }
+  }
+  return { key: `pos.today.state.${state}` }
+}
+
 /** A second line under the amount: credited, a tip, change given, or who it was billed to. */
 export function amountNote(
   sale: PosTodaySaleRow,
