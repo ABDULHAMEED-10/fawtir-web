@@ -42,8 +42,8 @@ export function registerOfflineSigningKey(
 export type OfflineKeyRevoked = { keyId: string; revokedAt: string; filedSalesCount: number }
 
 /**
- * No body: the route at cf145c092 takes none, although WEB-MANIFEST §2.2 names a `reason`. Sending one
- * the server does not read would look as if it were kept (WEB.md Addendum 7, backend asks).
+ * No body: the route takes none (OFF/SEC confirmed at cf49f0447, WEB-MANIFEST §2.2), and with
+ * unknown properties refused a body would only risk a 400.
  */
 export function revokeOfflineSigningKey(keyId: string): Promise<OfflineKeyRevoked> {
   return apiRequest<OfflineKeyRevoked>(
