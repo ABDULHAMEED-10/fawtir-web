@@ -7193,6 +7193,10 @@
     }
   },
   "supplierCreditNotes": {
+    "waitingDuplicate": {
+      "onBill": "Waiting for the duplicate decision on bill {{number}}",
+      "onItsBill": "Waiting for the duplicate decision on its bill"
+    },
     "title": "Credit Notes",
     "subtitle": "Money your suppliers owe back for short deliveries, damage, overcharges or returns. Each one lowers what you owe on a bill, or sits as credit until you use it.",
     "allSuppliers": "All suppliers",

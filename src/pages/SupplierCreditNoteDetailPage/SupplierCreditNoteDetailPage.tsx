@@ -354,6 +354,17 @@ function CreditNoteDetail() {
             <StatusChip className={CHIP[chip.tone]} label={t(chip.labelKey)} />
             <KindBadge sign={'−'} label={t(`supplierNotes.kind.credit.${item.source}`)} />
           </div>
+          {item.waitingForDecisionOn ? (
+            <Link
+              to={`/expenditure/bills/${item.waitingForDecisionOn}`}
+              data-testid="credit-note-waiting-duplicate"
+              className="mt-2 inline-block text-sm font-semibold leading-[1.4] text-pending-700 hover:underline"
+            >
+              {billNumber
+                ? t('supplierCreditNotes.waitingDuplicate.onBill', { number: billNumber })
+                : t('supplierCreditNotes.waitingDuplicate.onItsBill')}
+            </Link>
+          ) : null}
           <p className="mt-2 text-sm font-medium leading-[1.4] text-text-tertiary">
             {t('supplierCreditNotes.detail.from')}{' '}
             <span className="font-semibold text-text-secondary">
