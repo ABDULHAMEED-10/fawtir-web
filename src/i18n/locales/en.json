@@ -21415,7 +21415,7 @@
     "twin": {
       "sure": "Same supplier bill as another on file",
       "possible": "May be the same supplier bill as another on file",
-      "heldCopy": "Its Peppol copy is on hold for review"
+      "heldCopy": "Its Peppol copy was flagged as a duplicate of this bill"
     },
     "tickDueBy": "Tick everything due by",
     "tickNote": "are in this run. Ticking a bill adds it to the run straight away; unticking takes it out.",

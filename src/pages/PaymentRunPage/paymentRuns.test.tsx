@@ -2159,7 +2159,7 @@ describe('a candidate that may be the same supplier bill as another (batch 39 EX
         ? json(200, [{ ...candidate('b-1', 'MR-2'), heldCopyId: 'b-held', duplicateOf: null }])
         : null
     renderAt(`/expenditure/payments/${RUN_ID}`)
-    const held = await screen.findByText('Its Peppol copy is on hold for review', undefined, {
+    const held = await screen.findByText('Its Peppol copy was flagged as a duplicate of this bill', undefined, {
       timeout: 8000,
     })
     expect(held.closest('a')!.getAttribute('href')).toBe('/expenditure/bills/b-held')
