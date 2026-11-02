@@ -4652,6 +4652,7 @@
       "salesCount_other": "{{count}} sales",
       "nothingYet": "No sales on this day yet.",
       "shiftOf": "{{who}}’s shift · Till {{till}}",
+      "shiftUnverified": "Shift (cashier not verified) · Till {{till}}",
       "pages": "Pages of sales",
       "previous": "Previous page",
       "next": "Next page",

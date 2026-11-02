@@ -299,10 +299,9 @@ function Today({ till }: { till: Ready }) {
             <div key={group.shiftId}>
               <div className="flex flex-wrap items-center justify-between gap-3 bg-surface-background px-6 py-2.5">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-quaternary">
-                  {t('pos.today.shiftOf', {
-                    who: group.cashier || t('pos.offline.pending'),
-                    till: group.tillNumber,
-                  })}
+                  {group.cashier
+                    ? t('pos.today.shiftOf', { who: group.cashier, till: group.tillNumber })
+                    : t('pos.today.shiftUnverified', { till: group.tillNumber })}
                 </p>
                 <p className="text-xs font-medium text-text-quaternary">
                   {t('pos.today.groupTotal', {
