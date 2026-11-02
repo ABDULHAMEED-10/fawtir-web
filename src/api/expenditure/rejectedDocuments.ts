@@ -1,5 +1,4 @@
 import { apiRequest, withQuery } from '..'
-import type { MlsTransportState } from './bills'
 
 /**
  * Supplier documents our access point refused on arrival with MLS `RE`
@@ -29,8 +28,12 @@ export type RejectedDocumentDto = {
   /** When the single permitted MLS was claimed for RE. */
   rejectedAt: string | null
   mlsCode: 'RE'
-  /** Whether our RE reached the sender; null when its row is not there. */
-  mlsTransportState: MlsTransportState | (string & {}) | null
+  /**
+   * Whether our RE reached the sender (backend `MessageState`); null when its row is not there.
+   * A plain string: the typed union arrives with fix/b39-web-bill-peppol-status, and this unit must
+   * compile without it.
+   */
+  mlsTransportState: string | null
   /** Set only once the RE is DELIVERED. */
   mlsDeliveredAt: string | null
 }

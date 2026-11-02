@@ -33,3 +33,34 @@ export function rejectionDelivery(
 export function rejectedTypeKey(item: Pick<RejectedDocumentDto, 'documentType' | 'selfBilling'>): string {
   return `rejectedDocuments.type.${item.selfBilling ? 'selfBilled' : 'plain'}.${item.documentType}`
 }
+
+/**
+ * The Bills banner counts every RE ever recorded (the server has no "since" filter), so without
+ * this it would never go away after a company's first rejection (PRV-b39 W-L4). Each viewer may
+ * dismiss it; it comes back only when the total grows past what they dismissed, that is, when a
+ * new document is rejected. Kept per viewer in this browser only: a convenience, not a record.
+ */
+export function rejectedSeenKey(tenantId: string, userId: string): string {
+  return `fawtir.rejectedDocuments.seen.${tenantId}.${userId}`
+}
+
+export function readRejectedSeen(key: string): number {
+  try {
+    const value = Number.parseInt(window.localStorage.getItem(key) ?? '', 10)
+    return Number.isFinite(value) && value > 0 ? value : 0
+  } catch {
+    return 0
+  }
+}
+
+export function writeRejectedSeen(key: string, total: number): void {
+  try {
+    window.localStorage.setItem(key, String(total))
+  } catch {
+    // Storage blocked: the banner still hides for this visit, through component state.
+  }
+}
+
+export function rejectedBannerShows(total: number, seen: number): boolean {
+  return total > 0 && total > seen
+}

@@ -24368,7 +24368,8 @@
       "title_one": "Fawtir rejected {{n}} supplier document when it arrived.",
       "title_other": "Fawtir rejected {{n}} supplier documents when they arrived.",
       "body": "They did not become bills.",
-      "open": "See rejected documents"
+      "open": "See rejected documents",
+      "dismiss": "Dismiss"
     }
   },
   "quotaWarning": {

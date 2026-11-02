@@ -5,7 +5,14 @@ import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import { resetSharedRequests } from '../../api'
 import { rejectedDocumentsPath } from '../../api/expenditure/rejectedDocuments'
-import { rejectedTypeKey, rejectionDelivery } from '../../lib/rejectedDocuments'
+import {
+  readRejectedSeen,
+  rejectedBannerShows,
+  rejectedSeenKey,
+  rejectedTypeKey,
+  rejectionDelivery,
+  writeRejectedSeen,
+} from '../../lib/rejectedDocuments'
 import { formatInstant } from '../../lib/format'
 import { RejectedDocumentsPage } from './RejectedDocumentsPage'
 import { BillsPage } from '../BillsPage'
@@ -71,6 +78,7 @@ let fetchMock: ReturnType<typeof vi.fn>
 
 beforeEach(async () => {
   await i18n.changeLanguage('en')
+  window.localStorage.clear()
   resetSharedRequests()
   forgetEntitlements()
   me = session(['invoice.read'])
@@ -230,5 +238,47 @@ describe('the count on the Bills list', () => {
       expect(fetchMock.mock.calls.filter((call) => String(call[0]) === BANNER).length).toBe(2),
     )
     expect(screen.queryByTestId('rejected-documents-banner')).toBeNull()
+  })
+})
+
+// PRV-b39 W-L4: the total counts every RE ever recorded, so the banner must be able to go away.
+describe('the rejected banner can be dismissed until a new document is rejected', () => {
+  it('shows only when the total has grown past what this viewer dismissed', () => {
+    expect(rejectedBannerShows(0, 0)).toBe(false)
+    expect(rejectedBannerShows(2, 0)).toBe(true)
+    expect(rejectedBannerShows(2, 2)).toBe(false)
+    expect(rejectedBannerShows(3, 2)).toBe(true)
+  })
+
+  it('reads a missing or unreadable record as nothing dismissed', () => {
+    expect(readRejectedSeen(rejectedSeenKey('t-1', 'u-1'))).toBe(0)
+    window.localStorage.setItem(rejectedSeenKey('t-1', 'u-1'), 'not a number')
+    expect(readRejectedSeen(rejectedSeenKey('t-1', 'u-1'))).toBe(0)
+  })
+
+  it('hides on dismiss, stays hidden on the next visit, and comes back for a new rejection', async () => {
+    const first = renderAt('/expenditure/bills')
+    fireEvent.click(await screen.findByTestId('rejected-documents-banner-dismiss'))
+    expect(screen.queryByTestId('rejected-documents-banner')).toBeNull()
+    expect(window.localStorage.getItem(rejectedSeenKey('t-1', 'u-1'))).toBe('2')
+    first.unmount()
+
+    resetSharedRequests()
+    const second = renderAt('/expenditure/bills')
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.filter((call) => String(call[0]) === BANNER).length).toBe(2),
+    )
+    expect(screen.queryByTestId('rejected-documents-banner')).toBeNull()
+    second.unmount()
+
+    resetSharedRequests()
+    answers[BANNER] = () => json(200, pageOf([ROW], 3, 0, 1))
+    renderAt('/expenditure/bills')
+    expect(await screen.findByTestId('rejected-documents-banner')).toBeTruthy()
+  })
+
+  it('keeps one viewer’s dismissal from hiding it for another', () => {
+    writeRejectedSeen(rejectedSeenKey('t-1', 'u-1'), 5)
+    expect(readRejectedSeen(rejectedSeenKey('t-1', 'u-2'))).toBe(0)
   })
 })

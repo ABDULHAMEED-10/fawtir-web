@@ -77,6 +77,12 @@ import {
   rejectedDocumentsPath,
   type RejectedPageDto,
 } from '../../api/expenditure/rejectedDocuments'
+import {
+  readRejectedSeen,
+  rejectedBannerShows,
+  rejectedSeenKey,
+  writeRejectedSeen,
+} from '../../lib/rejectedDocuments'
 import { formatAmount, formatCount, formatDate, formatInstantDay } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
 import kpiAttentionIcon from '../../assets/bills/kpi-attention.svg'
@@ -957,8 +963,16 @@ function RejectedDocumentsCount() {
   const rejected = useApiRead<RejectedPageDto>(REJECTED_BANNER_PATH, () =>
     loadRejectedDocuments(REJECTED_BANNER_PATH),
   )
-  if (rejected.read.status !== 'ready' || rejected.read.data.total <= 0) return null
+  const session = useSession()
+  const seenKey = session ? rejectedSeenKey(session.tenantId, session.userId) : null
+  const [seen, setSeen] = useState(() => (seenKey ? readRejectedSeen(seenKey) : 0))
+  if (rejected.read.status !== 'ready') return null
   const total = rejected.read.data.total
+  if (!rejectedBannerShows(total, seen)) return null
+  const dismiss = () => {
+    if (seenKey) writeRejectedSeen(seenKey, total)
+    setSeen(total)
+  }
   return (
     <div
       role="status"
@@ -980,6 +994,14 @@ function RejectedDocumentsCount() {
       >
         {t('rejectedDocuments.banner.open')}
       </Link>
+      <button
+        type="button"
+        onClick={dismiss}
+        data-testid="rejected-documents-banner-dismiss"
+        className="inline-flex h-[38px] shrink-0 items-center rounded-sm px-3 text-sm font-semibold text-text-tertiary transition-colors hover:text-text-secondary"
+      >
+        {t('rejectedDocuments.banner.dismiss')}
+      </button>
     </div>
   )
 }
