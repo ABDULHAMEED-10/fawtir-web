@@ -20,7 +20,13 @@ const id = (value: string) => encodeURIComponent(value)
 
 export type PosPerson = { userId: string; name: string | null }
 
-export type PosSeries = { series: string; year: number; nextValue: number }
+export type PosSeries = {
+  series: string
+  year: number
+  nextValue: number
+  /** The tenant zone `year` is counted in; an older server leaves it out. */
+  timeZone?: string
+}
 
 /** `PosTill`. */
 export type PosTillDto = {
@@ -713,6 +719,8 @@ export type PosRefundDto = {
   totals: PosTotals
   warnings: PosWarning[]
   replayed?: boolean
+  /** `lineNumber` is the credit note's line (1..n), `originalLineNumber` the sale's. */
+  lines?: { lineNumber: number; originalLineNumber: number }[]
 }
 
 export function refundLookupPath(invoiceNumber: string): string {

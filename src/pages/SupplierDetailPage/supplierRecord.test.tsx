@@ -1242,6 +1242,50 @@ describe('Record a bill (Figma 163:27781)', () => {
     expect(uploaded()).toHaveLength(0)
   })
 
+  it('saves a bill with no file over two possible duplicates under a new key', async () => {
+    const succeed = confirmResponse
+    const bill = (id: string) => ({
+      billId: id,
+      supplierBillNumber: 'QMS-2050',
+      issueDate: '2026-09-01',
+      total: 105,
+      currencyCode: 'OMR',
+      source: 'UPLOADED',
+    })
+    confirmResponse = () =>
+      new Response(
+        JSON.stringify({
+          type: 'about:blank',
+          status: 409,
+          code: 'BILL_INTAKE_POSSIBLE_DUPLICATE',
+          duplicateOf: bill('bill-old'),
+          duplicates: [bill('bill-old'), bill('bill-older')],
+        }),
+        { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+    await typeBill()
+    send()
+    const all = await screen.findByRole('button', { name: 'They are all different bills. Save it' })
+    confirmResponse = succeed
+    await waitFor(() => expect((all as HTMLButtonElement).disabled).toBe(false))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Why is this a different bill?' }), {
+      target: { value: 'Reissued number' },
+    })
+    fireEvent.click(all)
+
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    const posted = calls('POST', '/api/v1/bills').filter(([url]) => url === '/api/v1/bills')
+    expect(posted).toHaveLength(2)
+    expect(JSON.parse(String(posted[1][1]?.body))).toMatchObject({
+      notDuplicateOf: null,
+      notDuplicateOfIds: ['bill-old', 'bill-older'],
+      overrideReason: 'Reissued number',
+    })
+    const key = (call: (typeof posted)[number]) =>
+      ((call[1] as RequestInit).headers as Record<string, string>)['Idempotency-Key']
+    expect(key(posted[1])).not.toBe(key(posted[0]))
+  })
+
   it('retries a refused save on the intake it already uploaded, not on a new one', async () => {
     const succeed = confirmResponse
     confirmResponse = refused

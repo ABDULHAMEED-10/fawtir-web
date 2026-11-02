@@ -2143,3 +2143,175 @@ describe('the recovered card counts notes in the right number (C-9)', () => {
     expect(i18n.getFixedT(language)('supplierCreditNotes.kpi.recoveredMeta', { count })).toBe(words)
   })
 })
+
+/**
+ * A supplier refund carries an Idempotency-Key (backend P0, 2026-10-31; owner option 3): one key
+ * per refund the person means to record, kept across a second click and a retry after a lost
+ * answer, and fresh for the next refund. The stub below plays the server: it records once per key.
+ */
+describe('a supplier refund is recorded once, whatever the network does', () => {
+  type Answer = 'ok' | 'slow' | 'lost' | 'reused' | 'inProgress'
+  let sent: { key: string | null; body: unknown }[]
+  let answers: Answer[]
+  let recorded: Map<string, string>
+
+  const conflict = (code: string) =>
+    new Response(
+      JSON.stringify({
+        type: 'https://api.fawtir.om/problems/resource-conflict',
+        status: 409,
+        error: code,
+        trace_id: 'trace-9',
+      }),
+      { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+    )
+
+  beforeEach(() => {
+    sent = []
+    answers = []
+    recorded = new Map()
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.includes(`/credit-notes/${NOTE_ID}/refund`) && init?.method === 'POST') {
+        const key = new Headers(init.headers).get('Idempotency-Key')
+        sent.push({ key, body: JSON.parse(String(init.body)) })
+        const answer = answers.shift() ?? 'ok'
+        if (answer === 'reused') return conflict('CREDIT_NOTE_REFUND_IDEMPOTENCY_KEY_REUSED')
+        if (answer === 'inProgress') return conflict('CREDIT_NOTE_REFUND_IN_PROGRESS')
+        if (answer === 'slow') await new Promise((resolve) => setTimeout(resolve, 50))
+        if (key !== null && !recorded.has(key)) recorded.set(key, String(init.body))
+        if (answer === 'lost') throw new TypeError('Failed to fetch')
+        return json(200, {
+          settlement: {},
+          status: 'UNAPPLIED',
+          balance: { applied: 0, refunded: 50, remaining: 150 },
+        })
+      }
+      return base(input, init)
+    })
+  })
+
+  const noteReads = () =>
+    fetchMock.mock.calls.filter(([input, init]) => {
+      const url = String(input)
+      return url.endsWith(`/credit-notes/${NOTE_ID}`) && (init?.method ?? 'GET') === 'GET'
+    }).length
+
+  const recordButton = () =>
+    screen.getByRole('button', { name: i18n.t('supplierCreditNoteDetail.refundCta') })
+
+  /** Opens the form when it is not already open, and fills it the same way each time. */
+  async function fill(amount = '50') {
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    if (!screen.queryByRole('button', { name: i18n.t('supplierCreditNoteDetail.refundCta') })) {
+      fireEvent.click(
+        await screen.findByRole('button', { name: i18n.t('supplierCreditNotes.detail.askRefund') }),
+      )
+    }
+    fireEvent.change(screen.getByLabelText(i18n.t('supplierCreditNoteDetail.amount')), {
+      target: { value: amount },
+    })
+    fireEvent.click(screen.getByLabelText(i18n.t('supplierCreditNoteDetail.paidOn')))
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('common.datePicker.today') }))
+  }
+
+  const settled = () => waitFor(() => expect(recordButton()).toHaveProperty('disabled', false))
+
+  it('sends one request with one key for a double click', async () => {
+    answers = ['slow']
+    renderDetail()
+    await fill()
+    // The same element twice: once pressed it reads Saving, so it cannot be found by its name.
+    const button = recordButton()
+    fireEvent.click(button)
+    fireEvent.click(button)
+    await waitFor(() => expect(recorded.size).toBe(1))
+    expect(sent).toHaveLength(1)
+    expect(sent[0].key).toMatch(/^credit-refund-[A-Za-z0-9._:-]{16,}$/)
+  })
+
+  it('retries a lost answer under the same key, and the server replays instead of recording twice', async () => {
+    answers = ['lost', 'ok']
+    renderDetail()
+    await fill()
+    fireEvent.click(recordButton())
+    // The first request was recorded, but its answer never came back.
+    await waitFor(() => expect(sent).toHaveLength(1))
+    await settled()
+    fireEvent.click(recordButton())
+    await waitFor(() => expect(sent).toHaveLength(2))
+    expect(sent[1].key).toBe(sent[0].key)
+    expect(sent[1].body).toEqual(sent[0].body)
+    expect(recorded.size).toBe(1)
+  })
+
+  it('gives each intended refund its own key, and the next refund after a success a fresh one', async () => {
+    renderDetail()
+    await fill('50')
+    fireEvent.click(recordButton())
+    await waitFor(() => expect(sent).toHaveLength(1))
+    // The form closes on success; asking again is a new refund.
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: i18n.t('supplierCreditNoteDetail.refundCta') })).toBeNull(),
+    )
+    await fill('50')
+    fireEvent.click(recordButton())
+    await waitFor(() => expect(sent).toHaveLength(2))
+    expect(sent[1].key).not.toBe(sent[0].key)
+    expect(recorded.size).toBe(2)
+  })
+
+  it.each([
+    [
+      'en',
+      'This refund was changed after an earlier attempt that may already be recorded. Check the refunds on this note before recording it again: the next attempt counts as a new refund.',
+    ],
+    [
+      'ar',
+      'تغيّر هذا الاسترداد بعد محاولة سابقة ربما سُجّلت بالفعل. راجع عمليات الاسترداد على هذا الإشعار قبل تسجيله مرة أخرى: ستُعدّ المحاولة التالية استردادًا جديدًا.',
+    ],
+  ])('on KEY_REUSED says so, reads the note again and mints a new key (%s)', async (lang, sentence) => {
+    await i18n.changeLanguage(lang)
+    answers = ['reused', 'ok']
+    renderDetail()
+    await fill()
+    const readsBefore = noteReads()
+    fireEvent.click(recordButton())
+    expect(await screen.findByText(new RegExp(`^${sentence}`))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('apiErrors.conflict'))).toBeNull()
+    await waitFor(() => expect(noteReads()).toBeGreaterThan(readsBefore))
+    await fill()
+    fireEvent.click(recordButton())
+    await waitFor(() => expect(sent).toHaveLength(2))
+    expect(sent[1].key).not.toBe(sent[0].key)
+    expect(recorded.size).toBe(1)
+  })
+
+  it.each([
+    [
+      'en',
+      'This refund is still being recorded. Wait a moment, then press Record the refund again without changing it.',
+    ],
+    [
+      'ar',
+      'لا يزال هذا الاسترداد قيد التسجيل. انتظر قليلًا، ثم اضغط «سجّل الاسترداد» مرة أخرى دون تغييره.',
+    ],
+  ])('on IN_PROGRESS says to wait and press again, and keeps the key (%s)', async (lang, sentence) => {
+    await i18n.changeLanguage(lang)
+    answers = ['inProgress', 'ok']
+    renderDetail()
+    await fill()
+    const readsBefore = noteReads()
+    fireEvent.click(recordButton())
+    expect(await screen.findByText(new RegExp(`^${sentence}`))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('apiErrors.conflict'))).toBeNull()
+    await settled()
+    expect(noteReads()).toBe(readsBefore)
+    fireEvent.click(recordButton())
+    await waitFor(() => expect(sent).toHaveLength(2))
+    expect(sent[1].key).toBe(sent[0].key)
+    expect(sent[1].body).toEqual(sent[0].body)
+    expect(recorded.size).toBe(1)
+  })
+})

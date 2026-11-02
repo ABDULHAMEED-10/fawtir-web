@@ -316,7 +316,9 @@ export function movementTime(
 
 export type MovementKind = 'sold' | 'writtenOff' | 'returned' | 'delivered' | 'corrected'
 
-export function movementKind(movement: Pick<StockMovementDto, 'type'>): MovementKind {
+export function movementKind(
+  movement: Pick<StockMovementDto, 'type' | 'quantityChange'>,
+): MovementKind {
   switch (movement.type) {
     case 'SALE':
       return 'sold'
@@ -326,13 +328,17 @@ export function movementKind(movement: Pick<StockMovementDto, 'type'>): Movement
       return 'returned'
     case 'RECEIPT':
       return 'delivered'
+    case 'CANCEL_REVERSAL':
+      return movement.quantityChange > 0 ? 'returned' : 'sold'
     default:
       return 'corrected'
   }
 }
 
 /** The movement's title in words. */
-export function movementTitleKey(movement: Pick<StockMovementDto, 'type' | 'source'>): string {
+export function movementTitleKey(
+  movement: Pick<StockMovementDto, 'type' | 'source' | 'quantityChange'>,
+): string {
   switch (movement.type) {
     case 'SALE':
       return movement.source.type === 'POS_SALE'
@@ -346,6 +352,10 @@ export function movementTitleKey(movement: Pick<StockMovementDto, 'type' | 'sour
       return movement.source.type === 'DELIVERY'
         ? 'stockItem.live.deliveryRecorded'
         : 'stockItem.deliveryCheckedIn'
+    case 'CANCEL_REVERSAL':
+      return movement.quantityChange > 0
+        ? 'stockItem.live.cancelSaleBack'
+        : 'stockItem.live.cancelReturnOff'
     default:
       return 'stockItem.countCorrected'
   }

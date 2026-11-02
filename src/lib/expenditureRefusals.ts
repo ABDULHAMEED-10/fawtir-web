@@ -146,6 +146,11 @@ const CONFLICT_REFUSALS: Record<string, string> = {
   // `/apply` or `/refund` on a note held as a later Peppol copy (backend V493), reached when the
   // hold opened after the screen was read.
   CREDIT_NOTE_HELD_AS_DUPLICATE: 'supplierCreditNotes.held.refused',
+  // A keyed `/refund` (backend P0, 2026-10-31): the key was used for other figures, or its first
+  // request is still running. Neither is "reload and try again": the first needs the person to
+  // check what was recorded, the second to press again unchanged, which the server replays.
+  CREDIT_NOTE_REFUND_IDEMPOTENCY_KEY_REUSED: 'supplierCreditNoteDetail.refundKeyReused',
+  CREDIT_NOTE_REFUND_IN_PROGRESS: 'supplierCreditNoteDetail.refundInProgress',
   // A held Peppol copy (backend V493): deciding it, and the plain release it refuses.
   BILL_DUPLICATE_ALREADY_RESOLVED: 'billDetail.duplicate.refused.alreadyResolved',
   BILL_NOT_HELD_AS_DUPLICATE: 'billDetail.duplicate.refused.notHeld',

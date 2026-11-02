@@ -62,6 +62,7 @@ import {
   type PeriodId,
 } from '../../lib/invoiceList'
 import { NOTE_ROUTES, type NoteListStatus } from '../../lib/salesNote'
+import { noteCancelRefusalKey } from '../../lib/invoiceDetail'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatCount, formatDate } from '../../lib/format'
 import { can, mayRequest, useSession } from '../../lib/session/session'
@@ -421,7 +422,9 @@ function InvoicesScreen() {
       salesSummary.retry()
       list.retry()
     } catch (error) {
-      setNotice({ body: failureText(t, error) })
+      const kind = cancelling.type === 'CREDIT_NOTE' || cancelling.type === 'DEBIT_NOTE' ? cancelling.type : null
+      const blocked = kind ? noteCancelRefusalKey(error, kind) : null
+      setNotice({ body: blocked ? t(blocked) : failureText(t, error) })
       closeCancel()
       list.retry()
     } finally {

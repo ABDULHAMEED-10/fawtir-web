@@ -14,6 +14,7 @@ import {
   type SlipPhoto,
 } from './posSlipOutbox'
 import { refusalValues } from './posRefusals'
+import { BUSINESS_TIME_ZONE } from './format'
 import { forgetBuyer, openBuyer, sealBuyer } from './posVault'
 
 /**
@@ -75,7 +76,8 @@ export type QueuedSale = {
 
 const QUEUE_KEY = 'fawtir.pos.queue'
 const NUMBER_NOTES_KEY = 'fawtir.pos.numberNotes'
-const nextKey = (tillId: string) => `fawtir.pos.next.${tillId}`
+const legacyNextKey = (tillId: string) => `fawtir.pos.next.${tillId}`
+const nextKey = (tillId: string, prefix: string) => `fawtir.pos.next.${tillId}.${prefix}`
 
 function read<T>(key: string, fallback: T): T {
   try {
@@ -90,7 +92,7 @@ function write(key: string, value: unknown) {
   try {
     window.localStorage.setItem(key, JSON.stringify(value))
   } catch {
-    // A till without storage still sells online; the queue lives in memory for this tab.
+    // A till without storage still sells online.
   }
 }
 
@@ -205,10 +207,55 @@ let queue: QueuedSale[] =
   typeof window === 'undefined' ? [] : read<QueuedSale[]>(QUEUE_KEY, []).map(revived)
 const listeners = new Set<() => void>()
 
+/** The queue text this tab last read or wrote; undefined until it has. */
+let seenText: string | null | undefined
+/** False once a write failed: this tab's memory then holds sales storage does not, and stays in charge. */
+let storageHoldsQueue = true
+
+/**
+ * The queue as storage holds it now. Another tab of the till (or a second window) writes the same key,
+ * and this tab used to keep the copy it loaded and write it back whole: a sale the other tab had queued,
+ * printed and not yet sent vanished from the device, and its number with it (B37 OFF-4). Every change
+ * is made to this fresh copy, in the same task as its write.
+ */
+function synced(): QueuedSale[] {
+  if (typeof window === 'undefined' || !storageHoldsQueue) return queue
+  let text: string | null
+  try {
+    text = window.localStorage.getItem(QUEUE_KEY)
+  } catch {
+    return queue
+  }
+  if (text === seenText) return queue
+  try {
+    queue = text ? (JSON.parse(text) as QueuedSale[]).map(revived) : []
+    seenText = text
+  } catch {
+    // Unreadable text is never taken for an empty queue: this tab keeps what it has.
+  }
+  return queue
+}
+
 function save(next: QueuedSale[]) {
   queue = next
-  write(QUEUE_KEY, next)
+  const text = JSON.stringify(next)
+  try {
+    window.localStorage.setItem(QUEUE_KEY, text)
+    seenText = text
+    storageHoldsQueue = true
+  } catch {
+    // A till without storage still sells online; the queue lives in memory for this tab.
+    storageHoldsQueue = false
+  }
   listeners.forEach((listener) => listener())
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.key !== QUEUE_KEY && event.key !== null) return
+    const before = queue
+    if (synced() !== before) listeners.forEach((listener) => listener())
+  })
 }
 
 /** The number's running part: `NZW-T01-INV-2026-000123` is 123. */
@@ -222,27 +269,91 @@ export function formatTillNumber(series: string, year: number, value: number): s
   return `${series}-${year}-${String(value).padStart(6, '0')}`
 }
 
-/** The next number this till will print offline: the server's, or further on if it sold since. */
-export function nextTillNumber(till: PosTillDto): string | null {
-  const series = till.series?.INVOICE
-  if (!series) return null
-  const local = read<number>(nextKey(till.id), 0)
-  const queued = queue
-    .filter((entry) => entry.tillId === till.id)
-    .map((entry) => (numberValue(entry.number) ?? 0) + 1)
-  const value = Math.max(series.nextValue, local, ...queued)
-  return formatTillNumber(series.series, series.year, value)
+/** `NZW-T01-INV-2026-000123` is `NZW-T01-INV-2026`: the series and year one sequence runs in. */
+export function numberPrefix(invoiceNumber: string): string | null {
+  const match = /^(.+-\d{4})-\d+$/.exec(invoiceNumber)
+  return match ? match[1] : null
 }
 
-/** After a sale is numbered, offline numbering continues from the one after it. */
+/**
+ * The sale's year in the zone the server counts the till's series in (`series.timeZone`, the tenant's
+ * business zone), so a tenant outside Oman is not numbered on Muscat's new year (B37 OFF-6). Asia/Muscat
+ * only for a server that does not say. A zone this browser cannot read gives no year, so no offline
+ * number, rather than a guess that could be refused for good.
+ */
+function businessYear(instant: string | undefined, timeZone: string | undefined): number | null {
+  const at = instant ? new Date(instant) : new Date()
+  try {
+    const year = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timeZone ?? BUSINESS_TIME_ZONE,
+      year: 'numeric',
+    }).format(Number.isNaN(at.getTime()) ? new Date() : at)
+    return Number(year)
+  } catch {
+    return null
+  }
+}
+
+function removeStored(key: string) {
+  try {
+    window.localStorage.removeItem(key)
+  } catch {
+    // Nothing stored, nothing to forget.
+  }
+}
+
+/**
+ * A counter written before it was kept per series and year (B36 OFF-1) belongs to no year, so it is
+ * adopted once, into the sequence in use now, and dropped. Adopting it at the first read after the
+ * update, rather than ignoring it, keeps a till with a stale `nextValue` from reprinting a number it
+ * has already used this year; it can only be wrong for a device left unused across both the update
+ * and a new year, and then it prints too high (a gap the server refuses), never a repeat.
+ */
+function adoptLegacyCounter(tillId: string, prefix: string) {
+  const legacy = read<number | null>(legacyNextKey(tillId), null)
+  if (typeof legacy !== 'number') return
+  if (legacy > read<number>(nextKey(tillId, prefix), 0)) write(nextKey(tillId, prefix), legacy)
+  removeStored(legacyNextKey(tillId))
+}
+
+/**
+ * The next number this till will print offline: the server's, or further on if it sold since.
+ *
+ * The server numbers each series per year from 1 and refuses a number whose year is not the sale's
+ * business year (`InvoiceNumberAdapter.claimTillNumber`, POS_TILL_NUMBER_WRONG_SERIES), so only this
+ * year's counter and this year's queued numbers count. When the till's series is of another year
+ * than the sale (it was read before midnight and the till has been offline since) this device does
+ * not know where the new year's sequence stands, and any number it printed could repeat one the
+ * server already gave: no number, so no receipt, until the till is read again online (B36 OFF-1).
+ * Before, the old year was printed on a new-year sale and refused for good, and once the year was
+ * read again the old year's counter carried over and left a gap every later sale waited behind.
+ */
+export function nextTillNumber(till: PosTillDto, soldAt?: string): string | null {
+  const series = till.series?.INVOICE
+  if (!series) return null
+  const year = businessYear(soldAt, series.timeZone)
+  if (year == null || series.year !== year) return null
+  const prefix = `${series.series}-${year}`
+  adoptLegacyCounter(till.id, prefix)
+  const local = read<number>(nextKey(till.id, prefix), 0)
+  const queued = synced()
+    .filter((entry) => entry.tillId === till.id && numberPrefix(entry.number) === prefix)
+    .map((entry) => (numberValue(entry.number) ?? 0) + 1)
+  const value = Math.max(series.nextValue, local, ...queued)
+  return formatTillNumber(series.series, year, value)
+}
+
+/** After a sale is numbered, offline numbering continues from the one after it, in its own year. */
 export function noteNumberUsed(tillId: string, invoiceNumber: string) {
   const value = numberValue(invoiceNumber)
-  if (value == null) return
-  if (value + 1 > read<number>(nextKey(tillId), 0)) write(nextKey(tillId), value + 1)
+  const prefix = numberPrefix(invoiceNumber)
+  if (value == null || prefix == null) return
+  adoptLegacyCounter(tillId, prefix)
+  if (value + 1 > read<number>(nextKey(tillId, prefix), 0)) write(nextKey(tillId, prefix), value + 1)
 }
 
 export function queuedFor(tillId: string): QueuedSale[] {
-  return queue
+  return synced()
     .filter((entry) => entry.tillId === tillId)
     .sort((a, b) => (numberValue(a.number) ?? 0) - (numberValue(b.number) ?? 0))
 }
@@ -305,12 +416,21 @@ async function sealed(entry: QueuedSale): Promise<QueuedSale> {
   return { ...entry, body: { ...entry.body, customer }, sealed: true }
 }
 
-/** The body as it is sent: the sealed buyer put back, held only for the request. */
-async function bodyToSend(entry: QueuedSale): Promise<PosSaleRequest> {
+/**
+ * The body as it is sent: the sealed buyer put back, held only for the request. Null when the sealed
+ * buyer cannot be opened. The body used to go without them: the server refused it for good
+ * (POS_CUSTOMER_MISMATCH), so a vault that failed for a moment stopped the sale until a person pressed
+ * Try again, and a sale the server had already filed under this key came back POS_SALE_KEY_REUSED
+ * instead of its replay (B38 OFF). A full invoice is never filed without its buyer either way.
+ */
+async function bodyToSend(entry: QueuedSale): Promise<PosSaleRequest | null> {
   if (!entry.sealed) return entry.body
   const consumer = await openBuyer(entry.key)
-  return consumer ? { ...entry.body, customer: { ...entry.body.customer, consumer } } : entry.body
+  return consumer ? { ...entry.body, customer: { ...entry.body.customer, consumer } } : null
 }
+
+/** Not a server refusal: this device could not open the buyer, so nothing was sent. */
+export const BUYER_UNAVAILABLE = 'POS_QUEUED_BUYER_UNAVAILABLE'
 
 /** Nothing personal is left of a sale the server has filed. */
 async function forget(entry: QueuedSale) {
@@ -321,8 +441,11 @@ async function forget(entry: QueuedSale) {
  * A sale the server had already filed before its queued copy arrived (the online answer was lost)
  * can be filed under another number than its receipt. The server says so only on that replay, while
  * the queue sends in the background, so the till keeps it and tells the cashier on the next sale's
- * Done screen, with the other warnings. A queued line with no HS code is said the same way: the
- * server says so only on that send too, and nobody is looking at it then.
+ * Done screen, with the other warnings. Every other warning of a queued sale is said the same way,
+ * naming the sale: the server says it only on that send, nobody is looking at it then, and a warning
+ * the server gives for a sale filed past a rule (stock below zero, a discount above the cashier's
+ * limit, filed while restricted) is the one the manager is meant to see. Only the HS-code warning
+ * used to be kept, so the rest were dropped on the floor (B37 OFF-8).
  */
 type NumberNote = {
   tillId: string
@@ -332,22 +455,11 @@ type NumberNote = {
   line?: number | null
 }
 
-const SAID_ON_NEXT_SALE = new Set(['POS_GOODS_FLAG_CLEARED'])
-
 function noteForNextSale(entry: QueuedSale, sale: PosSaleDto) {
-  const notes = (sale.warnings ?? []).flatMap<NumberNote>((warning) =>
+  const notes = (sale.warnings ?? []).map<NumberNote>((warning) =>
     warning.code === 'POS_PRINTED_NUMBER_DIFFERS'
-      ? [{ tillId: entry.tillId, printed: entry.number, filed: sale.invoiceNumber }]
-      : SAID_ON_NEXT_SALE.has(warning.code)
-        ? [
-            {
-              tillId: entry.tillId,
-              filed: sale.invoiceNumber,
-              code: warning.code,
-              line: warning.line,
-            },
-          ]
-        : [],
+      ? { tillId: entry.tillId, printed: entry.number, filed: sale.invoiceNumber }
+      : { tillId: entry.tillId, filed: sale.invoiceNumber, code: warning.code, line: warning.line },
   )
   if (notes.length > 0) {
     write(NUMBER_NOTES_KEY, [...read<NumberNote[]>(NUMBER_NOTES_KEY, []), ...notes])
@@ -387,7 +499,7 @@ export async function submitSale(
   photos: SlipPhoto[] = [],
 ): Promise<SubmitResult> {
   const enqueue = async (): Promise<SubmitResult> => {
-    const number = nextTillNumber(till)
+    const number = nextTillNumber(till, body.soldAt)
     if (!number) throw new NetworkError('offline')
     // Taken now, before the awaits below: a second sale must not print the same number.
     noteNumberUsed(till.id, number)
@@ -398,7 +510,7 @@ export async function submitSale(
       body: { ...body, queuedOffline: true, invoiceNumber: number },
       refusal: null,
     })
-    save([...queue, entry])
+    save([...synced(), entry])
     return { queued: entry }
   }
   await holdSlipPhotos(key, till.id, photos)
@@ -481,6 +593,26 @@ function retryAfter(tillId: string, error: ApiError) {
 const FIRST_GAP_MS = 60_000
 const LONGEST_GAP_MS = 60 * 60_000
 
+function nextTry(attempts: number): string {
+  return new Date(
+    Date.now() + Math.min(FIRST_GAP_MS * 2 ** (attempts - 1), LONGEST_GAP_MS),
+  ).toISOString()
+}
+
+/** Held on the device like an unknown refusal: tried again with growing gaps, and at Try again. */
+function buyerUnavailable(entry: QueuedSale): QueuedSale {
+  const attempts = (entry.attempts ?? 0) + 1
+  return {
+    ...entry,
+    refusal: BUYER_UNAVAILABLE,
+    refusalType: null,
+    refusalValues: {},
+    refusedAt: new Date().toISOString(),
+    attempts,
+    notBefore: nextTry(attempts),
+  }
+}
+
 function refusedEntry(entry: QueuedSale, error: ApiError, verdict: RefusalVerdict): QueuedSale {
   const final = verdict === 'final'
   const attempts = verdict === 'unknown' ? (entry.attempts ?? 0) + 1 : 0
@@ -491,11 +623,7 @@ function refusedEntry(entry: QueuedSale, error: ApiError, verdict: RefusalVerdic
     refusalValues: refusalValues(error),
     refusedAt: new Date().toISOString(),
     attempts,
-    notBefore: attempts
-      ? new Date(
-          Date.now() + Math.min(FIRST_GAP_MS * 2 ** (attempts - 1), LONGEST_GAP_MS),
-        ).toISOString()
-      : undefined,
+    notBefore: attempts ? nextTry(attempts) : undefined,
     ...(final ? { final: true } : {}),
   }
   // Only a buyer this device could not seal: plain text does not stay for a sale that may never go.
@@ -524,16 +652,22 @@ export async function flushQueue(tillId: string): Promise<FlushOutcome> {
         if (canSkip) continue
         return 'done'
       }
+      const body = await bodyToSend(entry)
+      if (!body) {
+        save(synced().map((other) => (other.key === entry.key ? buyerUnavailable(other) : other)))
+        if (canSkip) continue
+        return 'done'
+      }
       try {
-        const sale = await sendNumbered(await bodyToSend(entry), entry.key, canSkip)
+        const sale = await sendNumbered(body, entry.key, canSkip)
         noteForNextSale(entry, sale)
-        save(queue.filter((other) => other.key !== entry.key))
+        save(synced().filter((other) => other.key !== entry.key))
         await forget(entry)
         void sendSlipPhotos(entry.key, sale.saleId, tillId)
       } catch (error) {
         const refusalOver = () =>
           save(
-            queue.map((other) =>
+            synced().map((other) =>
               other.key === entry.key
                 ? { ...other, refusal: null, refusalType: null, refusalValues: {} }
                 : other,
@@ -554,7 +688,7 @@ export async function flushQueue(tillId: string): Promise<FlushOutcome> {
         const final = verdict === 'final'
         // Refused is not filed: the sealed buyer and any slip photo stay for Try again.
         save(
-          queue.map((other) =>
+          synced().map((other) =>
             other.key === entry.key ? refusedEntry(other, error, verdict) : other,
           ),
         )
@@ -575,7 +709,7 @@ export async function flushQueue(tillId: string): Promise<FlushOutcome> {
  */
 export async function retryQueuedSale(tillId: string, key: string): Promise<FlushOutcome> {
   save(
-    queue.map((entry) => {
+    synced().map((entry) => {
       if (entry.key !== key) return entry
       const { final: _final, notBefore: _notBefore, setAside: _setAside, ...again } = entry
       void _final
@@ -589,7 +723,7 @@ export async function retryQueuedSale(tillId: string, key: string): Promise<Flus
 
 /** The server has it set aside: this device stops sending it by itself, and keeps it. */
 export function markQueuedSaleSetAside(key: string) {
-  save(queue.map((entry) => (entry.key === key ? { ...entry, setAside: true } : entry)))
+  save(synced().map((entry) => (entry.key === key ? { ...entry, setAside: true } : entry)))
 }
 
 /**
@@ -603,7 +737,7 @@ export async function correctQueuedSale(
   payments: PosSaleRequest['payments'],
 ): Promise<FlushOutcome> {
   save(
-    queue.map((entry) => {
+    synced().map((entry) => {
       if (entry.key !== key) return entry
       const { final: _final, notBefore: _notBefore, setAside: _setAside, ...again } = entry
       void _final

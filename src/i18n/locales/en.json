@@ -2528,7 +2528,8 @@
         "periodClosed": "That date falls in a closed accounting period.",
         "notIssued": "Payments can only be recorded against an issued invoice.",
         "alreadyReversed": "That payment was already reversed. The list has been refreshed.",
-        "paymentGone": "That payment could not be found. The list has been refreshed."
+        "paymentGone": "That payment could not be found. The list has been refreshed.",
+        "referenceCardNumber": "That looks like the card number. Type the approval code from the bank slip as the reference, never the card number."
       },
       "balanceChanged": "What is owed changed since this page was opened. Closing this dialog shows the current balance."
     },
@@ -4961,7 +4962,8 @@
       "POS_REFUND_CASH_EXCEEDS_DRAWER": "The drawer should hold only {{cashInDrawer}}, and this refund gives back {{cashRequested}} in cash. Give the rest back by card or transfer, or pay cash into the drawer first.",
       "POS_REFUND_LINE_CREDIT_UNCLEAR": "Line {{line}} already has a credit note that does not say whether goods came back, so it cannot be refunded at the till. Refund it from the invoice. Nothing was refunded.",
       "POS_SALE_CANCELLED": "This sale's invoice was cancelled, so there is nothing to refund.",
-      "HS_CODE_REQUIRED": "Line {{line}} is goods and has no HS code, so nothing was done. Someone who can edit items adds the code on the item (Other if none fits), then try again."
+      "HS_CODE_REQUIRED": "Line {{line}} is goods and has no HS code, so nothing was done. Someone who can edit items adds the code on the item (Other if none fits), then try again.",
+      "POS_REFUND_NOTHING_TO_PAY_BACK": "What is going back is worth less than a baisa, so there is nothing to refund. Give back more of the line in one refund."
     },
     "warning": {
       "STOCK_BELOW_ZERO": "Line {{line}} took the stock below zero. Count it when you can.",
@@ -4982,7 +4984,8 @@
       "ZR_MEDICAL_NOT_LISTED": "Line {{line}} is zero-rated as medical, but its HS code is not on Oman's zero-rated medicines or medical equipment lists. Check its VAT category or HS code.",
       "POS_DISCOUNT_ABOVE_LIMIT_ACCEPTED": "Sold offline with a discount above the cashier's limit. It is filed and recorded for the manager.",
       "POS_PRINTED_NUMBER_DIFFERS": "A customer's receipt says {{printed}}, but that sale is filed as {{filed}}. Use {{filed}} to find it.",
-      "POS_GOODS_FLAG_CLEARED": "Line {{line}} has no HS code, so it was filed without being marked as goods. Someone who can edit items adds the code on the item (Other if none fits) for next time."
+      "POS_GOODS_FLAG_CLEARED": "Line {{line}} has no HS code, so it was filed without being marked as goods. Someone who can edit items adds the code on the item (Other if none fits) for next time.",
+      "POS_REFUND_PIECE_CARRIED": "Line {{line}} did not come back: on its own in this refund it is worth less than a baisa. It stays on the sale; give it back together with more of the line."
     },
     "day": {
       "title": "The day's shifts",
@@ -5023,6 +5026,7 @@
         "SELLER_PARTICIPANT_NOT_VERIFIED": "The company's Participant ID is not verified yet. The sale goes once it is.",
         "INDUSTRIAL_CLASSIFICATION_REQUIRED": "The company's business activity code is missing. Add it in Settings and the sale goes.",
         "POS_QUEUED_SALE_HS_CODE_REQUIRED": "Not issued yet, waiting for an HS code: this full invoice has a goods line with no HS code, so Fawtir has not issued it and has not used its number.",
+        "POS_QUEUED_BUYER_UNAVAILABLE": "Not sent yet: this device cannot open the buyer's details it kept for this full invoice. Reload the page and press Try again. If it still does not go, contact Fawtir support and do not clear this device's data.",
         "other": "Fawtir would not accept this sale as it stands."
       },
       "askManager": "The till keeps selling. Ask a manager to deal with it.",
@@ -6092,7 +6096,12 @@
       "noDueDate": "No due date",
       "noOrderNote": "No order behind it",
       "noAmount": "No amount yet",
-      "queried": "Queried {{date}}"
+      "queried": "Queried {{date}}",
+      "twin": {
+        "sure": "Same supplier bill as another on file",
+        "possible": "May be the same supplier bill as another on file",
+        "heldCopy": "Its Peppol copy was flagged as a duplicate of this bill"
+      }
     },
     "state": {
       "newNotReviewed": "New, not reviewed",
@@ -6452,6 +6461,8 @@
     },
     "overpaid": {
       "overpaidBy": "Overpaid by {{amount}}",
+      "keyReused": "This was changed after an earlier attempt that may already be recorded. Close this and check the bill before recording it again: the next attempt counts as a new one.",
+      "inProgress": "This is still being recorded. Wait a moment, then press again without changing it.",
       "kept": "{{amount}} kept as credit",
       "recordRefund": "Record the supplier's refund",
       "setAgainst": "Set against a bill",
@@ -13222,7 +13233,9 @@
       "atEach": "at {{amount}} each",
       "lastPaid": "{{amount}} on {{date}}",
       "chartNoteNoRate": "The {{count}} {{unit}} received on {{date}} have not sold yet, so there is no rate to say how long they last.",
-      "supplierRef": "Supplier's ref. {{reference}}"
+      "supplierRef": "Supplier's ref. {{reference}}",
+      "cancelSaleBack": "Sale cancelled, back on the shelf",
+      "cancelReturnOff": "Return cancelled, taken off the shelf"
     }
   },
   "priceRules": {
@@ -20880,7 +20893,8 @@
       "stock": "Your plan does not include stock counting. What you counted before can still be viewed.",
       "receiptScan": "Your plan does not include scanning bills and receipts. What you made before can still be viewed, downloaded and exported."
     },
-    "tooLarge": "That file is too large for Fawtir to accept. Use a smaller photo or PDF."
+    "tooLarge": "That file is too large for Fawtir to accept. Use a smaller photo or PDF.",
+    "discountAboveLimit": "This discount takes {{requestedPercent}}% off and your limit is {{limitPercent}}%. Lower it, or ask an administrator in your company to raise your limit."
   },
   "appAccess": {
     "checking": "Checking your access…",
@@ -21613,7 +21627,15 @@
         "SELF_BILLED": "self-billed"
       },
       "open": "Open that bill",
-      "different": "It's a different bill. Save it"
+      "different": "It's a different bill. Save it",
+      "titleMany": "This may be one of {{count}} bills you already have",
+      "reasonLabel": "Why is this a different bill?",
+      "differentAll": "They are all different bills. Save it",
+      "reasonRequired": "Say why this bill is different from the ones listed.",
+      "reasonTooLong": "Keep the reason to 280 characters.",
+      "tooMany": "This bill matches too many bills on file to save in one go. Open them and check the supplier and number.",
+      "unknown": "One of the bills it was compared with is no longer on file. Save again to check it afresh.",
+      "cannotOverrideMany": "This bill matches more than one bill on file, and they cannot be set aside here yet. Open them and check the supplier and number."
     },
     "discard": "Discard",
     "saving": "Saving…",
@@ -22017,7 +22039,10 @@
       },
       "notAvailableYet": "Not available yet",
       "cancelBlocked": {
-        "refunded": "This credit note cannot be cancelled: a refund is recorded against it."
+        "refunded": "This credit note cannot be cancelled: a refund is recorded against it.",
+        "debitCredited": "This debit note cannot be cancelled: credit notes already issued on the invoice use what it added. Cancel those credit notes first.",
+        "tillRefund": "This credit note cannot be cancelled: it was issued by a refund at the till, and cancelling it would not undo the refund.",
+        "stockReturn": "This credit note cannot be cancelled: it put goods back on the shelf, and cancelling it would not take them off again. Correct the stock with a count, or issue a debit note."
       }
     },
     "status": {
@@ -22669,7 +22694,9 @@
       "REFUNDED": "Refunded"
     },
     "appliedDone": "The credit was used against that bill.",
-    "refundedDone": "The refund was recorded."
+    "refundedDone": "The refund was recorded.",
+    "refundKeyReused": "This refund was changed after an earlier attempt that may already be recorded. Check the refunds on this note before recording it again: the next attempt counts as a new refund.",
+    "refundInProgress": "This refund is still being recorded. Wait a moment, then press Record the refund again without changing it."
   },
   "approvalPolicy": {
     "title": "Bill approvals",
@@ -25330,7 +25357,8 @@
       "branchClosed": "A closed branch cannot sell this item. Untick it.",
       "branchGone": "One of these branches no longer exists. Reload and try again.",
       "zeroRatingMismatch": "Zero-rated as food needs an HS code on Oman's zero-rated food list in force today. Choose a listed HS code, or another VAT category.",
-      "reasonNotDefault": "Export and international transport reasons depend on the sale, so an item cannot carry them. Choose the reason on the invoice line instead."
+      "reasonNotDefault": "Export and international transport reasons depend on the sale, so an item cannot carry them. Choose the reason on the invoice line instead.",
+      "unitLocked": "This item's stock has already moved, so its unit can't change. Keep the current unit, or count this item to zero and create a new item in the new unit."
     },
     "backOnSaleDone": "Back on sale. New invoice lines can pick it again.",
     "branchesNotSaved": "The item is saved, but not where it is sold."

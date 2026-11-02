@@ -177,6 +177,14 @@ export type ConfirmIntakeDto = {
   /** The bill a possible-duplicate refusal named, which the person says is a different bill. */
   notDuplicateOf: string | null
   /**
+   * Every bill the refusals listed that the person says is a different bill, at most 20, sent with
+   * `overrideReason`. Only after a refusal that carried `duplicates`: a server before the list
+   * refuses a body with a field it does not know (fail-on-unknown-properties).
+   */
+  notDuplicateOfIds?: string[]
+  /** Why they are different bills, trimmed, at most 280 characters; required with the list. */
+  overrideReason?: string
+  /**
    * TODO(backend): EXPENDITURE.md M.2. A receipt's VAT category when it has no lines (S5, Z0,
    * E0): 0% and Exempt both carry a zero rate and are otherwise sent the same.
    */
@@ -265,6 +273,27 @@ export function possibleDuplicateOf(error: unknown): PossibleDuplicateDto | null
   if (typeof found !== 'object' || found === null) return null
   const bill = found as Record<string, unknown>
   return typeof bill.billId === 'string' ? (bill as unknown as PossibleDuplicateDto) : null
+}
+
+const isDuplicateDto = (value: unknown): value is PossibleDuplicateDto =>
+  typeof value === 'object' &&
+  value !== null &&
+  typeof (value as Record<string, unknown>).billId === 'string'
+
+/**
+ * Every bill a 409 `BILL_INTAKE_POSSIBLE_DUPLICATE` named, or null for any other failure.
+ * `listed` says the refusal carried `duplicates` (oldest first, at most five per answer), which
+ * only a server that takes `notDuplicateOfIds` sends; an older one names `duplicateOf` alone.
+ */
+export function possibleDuplicates(
+  error: unknown,
+): { matches: PossibleDuplicateDto[]; listed: boolean } | null {
+  const single = possibleDuplicateOf(error)
+  if (!single) return null
+  const duplicates = (error as ApiError).problem.duplicates
+  if (!Array.isArray(duplicates)) return { matches: [single], listed: false }
+  const matches = duplicates.filter(isDuplicateDto)
+  return { matches: matches.length > 0 ? matches : [single], listed: true }
 }
 
 /** `IntakePage`. `status=UNCONFIRMED` (the server's default) lists what was uploaded or scanned and never confirmed. */

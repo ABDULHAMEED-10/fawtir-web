@@ -23,6 +23,7 @@ import {
   refundLines,
   refundRequest,
   remaining,
+  saleLineOfRefundWarning,
   splitFromQuote,
   splitProblem,
   standsAt,
@@ -882,7 +883,7 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
                     className="text-xs font-medium text-pending-700"
                   >
                     {t(`pos.warning.${warning.code}`, {
-                      line: warning.line ?? '',
+                      line: saleLineOfRefundWarning(warning, done) ?? '',
                       defaultValue: t('pos.warning.other'),
                     })}
                   </p>

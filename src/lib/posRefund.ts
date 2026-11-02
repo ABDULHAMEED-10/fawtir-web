@@ -1,10 +1,12 @@
 import type {
+  PosRefundDto,
   PosRefundLookupDto,
   PosRefundLookupLine,
   PosRefundMoneyMethod,
   PosRefundQuoteDto,
   PosRefundReason,
   PosRefundRequest,
+  PosWarning,
 } from '../api/pos/pos'
 import { BAISA, toBaisa, toRials } from './pos'
 
@@ -286,6 +288,22 @@ export function refundRequest(input: {
     lines: refundLines(input.returning, input.backOnShelf, input.hsCodes),
     moneyBack: input.noMoney ? [] : input.moneyBack,
   }
+}
+
+/**
+ * The sale line a refund warning is about, as the page lists the sale's lines. The server's STOCK_*
+ * warnings name the credit note's line (1..n in sale-line order), so refunding sale lines 3 and 5
+ * read "Line 2" for line 5 (contract matrix §3, "Line numbering"); POS_GOODS_FLAG_CLEARED and
+ * POS_REFUND_PIECE_CARRIED already name the sale line. Without the response's `lines` the server's
+ * number is kept, as before.
+ */
+export function saleLineOfRefundWarning(
+  warning: Pick<PosWarning, 'code' | 'line'>,
+  refund: Pick<PosRefundDto, 'lines'>,
+): number | null {
+  if (warning.line == null || !warning.code.startsWith('STOCK_')) return warning.line
+  const line = refund.lines?.find((entry) => entry.lineNumber === warning.line)
+  return line ? line.originalLineNumber : warning.line
 }
 
 /** What the original invoice is worth once the credit note is filed against it. */

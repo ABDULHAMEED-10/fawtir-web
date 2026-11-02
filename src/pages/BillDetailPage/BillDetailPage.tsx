@@ -150,6 +150,13 @@ const BILL_PAYMENT_REFUSALS: NonNullable<Parameters<typeof RecordPaymentModal>[0
     field: 'paymentDate',
     key: 'invoiceDetails.pay.error.dateFuture',
   },
+  // SEC 86912a7fa (batch 37, DEC-30-06): a card-coded bill payment's reference holding a card
+  // number, worded as the invoice dialog words PAYMENT_REFERENCE_CARD_NUMBER. Older servers never
+  // send it.
+  BILL_PAYMENT_REFERENCE_CARD_NUMBER: {
+    field: 'reference',
+    key: 'invoiceDetails.pay.error.referenceCardNumber',
+  },
 }
 
 /** The dialog's own check of the amount against what the bill still owes, in a bill's words. */
@@ -206,6 +213,9 @@ const REFUSALS: Record<string, string> = {
   BILL_OVERPAYMENT_TARGET_DEBIT_NOTE_NOT_ACCEPTED: 'apiErrors.refused.debitNoteNotAccepted',
   BILL_OVERPAYMENT_TARGET_CANCELLED: 'apiErrors.refused.creditNoteTargetCancelled',
   BILL_OVERPAYMENT_TARGET_FULLY_CREDITED: 'apiErrors.refused.creditNoteTargetFullyCredited',
+  // Backend fd2e1d483: the dialog's key was used for other figures, or is still running.
+  BILL_OVERPAYMENT_IDEMPOTENCY_KEY_REUSED: 'billDetail.overpaid.keyReused',
+  BILL_OVERPAYMENT_IN_PROGRESS: 'billDetail.overpaid.inProgress',
 }
 
 type Translate = (key: string, values?: Record<string, unknown>) => string
@@ -436,6 +446,19 @@ function BillScreen() {
     setNotice({ key })
     bill.retry()
     overpayment.retry()
+  }
+  // A settlement whose key was spent may have been recorded: read again once the dialog is gone,
+  // as a payment refusal that says the balance moved does (DB-10).
+  const closeSettling = () => {
+    setSettling(null)
+    if (balanceStale.current) {
+      balanceStale.current = false
+      bill.retry()
+      overpayment.retry()
+    }
+  }
+  const settlementKeySpent = () => {
+    balanceStale.current = true
   }
 
   const download = async () => {
@@ -1235,8 +1258,9 @@ function BillScreen() {
           }
           today={muscatToday()}
           refusal={(error) => refusalText(t, error)}
-          onClose={() => setSettling(null)}
+          onClose={closeSettling}
           onDone={() => afterSettling('supplierCreditNoteDetail.refundedDone')}
+          onKeySpent={settlementKeySpent}
         />
       ) : null}
       {settling === 'apply' && standingOverpayment ? (
@@ -1244,8 +1268,9 @@ function BillScreen() {
           detail={detail}
           kept={standingOverpayment.keptAsCredit}
           refusal={(error) => refusalText(t, error)}
-          onClose={() => setSettling(null)}
+          onClose={closeSettling}
           onDone={() => afterSettling('supplierCreditNoteDetail.appliedDone')}
+          onKeySpent={settlementKeySpent}
         />
       ) : null}
     </div>

@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, resetSharedRequests } from '../api'
+import { ApiError, NetworkError, resetSharedRequests } from '../api'
 import type { PosSaleRequest, PosTillDto } from '../api/pos/pos'
 import {
   correctQueuedSale,
   flushQueue,
   isFinalRefusal,
+  numberPrefix,
   numbersBefore,
   queuedFor,
   resetPosQueue,
@@ -245,6 +246,62 @@ describe("an offline full invoice and the buyer's ID", () => {
     await flushQueue('till-1')
     expect(await vault.ids('pii')).toEqual(['pos-sale-key-0004'])
     expect(queuedFor('till-1')[0].final).toBeUndefined()
+  })
+
+  const salePosts = () =>
+    calls.filter((c) => c.url === '/api/v1/pos/sales' && c.init?.method === 'POST').length
+
+  it('does not send a full invoice whose sealed buyer cannot be opened, and holds it to try again (B38 OFF)', async () => {
+    await submitSale(TILL, BODY, 'pos-sale-key-0041')
+    // The vault this tab reaches has lost the copy (a failed open, or its data cleared).
+    setPosVault(memoryVault(true))
+    online = true
+    const before = salePosts()
+    expect(await flushQueue('till-1')).toBe('done')
+
+    expect(salePosts()).toBe(before)
+    const [entry] = queuedFor('till-1')
+    expect(entry).toMatchObject({
+      refusal: 'POS_QUEUED_BUYER_UNAVAILABLE',
+      sealed: true,
+      attempts: 1,
+    })
+    expect(entry.final).toBeUndefined()
+    expect(entry.notBefore).toBeDefined()
+    expect(entry.buyerRemoved).toBeUndefined()
+
+    // Resting, so not tried again at once.
+    await flushQueue('till-1')
+    expect(salePosts()).toBe(before)
+  })
+
+  it('Try again sends it with the buyer once the vault opens again, and filing deletes the copy (B38 OFF)', async () => {
+    await submitSale(TILL, BODY, 'pos-sale-key-0042')
+    setPosVault(memoryVault(true))
+    online = true
+    await flushQueue('till-1')
+    expect(queuedFor('till-1')[0].refusal).toBe('POS_QUEUED_BUYER_UNAVAILABLE')
+
+    setPosVault(vault)
+    await retryQueuedSale('till-1', 'pos-sale-key-0042')
+    expect(sentConsumer().identifierValue).toBe(CIVIL_ID)
+    expect(queuedFor('till-1')).toEqual([])
+    expect(await vault.ids('pii')).toEqual([])
+  })
+
+  it('in strict number order, a later queued sale waits behind the held one (B38 OFF)', async () => {
+    await submitSale(TILL, BODY, 'pos-sale-key-0043')
+    await submitSale(TILL, { ...BODY, customer: { kind: 'WALK_IN' } }, 'pos-sale-key-0044')
+    expect(queuedFor('till-1').map((entry) => entry.key)).toEqual([
+      'pos-sale-key-0043',
+      'pos-sale-key-0044',
+    ])
+    setPosVault(memoryVault(true))
+    online = true
+    const before = salePosts()
+    expect(await flushQueue('till-1')).toBe('done')
+    expect(salePosts()).toBe(before)
+    expect(queuedFor('till-1')).toHaveLength(2)
   })
 
   it('without a sealing vault, keeps the buyer in the entry, and removes it on a final refusal', async () => {
@@ -815,5 +872,179 @@ describe('a refused sale never stops the till (E2E 30 Oct 2026, H-1)', () => {
       'NZW-T01-INV-2026-000050',
     ])
     expect(numbersBefore('NZW-T01-INV-2026-000049', 'NZW-T01-INV-2026-000049')).toEqual([])
+  })
+})
+
+describe('offline numbers across a new year (B36 OFF-1)', () => {
+  const NEW_YEAR_TILL = {
+    ...TILL,
+    series: { INVOICE: { series: 'NZW-T01-INV', year: 2027, nextValue: 1 } },
+  } as unknown as PosTillDto
+  // 1 Jan 2027 00:30 in Muscat (UTC+4), while UTC still reads 31 Dec 2026.
+  const JUST_AFTER_MIDNIGHT = '2026-12-31T20:30:00Z'
+  const LAST_MINUTE = '2026-12-31T19:59:00Z'
+
+  it('prints no number for a new-year sale on a till last read in the old year, and keeps nothing', async () => {
+    await expect(
+      submitSale(TILL, { ...BODY, soldAt: JUST_AFTER_MIDNIGHT }, 'pos-sale-key-ny01'),
+    ).rejects.toBeInstanceOf(NetworkError)
+    expect(queuedFor('till-1')).toEqual([])
+  })
+
+  it("still numbers the old year's last minute on the old year's series", async () => {
+    const result = await submitSale(TILL, { ...BODY, soldAt: LAST_MINUTE }, 'pos-sale-key-ny02')
+    expect('queued' in result && result.queued.number).toBe('NZW-T01-INV-2026-000049')
+  })
+
+  it("starts the new year at the server's value: the old year's counter and queue do not carry over", async () => {
+    await submitSale(TILL, BODY, 'pos-sale-key-ny03')
+    await submitSale(TILL, BODY, 'pos-sale-key-ny04')
+    expect(queuedFor('till-1').map((entry) => entry.number)).toEqual([
+      'NZW-T01-INV-2026-000049',
+      'NZW-T01-INV-2026-000050',
+    ])
+
+    const first = await submitSale(
+      NEW_YEAR_TILL,
+      { ...BODY, soldAt: '2027-01-01T08:00:00Z' },
+      'pos-sale-key-ny05',
+    )
+    const second = await submitSale(
+      NEW_YEAR_TILL,
+      { ...BODY, soldAt: '2027-01-01T08:05:00Z' },
+      'pos-sale-key-ny06',
+    )
+    expect('queued' in first && first.queued.number).toBe('NZW-T01-INV-2027-000001')
+    expect('queued' in second && second.queued.number).toBe('NZW-T01-INV-2027-000002')
+  })
+
+  it('adopts a counter kept before it was per year once, into the year in use, and drops it', async () => {
+    window.localStorage.setItem('fawtir.pos.next.till-1', '60')
+    const first = await submitSale(TILL, BODY, 'pos-sale-key-ny07')
+    expect('queued' in first && first.queued.number).toBe('NZW-T01-INV-2026-000060')
+    expect(window.localStorage.getItem('fawtir.pos.next.till-1')).toBeNull()
+    expect(window.localStorage.getItem('fawtir.pos.next.till-1.NZW-T01-INV-2026')).toBe('61')
+
+    const second = await submitSale(TILL, BODY, 'pos-sale-key-ny08')
+    expect('queued' in second && second.queued.number).toBe('NZW-T01-INV-2026-000061')
+  })
+
+  it('reads the series and year a number runs in', () => {
+    expect(numberPrefix('NZW-T01-INV-2026-000123')).toBe('NZW-T01-INV-2026')
+    expect(numberPrefix('not a till number')).toBeNull()
+  })
+})
+
+describe('offline numbering in the tenant zone (B37 OFF-6)', () => {
+  // UTC+14. 2026-12-31T10:30Z is 1 Jan 2027 00:30 there and 31 Dec 14:30 in Muscat.
+  const KIRITIMATI = 'Pacific/Kiritimati'
+  const THERE_NEW_YEAR = '2026-12-31T10:30:00Z'
+  const tillIn = (year: number, nextValue: number, timeZone?: string) =>
+    ({
+      ...TILL,
+      series: { INVOICE: { series: 'NZW-T01-INV', year, nextValue, timeZone } },
+    }) as unknown as PosTillDto
+
+  it("numbers a sale in the year of the server's zone, not Muscat's", async () => {
+    const result = await submitSale(
+      tillIn(2027, 1, KIRITIMATI),
+      { ...BODY, soldAt: THERE_NEW_YEAR },
+      'pos-sale-key-tz01',
+    )
+    expect('queued' in result && result.queued.number).toBe('NZW-T01-INV-2027-000001')
+  })
+
+  it("prints nothing when the till was read before the zone's new year and the sale is after it", async () => {
+    await expect(
+      submitSale(tillIn(2026, 49, KIRITIMATI), { ...BODY, soldAt: THERE_NEW_YEAR }, 'pos-sale-key-tz02'),
+    ).rejects.toBeInstanceOf(NetworkError)
+    expect(queuedFor('till-1')).toEqual([])
+  })
+
+  it('keeps Asia/Muscat for a server that does not name its zone', async () => {
+    const result = await submitSale(
+      tillIn(2026, 49),
+      { ...BODY, soldAt: THERE_NEW_YEAR },
+      'pos-sale-key-tz03',
+    )
+    expect('queued' in result && result.queued.number).toBe('NZW-T01-INV-2026-000049')
+  })
+
+  it('prints nothing for a zone this browser cannot read', async () => {
+    await expect(
+      submitSale(tillIn(2026, 49, 'Not/AZone'), BODY, 'pos-sale-key-tz04'),
+    ).rejects.toBeInstanceOf(NetworkError)
+  })
+})
+
+describe('a queue shared by two tabs of the till (B37 OFF-4)', () => {
+  const otherTabEntry = {
+    key: 'pos-sale-key-other-tab',
+    tillId: 'till-1',
+    number: 'NZW-T01-INV-2026-000050',
+    body: { ...BODY, customer: { kind: 'WALK_IN' }, queuedOffline: true, invoiceNumber: 'NZW-T01-INV-2026-000050' },
+    refusal: null,
+  }
+
+  it('never writes over a sale another tab queued', async () => {
+    await submitSale(TILL, BODY, 'pos-sale-key-tab-1')
+    const stored = JSON.parse(window.localStorage.getItem('fawtir.pos.queue') ?? '[]')
+    window.localStorage.setItem('fawtir.pos.queue', JSON.stringify([...stored, otherTabEntry]))
+
+    const mine = await submitSale(TILL, BODY, 'pos-sale-key-tab-2')
+
+    expect('queued' in mine && mine.queued.number).toBe('NZW-T01-INV-2026-000051')
+    const keys = JSON.parse(window.localStorage.getItem('fawtir.pos.queue') ?? '[]').map(
+      (entry: { key: string }) => entry.key,
+    )
+    expect(keys).toEqual(['pos-sale-key-tab-1', 'pos-sale-key-other-tab', 'pos-sale-key-tab-2'])
+    expect(queuedFor('till-1').map((entry) => entry.key)).toEqual(keys)
+  })
+
+  it('sees a sale the other tab has since sent as gone', async () => {
+    window.localStorage.setItem('fawtir.pos.queue', JSON.stringify([otherTabEntry]))
+    expect(queuedFor('till-1').map((entry) => entry.key)).toEqual(['pos-sale-key-other-tab'])
+    window.localStorage.setItem('fawtir.pos.queue', '[]')
+    window.dispatchEvent(new StorageEvent('storage', { key: 'fawtir.pos.queue' }))
+    expect(queuedFor('till-1')).toEqual([])
+  })
+
+  it('does not take unreadable text for an empty queue', async () => {
+    await submitSale(TILL, BODY, 'pos-sale-key-tab-3')
+    window.localStorage.setItem('fawtir.pos.queue', '{not json')
+    expect(queuedFor('till-1').map((entry) => entry.key)).toEqual(['pos-sale-key-tab-3'])
+  })
+})
+
+describe("a queued sale's warnings reach the next sale (B37 OFF-8)", () => {
+  it('says every warning of the background send, naming the filed sale', async () => {
+    await submitSale(TILL, BODY, 'pos-sale-key-warn-1')
+    online = true
+    const reply = saleReply
+    saleReply = () =>
+      json(
+        {
+          saleId: 'sale-1',
+          invoiceNumber: 'NZW-T01-INV-2026-000049',
+          warnings: [
+            { code: 'STOCK_BELOW_ZERO', line: 2, message: 'not shown' },
+            { code: 'POS_DISCOUNT_ABOVE_LIMIT_ACCEPTED', line: null, message: 'not shown' },
+            { code: 'FILED_PAST_RESTRICTION', line: null, message: 'not shown' },
+          ],
+        },
+        201,
+      )
+    await flushQueue('till-1')
+    expect(queuedFor('till-1')).toEqual([])
+
+    saleReply = reply
+    const next = await submitSale(TILL, BODY, 'pos-sale-key-warn-2')
+    expect('sale' in next && next.sale.warnings).toEqual([
+      { code: 'STOCK_BELOW_ZERO', line: 2, filed: 'NZW-T01-INV-2026-000049' },
+      { code: 'POS_DISCOUNT_ABOVE_LIMIT_ACCEPTED', line: null, filed: 'NZW-T01-INV-2026-000049' },
+      { code: 'FILED_PAST_RESTRICTION', line: null, filed: 'NZW-T01-INV-2026-000049' },
+    ])
+    const after = await submitSale(TILL, BODY, 'pos-sale-key-warn-3')
+    expect('sale' in after && after.sale.warnings).toEqual([])
   })
 })

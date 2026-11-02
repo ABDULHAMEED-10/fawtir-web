@@ -232,8 +232,19 @@ export function applyCreditNote(id: string, billId: string, amount: number | nul
   })
 }
 
+/** A key for one refund the person means to record (16-128 of `[A-Za-z0-9._:-]`). */
+export function newCreditNoteRefundKey(): string {
+  return `credit-refund-${crypto.randomUUID()}`
+}
+
+/**
+ * Records that the supplier refunded the note (`bill.settle`). The `Idempotency-Key` is optional
+ * on the server, so a retry without one records a second refund that still fits the credit; the
+ * same key and body within 24 hours answer the first refund instead (backend P0, 2026-10-31).
+ */
 export function refundCreditNote(
   id: string,
+  idempotencyKey: string,
   amount: number,
   paidOn: string,
   paymentReference: string | null,
@@ -241,6 +252,7 @@ export function refundCreditNote(
   return apiRequest<CreditNoteActionDto>(`${creditNotePath(id)}/refund`, {
     method: 'POST',
     body: { amount, paidOn, paymentReference },
+    headers: { 'Idempotency-Key': idempotencyKey },
   })
 }
 

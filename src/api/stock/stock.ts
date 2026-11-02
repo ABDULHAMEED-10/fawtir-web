@@ -103,8 +103,12 @@ export type StockSummaryDto = {
   }
 }
 
+/**
+ * `CANCEL_REVERSAL` (backend #845, source `CANCELLATION`): the opposite of a movement of an invoice
+ * or credit note since cancelled, plus for a sale and minus for a return. An older server sends none.
+ */
 export type StockMovementType =
-  'SALE' | 'RECEIPT' | 'WRITE_OFF' | 'COUNT_CORRECTION' | 'REFUND_RETURN'
+  'SALE' | 'RECEIPT' | 'WRITE_OFF' | 'COUNT_CORRECTION' | 'REFUND_RETURN' | 'CANCEL_REVERSAL'
 
 export type StockSourceType =
   | 'POS_SALE'
@@ -115,6 +119,7 @@ export type StockSourceType =
   | 'DELIVERY'
   | 'STOCK_COUNT'
   | 'WRITE_OFF'
+  | 'CANCELLATION'
 
 export type StockMovementDto = {
   id: string
