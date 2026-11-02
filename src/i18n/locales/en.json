@@ -17018,7 +17018,8 @@
         "bodyFinance": "Record that the money went back to the company. The amount is what the company paid and cannot be changed. The case is then closed and can no longer be changed.",
         "on": "Refunded on",
         "onInvalid": "Choose a day from when the case opened up to today.",
-        "onInvalidApproved": "Choose today or a later day: the money can't go back before the refund is approved."
+        "onInvalidApproved": "Choose today or a later day: the money can't go back before the refund is approved.",
+        "referenceCardNumber": "That looks like the card number. Type the card refund's approval or refund reference, never the card number."
       },
       "declinedBecause": "Not refunded: {{reason}}",
       "decline": {
