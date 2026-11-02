@@ -3,6 +3,7 @@ import { required, type FieldError } from '../validation'
 import { forgetEntitlements, isPlatformOperator, loadEntitlements } from './entitlements'
 import { commonFailureMessage, type FormMessage } from './errors'
 import { safeReturnPath } from './returnTo'
+import { forgetSigningKeys } from '../posSigning/signingKey'
 
 export const LOGIN_PATH = '/v1/auth/login'
 export const LOGIN_CODE_PATH = '/v1/auth/mfa/otp/request'
@@ -175,7 +176,12 @@ export async function submitLogin(
     credentials: 'same-origin',
   })
   const outcome = toLoginOutcome(response, Date.now())
-  if (outcome.kind === 'signedIn') forgetEntitlements()
+  if (outcome.kind === 'signedIn') {
+    forgetEntitlements()
+    // A key left by an earlier session in this browser names that session, never this one. Not
+    // awaited: a vault that never opens must not hold up sign-in.
+    void forgetSigningKeys()
+  }
   return outcome
 }
 
@@ -212,6 +218,7 @@ export async function verifyLoginCode(
   })
   // A new session may belong to someone other than whoever this tab last described.
   forgetEntitlements()
+  void forgetSigningKeys()
 }
 
 /** What the server staged for an authenticator to be set up from. */

@@ -207,6 +207,21 @@ export type PosSaleRequest = {
   lineRefs: PosLineRef[]
   payments: PosPaymentRequest[]
   tip: { amount: number; method: 'CASH' | 'CARD' } | null
+  /**
+   * Only on a queued sale signed with a key this server registered, and only with `printed`
+   * (V530, BINDING-DESIGN §5.1). Both are outside the server's stored request hashes, so the same
+   * sale sent with or without them replays.
+   */
+  offlineProof?: { keyId: string; signature: string }
+  /** The totals the receipt printed, as JSON numbers; signed with the sale. */
+  printed?: PosPrintedTotals
+}
+
+export type PosPrintedTotals = {
+  taxable: number
+  vat: number
+  total: number
+  vatBreakdown?: { category: string; rate: number; taxable: number; vat: number }[]
 }
 
 export type PosPaymentSlip = {
