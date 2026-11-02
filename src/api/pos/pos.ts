@@ -698,6 +698,8 @@ export type PosRefundDto = {
   totals: PosTotals
   warnings: PosWarning[]
   replayed?: boolean
+  /** `lineNumber` is the credit note's line (1..n), `originalLineNumber` the sale's. */
+  lines?: { lineNumber: number; originalLineNumber: number }[]
 }
 
 export function refundLookupPath(invoiceNumber: string): string {
