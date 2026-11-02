@@ -1,0 +1,817 @@
+{
+   "note" : "Shared golden vectors for the offline sale canonical form (BINDING-DESIGN 4.3, SEC-R C1). Copy verbatim into the web repo. body is the request as sent; expected is the exact canonical text, compared as UTF-8 bytes; unsignable names the hold reason when none can be built.",
+   "vectors" : [
+      {
+         "body" : {
+            "customer" : {
+               "kind" : "WALK_IN"
+            },
+            "draft" : {
+               "branchId" : "33333333-3333-3333-3333-333333333333",
+               "currency" : "OMR",
+               "customerId" : "22222222-2222-2222-2222-222222222222",
+               "details" : {},
+               "headerDiscount" : {
+                  "type" : "FIXED_AMOUNT",
+                  "value" : 0
+               },
+               "lines" : [
+                  {
+                     "description" : "Tea",
+                     "discount" : {
+                        "type" : "PERCENTAGE",
+                        "value" : 0
+                     },
+                     "lineNumber" : 1,
+                     "quantity" : 2,
+                     "taxCategory" : {
+                        "code" : "S",
+                        "en16931Category" : "S",
+                        "rate" : 5
+                     },
+                     "unitCode" : "C62",
+                     "unitPrice" : 1.100
+                  }
+               ],
+               "vatMode" : "EXCLUSIVE"
+            },
+            "invoiceNumber" : "T01-2026-000042",
+            "offlineProof" : {
+               "keyId" : "44444444-4444-4444-4444-444444444444",
+               "signature" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            },
+            "payments" : [
+               {
+                  "amount" : 2.31,
+                  "method" : "CASH",
+                  "tendered" : 5
+               }
+            ],
+            "queuedOffline" : true,
+            "soldAt" : "2026-11-02T10:15:30.123Z",
+            "tillId" : "11111111-1111-1111-1111-111111111111"
+         },
+         "expected" : "{\"customer\":{\"kind\":\"WALK_IN\"},\"draft\":{\"branchId\":\"33333333-3333-3333-3333-333333333333\",\"currency\":\"OMR\",\"customerId\":\"22222222-2222-2222-2222-222222222222\",\"details\":{},\"headerDiscount\":{\"type\":\"FIXED_AMOUNT\",\"value\":\"0\"},\"lines\":[{\"description\":\"Tea\",\"discount\":{\"type\":\"PERCENTAGE\",\"value\":\"0\"},\"lineNumber\":\"1\",\"quantity\":\"2\",\"taxCategory\":{\"code\":\"S\",\"en16931Category\":\"S\",\"rate\":\"5\"},\"unitCode\":\"C62\",\"unitPrice\":\"1.1\"}],\"vatMode\":\"EXCLUSIVE\"},\"invoiceNumber\":\"T01-2026-000042\",\"payments\":[{\"amount\":\"2.31\",\"method\":\"CASH\",\"tendered\":\"5\"}],\"soldAt\":\"2026-11-02T10:15:30.123Z\",\"tillId\":\"11111111-1111-1111-1111-111111111111\"}",
+         "name" : "base: queuedOffline and offlineProof are not signed"
+      },
+      {
+         "body" : {
+            "customer" : {
+               "kind" : "WALK_IN"
+            },
+            "draft" : {
+               "branchId" : "33333333-3333-3333-3333-333333333333",
+               "currency" : "OMR",
+               "customerId" : "22222222-2222-2222-2222-222222222222",
+               "details" : {},
+               "headerDiscount" : {
+                  "type" : "FIXED_AMOUNT",
+                  "value" : 0
+               },
+               "lines" : [
+                  {
+                     "description" : "\u0634\u0627\u064a \u200f\u061c\ud83d\ude00",
+                     "discount" : {
+                        "type" : "PERCENTAGE",
+                        "value" : 0
+                     },
+                     "lineNumber" : 1,
+                     "quantity" : 2,
+                     "taxCategory" : {
+                        "code" : "S",
+                        "en16931Category" : "S",
+                        "rate" : 5
+                     },
+                     "unitCode" : "C62",
+                     "unitPrice" : 1.100
+                  }
+               ],
+               "vatMode" : "EXCLUSIVE"
+            },
+            "invoiceNumber" : "T01-2026-000042",
+            "offlineProof" : {
+               "keyId" : "44444444-4444-4444-4444-444444444444",
+               "signature" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            },
+            "payments" : [
+               {
+                  "amount" : 2.31,
+                  "method" : "CASH",
+                  "tendered" : 5
+               }
+            ],
+            "queuedOffline" : true,
+            "soldAt" : "2026-11-02T10:15:30.123Z",
+            "tillId" : "11111111-1111-1111-1111-111111111111"
+         },
+         "expected" : "{\"customer\":{\"kind\":\"WALK_IN\"},\"draft\":{\"branchId\":\"33333333-3333-3333-3333-333333333333\",\"currency\":\"OMR\",\"customerId\":\"22222222-2222-2222-2222-222222222222\",\"details\":{},\"headerDiscount\":{\"type\":\"FIXED_AMOUNT\",\"value\":\"0\"},\"lines\":[{\"description\":\"\u0634\u0627\u064a \u200f\u061c\ud83d\ude00\",\"discount\":{\"type\":\"PERCENTAGE\",\"value\":\"0\"},\"lineNumber\":\"1\",\"quantity\":\"2\",\"taxCategory\":{\"code\":\"S\",\"en16931Category\":\"S\",\"rate\":\"5\"},\"unitCode\":\"C62\",\"unitPrice\":\"1.1\"}],\"vatMode\":\"EXCLUSIVE\"},\"invoiceNumber\":\"T01-2026-000042\",\"payments\":[{\"amount\":\"2.31\",\"method\":\"CASH\",\"tendered\":\"5\"}],\"soldAt\":\"2026-11-02T10:15:30.123Z\",\"tillId\":\"11111111-1111-1111-1111-111111111111\"}",
+         "name" : "Arabic with RLM and ALM, and a non-BMP emoji, written raw"
+      },
+      {
+         "body" : {
+            "customer" : {
+               "kind" : "WALK_IN"
+            },
+            "draft" : {
+               "branchId" : "33333333-3333-3333-3333-333333333333",
+               "currency" : "OMR",
+               "customerId" : "22222222-2222-2222-2222-222222222222",
+               "details" : {},
+               "headerDiscount" : {
+                  "type" : "FIXED_AMOUNT",
+                  "value" : 0
+               },
+               "lines" : [
+                  {
+                     "description" : "a\"b\\c/d\u0001\u001f\t\n\u2028\u2029",
+                     "discount" : {
+                        "type" : "PERCENTAGE",
+                        "value" : 0
+                     },
+                     "lineNumber" : 1,
+                     "quantity" : 2,
+                     "taxCategory" : {
+                        "code" : "S",
+                        "en16931Category" : "S",
+                        "rate" : 5
+                     },
+                     "unitCode" : "C62",
+                     "unitPrice" : 1.100
+                  }
+               ],
+               "vatMode" : "EXCLUSIVE"
+            },
+            "invoiceNumber" : "T01-2026-000042",
+            "offlineProof" : {
+               "keyId" : "44444444-4444-4444-4444-444444444444",
+               "signature" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            },
+            "payments" : [
+               {
+                  "amount" : 2.31,
+                  "method" : "CASH",
+                  "tendered" : 5
+               }
+            ],
+            "queuedOffline" : true,
+            "soldAt" : "2026-11-02T10:15:30.123Z",
+            "tillId" : "11111111-1111-1111-1111-111111111111"
+         },
+         "expected" : "{\"customer\":{\"kind\":\"WALK_IN\"},\"draft\":{\"branchId\":\"33333333-3333-3333-3333-333333333333\",\"currency\":\"OMR\",\"customerId\":\"22222222-2222-2222-2222-222222222222\",\"details\":{},\"headerDiscount\":{\"type\":\"FIXED_AMOUNT\",\"value\":\"0\"},\"lines\":[{\"description\":\"a\\\"b\\\\c/d\\u0001\\u001f\\t\\n\u2028\u2029\",\"discount\":{\"type\":\"PERCENTAGE\",\"value\":\"0\"},\"lineNumber\":\"1\",\"quantity\":\"2\",\"taxCategory\":{\"code\":\"S\",\"en16931Category\":\"S\",\"rate\":\"5\"},\"unitCode\":\"C62\",\"unitPrice\":\"1.1\"}],\"vatMode\":\"EXCLUSIVE\"},\"invoiceNumber\":\"T01-2026-000042\",\"payments\":[{\"amount\":\"2.31\",\"method\":\"CASH\",\"tendered\":\"5\"}],\"soldAt\":\"2026-11-02T10:15:30.123Z\",\"tillId\":\"11111111-1111-1111-1111-111111111111\"}",
+         "name" : "quote, backslash, slash, controls, U+2028, U+2029 and U+007F"
+      },
+      {
+         "body" : {
+            "customer" : {
+               "kind" : "WALK_IN"
+            },
+            "draft" : {
+               "branchId" : "33333333-3333-3333-3333-333333333333",
+               "currency" : "OMR",
+               "customerId" : "22222222-2222-2222-2222-222222222222",
+               "details" : {},
+               "headerDiscount" : {
+                  "type" : "FIXED_AMOUNT",
+                  "value" : 0
+               },
+               "lines" : [
+                  {
+                     "description" : "Tea",
+                     "discount" : {
+                        "type" : "PERCENTAGE",
+                        "value" : 0
+                     },
+                     "lineNumber" : 1,
+                     "quantity" : 2,
+                     "taxCategory" : {
+                        "code" : "S",
+                        "en16931Category" : "S",
+                        "rate" : 5
+                     },
+                     "unitCode" : "C62",
+                     "unitPrice" : 1.100
+                  }
+               ],
+               "vatMode" : "EXCLUSIVE"
+            },
+            "invoiceNumber" : "T01-2026-000042",
+            "offlineProof" : {
+               "keyId" : "44444444-4444-4444-4444-444444444444",
+               "signature" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            },
+            "payments" : [
+               {
+                  "amount" : 1.10,
+                  "method" : "CASH",
+                  "tendered" : -0
+               }
+            ],
+            "queuedOffline" : true,
+            "soldAt" : "2026-11-02T10:15:30.123Z",
+            "tillId" : "11111111-1111-1111-1111-111111111111"
+         },
+         "expected" : "{\"customer\":{\"kind\":\"WALK_IN\"},\"draft\":{\"branchId\":\"33333333-3333-3333-3333-333333333333\",\"currency\":\"OMR\",\"customerId\":\"22222222-2222-2222-2222-222222222222\",\"details\":{},\"headerDiscount\":{\"type\":\"FIXED_AMOUNT\",\"value\":\"0\"},\"lines\":[{\"description\":\"Tea\",\"discount\":{\"type\":\"PERCENTAGE\",\"value\":\"0\"},\"lineNumber\":\"1\",\"quantity\":\"2\",\"taxCategory\":{\"code\":\"S\",\"en16931Category\":\"S\",\"rate\":\"5\"},\"unitCode\":\"C62\",\"unitPrice\":\"1.1\"}],\"vatMode\":\"EXCLUSIVE\"},\"invoiceNumber\":\"T01-2026-000042\",\"payments\":[{\"amount\":\"1.1\",\"method\":\"CASH\",\"tendered\":\"0\"}],\"soldAt\":\"2026-11-02T10:15:30.123Z\",\"tillId\":\"11111111-1111-1111-1111-111111111111\"}",
+         "name" : "trailing-zero decimals and minus zero"
+      },
+      {
+         "body" : {
+            "customer" : {
+               "kind" : "WALK_IN"
+            },
+            "draft" : {
+               "branchId" : "33333333-3333-3333-3333-333333333333",
+               "currency" : "OMR",
+               "customerId" : "22222222-2222-2222-2222-222222222222",
+               "details" : {},
+               "headerDiscount" : {
+                  "type" : "FIXED_AMOUNT",
+                  "value" : 0
+               },
+               "lines" : [
+                  {
+                     "description" : "Tea",
+                     "discount" : {
+                        "type" : "PERCENTAGE",
+                        "value" : 0
+                     },
+                     "lineNumber" : 1,
+                     "quantity" : 1e-7,
+                     "taxCategory" : {
+                        "code" : "S",
+                        "en16931Category" : "S",
+                        "rate" : 5
+                     },
+                     "unitCode" : "C62",
+                     "unitPrice" : 1E+21
+                  }
+               ],
+               "vatMode" : "EXCLUSIVE"
+            },
+            "invoiceNumber" : "T01-2026-000042",
+            "offlineProof" : {
+               "keyId" : "44444444-4444-4444-4444-444444444444",
+               "signature" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            },
+            "payments" : [
+               {
+                  "amount" : 2.31,
+                  "method" : "CASH",
+                  "tendered" : 5
+               }
+            ],
+            "queuedOffline" : true,
+            "soldAt" : "2026-11-02T10:15:30.123Z",
+            "tillId" : "11111111-1111-1111-1111-111111111111"
+         },
+         "expected" : "{\"customer\":{\"kind\":\"WALK_IN\"},\"draft\":{\"branchId\":\"33333333-3333-3333-3333-333333333333\",\"currency\":\"OMR\",\"customerId\":\"22222222-2222-2222-2222-222222222222\",\"details\":{},\"headerDiscount\":{\"type\":\"FIXED_AMOUNT\",\"value\":\"0\"},\"lines\":[{\"description\":\"Tea\",\"discount\":{\"type\":\"PERCENTAGE\",\"value\":\"0\"},\"lineNumber\":\"1\",\"quantity\":\"0.0000001\",\"taxCategory\":{\"code\":\"S\",\"en16931Category\":\"S\",\"rate\":\"5\"},\"unitCode\":\"C62\",\"unitPrice\":\"1000000000000000000000\"}],\"vatMode\":\"EXCLUSIVE\"},\"invoiceNumber\":\"T01-2026-000042\",\"payments\":[{\"amount\":\"2.31\",\"method\":\"CASH\",\"tendered\":\"5\"}],\"soldAt\":\"2026-11-02T10:15:30.123Z\",\"tillId\":\"11111111-1111-1111-1111-111111111111\"}",
+         "name" : "exponent forms"
+      },
+      {
+         "body" : {
+            "customer" : {
+               "kind" : "WALK_IN"
+            },
+            "draft" : {
+               "branchId" : "33333333-3333-3333-3333-333333333333",
+               "currency" : "OMR",
+               "customerId" : "22222222-2222-2222-2222-222222222222",
+               "details" : {},
+               "headerDiscount" : {
+                  "type" : "FIXED_AMOUNT",
+                  "value" : 0
+               },
+               "lines" : [
+                  {
+                     "description" : "Tea",
+                     "discount" : {
+                        "type" : "PERCENTAGE",
+                        "value" : 0
+                     },
+                     "lineNumber" : 1,
+                     "quantity" : 2,
+                     "taxCategory" : {
+                        "code" : "S",
+                        "en16931Category" : "S",
+                        "rate" : 5
+                     },
+                     "unitCode" : "C62",
+                     "unitPrice" : 1.100
+                  }
+               ],
+               "vatMode" : "EXCLUSIVE"
+            },
+            "invoiceNumber" : "T01-2026-000042",
+            "offlineProof" : {
+               "keyId" : "44444444-4444-4444-4444-444444444444",
+               "signature" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            },
+            "payments" : [
+               {
+                  "amount" : 2.31,
+                  "method" : "CASH",
+                  "tendered" : 0.000
+               }
+            ],
+            "queuedOffline" : true,
+            "soldAt" : "2026-11-02T10:15:30.123Z",
+            "tillId" : "11111111-1111-1111-1111-111111111111"
+         },
+         "expected" : "{\"customer\":{\"kind\":\"WALK_IN\"},\"draft\":{\"branchId\":\"33333333-3333-3333-3333-333333333333\",\"currency\":\"OMR\",\"customerId\":\"22222222-2222-2222-2222-222222222222\",\"details\":{},\"headerDiscount\":{\"type\":\"FIXED_AMOUNT\",\"value\":\"0\"},\"lines\":[{\"description\":\"Tea\",\"discount\":{\"type\":\"PERCENTAGE\",\"value\":\"0\"},\"lineNumber\":\"1\",\"quantity\":\"2\",\"taxCategory\":{\"code\":\"S\",\"en16931Category\":\"S\",\"rate\":\"5\"},\"unitCode\":\"C62\",\"unitPrice\":\"1.1\"}],\"vatMode\":\"EXCLUSIVE\"},\"invoiceNumber\":\"T01-2026-000042\",\"payments\":[{\"amount\":\"2.31\",\"method\":\"CASH\",\"tendered\":\"0\"}],\"soldAt\":\"2026-11-02T10:15:30.123Z\",\"tillId\":\"11111111-1111-1111-1111-111111111111\"}",
+         "name" : "zero with places is 0"
+      },
+      {
+         "body" : {
+            "customer" : {
+               "kind" : "WALK_IN"
+            },
+            "draft" : {
+               "branchId" : "33333333-3333-3333-3333-333333333333",
+               "currency" : "OMR",
+               "customerId" : "22222222-2222-2222-2222-222222222222",
+               "details" : {},
+               "headerDiscount" : {
+                  "type" : "FIXED_AMOUNT",
+                  "value" : 0
+               },
+               "lines" : [
+                  {
+                     "description" : "Tea",
+                     "discount" : {
+                        "type" : "PERCENTAGE",
+                        "value" : 0
+                     },
+                     "lineNumber" : 1,
+                     "quantity" : 2,
+                     "taxCategory" : {
+                        "code" : "S",
+                        "en16931Category" : "S",
+                        "rate" : 5
+                     },
+                     "unitCode" : "C62",
+                     "unitPrice" : 1.100
+                  }
+               ],
+               "vatMode" : "EXCLUSIVE"
+            },
+            "invoiceNumber" : "T01-2026-000042",
+            "lineRefs" : [],
+            "offlineProof" : {
+               "keyId" : "44444444-4444-4444-4444-444444444444",
+               "signature" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            },
+            "payments" : [
+               {
+                  "amount" : 2.31,
+                  "method" : "CASH",
+                  "tendered" : 5
+               }
+            ],
+            "queuedOffline" : true,
+            "soldAt" : "2026-11-02T10:15:30.123Z",
+            "tillId" : "11111111-1111-1111-1111-111111111111"
+         },
+         "expected" : "{\"customer\":{\"kind\":\"WALK_IN\"},\"draft\":{\"branchId\":\"33333333-3333-3333-3333-333333333333\",\"currency\":\"OMR\",\"customerId\":\"22222222-2222-2222-2222-222222222222\",\"details\":{},\"headerDiscount\":{\"type\":\"FIXED_AMOUNT\",\"value\":\"0\"},\"lines\":[{\"description\":\"Tea\",\"discount\":{\"type\":\"PERCENTAGE\",\"value\":\"0\"},\"lineNumber\":\"1\",\"quantity\":\"2\",\"taxCategory\":{\"code\":\"S\",\"en16931Category\":\"S\",\"rate\":\"5\"},\"unitCode\":\"C62\",\"unitPrice\":\"1.1\"}],\"vatMode\":\"EXCLUSIVE\"},\"invoiceNumber\":\"T01-2026-000042\",\"lineRefs\":[],\"payments\":[{\"amount\":\"2.31\",\"method\":\"CASH\",\"tendered\":\"5\"}],\"soldAt\":\"2026-11-02T10:15:30.123Z\",\"tillId\":\"11111111-1111-1111-1111-111111111111\"}",
+         "name" : "an empty list is signed, a null one is not"
+      },
+      {
+         "body" : {
+            "customer" : {
+               "kind" : "WALK_IN"
+            },
+            "draft" : {
+               "branchId" : "33333333-3333-3333-3333-333333333333",
+               "currency" : "OMR",
+               "customerId" : "22222222-2222-2222-2222-222222222222",
+               "details" : {},
+               "headerDiscount" : {
+                  "type" : "FIXED_AMOUNT",
+                  "value" : 0
+               },
+               "lines" : [
+                  {
+                     "description" : "Tea",
+                     "discount" : {
+                        "type" : "PERCENTAGE",
+                        "value" : 0
+                     },
+                     "lineNumber" : 1,
+                     "quantity" : 2,
+                     "taxCategory" : {
+                        "code" : "S",
+                        "en16931Category" : "S",
+                        "rate" : 5
+                     },
+                     "unitCode" : "C62",
+                     "unitPrice" : 1.100
+                  }
+               ],
+               "vatMode" : "EXCLUSIVE"
+            },
+            "invoiceNumber" : "T01-2026-000042",
+            "offlineProof" : {
+               "keyId" : "44444444-4444-4444-4444-444444444444",
+               "signature" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            },
+            "payments" : [
+               {
+                  "amount" : 2.31,
+                  "method" : "CASH",
+                  "tendered" : 5
+               }
+            ],
+            "queuedOffline" : true,
+            "soldAt" : "2026-11-02T10:15:30.123Z",
+            "tillId" : "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA"
+         },
+         "expected" : "{\"customer\":{\"kind\":\"WALK_IN\"},\"draft\":{\"branchId\":\"33333333-3333-3333-3333-333333333333\",\"currency\":\"OMR\",\"customerId\":\"22222222-2222-2222-2222-222222222222\",\"details\":{},\"headerDiscount\":{\"type\":\"FIXED_AMOUNT\",\"value\":\"0\"},\"lines\":[{\"description\":\"Tea\",\"discount\":{\"type\":\"PERCENTAGE\",\"value\":\"0\"},\"lineNumber\":\"1\",\"quantity\":\"2\",\"taxCategory\":{\"code\":\"S\",\"en16931Category\":\"S\",\"rate\":\"5\"},\"unitCode\":\"C62\",\"unitPrice\":\"1.1\"}],\"vatMode\":\"EXCLUSIVE\"},\"invoiceNumber\":\"T01-2026-000042\",\"payments\":[{\"amount\":\"2.31\",\"method\":\"CASH\",\"tendered\":\"5\"}],\"soldAt\":\"2026-11-02T10:15:30.123Z\",\"tillId\":\"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\"}",
+         "name" : "an uppercase UUID is signed lowercase"
+      },
+      {
+         "body" : {
+            "customer" : {
+               "kind" : "WALK_IN"
+            },
+            "draft" : {
+               "branchId" : "33333333-3333-3333-3333-333333333333",
+               "currency" : "OMR",
+               "customerId" : "22222222-2222-2222-2222-222222222222",
+               "details" : {},
+               "headerDiscount" : {
+                  "type" : "FIXED_AMOUNT",
+                  "value" : 0
+               },
+               "lines" : [
+                  {
+                     "description" : "Tea",
+                     "discount" : {
+                        "type" : "PERCENTAGE",
+                        "value" : 0
+                     },
+                     "lineNumber" : 1,
+                     "quantity" : 2,
+                     "taxCategory" : {
+                        "code" : "S",
+                        "en16931Category" : "S",
+                        "rate" : 5
+                     },
+                     "unitCode" : "C62",
+                     "unitPrice" : 1.100
+                  }
+               ],
+               "vatMode" : "EXCLUSIVE"
+            },
+            "invoiceNumber" : "T01-2026-000042",
+            "offlineProof" : {
+               "keyId" : "44444444-4444-4444-4444-444444444444",
+               "signature" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            },
+            "payments" : [
+               {
+                  "amount" : 2.31,
+                  "method" : "CASH",
+                  "tendered" : 5
+               }
+            ],
+            "queuedOffline" : true,
+            "soldAt" : "2026-11-02T14:15:30.123+04:00",
+            "tillId" : "11111111-1111-1111-1111-111111111111"
+         },
+         "expected" : "{\"customer\":{\"kind\":\"WALK_IN\"},\"draft\":{\"branchId\":\"33333333-3333-3333-3333-333333333333\",\"currency\":\"OMR\",\"customerId\":\"22222222-2222-2222-2222-222222222222\",\"details\":{},\"headerDiscount\":{\"type\":\"FIXED_AMOUNT\",\"value\":\"0\"},\"lines\":[{\"description\":\"Tea\",\"discount\":{\"type\":\"PERCENTAGE\",\"value\":\"0\"},\"lineNumber\":\"1\",\"quantity\":\"2\",\"taxCategory\":{\"code\":\"S\",\"en16931Category\":\"S\",\"rate\":\"5\"},\"unitCode\":\"C62\",\"unitPrice\":\"1.1\"}],\"vatMode\":\"EXCLUSIVE\"},\"invoiceNumber\":\"T01-2026-000042\",\"payments\":[{\"amount\":\"2.31\",\"method\":\"CASH\",\"tendered\":\"5\"}],\"soldAt\":\"2026-11-02T10:15:30.123Z\",\"tillId\":\"11111111-1111-1111-1111-111111111111\"}",
+         "name" : "soldAt with an offset is signed in UTC"
+      },
+      {
+         "body" : {
+            "customer" : {
+               "kind" : "WALK_IN"
+            },
+            "draft" : {
+               "branchId" : "33333333-3333-3333-3333-333333333333",
+               "currency" : "OMR",
+               "customerId" : "22222222-2222-2222-2222-222222222222",
+               "details" : {},
+               "headerDiscount" : {
+                  "type" : "FIXED_AMOUNT",
+                  "value" : 0
+               },
+               "lines" : [
+                  {
+                     "description" : "Tea",
+                     "discount" : {
+                        "type" : "PERCENTAGE",
+                        "value" : 0
+                     },
+                     "lineNumber" : 1,
+                     "quantity" : 2,
+                     "taxCategory" : {
+                        "code" : "S",
+                        "en16931Category" : "S",
+                        "rate" : 5
+                     },
+                     "unitCode" : "C62",
+                     "unitPrice" : 1.100
+                  }
+               ],
+               "vatMode" : "EXCLUSIVE"
+            },
+            "invoiceNumber" : "T01-2026-000042",
+            "offlineProof" : {
+               "keyId" : "44444444-4444-4444-4444-444444444444",
+               "signature" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            },
+            "payments" : [
+               {
+                  "amount" : 2.31,
+                  "method" : "CASH",
+                  "tendered" : 5
+               }
+            ],
+            "queuedOffline" : true,
+            "soldAt" : "2026-11-02T10:15:30Z",
+            "tillId" : "11111111-1111-1111-1111-111111111111"
+         },
+         "expected" : "{\"customer\":{\"kind\":\"WALK_IN\"},\"draft\":{\"branchId\":\"33333333-3333-3333-3333-333333333333\",\"currency\":\"OMR\",\"customerId\":\"22222222-2222-2222-2222-222222222222\",\"details\":{},\"headerDiscount\":{\"type\":\"FIXED_AMOUNT\",\"value\":\"0\"},\"lines\":[{\"description\":\"Tea\",\"discount\":{\"type\":\"PERCENTAGE\",\"value\":\"0\"},\"lineNumber\":\"1\",\"quantity\":\"2\",\"taxCategory\":{\"code\":\"S\",\"en16931Category\":\"S\",\"rate\":\"5\"},\"unitCode\":\"C62\",\"unitPrice\":\"1.1\"}],\"vatMode\":\"EXCLUSIVE\"},\"invoiceNumber\":\"T01-2026-000042\",\"payments\":[{\"amount\":\"2.31\",\"method\":\"CASH\",\"tendered\":\"5\"}],\"soldAt\":\"2026-11-02T10:15:30.000Z\",\"tillId\":\"11111111-1111-1111-1111-111111111111\"}",
+         "name" : "soldAt in whole seconds is signed with .000"
+      },
+      {
+         "body" : {
+            "customer" : {
+               "kind" : "WALK_IN"
+            },
+            "draft" : {
+               "branchId" : "33333333-3333-3333-3333-333333333333",
+               "currency" : "OMR",
+               "customerId" : "22222222-2222-2222-2222-222222222222",
+               "details" : {},
+               "headerDiscount" : {
+                  "type" : "FIXED_AMOUNT",
+                  "value" : 0
+               },
+               "lines" : [
+                  {
+                     "description" : "Tea",
+                     "discount" : {
+                        "type" : "PERCENTAGE",
+                        "value" : 0
+                     },
+                     "lineNumber" : 1,
+                     "quantity" : 2,
+                     "taxCategory" : {
+                        "code" : "S",
+                        "en16931Category" : "S",
+                        "rate" : 5
+                     },
+                     "unitCode" : "C62",
+                     "unitPrice" : 1.100
+                  }
+               ],
+               "vatMode" : "EXCLUSIVE"
+            },
+            "invoiceNumber" : "T01-2026-000042",
+            "offlineProof" : {
+               "keyId" : "44444444-4444-4444-4444-444444444444",
+               "signature" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            },
+            "payments" : [
+               {
+                  "amount" : 2.31,
+                  "method" : "CASH",
+                  "tendered" : 5
+               }
+            ],
+            "queuedOffline" : true,
+            "soldAt" : "2026-11-02T10:15:30.1234Z",
+            "tillId" : "11111111-1111-1111-1111-111111111111"
+         },
+         "name" : "soldAt finer than a millisecond cannot be signed",
+         "unsignable" : "SOLD_AT_PRECISION"
+      },
+      {
+         "body" : {
+            "customer" : {
+               "kind" : "WALK_IN"
+            },
+            "draft" : {
+               "branchId" : "33333333-3333-3333-3333-333333333333",
+               "currency" : "OMR",
+               "customerId" : "22222222-2222-2222-2222-222222222222",
+               "details" : {},
+               "headerDiscount" : {
+                  "type" : "FIXED_AMOUNT",
+                  "value" : 0
+               },
+               "lines" : [
+                  {
+                     "description" : "Tea\ud800",
+                     "discount" : {
+                        "type" : "PERCENTAGE",
+                        "value" : 0
+                     },
+                     "lineNumber" : 1,
+                     "quantity" : 2,
+                     "taxCategory" : {
+                        "code" : "S",
+                        "en16931Category" : "S",
+                        "rate" : 5
+                     },
+                     "unitCode" : "C62",
+                     "unitPrice" : 1.100
+                  }
+               ],
+               "vatMode" : "EXCLUSIVE"
+            },
+            "invoiceNumber" : "T01-2026-000042",
+            "offlineProof" : {
+               "keyId" : "44444444-4444-4444-4444-444444444444",
+               "signature" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            },
+            "payments" : [
+               {
+                  "amount" : 2.31,
+                  "method" : "CASH",
+                  "tendered" : 5
+               }
+            ],
+            "queuedOffline" : true,
+            "soldAt" : "2026-11-02T10:15:30.123Z",
+            "tillId" : "11111111-1111-1111-1111-111111111111"
+         },
+         "name" : "a lone surrogate cannot be signed",
+         "unsignable" : "PAYLOAD_INVALID"
+      },
+      {
+         "body" : {
+            "customer" : {
+               "kind" : "WALK_IN"
+            },
+            "draft" : {
+               "branchId" : "33333333-3333-3333-3333-333333333333",
+               "currency" : "OMR",
+               "customerId" : "22222222-2222-2222-2222-222222222222",
+               "details" : {
+                  "transactionSubtypes" : [
+                     "THIRD_PARTY",
+                     "DEEMED_SUPPLY",
+                     "EXPORT"
+                  ]
+               },
+               "headerDiscount" : {
+                  "type" : "FIXED_AMOUNT",
+                  "value" : 0
+               },
+               "lines" : [
+                  {
+                     "description" : "Tea",
+                     "discount" : {
+                        "type" : "PERCENTAGE",
+                        "value" : 0
+                     },
+                     "lineNumber" : 1,
+                     "quantity" : 2,
+                     "taxCategory" : {
+                        "code" : "S",
+                        "en16931Category" : "S",
+                        "rate" : 5
+                     },
+                     "unitCode" : "C62",
+                     "unitPrice" : 1.100
+                  }
+               ],
+               "vatMode" : "EXCLUSIVE"
+            },
+            "invoiceNumber" : "T01-2026-000042",
+            "offlineProof" : {
+               "keyId" : "44444444-4444-4444-4444-444444444444",
+               "signature" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            },
+            "payments" : [
+               {
+                  "amount" : 2.31,
+                  "method" : "CASH",
+                  "tendered" : 5
+               }
+            ],
+            "queuedOffline" : true,
+            "soldAt" : "2026-11-02T10:15:30.123Z",
+            "tillId" : "11111111-1111-1111-1111-111111111111"
+         },
+         "expected" : "{\"customer\":{\"kind\":\"WALK_IN\"},\"draft\":{\"branchId\":\"33333333-3333-3333-3333-333333333333\",\"currency\":\"OMR\",\"customerId\":\"22222222-2222-2222-2222-222222222222\",\"details\":{\"transactionSubtypes\":[\"DEEMED_SUPPLY\",\"EXPORT\",\"THIRD_PARTY\"]},\"headerDiscount\":{\"type\":\"FIXED_AMOUNT\",\"value\":\"0\"},\"lines\":[{\"description\":\"Tea\",\"discount\":{\"type\":\"PERCENTAGE\",\"value\":\"0\"},\"lineNumber\":\"1\",\"quantity\":\"2\",\"taxCategory\":{\"code\":\"S\",\"en16931Category\":\"S\",\"rate\":\"5\"},\"unitCode\":\"C62\",\"unitPrice\":\"1.1\"}],\"vatMode\":\"EXCLUSIVE\"},\"invoiceNumber\":\"T01-2026-000042\",\"payments\":[{\"amount\":\"2.31\",\"method\":\"CASH\",\"tendered\":\"5\"}],\"soldAt\":\"2026-11-02T10:15:30.123Z\",\"tillId\":\"11111111-1111-1111-1111-111111111111\"}",
+         "name" : "transactionSubtypes are signed sorted"
+      },
+      {
+         "body" : {
+            "customer" : {
+               "kind" : "WALK_IN"
+            },
+            "draft" : {
+               "branchId" : "33333333-3333-3333-3333-333333333333",
+               "currency" : "OMR",
+               "customerId" : "22222222-2222-2222-2222-222222222222",
+               "details" : {},
+               "headerDiscount" : {
+                  "type" : "FIXED_AMOUNT",
+                  "value" : 0
+               },
+               "lines" : [
+                  {
+                     "description" : "Tea",
+                     "discount" : {
+                        "type" : "PERCENTAGE",
+                        "value" : 0
+                     },
+                     "lineNumber" : 1,
+                     "quantity" : 2,
+                     "taxCategory" : {
+                        "code" : "S",
+                        "en16931Category" : "S",
+                        "rate" : 5
+                     },
+                     "unitCode" : "C62",
+                     "unitPrice" : 1.100
+                  }
+               ],
+               "vatMode" : "EXCLUSIVE"
+            },
+            "invoiceNumber" : "T01-2026-000042",
+            "offlineProof" : {
+               "keyId" : "44444444-4444-4444-4444-444444444444",
+               "signature" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            },
+            "payments" : [
+               {
+                  "amount" : 2.31,
+                  "method" : "CARD",
+                  "slipFields" : {
+                     "authCode" : "123456"
+                  },
+                  "slipFileId" : "55555555-5555-5555-5555-555555555555"
+               }
+            ],
+            "printed" : {
+               "taxable" : 2.200,
+               "total" : 2.31,
+               "vat" : 0.110
+            },
+            "queuedOffline" : true,
+            "soldAt" : "2026-11-02T10:15:30.123Z",
+            "tillId" : "11111111-1111-1111-1111-111111111111"
+         },
+         "expected" : "{\"customer\":{\"kind\":\"WALK_IN\"},\"draft\":{\"branchId\":\"33333333-3333-3333-3333-333333333333\",\"currency\":\"OMR\",\"customerId\":\"22222222-2222-2222-2222-222222222222\",\"details\":{},\"headerDiscount\":{\"type\":\"FIXED_AMOUNT\",\"value\":\"0\"},\"lines\":[{\"description\":\"Tea\",\"discount\":{\"type\":\"PERCENTAGE\",\"value\":\"0\"},\"lineNumber\":\"1\",\"quantity\":\"2\",\"taxCategory\":{\"code\":\"S\",\"en16931Category\":\"S\",\"rate\":\"5\"},\"unitCode\":\"C62\",\"unitPrice\":\"1.1\"}],\"vatMode\":\"EXCLUSIVE\"},\"invoiceNumber\":\"T01-2026-000042\",\"payments\":[{\"amount\":\"2.31\",\"method\":\"CARD\"}],\"printed\":{\"taxable\":\"2.2\",\"total\":\"2.31\",\"vat\":\"0.11\"},\"soldAt\":\"2026-11-02T10:15:30.123Z\",\"tillId\":\"11111111-1111-1111-1111-111111111111\"}",
+         "name" : "the slip is not signed, the printed totals are"
+      },
+      {
+         "body" : {
+            "customer" : {
+               "kind" : "WALK_IN"
+            },
+            "draft" : {
+               "branchId" : "33333333-3333-3333-3333-333333333333",
+               "currency" : "OMR",
+               "customerId" : "22222222-2222-2222-2222-222222222222",
+               "details" : {},
+               "headerDiscount" : {
+                  "type" : "FIXED_AMOUNT",
+                  "value" : 0
+               },
+               "lines" : [
+                  {
+                     "description" : "Tea",
+                     "discount" : {
+                        "type" : "PERCENTAGE",
+                        "value" : 0
+                     },
+                     "lineNumber" : 1,
+                     "quantity" : 2,
+                     "taxCategory" : {
+                        "code" : "S",
+                        "en16931Category" : "S",
+                        "rate" : 5
+                     },
+                     "unitCode" : "C62",
+                     "unitPrice" : 1.100
+                  }
+               ],
+               "vatMode" : "EXCLUSIVE"
+            },
+            "invoiceNumber" : "T01-2026-000042",
+            "offlineProof" : {
+               "keyId" : "44444444-4444-4444-4444-444444444444",
+               "signature" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            },
+            "payments" : [
+               {
+                  "amount" : 2.31,
+                  "method" : "CARD",
+                  "reference" : "4111 1111 1111 1111"
+               }
+            ],
+            "queuedOffline" : true,
+            "soldAt" : "2026-11-02T10:15:30.123Z",
+            "tillId" : "11111111-1111-1111-1111-111111111111"
+         },
+         "expected" : "{\"customer\":{\"kind\":\"WALK_IN\"},\"draft\":{\"branchId\":\"33333333-3333-3333-3333-333333333333\",\"currency\":\"OMR\",\"customerId\":\"22222222-2222-2222-2222-222222222222\",\"details\":{},\"headerDiscount\":{\"type\":\"FIXED_AMOUNT\",\"value\":\"0\"},\"lines\":[{\"description\":\"Tea\",\"discount\":{\"type\":\"PERCENTAGE\",\"value\":\"0\"},\"lineNumber\":\"1\",\"quantity\":\"2\",\"taxCategory\":{\"code\":\"S\",\"en16931Category\":\"S\",\"rate\":\"5\"},\"unitCode\":\"C62\",\"unitPrice\":\"1.1\"}],\"vatMode\":\"EXCLUSIVE\"},\"invoiceNumber\":\"T01-2026-000042\",\"payments\":[{\"amount\":\"2.31\",\"method\":\"CARD\",\"reference\":\"4111 1111 1111 1111\"}],\"soldAt\":\"2026-11-02T10:15:30.123Z\",\"tillId\":\"11111111-1111-1111-1111-111111111111\"}",
+         "holdsCardNumber" : true,
+         "name" : "a card number in free text is signed and flagged"
+      }
+   ],
+   "version" : "1"
+}
