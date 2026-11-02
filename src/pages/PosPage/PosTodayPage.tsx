@@ -25,6 +25,7 @@ import {
   payMethodKey,
   amountNote,
   saleState,
+  saleStateText,
   type TodayTabId,
 } from '../../lib/posToday'
 import type { TillState } from '../../lib/posTill'
@@ -330,6 +331,7 @@ function SaleRow({ sale, canRefund }: { sale: PosTodaySaleRow; canRefund: boolea
   const { t } = useTranslation()
   const detail = payDetail(sale)
   const note = amountNote(sale)
+  const badge = saleStateText(sale)
   return (
     <li
       // Fixed columns from xl up, so payment, amount, badge and action line up on every row. From
@@ -382,9 +384,10 @@ function SaleRow({ sale, canRefund }: { sale: PosTodaySaleRow; canRefund: boolea
       <span className="flex shrink-0 md:col-start-3 md:row-start-2 xl:col-start-auto xl:row-start-auto">
         <span
           className={`inline-flex h-[26px] items-center gap-1.5 rounded-full px-2.5 text-[11px] font-semibold uppercase tracking-[0.04em] ${STATE_TONE[saleState(sale)]}`}
+          title={badge.hintKey ? t(badge.hintKey) : undefined}
         >
           <span className="size-1.5 rounded-full bg-current" />
-          {t(`pos.today.state.${saleState(sale)}`)}
+          {t(badge.key)}
         </span>
       </span>
       <span className="flex shrink-0 items-center justify-end gap-1.5 md:col-span-2 md:col-start-4 md:row-start-2 xl:col-span-1 xl:col-start-auto xl:row-start-auto">

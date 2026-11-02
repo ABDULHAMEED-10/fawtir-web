@@ -230,7 +230,21 @@ export type PosFiling = {
   tddStatus: string | null
   acceptedAt: string | null
   channel: 'TAX_AUTHORITY' | 'PEPPOL'
+  /**
+   * `GET /pos/sales` (batch 39 FIN-1): the company invoice's Peppol delivery, in the invoice list's
+   * `deliveryState` words. Null when the server cannot read it; absent from a server before it.
+   */
+  peppolDelivery?: PeppolDeliveryState | null
 }
+
+export type PeppolDeliveryState =
+  | 'NOT_SUBMITTED'
+  | 'QUEUED'
+  | 'SENDING'
+  | 'SENT'
+  | 'DELIVERED'
+  | 'DELIVERED_UNCONFIRMED'
+  | 'UNDELIVERABLE'
 
 export type PosWarning = {
   code: string

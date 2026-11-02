@@ -4634,7 +4634,9 @@
         "peppol": "Peppol",
         "credited": "Credited",
         "waiting": "Waiting",
-        "failed": "Not filed"
+        "failed": "Not filed",
+        "notDelivered": "Not delivered",
+        "notDeliveredHint": "The buyer's Peppol system refused this invoice or could not be reached. The sale and its invoice have not changed. Send the invoice to the buyer another way, or ask an administrator to check its delivery."
       },
       "tab": {
         "everything": "Everything",

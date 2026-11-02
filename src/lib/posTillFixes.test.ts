@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { tillContact } from './posContact'
 import { movementTime } from './catalogStock'
-import { amountNote, saleState } from './posToday'
+import { amountNote, saleState, saleStateText } from './posToday'
 import { notEligiblePaths } from './customerEligibility'
 import { loadOrRecall } from './posOffline'
 import { ownBranches } from '../components/branch/useWorkingBranch'
@@ -188,5 +188,65 @@ describe('what the till keeps for offline (E2E F-4)', () => {
         throw new NetworkError('offline')
       }),
     ).rejects.toBeInstanceOf(NetworkError)
+  })
+})
+
+describe('a company invoice Peppol could not deliver, on Today (batch 39 FIN-1)', () => {
+  const sent = {
+    dispatchState: 'DISPATCHED',
+    tddStatus: null,
+    acceptedAt: null,
+    channel: 'PEPPOL',
+  } as const
+  const row = (patch: Partial<PosTodaySaleRow>): PosTodaySaleRow =>
+    ({
+      displayState: 'failed',
+      credit: { state: 'NONE', credited: 0, creditNoteNumbers: [] },
+      tip: 0,
+      changeGiven: 0,
+      customer: { kind: 'BUSINESS', customerId: 'c', name: 'Qalhat Marine' },
+      ...patch,
+    }) as PosTodaySaleRow
+
+  it('says Not delivered, with its hint, for failed with UNDELIVERABLE', () => {
+    const sale = row({ filing: { ...sent, peppolDelivery: 'UNDELIVERABLE' } })
+    expect(saleState(sale)).toBe('failed')
+    expect(saleStateText(sale)).toEqual({
+      key: 'pos.today.state.notDelivered',
+      hintKey: 'pos.today.state.notDeliveredHint',
+    })
+  })
+
+  it('keeps Not filed for any other failed sale, a consumer one included', () => {
+    const consumer = row({
+      customer: { kind: 'WALK_IN', customerId: 'c', name: null },
+      filing: { ...sent, channel: 'TAX_AUTHORITY', dispatchState: 'DEAD_LETTERED', peppolDelivery: null },
+    })
+    expect(saleStateText(consumer)).toEqual({ key: 'pos.today.state.failed' })
+    expect(saleStateText(row({ filing: { ...sent, peppolDelivery: 'SENT' } }))).toEqual({
+      key: 'pos.today.state.failed',
+    })
+  })
+
+  it('behaves as today on a server that sends no peppolDelivery', () => {
+    expect(saleStateText(row({ filing: sent }))).toEqual({ key: 'pos.today.state.failed' })
+    expect(saleStateText(row({ filing: null }))).toEqual({ key: 'pos.today.state.failed' })
+    expect(saleStateText(row({ displayState: 'peppol', filing: sent }))).toEqual({
+      key: 'pos.today.state.peppol',
+    })
+  })
+
+  it('never reads UNDELIVERABLE on a sale the server does not call failed', () => {
+    const delivered = row({ displayState: 'peppol', filing: { ...sent, peppolDelivery: 'UNDELIVERABLE' } })
+    expect(saleStateText(delivered)).toEqual({ key: 'pos.today.state.peppol' })
+  })
+
+  it('has both words in English and Arabic', async () => {
+    const en = (await import('../i18n/locales/en.json')).default as { pos: { today: { state: Record<string, string> } } }
+    const ar = (await import('../i18n/locales/ar.json')).default as { pos: { today: { state: Record<string, string> } } }
+    for (const locale of [en, ar]) {
+      expect(locale.pos.today.state.notDelivered).toBeTruthy()
+      expect(locale.pos.today.state.notDeliveredHint).toBeTruthy()
+    }
   })
 })
