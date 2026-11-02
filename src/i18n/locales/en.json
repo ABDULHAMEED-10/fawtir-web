@@ -4694,6 +4694,8 @@
       "paidOut": "Paid out of the drawer",
       "paidOutNote": "Milk delivery, receipt in the drawer · {{who}}",
       "shouldHold": "So the drawer should hold",
+      "lateCash": "Late cash filed into the previous shift: OMR {{amount}}",
+      "lateCashHint": "Offline sales from the shift before yours arrived after you took over. The cash is in this drawer but not in the expected figure.",
       "whyShort": "Why is it short?",
       "guessIsFine": "a guess is fine. The point is that somebody looked",
       "changeWrong": "Change given wrong",

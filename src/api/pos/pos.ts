@@ -492,6 +492,12 @@ export type PosClosePreviewDto = {
   paidIn: number
   cashRefunded: number
   expectedCash: number
+  /**
+   * Cash of offline sales filed into the shift this one took over from after the handover
+   * (fix/b39-fin-latecash, B39-SR-3). Information only: never part of `expectedCash`. Absent on an
+   * older server, which reads as 0.
+   */
+  lateCashFromHandedOverShift?: number
   looseEnds: PosLooseEnds
   movements: PosCashMovementDto[]
   at: string
