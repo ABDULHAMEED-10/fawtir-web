@@ -603,7 +603,6 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
       total: money(total),
     },
     notes: data.details?.customerVisibleNote ?? undefined,
-    qrPayload: `${data.invoiceNumber ?? data.id}|${data.issueDate ?? ''}|${total ?? ''}`,
   }
 
   return (
