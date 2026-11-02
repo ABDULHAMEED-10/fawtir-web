@@ -2153,6 +2153,19 @@ describe('a candidate that may be the same supplier bill as another (batch 39 EX
     expect(possible.closest('a')!.getAttribute('href')).toBe('/expenditure/bills/b-other')
   })
 
+  it('tells the upload whose Peppol copy is held where that copy is, not that it is a duplicate (PRV-b39 E-1)', async () => {
+    override = (url) =>
+      url === `/api/v1/payment-runs/${RUN_ID}/candidates`
+        ? json(200, [{ ...candidate('b-1', 'MR-2'), heldCopyId: 'b-held', duplicateOf: null }])
+        : null
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    const held = await screen.findByText('Its Peppol copy is on hold for review', undefined, {
+      timeout: 8000,
+    })
+    expect(held.closest('a')!.getAttribute('href')).toBe('/expenditure/bills/b-held')
+    expect(screen.queryByText('Same supplier bill as another on file')).toBeNull()
+  })
+
   it('flags nothing from a server that sends neither field', async () => {
     renderAt(`/expenditure/payments/${RUN_ID}`)
     expect(await screen.findByRole('link', { name: 'MR-2' }, { timeout: 8000 })).toBeTruthy()

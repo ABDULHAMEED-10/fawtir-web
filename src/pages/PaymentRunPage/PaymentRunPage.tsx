@@ -1083,7 +1083,11 @@ function RunBuilder({ runId }: { runId: string | null }) {
 }
 
 /** Read once per row: the twin decides whether the link shows, where it goes and what it says. */
-function CandidateTwinLink({ bill }: { bill: Pick<RunBill, 'duplicateOf' | 'possibleDuplicateOf'> }) {
+function CandidateTwinLink({
+  bill,
+}: {
+  bill: Pick<RunBill, 'duplicateOf' | 'possibleDuplicateOf' | 'heldCopyId'>
+}) {
   const { t } = useTranslation()
   const twin = candidateTwinOf(bill)
   if (!twin) return null

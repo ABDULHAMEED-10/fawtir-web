@@ -151,6 +151,11 @@ export type PaymentRunCandidateDto = {
   duplicateOf?: string | null
   /** Batch 39 EXP: the other copy of a less certain pair; absent from an older server. */
   possibleDuplicateOf?: string | null
+  /**
+   * PRV-b39 E-1 (EXP 11103f65c): on an upload whose Peppol copy is held against it, that copy's id;
+   * `duplicateOf` is then null. Absent from an older server.
+   */
+  heldCopyId?: string | null
 }
 
 /**

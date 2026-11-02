@@ -8,4 +8,11 @@ describe('candidateTwinOf (batch 39 EXP §5)', () => {
     expect(candidateTwinOf({})).toBeNull()
     expect(candidateTwinOf({ duplicateOf: null, possibleDuplicateOf: null })).toBeNull()
   })
+
+  // PRV-b39 E-1: the upload whose Peppol copy is held is the bill to pay.
+  it('names the held Peppol copy first, never "the same as another", and ignores it when null', () => {
+    expect(candidateTwinOf({ heldCopyId: 'h', duplicateOf: null })).toEqual({ certainty: 'heldCopy', otherId: 'h' })
+    expect(candidateTwinOf({ heldCopyId: 'h', duplicateOf: 'a' })).toEqual({ certainty: 'heldCopy', otherId: 'h' })
+    expect(candidateTwinOf({ heldCopyId: null, duplicateOf: 'a' })).toEqual({ certainty: 'sure', otherId: 'a' })
+  })
 })

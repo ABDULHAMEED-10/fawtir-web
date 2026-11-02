@@ -21414,7 +21414,8 @@
     "unnumbered": "No bill number",
     "twin": {
       "sure": "Same supplier bill as another on file",
-      "possible": "May be the same supplier bill as another on file"
+      "possible": "May be the same supplier bill as another on file",
+      "heldCopy": "Its Peppol copy is on hold for review"
     },
     "tickDueBy": "Tick everything due by",
     "tickNote": "are in this run. Ticking a bill adds it to the run straight away; unticking takes it out.",
