@@ -150,6 +150,13 @@ const BILL_PAYMENT_REFUSALS: NonNullable<Parameters<typeof RecordPaymentModal>[0
     field: 'paymentDate',
     key: 'invoiceDetails.pay.error.dateFuture',
   },
+  // SEC 86912a7fa (batch 37, DEC-30-06): a card-coded bill payment's reference holding a card
+  // number, worded as the invoice dialog words PAYMENT_REFERENCE_CARD_NUMBER. Older servers never
+  // send it.
+  BILL_PAYMENT_REFERENCE_CARD_NUMBER: {
+    field: 'reference',
+    key: 'invoiceDetails.pay.error.referenceCardNumber',
+  },
 }
 
 /** The dialog's own check of the amount against what the bill still owes, in a bill's words. */

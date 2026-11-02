@@ -278,6 +278,12 @@ export const PAYMENT_REFUSALS: Record<string, { field: PaymentField | null; key:
   PAYMENT_DATE_IN_FUTURE: { field: 'paymentDate', key: 'invoiceDetails.pay.error.dateFuture' },
   PAYMENT_DATE_BEFORE_ISSUE_DATE: { field: 'paymentDate', key: 'invoiceDetails.pay.error.dateBeforeIssue' },
   PAYMENT_METHOD_INVALID: { field: 'methodCode', key: 'invoiceDetails.pay.error.methodRequired' },
+  // DEC-30-06, from RC2 on (b48e85031 never sends it): a card-coded payment's reference holding a
+  // card number. Without it the form said only "check the form", naming no field.
+  PAYMENT_REFERENCE_CARD_NUMBER: {
+    field: 'reference',
+    key: 'invoiceDetails.pay.error.referenceCardNumber',
+  },
   PERIOD_CLOSED: { field: 'paymentDate', key: 'invoiceDetails.pay.error.periodClosed' },
   PAYMENT_REQUIRES_ISSUED_INVOICE: { field: null, key: 'invoiceDetails.pay.error.notIssued' },
   PAYMENT_ALREADY_REVERSED: { field: null, key: 'invoiceDetails.pay.error.alreadyReversed' },

@@ -2528,7 +2528,8 @@
         "periodClosed": "That date falls in a closed accounting period.",
         "notIssued": "Payments can only be recorded against an issued invoice.",
         "alreadyReversed": "That payment was already reversed. The list has been refreshed.",
-        "paymentGone": "That payment could not be found. The list has been refreshed."
+        "paymentGone": "That payment could not be found. The list has been refreshed.",
+        "referenceCardNumber": "That looks like the card number. Type the approval code from the bank slip as the reference, never the card number."
       },
       "balanceChanged": "What is owed changed since this page was opened. Closing this dialog shows the current balance."
     },
@@ -20872,7 +20873,8 @@
       "stock": "Your plan does not include stock counting. What you counted before can still be viewed.",
       "receiptScan": "Your plan does not include scanning bills and receipts. What you made before can still be viewed, downloaded and exported."
     },
-    "tooLarge": "That file is too large for Fawtir to accept. Use a smaller photo or PDF."
+    "tooLarge": "That file is too large for Fawtir to accept. Use a smaller photo or PDF.",
+    "discountAboveLimit": "This discount takes {{requestedPercent}}% off and your limit is {{limitPercent}}%. Lower it, or ask an administrator in your company to raise your limit."
   },
   "appAccess": {
     "checking": "Checking your access…",
