@@ -3689,3 +3689,48 @@ describe('The credit notes on a bill, in Linked documents', () => {
     expect(creditNoteReads).toEqual([])
   })
 })
+
+describe('the reply line from the bill’s own peppol block (batch 39 EXP)', () => {
+  const peppol = {
+    deliveryId: 'd-1',
+    mlsCode: 'AP' as const,
+    mlsTransportState: 'DELIVERED' as const,
+    mlsDeliveredAt: '2026-11-01T08:00:00Z',
+    tddStatus: 'SUBMITTED' as const,
+  }
+
+  it('says how we answered the supplier when the delivery record is not read yet', () => {
+    const keys = complianceOf({ ...detail(), peppol }, undefined, { kind: 'loading' }).map((n) => n.key)
+    expect(keys).toContain('billDetail.compliance.reply.AP')
+  })
+
+  it('prefers it to "unavailable" when the delivery record cannot be read', () => {
+    const keys = complianceOf({ ...detail(), peppol }, undefined, { kind: 'unavailable' }).map((n) => n.key)
+    expect(keys).toContain('billDetail.compliance.reply.AP')
+    expect(keys).not.toContain('billDetail.compliance.reply.unavailable')
+  })
+
+  it('keeps the transport apart from the decision: RE decided but not delivered is not delivered', () => {
+    const notes = complianceOf(
+      { ...detail(), peppol: { ...peppol, mlsCode: 'RE', mlsTransportState: 'RETRY_SCHEDULED' } },
+      undefined,
+      { kind: 'loading' },
+    )
+    expect(notes.map((n) => n.key)).toContain('billDetail.compliance.reply.retrying')
+  })
+
+  it('changes nothing for a null or absent block (non-Peppol, branch-limited, older server)', () => {
+    expect(complianceOf({ ...detail(), peppol: null }).map((n) => n.key)).toEqual(
+      complianceOf(detail()).map((n) => n.key),
+    )
+    expect(
+      complianceOf({ ...detail(), peppol: null }, undefined, { kind: 'unavailable' }).map((n) => n.key),
+    ).toContain('billDetail.compliance.reply.unavailable')
+  })
+
+  it('never reads the TDD status into the reporting line: that stays the proven record or receipt report', () => {
+    expect(complianceOf({ ...detail(), peppol }).map((n) => n.key)).toContain(
+      'billDetail.compliance.receipt.unavailable',
+    )
+  })
+})

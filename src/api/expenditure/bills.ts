@@ -500,6 +500,12 @@ export type BillDetailDto = {
     creditNoteId: string | null
     creditNoteOutstanding: number
   } | null
+  /**
+   * Batch 39 EXP (`BillDetail.peppol`): our side of the Peppol exchange behind a received bill,
+   * three separate facts. Null unless the bill came over Peppol, and null for a person limited to
+   * some branches; absent from a server before it.
+   */
+  peppol?: BillPeppolStatusDto | null
   intake: { id: string; source: BillSourceDto; filename: string | null; contentType: string | null; uploadedAt: string } | null
   /**
    * Present exactly when the bill is self-billed: the document this company issued through
@@ -731,4 +737,38 @@ export function billOriginalPath(detail: Pick<BillDetailDto, 'intake'> & { bill:
 
 export function downloadBillOriginal(path: string): Promise<ApiDownload> {
   return apiDownload(path)
+}
+
+/** Backend `MessageState`: the transport of our MLS row (typed since batch 39). */
+export type MlsTransportState =
+  | 'PENDING'
+  | 'SENDING'
+  | 'SENT_AWAITING_MDN'
+  | 'DELIVERED'
+  | 'MDN_FAILED'
+  | 'RETRY_SCHEDULED'
+  | 'DEAD_LETTERED'
+  | 'INBOUND_RECEIVED'
+  | 'INBOUND_PROCESSED'
+
+/** Backend `TddSubmissionStatus`: C5's receipt of our TDD, never a tax verdict. */
+export type TddSubmissionStatus =
+  | 'PENDING'
+  | 'SUBMITTED'
+  | 'GENERATION_FAILED'
+  | 'ACCEPTED'
+  | 'DELIVERED_UNCONFIRMED'
+  | 'REJECTED'
+  | 'TO_DISREGARD'
+  | 'DISREGARD_SUBMITTED'
+  | 'DEAD_LETTERED'
+  | 'NOT_TESTED'
+
+/** `BillController.PeppolStatusView`. */
+export type BillPeppolStatusDto = {
+  deliveryId: string
+  mlsCode: 'AP' | 'AB' | 'RE' | null
+  mlsTransportState: MlsTransportState | (string & {}) | null
+  mlsDeliveredAt: string | null
+  tddStatus: TddSubmissionStatus | null
 }
