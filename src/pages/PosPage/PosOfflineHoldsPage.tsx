@@ -8,6 +8,8 @@ import {
   offlineHoldsPath,
   resolveOfflineHold,
   revokeOfflineSigningKey,
+  tillOfflineKeysPath,
+  type ActiveOfflineKey,
   type HoldStatus,
   type LegacyOfflineSale,
   type OfflineHoldCandidate,
@@ -57,7 +59,12 @@ function Holds({ till }: { till: Ready }) {
     till.can.close ? offlineHoldsPath(till.branchId, status) : null,
   )
   if (!till.can.close) {
-    return <p className={card}>{t('pos.offline.holds.notAllowed')}</p>
+    return (
+      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
+        <p className={card}>{t('pos.offline.holds.notAllowed')}</p>
+        {till.can.sell || till.can.manage ? <TillKeys till={till} /> : null}
+      </div>
+    )
   }
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
@@ -139,6 +146,7 @@ function Holds({ till }: { till: Ready }) {
           </ul>
         )
       ) : null}
+      {till.can.sell || till.can.manage ? <TillKeys till={till} /> : null}
       <LegacyReport branchId={till.branchId} />
     </div>
   )
@@ -340,6 +348,51 @@ function RevokeKey({ keyId }: { keyId: string }) {
         </p>
       ) : null}
     </div>
+  )
+}
+
+/**
+ * The till's active device keys, each revocable (WEB-11): a lost or stolen device can be cut off
+ * even before any of its sales is held. The server lists every key to a manager of the till and only
+ * their own to anyone else, and refuses a revoke the caller may not make, so the page shows the list
+ * it is given. It carries no names, so a key is named as the reader's own or by its cashier's id.
+ */
+function TillKeys({ till }: { till: Ready }) {
+  const { t } = useTranslation()
+  const keys = useApiRead<ActiveOfflineKey[]>(tillOfflineKeysPath(till.till.id))
+  return (
+    <section className={card}>
+      <h2 className="text-lg font-medium text-text-primary">{t('pos.offline.keys.title')}</h2>
+      <p className="mt-1 text-sm text-text-tertiary">{t('pos.offline.keys.intro')}</p>
+      {keys.read.status === 'loading' ? <LoadingNotice /> : null}
+      {keys.read.status === 'failed' ? (
+        <ApiReadFailure error={keys.read.error} retry={keys.retry} />
+      ) : null}
+      {keys.read.status === 'ready' ? (
+        keys.read.data.length === 0 ? (
+          <p className="mt-3 text-sm">{t('pos.offline.keys.none')}</p>
+        ) : (
+          <ul className="mt-3 flex flex-col gap-4">
+            {keys.read.data.map((key) => (
+              <li key={key.keyId} className="flex flex-col gap-2 border-t border-border-subtle pt-3">
+                <p className="text-sm text-text-primary">
+                  {key.cashierUserId === till.userId
+                    ? t('pos.offline.keys.yours')
+                    : t('pos.offline.keys.cashier', { id: key.cashierUserId.slice(0, 8) })}
+                </p>
+                <p className="text-sm text-text-tertiary">
+                  {t('pos.offline.keys.valid', {
+                    from: when(key.registeredAt),
+                    until: when(key.validUntil),
+                  })}
+                </p>
+                <RevokeKey keyId={key.keyId} />
+              </li>
+            ))}
+          </ul>
+        )
+      ) : null}
+    </section>
   )
 }
 

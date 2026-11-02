@@ -100,6 +100,10 @@ describe('wording for every new code (WEB-10)', () => {
       for (const code of codes.warning) expect(typeof pos.warning[code]).toBe('string')
       expect(typeof (pos.offline as Record<string, unknown>).pending).toBe('string')
       expect(typeof (pos.offline as Record<string, unknown>).clockSkew).toBe('string')
+      const keys = (pos.offline as Record<string, Record<string, unknown>>).keys
+      for (const name of ['title', 'intro', 'none', 'yours', 'cashier', 'valid']) {
+        expect(typeof keys[name]).toBe('string')
+      }
     })
   }
 })

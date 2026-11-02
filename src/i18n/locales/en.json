@@ -4897,6 +4897,14 @@
       "pending": "Not yet attributed",
       "legacy": "Recorded by {{name}} (unverified, older till)",
       "filedBy": "Sent by {{name}}",
+      "keys": {
+        "title": "Device keys on this till",
+        "intro": "Each cashier's device signs the sales it makes offline. If a device is lost or stolen, revoke its key: sales it signs afterwards are held for review.",
+        "none": "No device key is active on this till.",
+        "yours": "Your key",
+        "cashier": "Key of cashier {{id}}…",
+        "valid": "Registered {{from}}, valid until {{until}}"
+      },
       "reason": {
         "other": "Could not be proven",
         "NO_PROOF": "Sent without proof",

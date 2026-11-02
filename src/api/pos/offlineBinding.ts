@@ -1,6 +1,6 @@
 import { apiRequest } from '../client'
 import { withQuery } from '../query'
-import { POS_PATH, POS_SHIFTS_PATH } from './pos'
+import { POS_PATH, POS_SHIFTS_PATH, POS_TILLS_PATH } from './pos'
 
 /**
  * The offline sale binding routes of `fix/b39-off` cf145c092 (V530; BINDING-DESIGN §3, §8.4, §10.1).
@@ -125,6 +125,23 @@ export type LegacyOfflineSale = {
   soldAt: string
   receivedAt: string
   total: number
+}
+
+/**
+ * `GET /pos/tills/{tillId}/offline-signing-keys` (fix/b39-off cf49f0447): the till's active keys, at
+ * most 100. A manager of the till gets every key, anyone else only their own. No public key, device
+ * or cashier name: what a revoker needs to pick the key and nothing more.
+ */
+export type ActiveOfflineKey = {
+  keyId: string
+  tillId: string
+  cashierUserId: string
+  registeredAt: string
+  validUntil: string
+}
+
+export function tillOfflineKeysPath(tillId: string): string {
+  return `${POS_TILLS_PATH}/${encodeURIComponent(tillId)}/offline-signing-keys`
 }
 
 export const OFFLINE_HOLDS_PATH = `${POS_PATH}/offline-attribution-holds`

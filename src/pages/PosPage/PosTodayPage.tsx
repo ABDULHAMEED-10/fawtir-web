@@ -155,8 +155,8 @@ function Today({ till }: { till: Ready }) {
               {t('pos.today.closingTill')}
             </Link>
           ) : null}
-          {/* Only where this build signs: elsewhere no till of ours makes a hold to review. */}
-          {till.can.close && offlineSigningEnabled() ? (
+          {/* Only where this build signs: elsewhere no till of ours makes a hold or a key. */}
+          {(till.can.close || till.can.manage) && offlineSigningEnabled() ? (
             <Link
               to="/pos/offline-holds"
               className="inline-flex h-11 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
