@@ -279,7 +279,8 @@ export type PosSaleDto = {
   tillNumber: number
   branchId: string
   shiftId: string
-  cashier: PosPerson
+  /** Null while who sold it is unproven (V530 PENDING_REVIEW). */
+  cashier: PosPerson | null
   invoiceId: string
   invoiceNumber: string
   transactionType: 'SIMPLIFIED' | 'FULL_TAX'
@@ -307,7 +308,13 @@ export type PosSaleDto = {
   }
   filing: PosFiling
   warnings: PosWarning[]
+  /** The signed-in sender; absent before V530, null on a sale stored before it. */
+  filedBy?: PosPerson | null
+  /** Absent before V530. */
+  attribution?: PosAttribution | null
 }
+
+export type PosAttribution = 'ONLINE' | 'VERIFIED' | 'PENDING_REVIEW' | 'LEGACY'
 
 export function createPosSale(body: PosSaleRequest, idempotencyKey: string): Promise<PosSaleDto> {
   return apiRequest<PosSaleDto>(POS_SALES_PATH, {
@@ -343,7 +350,8 @@ export type PosTodaySaleRow = {
   tillId: string
   tillNumber: number
   shiftId: string
-  cashier: PosPerson
+  /** Both null while who sold it is unproven (V530); Today carries no `attribution`. */
+  cashier: PosPerson | { userId: null; name: null }
   summary: string
   items: number
   customer: { kind: PosCustomerKind; customerId: string; name: string | null }

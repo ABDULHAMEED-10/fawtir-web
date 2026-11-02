@@ -59,7 +59,7 @@ function OfflineSigningKey({ state }: { state: Ready }) {
   if (key !== 'clockSkew') return null
   return (
     <p role="status" className="mx-auto mb-3 w-full max-w-[1144px] rounded-md bg-surface-card px-4 py-3 text-sm text-text-secondary">
-      {t('pos.offlineKey.clockSkew')}
+      {t('pos.offline.clockSkew')}
     </p>
   )
 }

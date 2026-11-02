@@ -4961,7 +4961,17 @@
       "POS_REFUND_CASH_EXCEEDS_DRAWER": "The drawer should hold only {{cashInDrawer}}, and this refund gives back {{cashRequested}} in cash. Give the rest back by card or transfer, or pay cash into the drawer first.",
       "POS_REFUND_LINE_CREDIT_UNCLEAR": "Line {{line}} already has a credit note that does not say whether goods came back, so it cannot be refunded at the till. Refund it from the invoice. Nothing was refunded.",
       "POS_SALE_CANCELLED": "This sale's invoice was cancelled, so there is nothing to refund.",
-      "HS_CODE_REQUIRED": "Line {{line}} is goods and has no HS code, so nothing was done. Someone who can edit items adds the code on the item (Other if none fits), then try again."
+      "HS_CODE_REQUIRED": "Line {{line}} is goods and has no HS code, so nothing was done. Someone who can edit items adds the code on the item (Other if none fits), then try again.",
+      "POS_OFFLINE_KEY_ALREADY_REVOKED": "This device key was already revoked.",
+      "POS_OFFLINE_KEY_NOT_FOUND": "This device key was not found, or you may not revoke it.",
+      "POS_OFFLINE_KEY_HUMAN_ONLY": "Only a signed-in person can do this, not an API key or a support session.",
+      "POS_ATTRIBUTION_HUMAN_ONLY": "Only a signed-in person can decide this, not an API key or a support session.",
+      "POS_ATTRIBUTION_SELF": "You filed this sale, so someone else has to decide who made it.",
+      "POS_ATTRIBUTION_NOT_A_CANDIDATE": "That shift cannot have made this sale. Choose one from the list.",
+      "POS_ATTRIBUTION_ALREADY_RESOLVED": "Someone has already decided this sale. The decision is final.",
+      "POS_ATTRIBUTION_HOLD_NOT_FOUND": "This held sale was not found.",
+      "POS_ATTRIBUTION_REVIEWER_ONLY": "Only a manager who reviews till sales can decide this.",
+      "POS_LEGACY_RANGE_INVALID": "Choose a period of at most 92 days, with the start before the end."
     },
     "warning": {
       "STOCK_BELOW_ZERO": "Line {{line}} took the stock below zero. Count it when you can.",
@@ -4982,7 +4992,79 @@
       "ZR_MEDICAL_NOT_LISTED": "Line {{line}} is zero-rated as medical, but its HS code is not on Oman's zero-rated medicines or medical equipment lists. Check its VAT category or HS code.",
       "POS_DISCOUNT_ABOVE_LIMIT_ACCEPTED": "Sold offline with a discount above the cashier's limit. It is filed and recorded for the manager.",
       "POS_PRINTED_NUMBER_DIFFERS": "A customer's receipt says {{printed}}, but that sale is filed as {{filed}}. Use {{filed}} to find it.",
-      "POS_GOODS_FLAG_CLEARED": "Line {{line}} has no HS code, so it was filed without being marked as goods. Someone who can edit items adds the code on the item (Other if none fits) for next time."
+      "POS_GOODS_FLAG_CLEARED": "Line {{line}} has no HS code, so it was filed without being marked as goods. Someone who can edit items adds the code on the item (Other if none fits) for next time.",
+      "POS_OFFLINE_ATTRIBUTION_HELD": "Filed. Who made this sale could not be proven; a manager will review it.",
+      "POS_PRINTED_TOTALS_DIFFER": "Filed. The printed totals differ from the server's; the difference is recorded."
+    },
+    "offline": {
+      "clockSkew": "This device's clock is more than 5 minutes off. Set the date and time correctly so sales made offline can be shown to be yours.",
+      "pending": "Not yet attributed",
+      "legacy": "Recorded by {{name}} (unverified, older till)",
+      "filedBy": "Sent by {{name}}",
+      "reason": {
+        "other": "Could not be proven",
+        "NO_PROOF": "Sent without proof",
+        "ACTIVE_KEY_UNSIGNED": "Not signed although the till had a key",
+        "PAYLOAD_INVALID": "The sale could not be checked",
+        "SOLD_AT_PRECISION": "The sale time could not be checked",
+        "UNKNOWN_KEY": "Signed with a key the server does not know",
+        "UNKNOWN_SESSION": "Signed in a session the server does not know",
+        "TILL_MISMATCH": "Signed for another till",
+        "SHIFT_MISMATCH": "Signed for another shift",
+        "CASHIER_MISMATCH": "Signed for another cashier",
+        "SIGNATURE": "The signature does not match the sale",
+        "KEY_REVOKED": "Signed with a revoked key",
+        "OUTSIDE_KEY_WINDOW": "Sold outside the key’s time",
+        "PROOF_TOO_OLD": "Arrived more than 72 hours after the key was registered",
+        "OUT_OF_SEQUENCE": "Arrived out of order"
+      },
+      "holds": {
+        "link": "Sales to review",
+        "title": "Offline sales to review",
+        "intro": "These sales were made offline and filed, but who made them could not be proven. Decide who made each one.",
+        "tab": {
+          "OPEN": "To review",
+          "RESOLVED": "Decided"
+        },
+        "none": "Nothing to review.",
+        "manualDiscount": "Manual discount",
+        "limited": "A manager will review this sale.",
+        "notAllowed": "Only a manager who closes tills can review these sales."
+      },
+      "detail": {
+        "outcome": "Proof",
+        "revocation": "Revoked by",
+        "keyId": "Device key",
+        "deviceId": "Device",
+        "keyWindow": "Key valid",
+        "printedTotal": "Printed total",
+        "serverTotal": "Filed total",
+        "discountMax": "Highest discount (%)",
+        "signatureSha256": "Signature (SHA-256)",
+        "withheld": "Withheld: the sale contained a card number. SHA-256:",
+        "noPayload": "No signed sale was sent."
+      },
+      "resolve": {
+        "title": "Who made this sale?",
+        "attribute": "{{name}}, shift opened {{from}}",
+        "keep": "Leave it unattributed",
+        "reason": "Why (required)",
+        "final": "This decision is final: it cannot be changed or undone.",
+        "submit": "Record the decision"
+      },
+      "revoke": {
+        "explain": "If this device is lost or stolen, revoke its key. Sales it signs from now on are held for review.",
+        "action": "Revoke this device key",
+        "done_one": "Revoked. {{count}} sale was filed with this key before.",
+        "done_other": "Revoked. {{count}} sales were filed with this key before.",
+        "already": "This device key was already revoked."
+      },
+      "legacyReport": {
+        "title": "Sales from older tills (last 7 days)",
+        "intro": "Queued sales from tills that cannot prove who made them. They are recorded under whoever was signed in when they were sent, which is not proof.",
+        "show": "Show",
+        "none": "None in the last 7 days."
+      }
     },
     "day": {
       "title": "The day's shifts",

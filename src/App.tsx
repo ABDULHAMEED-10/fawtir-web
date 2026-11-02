@@ -115,6 +115,7 @@ import {
   PosTodayPage,
   PosClosePage,
   PosRefundPage,
+  PosOfflineHoldsPage,
 } from './pages/PosPage'
 import { QuotationsPage } from './pages/QuotationsPage'
 import { NewQuotationPage } from './pages/NewQuotationPage'
@@ -392,6 +393,7 @@ function App() {
           <Route path="/pos/today" element={<PosTodayPage />} />
           <Route path="/pos/close" element={<PosClosePage />} />
           <Route path="/pos/refund" element={<PosRefundPage />} />
+          <Route path="/pos/offline-holds" element={<PosOfflineHoldsPage />} />
           <Route path="/income/debit-notes" element={<DebitNotesPage />} />
           <Route
             path="/trade-documents/quotations"

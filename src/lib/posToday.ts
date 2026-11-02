@@ -42,6 +42,8 @@ export function groupByShift(rows: PosTodaySaleRow[]): ShiftGroup[] {
     const last = groups[groups.length - 1]
     if (last && last.shiftId === row.shiftId) {
       last.sales.push(row)
+      // An unattributed sale (V530) names nobody; the shift is still its cashier's.
+      if (!last.cashier && row.cashier.name) last.cashier = row.cashier.name
       last.total += toBaisa(row.total)
     } else {
       groups.push({
