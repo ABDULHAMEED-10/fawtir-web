@@ -2432,3 +2432,23 @@ describe('the browser re-check of 11 Oct 2026', () => {
     expect(within(await rowOf('MR-1')).getByText(due)).toBeTruthy()
   })
 })
+
+describe('cancelling a sent run needs bill.settle (batch 39 SEC W-3; ships with EXP)', () => {
+  beforeEach(() => {
+    detail = SENT
+  })
+
+  it('offers an Accountant the run menu but not Cancel on a sent run', async () => {
+    override = (url) => (url === '/api/v1/me/entitlements' ? json(200, ACCOUNTANT) : null)
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    fireEvent.click(await screen.findByRole('button', { name: 'More actions' }, { timeout: 8000 }))
+    expect(screen.queryByRole('menuitem', { name: /Cancel the run/ })).toBeNull()
+  })
+
+  it('still offers a Finance Manager Cancel on a sent run', async () => {
+    override = (url) => (url === '/api/v1/me/entitlements' ? json(200, FINANCE_MANAGER) : null)
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    fireEvent.click(await screen.findByRole('button', { name: 'More actions' }, { timeout: 8000 }))
+    expect(await screen.findByRole('menuitem', { name: /Cancel the run/ })).toBeTruthy()
+  })
+})

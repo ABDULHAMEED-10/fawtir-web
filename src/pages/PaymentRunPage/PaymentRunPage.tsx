@@ -391,8 +391,11 @@ function RunBuilder({ runId }: { runId: string | null }) {
                   setNotice(null)
                   loaded.retry()
                 }}
+                // Cancelling a sent run says the bank paid nothing, a settlement fact: the server
+                // asks bill.settle on top of invoice.payment.manage there (batch 39 SEC/EXP,
+                // owner-approved). The menu itself stays under canManage.
                 onCancelSent={
-                  canManage && run.state === 'EXPORTED' ? () => setCancellingSent(true) : undefined
+                  canSettle && run.state === 'EXPORTED' ? () => setCancellingSent(true) : undefined
                 }
               />
             ) : null}
