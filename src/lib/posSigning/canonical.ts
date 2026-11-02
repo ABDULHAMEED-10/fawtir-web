@@ -14,8 +14,13 @@
 export type UnsignableReason = 'SOLD_AT_PRECISION' | 'PAYLOAD_INVALID'
 
 export class UnsignableSale extends Error {
-  constructor(readonly reason: UnsignableReason) {
+  // A declared field, not a constructor parameter property: the app builds under
+  // `erasableSyntaxOnly`, which refuses parameter properties (TS1294).
+  readonly reason: UnsignableReason
+
+  constructor(reason: UnsignableReason) {
     super(reason)
+    this.reason = reason
     this.name = 'UnsignableSale'
   }
 }
@@ -211,7 +216,10 @@ export type EnvelopeFacts = {
  * envelope from its key row (`OfflineSaleEnvelope`), so a device naming another tenant, cashier,
  * shift or device fails the signature rather than being believed.
  */
-export function offlineSaleMessage(facts: EnvelopeFacts, canonicalSaleJson: string): Uint8Array {
+export function offlineSaleMessage(
+  facts: EnvelopeFacts,
+  canonicalSaleJson: string,
+): Uint8Array<ArrayBuffer> {
   const member = (name: string, value: string) => canonicalString(name) + ':' + canonicalString(value)
   const text =
     MESSAGE_PREFIX +

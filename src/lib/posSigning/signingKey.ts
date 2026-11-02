@@ -284,7 +284,7 @@ export async function signQueuedSale(
     const signature = await webCrypto.sign(
       { name: 'ECDSA', hash: 'SHA-256' },
       key.privateKey,
-      message as Uint8Array<ArrayBuffer>,
+      message,
     )
     return { body: normal, offlineProof: { keyId: key.keyId, signature: base64url(signature) } }
   } catch {
