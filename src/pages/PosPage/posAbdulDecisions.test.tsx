@@ -616,7 +616,9 @@ describe('the warnings of a queued sale with no HS code (decision 5)', () => {
     expect(container.textContent).toContain('NZW-T01-INV-2026-000049')
   })
 
-  it('another warning of a queued sale leaves nothing for the next sale, as before', async () => {
+  // B37 OFF-8 (e06009ed) carries every warning of a background send to the next sale, not only the
+  // HS-code one; this case used to pin the older rule that dropped the rest.
+  it('another warning of a queued sale also reaches the next sale, named, once (B37 OFF-8)', async () => {
     saleReply = () => {
       throw new TypeError('Failed to fetch')
     }
@@ -626,7 +628,11 @@ describe('the warnings of a queued sale with no HS code (decision 5)', () => {
     await flushQueue('till-1')
     saleReply = () => json(SOLD, 201)
     const next = await submitSale(TILL_DTO, walkIn(), 'pos-sale-key-hs-5')
-    expect('sale' in next && next.sale.warnings).toEqual([])
+    expect('sale' in next && next.sale.warnings).toEqual([
+      { code: 'STOCK_BELOW_ZERO', line: 1, filed: 'NZW-T01-INV-2026-000050' },
+    ])
+    const after = await submitSale(TILL_DTO, walkIn(), 'pos-sale-key-hs-6')
+    expect('sale' in after && after.sale.warnings).toEqual([])
   })
 })
 
