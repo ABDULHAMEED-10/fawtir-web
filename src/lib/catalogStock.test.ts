@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import i18n from '../i18n'
 import type { StockMovementDto } from '../api/stock/stock'
-import { movementNote, stockItemName, stockItemPlace } from './catalogStock'
+import {
+  movementKind,
+  movementLink,
+  movementNote,
+  movementTitleKey,
+  stockItemName,
+  stockItemPlace,
+} from './catalogStock'
 
 /** The stock screens on backend #808 (P.19) and #815 (supplier reference), fields absent before. */
 
@@ -58,5 +65,60 @@ describe('the supplier’s reference on a delivery (backend #815)', () => {
     expect(
       movementNote(i18n.getFixedT('ar'), { ...delivery, supplierReference: 'RS-INV-7781' }, 'ar'),
     ).toContain('مرجع المورد ⁦RS-INV-7781⁩')
+  })
+})
+
+describe('a movement undone by a cancellation (backend #845)', () => {
+  const reversal = (quantityChange: number, kind: 'INVOICE' | 'CREDIT_NOTE', number: string) =>
+    ({
+      id: 'm-9',
+      type: 'CANCEL_REVERSAL',
+      quantityChange,
+      onHandAfter: 5,
+      countedQuantity: null,
+      unitCost: null,
+      averageCostAfter: null,
+      source: {
+        type: 'CANCELLATION',
+        id: 'doc-1',
+        number,
+        lineRef: '1',
+        link: { kind, id: 'doc-1' },
+      },
+      supplier: null,
+      reasonCode: null,
+      note: null,
+      occurredAt: '2026-10-31T08:00:00Z',
+      recordedAt: '2026-10-31T08:00:00Z',
+      by: { userId: 'u-1', name: null },
+      customerKind: null,
+    }) as StockMovementDto
+
+  it('says a cancelled sale came back, in words and never as a corrected count', () => {
+    const movement = reversal(2, 'INVOICE', 'INV-1')
+    expect(movementKind(movement)).toBe('returned')
+    expect(movementTitleKey(movement)).toBe('stockItem.live.cancelSaleBack')
+    expect(movementLink(movement)).toEqual({ label: 'INV-1', to: '/invoices/doc-1' })
+    expect(i18n.getFixedT('en')(movementTitleKey(movement))).toBe(
+      'Sale cancelled, back on the shelf',
+    )
+    expect(i18n.getFixedT('ar')(movementTitleKey(movement))).toBe('أُلغي البيع وعاد إلى الرف')
+  })
+
+  it('says a cancelled return went off the shelf again', () => {
+    const movement = reversal(-2, 'CREDIT_NOTE', 'CN-1')
+    expect(movementKind(movement)).toBe('sold')
+    expect(movementTitleKey(movement)).toBe('stockItem.live.cancelReturnOff')
+    expect(movementLink(movement)).toEqual({ label: 'CN-1', to: '/income/credit-notes/doc-1' })
+    expect(i18n.getFixedT('en')(movementTitleKey(movement))).toBe(
+      'Return cancelled, taken off the shelf',
+    )
+    expect(i18n.getFixedT('ar')(movementTitleKey(movement))).toBe('أُلغي الإرجاع وسُحب من الرف')
+  })
+
+  it('leaves what today’s server sends as it was', () => {
+    const count = { ...reversal(1, 'INVOICE', 'X'), type: 'COUNT_CORRECTION' } as StockMovementDto
+    expect(movementKind(count)).toBe('corrected')
+    expect(movementTitleKey(count)).toBe('stockItem.countCorrected')
   })
 })

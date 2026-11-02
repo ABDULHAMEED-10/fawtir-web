@@ -13221,7 +13221,9 @@
       "atEach": "at {{amount}} each",
       "lastPaid": "{{amount}} on {{date}}",
       "chartNoteNoRate": "The {{count}} {{unit}} received on {{date}} have not sold yet, so there is no rate to say how long they last.",
-      "supplierRef": "Supplier's ref. {{reference}}"
+      "supplierRef": "Supplier's ref. {{reference}}",
+      "cancelSaleBack": "Sale cancelled, back on the shelf",
+      "cancelReturnOff": "Return cancelled, taken off the shelf"
     }
   },
   "priceRules": {
@@ -25329,7 +25331,8 @@
       "branchClosed": "A closed branch cannot sell this item. Untick it.",
       "branchGone": "One of these branches no longer exists. Reload and try again.",
       "zeroRatingMismatch": "Zero-rated as food needs an HS code on Oman's zero-rated food list in force today. Choose a listed HS code, or another VAT category.",
-      "reasonNotDefault": "Export and international transport reasons depend on the sale, so an item cannot carry them. Choose the reason on the invoice line instead."
+      "reasonNotDefault": "Export and international transport reasons depend on the sale, so an item cannot carry them. Choose the reason on the invoice line instead.",
+      "unitLocked": "This item's stock has already moved, so its unit can't change. Keep the current unit, or count this item to zero and create a new item in the new unit."
     },
     "backOnSaleDone": "Back on sale. New invoice lines can pick it again.",
     "branchesNotSaved": "The item is saved, but not where it is sold."
