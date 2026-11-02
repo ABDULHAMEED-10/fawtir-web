@@ -416,12 +416,21 @@ async function sealed(entry: QueuedSale): Promise<QueuedSale> {
   return { ...entry, body: { ...entry.body, customer }, sealed: true }
 }
 
-/** The body as it is sent: the sealed buyer put back, held only for the request. */
-async function bodyToSend(entry: QueuedSale): Promise<PosSaleRequest> {
+/**
+ * The body as it is sent: the sealed buyer put back, held only for the request. Null when the sealed
+ * buyer cannot be opened. The body used to go without them: the server refused it for good
+ * (POS_CUSTOMER_MISMATCH), so a vault that failed for a moment stopped the sale until a person pressed
+ * Try again, and a sale the server had already filed under this key came back POS_SALE_KEY_REUSED
+ * instead of its replay (B38 OFF). A full invoice is never filed without its buyer either way.
+ */
+async function bodyToSend(entry: QueuedSale): Promise<PosSaleRequest | null> {
   if (!entry.sealed) return entry.body
   const consumer = await openBuyer(entry.key)
-  return consumer ? { ...entry.body, customer: { ...entry.body.customer, consumer } } : entry.body
+  return consumer ? { ...entry.body, customer: { ...entry.body.customer, consumer } } : null
 }
+
+/** Not a server refusal: this device could not open the buyer, so nothing was sent. */
+export const BUYER_UNAVAILABLE = 'POS_QUEUED_BUYER_UNAVAILABLE'
 
 /** Nothing personal is left of a sale the server has filed. */
 async function forget(entry: QueuedSale) {
@@ -584,6 +593,26 @@ function retryAfter(tillId: string, error: ApiError) {
 const FIRST_GAP_MS = 60_000
 const LONGEST_GAP_MS = 60 * 60_000
 
+function nextTry(attempts: number): string {
+  return new Date(
+    Date.now() + Math.min(FIRST_GAP_MS * 2 ** (attempts - 1), LONGEST_GAP_MS),
+  ).toISOString()
+}
+
+/** Held on the device like an unknown refusal: tried again with growing gaps, and at Try again. */
+function buyerUnavailable(entry: QueuedSale): QueuedSale {
+  const attempts = (entry.attempts ?? 0) + 1
+  return {
+    ...entry,
+    refusal: BUYER_UNAVAILABLE,
+    refusalType: null,
+    refusalValues: {},
+    refusedAt: new Date().toISOString(),
+    attempts,
+    notBefore: nextTry(attempts),
+  }
+}
+
 function refusedEntry(entry: QueuedSale, error: ApiError, verdict: RefusalVerdict): QueuedSale {
   const final = verdict === 'final'
   const attempts = verdict === 'unknown' ? (entry.attempts ?? 0) + 1 : 0
@@ -594,11 +623,7 @@ function refusedEntry(entry: QueuedSale, error: ApiError, verdict: RefusalVerdic
     refusalValues: refusalValues(error),
     refusedAt: new Date().toISOString(),
     attempts,
-    notBefore: attempts
-      ? new Date(
-          Date.now() + Math.min(FIRST_GAP_MS * 2 ** (attempts - 1), LONGEST_GAP_MS),
-        ).toISOString()
-      : undefined,
+    notBefore: attempts ? nextTry(attempts) : undefined,
     ...(final ? { final: true } : {}),
   }
   // Only a buyer this device could not seal: plain text does not stay for a sale that may never go.
@@ -627,8 +652,14 @@ export async function flushQueue(tillId: string): Promise<FlushOutcome> {
         if (canSkip) continue
         return 'done'
       }
+      const body = await bodyToSend(entry)
+      if (!body) {
+        save(synced().map((other) => (other.key === entry.key ? buyerUnavailable(other) : other)))
+        if (canSkip) continue
+        return 'done'
+      }
       try {
-        const sale = await sendNumbered(await bodyToSend(entry), entry.key, canSkip)
+        const sale = await sendNumbered(body, entry.key, canSkip)
         noteForNextSale(entry, sale)
         save(synced().filter((other) => other.key !== entry.key))
         await forget(entry)

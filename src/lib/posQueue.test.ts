@@ -248,6 +248,62 @@ describe("an offline full invoice and the buyer's ID", () => {
     expect(queuedFor('till-1')[0].final).toBeUndefined()
   })
 
+  const salePosts = () =>
+    calls.filter((c) => c.url === '/api/v1/pos/sales' && c.init?.method === 'POST').length
+
+  it('does not send a full invoice whose sealed buyer cannot be opened, and holds it to try again (B38 OFF)', async () => {
+    await submitSale(TILL, BODY, 'pos-sale-key-0041')
+    // The vault this tab reaches has lost the copy (a failed open, or its data cleared).
+    setPosVault(memoryVault(true))
+    online = true
+    const before = salePosts()
+    expect(await flushQueue('till-1')).toBe('done')
+
+    expect(salePosts()).toBe(before)
+    const [entry] = queuedFor('till-1')
+    expect(entry).toMatchObject({
+      refusal: 'POS_QUEUED_BUYER_UNAVAILABLE',
+      sealed: true,
+      attempts: 1,
+    })
+    expect(entry.final).toBeUndefined()
+    expect(entry.notBefore).toBeDefined()
+    expect(entry.buyerRemoved).toBeUndefined()
+
+    // Resting, so not tried again at once.
+    await flushQueue('till-1')
+    expect(salePosts()).toBe(before)
+  })
+
+  it('Try again sends it with the buyer once the vault opens again, and filing deletes the copy (B38 OFF)', async () => {
+    await submitSale(TILL, BODY, 'pos-sale-key-0042')
+    setPosVault(memoryVault(true))
+    online = true
+    await flushQueue('till-1')
+    expect(queuedFor('till-1')[0].refusal).toBe('POS_QUEUED_BUYER_UNAVAILABLE')
+
+    setPosVault(vault)
+    await retryQueuedSale('till-1', 'pos-sale-key-0042')
+    expect(sentConsumer().identifierValue).toBe(CIVIL_ID)
+    expect(queuedFor('till-1')).toEqual([])
+    expect(await vault.ids('pii')).toEqual([])
+  })
+
+  it('in strict number order, a later queued sale waits behind the held one (B38 OFF)', async () => {
+    await submitSale(TILL, BODY, 'pos-sale-key-0043')
+    await submitSale(TILL, { ...BODY, customer: { kind: 'WALK_IN' } }, 'pos-sale-key-0044')
+    expect(queuedFor('till-1').map((entry) => entry.key)).toEqual([
+      'pos-sale-key-0043',
+      'pos-sale-key-0044',
+    ])
+    setPosVault(memoryVault(true))
+    online = true
+    const before = salePosts()
+    expect(await flushQueue('till-1')).toBe('done')
+    expect(salePosts()).toBe(before)
+    expect(queuedFor('till-1')).toHaveLength(2)
+  })
+
   it('without a sealing vault, keeps the buyer in the entry, and removes it on a final refusal', async () => {
     setPosVault(memoryVault(false))
     await submitSale(TILL, BODY, 'pos-sale-key-0005')

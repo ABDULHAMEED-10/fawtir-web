@@ -5019,6 +5019,7 @@
         "SELLER_PARTICIPANT_NOT_VERIFIED": "The company's Participant ID is not verified yet. The sale goes once it is.",
         "INDUSTRIAL_CLASSIFICATION_REQUIRED": "The company's business activity code is missing. Add it in Settings and the sale goes.",
         "POS_QUEUED_SALE_HS_CODE_REQUIRED": "Not issued yet, waiting for an HS code: this full invoice has a goods line with no HS code, so Fawtir has not issued it and has not used its number.",
+        "POS_QUEUED_BUYER_UNAVAILABLE": "Not sent yet: this device cannot open the buyer's details it kept for this full invoice. Reload the page and press Try again. If it still does not go, contact Fawtir support and do not clear this device's data.",
         "other": "Fawtir would not accept this sale as it stands."
       },
       "askManager": "The till keeps selling. Ask a manager to deal with it.",
