@@ -138,6 +138,7 @@ function Holds({ till }: { till: Ready }) {
                     holdId={hold.holdId}
                     limited={hold.filedByUserId === null}
                     canManage={till.can.manage}
+                    userId={till.userId}
                     onResolved={list.retry}
                   />
                 ) : null}
@@ -156,11 +157,13 @@ function HoldDetail({
   holdId,
   limited,
   canManage,
+  userId,
   onResolved,
 }: {
   holdId: string
   limited: boolean
   canManage: boolean
+  userId: string | null
   onResolved: () => void
 }) {
   const { t } = useTranslation()
@@ -212,14 +215,26 @@ function HoldDetail({
         <p className="text-sm text-text-tertiary">{t('pos.offline.detail.noPayload')}</p>
       )}
       {canManage && hold.presentedKeyId ? <RevokeKey keyId={hold.presentedKeyId} /> : null}
-      {hold.summary.status === 'OPEN' ? (
-        <Resolve holdId={holdId} onResolved={onResolved} />
+      {/* Four-eyes (WSR-10): the sender never decides their own sale. The server refuses it anyway
+          (409 POS_ATTRIBUTION_SELF); this only spares the reviewer a form that cannot succeed. */}
+      {hold.summary.status === 'OPEN' && userId !== null && hold.summary.filedByUserId === userId ? (
+        <p className="text-sm text-text-tertiary">{t('pos.refusal.POS_ATTRIBUTION_SELF')}</p>
+      ) : hold.summary.status === 'OPEN' ? (
+        <Resolve holdId={holdId} userId={userId} onResolved={onResolved} />
       ) : null}
     </div>
   )
 }
 
-function Resolve({ holdId, onResolved }: { holdId: string; onResolved: () => void }) {
+function Resolve({
+  holdId,
+  userId,
+  onResolved,
+}: {
+  holdId: string
+  userId: string | null
+  onResolved: () => void
+}) {
   const { t } = useTranslation()
   const candidates = useApiRead<OfflineHoldCandidate[]>(offlineHoldCandidatesPath(holdId))
   const [choice, setChoice] = useState<string>('')
@@ -263,6 +278,8 @@ function Resolve({ holdId, onResolved }: { holdId: string; onResolved: () => voi
                   name={`resolve-${holdId}`}
                   value={candidate.shiftId}
                   checked={choice === candidate.shiftId}
+                  // A reviewer cannot attribute a sale to their own shift (POS_ATTRIBUTION_SELF).
+                  disabled={userId !== null && candidate.cashierUserId === userId}
                   onChange={() => setChoice(candidate.shiftId)}
                 />
                 {t('pos.offline.resolve.attribute', {
