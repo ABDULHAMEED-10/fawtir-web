@@ -112,6 +112,8 @@ const QUEUE_WORDED = new Set([
   'SELLER_PARTICIPANT_NOT_VERIFIED',
   'INDUSTRIAL_CLASSIFICATION_REQUIRED',
   'POS_QUEUED_SALE_HS_CODE_REQUIRED',
+  // Set by this device (posQueue BUYER_UNAVAILABLE), never by the server: nothing was sent.
+  'POS_QUEUED_BUYER_UNAVAILABLE',
 ])
 
 const QUEUE_SLUGS: Record<string, string> = {
