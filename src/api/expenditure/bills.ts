@@ -127,9 +127,12 @@ export type BillRowDto = {
    * from a server before it, and then nothing is said about it.
    */
   inputVat?: BillInputVatDto
-  /** The Peppol bill this upload certainly duplicates (same supplier VAT number, number and total). Not shown yet. */
+  /** The Peppol bill this upload certainly duplicates (same supplier VAT number, number and total). */
   duplicateOf?: string | null
-  /** A Peppol bill this one may duplicate (a less certain match, for the user to confirm). Not shown yet. */
+  /**
+   * The other copy of a less certain Peppol and upload pair, on either side (same supplier and
+   * number, but another total or no VAT number to compare), for the user to confirm.
+   */
   possibleDuplicateOf?: string | null
 }
 

@@ -71,6 +71,13 @@ export type BillListItem = {
    * releases it; the server refuses the plain release (BILL_HOLD_DUPLICATE_RELEASE_REFUSED).
    */
   duplicate: { originalId: string; originalNumber: string | null } | null
+  /**
+   * Another bill on file the server reads as the same supplier document, one copy over Peppol and
+   * the other uploaded or scanned (`BillRow.duplicateOf` / `possibleDuplicateOf`, owner D8). A flag
+   * for a person to look at, never a decision: on RC4 both copies stay owed bills, so the row offers
+   * no action of its own. Null while a duplicate hold already says more.
+   */
+  twin?: { certainty: 'sure' | 'possible'; otherId: string } | null
   canApprove: boolean
   currency: string
   amount: number | null
@@ -158,6 +165,19 @@ function statusOf(row: BillRowDto): BillStatusChip {
   return STATUS[state]
 }
 
+/**
+ * The interim duplicate-payable flag (EXP-38-1, batch 38 WEB X1): an upload followed by its Peppol
+ * copy is two owed bills, and these read-time fields were their only sign, with no screen. A sure
+ * pair wins over a possible one.
+ */
+export function twinOf(
+  row: Pick<BillRowDto, 'duplicateOf' | 'possibleDuplicateOf'>,
+): { certainty: 'sure' | 'possible'; otherId: string } | null {
+  if (row.duplicateOf) return { certainty: 'sure', otherId: row.duplicateOf }
+  if (row.possibleDuplicateOf) return { certainty: 'possible', otherId: row.possibleDuplicateOf }
+  return null
+}
+
 /** Nothing owed, none of it paid in money: credit (or a run's discount) settled the bill. */
 export function settledWithoutPayment(figures: { paidAmount: number; outstandingAmount: number }): boolean {
   return figures.paidAmount === 0 && figures.outstandingAmount <= 0
@@ -206,6 +226,7 @@ export function toBillListItem(row: BillRowDto): BillListItem {
     duplicate: duplicate
       ? { originalId: duplicate.originalId, originalNumber: duplicate.originalNumber }
       : null,
+    twin: duplicate ? null : twinOf(row),
     // A mismatch is approved only after its difference has been looked at, which is the detail's job.
     // A credit note has nothing to approve, and the server refuses it (APPROVAL_CREDIT_NOTE).
     canApprove:

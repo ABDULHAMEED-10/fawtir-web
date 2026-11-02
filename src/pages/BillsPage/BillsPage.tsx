@@ -1218,6 +1218,15 @@ function BillTableRow({
             {t('billsPage.rows.issued', { date: formatDate(row.issueDate, language) })}
           </p>
         ) : null}
+        {row.twin ? (
+          <Link
+            to={`/expenditure/bills/${row.twin.otherId}`}
+            data-testid="bill-row-twin"
+            className="mt-1 block text-xs font-semibold leading-[1.2] text-pending-700 hover:underline"
+          >
+            {t(`billsPage.rows.twin.${row.twin.certainty}`)}
+          </Link>
+        ) : null}
       </td>
 
       <td className="px-2 py-2.5 align-middle">

@@ -6486,7 +6486,11 @@
       "queried": "استُفسر عنها {{date}}",
       "inDays_zero": "خلال {{count}} يوم",
       "daysOverdue_zero": "متأخرة {{count}} يوم",
-      "wasDue_zero": "كانت مستحقة منذ {{count}} يوم"
+      "wasDue_zero": "كانت مستحقة منذ {{count}} يوم",
+      "twin": {
+        "sure": "فاتورة المورّد نفسها مسجّلة مرة أخرى",
+        "possible": "قد تكون فاتورة المورّد نفسها مسجّلة مرة أخرى"
+      }
     },
     "state": {
       "newNotReviewed": "جديدة، لم تُراجع",

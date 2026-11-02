@@ -6088,7 +6088,11 @@
       "noDueDate": "No due date",
       "noOrderNote": "No order behind it",
       "noAmount": "No amount yet",
-      "queried": "Queried {{date}}"
+      "queried": "Queried {{date}}",
+      "twin": {
+        "sure": "Same supplier bill as another on file",
+        "possible": "May be the same supplier bill as another on file"
+      }
     },
     "state": {
       "newNotReviewed": "New, not reviewed",
