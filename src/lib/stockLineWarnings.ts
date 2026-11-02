@@ -14,6 +14,8 @@ export const STOCK_LINE_WARNINGS = [
   // A credit note's shelf return (backend STK-1): more than the sale took off, or nothing it took.
   'STOCK_RETURN_EXCEEDS_SALE',
   'STOCK_NOT_TRACKED_AT_SALE',
+  // A screen invoice that sold more than the branch had counted (batch 39 STK-Q4B): it still moves.
+  'STOCK_BELOW_ZERO',
 ] as const
 
 export type StockLineWarningCode = (typeof STOCK_LINE_WARNINGS)[number]

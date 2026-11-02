@@ -2433,6 +2433,7 @@
     },
     "draftTitle": "Draft invoice",
     "draftNotice": "This is a draft. It has no number and no figures until it is issued, and nothing has been sent or reported.",
+    "stockWarnings": "When it was issued, stock noted:",
     "customerUnknown": "Customer not shown",
     "noVat": "No VAT number on record",
     "sentManually": "Sent manually",
@@ -21084,7 +21085,8 @@
       "STOCK_QUANTITY_NOT_WHOLE": "the item is counted in whole pieces, so a part quantity moved no stock.",
       "STOCK_QUANTITY_INVALID": "the quantity has more than three decimals, so no stock moved.",
       "STOCK_RETURN_EXCEEDS_SALE": "not all of it went back on the shelf, because a return puts back no more than the sale took off, less earlier returns. Count the shelf if it is wrong.",
-      "STOCK_NOT_TRACKED_AT_SALE": "nothing went back on the shelf, because the sale took none of it off. Count the shelf if it is wrong."
+      "STOCK_NOT_TRACKED_AT_SALE": "nothing went back on the shelf, because the sale took none of it off. Count the shelf if it is wrong.",
+      "STOCK_BELOW_ZERO": "it took the stock below zero. Count it when you can."
     },
     "openCustomer": "Open the customer"
   },
