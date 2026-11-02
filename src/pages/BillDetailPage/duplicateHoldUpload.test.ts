@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import i18n from '../../i18n'
-import { suspectedBodyKey } from './DuplicateCheckCard'
+import { suspectedBodyKey } from '../../lib/billDuplicate'
 
 /** ACC-8 option A (batch 39, backend c1035fa11): a Peppol copy held against an uploaded bill. */
 describe('the duplicate card names how the earlier document arrived', () => {

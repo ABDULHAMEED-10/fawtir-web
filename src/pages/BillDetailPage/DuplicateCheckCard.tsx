@@ -17,6 +17,7 @@ import {
   duplicateCheckOf,
   isNoteRefusal,
   refusalMeansStale,
+  suspectedBodyKey,
   type DuplicateCheck,
 } from '../../lib/billDuplicate'
 import { toBillListItem } from '../../lib/billList'
@@ -28,29 +29,6 @@ const TITLE: Record<DuplicateCheck['state'], string> = {
   suspected: 'billDetail.duplicate.title.suspected',
   confirmed: 'billDetail.duplicate.title.confirmed',
   notDuplicate: 'billDetail.duplicate.title.notDuplicate',
-}
-
-const BODY: Record<DuplicateCheck['state'], string> = {
-  suspected: 'billDetail.duplicate.body.suspected',
-  confirmed: 'billDetail.duplicate.body.confirmed',
-  notDuplicate: 'billDetail.duplicate.body.notDuplicate',
-}
-
-/**
- * The undecided card's sentence by what the earlier document is. ACC-8 option A (owner, batch 39;
- * backend c1035fa11) also holds a Peppol copy against an uploaded or scanned bill, and the
- * original sentence ("The same supplier sent this … again over Peppol") is false for that pair.
- * Until the earlier document is read, nothing about how it arrived is claimed.
- */
-export function suspectedBodyKey(
-  state: DuplicateCheck['state'],
-  original: string,
-): string {
-  if (state !== 'suspected') return BODY[state]
-  if (original === 'UPLOADED') return 'billDetail.duplicate.body.suspectedUploaded'
-  if (original === 'SCANNED') return 'billDetail.duplicate.body.suspectedScanned'
-  if (original === 'PEPPOL') return BODY.suspected
-  return 'billDetail.duplicate.body.suspectedPending'
 }
 
 const DONE: Record<DuplicateResolutionDto, string> = {
