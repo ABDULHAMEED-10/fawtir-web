@@ -74,8 +74,9 @@ export type BillListItem = {
   /**
    * Another bill on file the server reads as the same supplier document, one copy over Peppol and
    * the other uploaded or scanned (`BillRow.duplicateOf` / `possibleDuplicateOf`, owner D8). A flag
-   * for a person to look at, never a decision: on RC4 both copies stay owed bills, so the row offers
-   * no action of its own. Null while a duplicate hold already says more.
+   * for a person to look at, never a decision, so the row offers no action of its own. Until ACC-8
+   * (RC5) both copies stay owed bills; after it the Peppol copy is held. Null while a duplicate hold
+   * already says more.
    */
   twin?: { certainty: 'sure' | 'possible'; otherId: string } | null
   canApprove: boolean
