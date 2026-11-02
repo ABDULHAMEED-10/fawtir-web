@@ -148,7 +148,14 @@ function Holds({ till }: { till: Ready }) {
         )
       ) : null}
       {till.can.sell || till.can.manage ? <TillKeys till={till} /> : null}
-      <LegacyReport branchId={till.branchId} />
+      {/* The entitlements carry no qualifier, so the list is the only sign of pos.close OWN: rows
+          that come back without evidence. Then the report, which needs pos.close for every
+          cashier, is not offered (WSR-11). */}
+      {list.read.status === 'ready' &&
+      list.read.data.length > 0 &&
+      list.read.data.every((hold) => hold.filedByUserId === null) ? null : (
+        <LegacyReport branchId={till.branchId} />
+      )}
     </div>
   )
 }
@@ -167,8 +174,9 @@ function HoldDetail({
   onResolved: () => void
 }) {
   const { t } = useTranslation()
-  const detail = useApiRead<OfflineHoldDetail>(offlineHoldPath(holdId))
-  // A Cashier's own holds come without evidence; the decision is a manager's.
+  // A Cashier's own holds come without evidence, and the detail needs pos.close for every cashier
+  // (POS_ATTRIBUTION_REVIEWER_ONLY): not asked for, rather than asked for and refused (WSR-11).
+  const detail = useApiRead<OfflineHoldDetail>(limited ? null : offlineHoldPath(holdId))
   if (limited) return <p className="mt-3 text-sm text-text-tertiary">{t('pos.offline.holds.limited')}</p>
   if (detail.read.status === 'loading') return <LoadingNotice />
   if (detail.read.status === 'failed') {
@@ -435,7 +443,14 @@ function LegacyReport({ branchId }: { branchId: string }) {
       ) : report.read.status === 'loading' ? (
         <LoadingNotice />
       ) : report.read.status === 'failed' ? (
-        <ApiReadFailure error={report.read.error} retry={report.retry} />
+        // An OWN-only caller with no holds to show cannot be told apart beforehand; the server's
+        // refusal is worded instead of shown as a failure.
+        report.read.error instanceof ApiError &&
+        report.read.error.code === 'POS_ATTRIBUTION_REVIEWER_ONLY' ? (
+          <p className="mt-3 text-sm">{t('pos.refusal.POS_ATTRIBUTION_REVIEWER_ONLY')}</p>
+        ) : (
+          <ApiReadFailure error={report.read.error} retry={report.retry} />
+        )
       ) : report.read.data.length === 0 ? (
         <p className="mt-3 text-sm">{t('pos.offline.legacyReport.none')}</p>
       ) : (
