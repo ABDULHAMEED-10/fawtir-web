@@ -386,7 +386,9 @@ describe('a bill held as a possible duplicate', () => {
     copyResponses = [() => json(200, { ...copy, bill: { ...copy.bill, documentTypeCode: '381' } })]
     renderCopy()
     const section = await card()
-    expect(within(section).getByText(/Compare it with the credit note already on file/)).toBeTruthy()
+    // ACC-8 option A (0cb3b3f1) names how the earlier document arrived, so the Peppol wording appears
+    // only once that document is read; until then the card says the neutral pending sentence.
+    expect(await within(section).findByText(/Compare it with the credit note already on file/)).toBeTruthy()
     expect(within(section).getByText(/It can't be set against any bill until then\./)).toBeTruthy()
     expect(within(section).queryByText(/paid/)).toBeNull()
     expect(
@@ -409,7 +411,7 @@ describe('a bill held as a possible duplicate', () => {
     copyResponses = [() => json(200, { ...copy, bill: { ...copy.bill, documentTypeCode: '381' } })]
     renderCopy()
     await screen.findByRole('heading', { level: 2, name: 'فاتورة مكررة محتملة' })
-    expect(screen.getByText(/قارنه بالإشعار الدائن المسجّل لديكم/)).toBeTruthy()
+    expect(await screen.findByText(/قارنه بالإشعار الدائن المسجّل لديكم/)).toBeTruthy()
   })
 
   it('says why approving is refused when the bill became a held duplicate after the page loaded, and reads it again', async () => {

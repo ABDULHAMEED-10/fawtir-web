@@ -262,6 +262,11 @@ export type CreditNoteItem = {
   usable: boolean
   /** Held as a possible or confirmed duplicate (backend #784): it credits nothing while held. */
   heldAsDuplicate: boolean
+  /**
+   * The held Peppol copy this note waits on, until that pair is decided (PRV-b39 W-C2). A reason
+   * this client does not know reads as null, so the note shows as it did before.
+   */
+  waitingForDecisionOn: string | null
 }
 
 export function toCreditNoteItem(row: CreditNoteRowDto): CreditNoteItem {
@@ -289,6 +294,8 @@ export function toCreditNoteItem(row: CreditNoteRowDto): CreditNoteItem {
     // The server leaves a held note out of usable credit whatever its balance says.
     usable: row.heldAsDuplicate !== true && row.balance.remaining > 0,
     heldAsDuplicate: row.heldAsDuplicate === true,
+    waitingForDecisionOn:
+      row.waitingFor?.reason === 'DUPLICATE_DECISION' ? row.waitingFor.billId : null,
   }
 }
 

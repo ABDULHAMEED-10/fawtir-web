@@ -135,7 +135,17 @@ export type CreditNoteRowDto = {
    * and `/refund` refuse it (409 CREDIT_NOTE_HELD_AS_DUPLICATE). Absent from an older server.
    */
   heldAsDuplicate?: boolean
+  /**
+   * PRV-b39 W-C2 (EXP fa8387d25): set while the note names a Peppol copy held against an upload,
+   * the pair is undecided, and the note has no apply or refund row of its own. `billId` is the
+   * held copy, decided at `/bills/{billId}/duplicate-resolution`. `status` keeps its four values.
+   * Null after either decision; absent from an older server.
+   */
+  waitingFor?: CreditNoteWaitingForDto | null
 }
+
+/** A closed enum on the server; DUPLICATE_DECISION is its only value today. */
+export type CreditNoteWaitingForDto = { reason: 'DUPLICATE_DECISION'; billId: string }
 
 export type CreditNoteSummaryDto = {
   currencyCode: string

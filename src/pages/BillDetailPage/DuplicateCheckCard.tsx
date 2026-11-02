@@ -17,6 +17,7 @@ import {
   duplicateCheckOf,
   isNoteRefusal,
   refusalMeansStale,
+  suspectedBodyKey,
   type DuplicateCheck,
 } from '../../lib/billDuplicate'
 import { toBillListItem } from '../../lib/billList'
@@ -28,12 +29,6 @@ const TITLE: Record<DuplicateCheck['state'], string> = {
   suspected: 'billDetail.duplicate.title.suspected',
   confirmed: 'billDetail.duplicate.title.confirmed',
   notDuplicate: 'billDetail.duplicate.title.notDuplicate',
-}
-
-const BODY: Record<DuplicateCheck['state'], string> = {
-  suspected: 'billDetail.duplicate.body.suspected',
-  confirmed: 'billDetail.duplicate.body.confirmed',
-  notDuplicate: 'billDetail.duplicate.body.notDuplicate',
 }
 
 const DONE: Record<DuplicateResolutionDto, string> = {
@@ -133,10 +128,14 @@ export function DuplicateCheckCard({
   const noteError = error?.field ? error.text : null
   const decided =
     check.state !== 'suspected' && check.hold?.duplicateResolvedAt ? check.hold : null
+  const body = suspectedBodyKey(
+    check.state,
+    original.status === 'ready' ? original.data.bill.source : original.status,
+  )
 
   return (
     <Card id="duplicate-check" title={t(TITLE[check.state])}>
-      <p className="text-sm font-medium leading-[1.5] text-text-tertiary">{t(`${BODY[check.state]}${kind}`)}</p>
+      <p className="text-sm font-medium leading-[1.5] text-text-tertiary">{t(`${body}${kind}`)}</p>
       {decided?.duplicateResolvedAt ? (
         <p className="mt-2 text-sm font-medium leading-[1.5] text-text-tertiary">
           <span className="font-semibold text-text-primary">
