@@ -37,6 +37,7 @@ import {
   dueBy,
   dueNote,
   groupBySupplier,
+  candidateTwinOf,
   markPaidBlockKey,
   paidOn,
   refusalOf,
@@ -664,6 +665,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
                                     })
                                   : t('paymentRuns.noDate')}
                               </p>
+                              <CandidateTwinLink bill={bill} />
                               {blocks.has(bill.billId) && !takenOut.has(bill.billId) ? (
                                 <MarkPaidBlockChip label={t(blocks.get(bill.billId)!)} />
                               ) : null}
@@ -1080,5 +1082,25 @@ function RunBuilder({ runId }: { runId: string | null }) {
         />
       ) : null}
     </div>
+  )
+}
+
+/** Read once per row: the twin decides whether the link shows, where it goes and what it says. */
+function CandidateTwinLink({
+  bill,
+}: {
+  bill: Pick<RunBill, 'duplicateOf' | 'possibleDuplicateOf' | 'heldCopyId'>
+}) {
+  const { t } = useTranslation()
+  const twin = candidateTwinOf(bill)
+  if (!twin) return null
+  return (
+    <Link
+      to={`/expenditure/bills/${twin.otherId}`}
+      data-testid="run-candidate-twin"
+      className="mt-0.5 block text-[10px] font-semibold leading-[1.2] text-pending-700 hover:underline"
+    >
+      {t(`paymentRuns.twin.${twin.certainty}`)}
+    </Link>
   )
 }
