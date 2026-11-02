@@ -207,6 +207,21 @@ export type PosSaleRequest = {
   lineRefs: PosLineRef[]
   payments: PosPaymentRequest[]
   tip: { amount: number; method: 'CASH' | 'CARD' } | null
+  /**
+   * Only on a queued sale signed with a key this server registered, and only with `printed`
+   * (V530, BINDING-DESIGN §5.1). Both are outside the server's stored request hashes, so the same
+   * sale sent with or without them replays.
+   */
+  offlineProof?: { keyId: string; signature: string }
+  /** The totals the receipt printed, as JSON numbers; signed with the sale. */
+  printed?: PosPrintedTotals
+}
+
+export type PosPrintedTotals = {
+  taxable: number
+  vat: number
+  total: number
+  vatBreakdown?: { category: string; rate: number; taxable: number; vat: number }[]
 }
 
 export type PosPaymentSlip = {
@@ -278,7 +293,8 @@ export type PosSaleDto = {
   tillNumber: number
   branchId: string
   shiftId: string
-  cashier: PosPerson
+  /** Null while who sold it is unproven (V530 PENDING_REVIEW). */
+  cashier: PosPerson | null
   invoiceId: string
   invoiceNumber: string
   transactionType: 'SIMPLIFIED' | 'FULL_TAX'
@@ -306,7 +322,13 @@ export type PosSaleDto = {
   }
   filing: PosFiling
   warnings: PosWarning[]
+  /** The signed-in sender; absent before V530, null on a sale stored before it. */
+  filedBy?: PosPerson | null
+  /** Absent before V530. */
+  attribution?: PosAttribution | null
 }
+
+export type PosAttribution = 'ONLINE' | 'VERIFIED' | 'PENDING_REVIEW' | 'LEGACY'
 
 export function createPosSale(body: PosSaleRequest, idempotencyKey: string): Promise<PosSaleDto> {
   return apiRequest<PosSaleDto>(POS_SALES_PATH, {
@@ -342,7 +364,15 @@ export type PosTodaySaleRow = {
   tillId: string
   tillNumber: number
   shiftId: string
-  cashier: PosPerson
+  /**
+   * Null while who sold it is unproven (fix/b39-fin-latecash 8f4518909); a server between V530 and
+   * that change sends `{userId: null, name: null}` instead, read the same way.
+   */
+  cashier: PosPerson | { userId: null; name: null } | null
+  /** The signed-in sender; absent on an older server. */
+  filedBy?: PosPerson | null
+  /** Absent on an older server, null before V530. */
+  attribution?: PosAttribution | null
   summary: string
   items: number
   customer: { kind: PosCustomerKind; customerId: string; name: string | null }
@@ -483,6 +513,12 @@ export type PosClosePreviewDto = {
   paidIn: number
   cashRefunded: number
   expectedCash: number
+  /**
+   * Cash of offline sales filed into the shift this one took over from after the handover
+   * (fix/b39-fin-latecash, B39-SR-3). Information only: never part of `expectedCash`. Absent on an
+   * older server, which reads as 0.
+   */
+  lateCashFromHandedOverShift?: number
   looseEnds: PosLooseEnds
   movements: PosCashMovementDto[]
   at: string

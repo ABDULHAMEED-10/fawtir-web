@@ -17,7 +17,7 @@ import {
   PencilIcon,
   ShieldIcon,
 } from './posIcons'
-import { VAT_RATE, omr, omrSigned, totalsFor, unitPrice, LULL, toBaisa } from '../../lib/pos'
+import { VAT_RATE, omr, omrSigned, totalsFor, unitPrice, LULL, toBaisa, toRials } from '../../lib/pos'
 import {
   METHODS,
   TIP_CHOICES,
@@ -260,6 +260,12 @@ function Payment({ till }: { till: Ready }) {
         { ...body, soldAt: attempt.current.soldAt },
         attempt.current.key,
         slipPhotos,
+        // What the receipt prints, signed with a queued sale (V530 `printed`).
+        {
+          taxable: toRials(totals.beforeVat),
+          vat: toRials(totals.vat),
+          total: toRials(totals.sale),
+        },
       )
       setFinishedSale({
         lines,

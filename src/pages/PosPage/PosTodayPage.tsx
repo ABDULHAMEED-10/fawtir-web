@@ -7,6 +7,8 @@ import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNoti
 import { posSaleRowActions } from '../../lib/rowActions'
 import { muscatToday, omr, toBaisa } from '../../lib/pos'
 import { PosTillGate } from './PosTillGate'
+import { offlineSigningEnabled } from '../../lib/posSigning/signingKey'
+import { saleCashierLabel } from '../../lib/posAttribution'
 import { useApiRead } from '../../hooks'
 import {
   posDayPath,
@@ -154,6 +156,15 @@ function Today({ till }: { till: Ready }) {
               {t('pos.today.closingTill')}
             </Link>
           ) : null}
+          {/* Only where this build signs: elsewhere no till of ours makes a hold or a key. */}
+          {(till.can.close || till.can.manage) && offlineSigningEnabled() ? (
+            <Link
+              to="/pos/offline-holds"
+              className="inline-flex h-11 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+            >
+              {t('pos.offline.holds.link')}
+            </Link>
+          ) : null}
         </div>
       </div>
 
@@ -289,7 +300,9 @@ function Today({ till }: { till: Ready }) {
             <div key={group.shiftId}>
               <div className="flex flex-wrap items-center justify-between gap-3 bg-surface-background px-6 py-2.5">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-quaternary">
-                  {t('pos.today.shiftOf', { who: group.cashier, till: group.tillNumber })}
+                  {group.cashier
+                    ? t('pos.today.shiftOf', { who: group.cashier, till: group.tillNumber })
+                    : t('pos.today.shiftUnverified', { till: group.tillNumber })}
                 </p>
                 <p className="text-xs font-medium text-text-quaternary">
                   {t('pos.today.groupTotal', {
@@ -350,7 +363,7 @@ function SaleRow({ sale, canRefund }: { sale: PosTodaySaleRow; canRefund: boolea
           {sale.invoiceNumber.split('-').slice(-1)[0]}
         </Link>
         <span className="mt-0.5 block truncate text-xs font-medium text-text-quaternary">
-          {sale.cashier.name}
+          {saleCashierLabel(sale, t)}
         </span>
       </span>
       <span className="min-w-[180px] flex-1 md:min-w-0">

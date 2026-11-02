@@ -4656,6 +4656,7 @@
       "salesCount_other": "{{count}} sales",
       "nothingYet": "No sales on this day yet.",
       "shiftOf": "{{who}}’s shift · Till {{till}}",
+      "shiftUnverified": "Shift (cashier not verified) · Till {{till}}",
       "pages": "Pages of sales",
       "previous": "Previous page",
       "next": "Next page",
@@ -4698,6 +4699,8 @@
       "paidOut": "Paid out of the drawer",
       "paidOutNote": "Milk delivery, receipt in the drawer · {{who}}",
       "shouldHold": "So the drawer should hold",
+      "lateCash": "Late cash filed into the previous shift: OMR {{amount}}",
+      "lateCashHint": "Offline sales from the shift before yours arrived after you took over. The cash is in this drawer but not in the expected figure.",
       "whyShort": "Why is it short?",
       "guessIsFine": "a guess is fine. The point is that somebody looked",
       "changeWrong": "Change given wrong",
@@ -4894,8 +4897,97 @@
       "onFile": "Matches customer on file: {{name}}",
       "onFileWithId": "Matches customer on file: {{name}} ({{id}})"
     },
+    "offline": {
+      "clockSkew": "This device's clock is more than 5 minutes off. Set the date and time correctly so sales made offline can be shown to be yours.",
+      "pending": "Not yet attributed",
+      "legacy": "Recorded by {{name}} (unverified, older till)",
+      "filedBy": "Sent by {{name}}",
+      "keys": {
+        "title": "Device keys on this till",
+        "intro": "Each cashier's device signs the sales it makes offline. If a device is lost or stolen, revoke its key: sales it signs afterwards are held for review.",
+        "none": "No device key is active on this till.",
+        "yours": "Your key",
+        "cashier": "Key of cashier {{id}}…",
+        "valid": "Registered {{from}}, valid until {{until}}"
+      },
+      "reason": {
+        "other": "Could not be proven",
+        "NO_PROOF": "Sent without proof",
+        "ACTIVE_KEY_UNSIGNED": "Not signed although the till had a key",
+        "PAYLOAD_INVALID": "The sale could not be checked",
+        "SOLD_AT_PRECISION": "The sale time could not be checked",
+        "UNKNOWN_KEY": "Signed with a key the server does not know",
+        "UNKNOWN_SESSION": "Signed in a session the server does not know",
+        "TILL_MISMATCH": "Signed for another till",
+        "SHIFT_MISMATCH": "Signed for another shift",
+        "CASHIER_MISMATCH": "Signed for another cashier",
+        "SIGNATURE": "The signature does not match the sale",
+        "KEY_REVOKED": "Signed with a revoked key",
+        "OUTSIDE_KEY_WINDOW": "Sold outside the key’s time or after its shift ended",
+        "SHIFT_END_UNPROVEN": "Arrived after the shift ended; its time is only the device’s",
+        "PROOF_TOO_OLD": "Arrived more than 72 hours after the key was registered",
+        "OUT_OF_SEQUENCE": "Arrived out of order"
+      },
+      "holds": {
+        "link": "Sales to review",
+        "title": "Offline sales to review",
+        "intro": "These sales were made offline and filed, but who made them could not be proven. Decide who made each one.",
+        "tab": {
+          "OPEN": "To review",
+          "RESOLVED": "Decided"
+        },
+        "none": "Nothing to review.",
+        "manualDiscount": "Manual discount",
+        "limited": "A manager will review this sale.",
+        "notAllowed": "Only a manager who closes tills can review these sales."
+      },
+      "detail": {
+        "outcome": "Proof",
+        "revocation": "Revoked by",
+        "keyId": "Device key",
+        "deviceId": "Device",
+        "keyWindow": "Key valid",
+        "printedTotal": "Printed total",
+        "serverTotal": "Filed total",
+        "discountMax": "Highest discount (%)",
+        "signatureSha256": "Signature (SHA-256)",
+        "withheld": "Withheld: the sale contained a card number. SHA-256:",
+        "noPayload": "No signed sale was sent."
+      },
+      "resolve": {
+        "title": "Who made this sale?",
+        "attribute": "{{name}}, shift opened {{from}}",
+        "keep": "Leave it unattributed",
+        "reason": "Why (required)",
+        "final": "This decision is final: it cannot be changed or undone.",
+        "submit": "Record the decision"
+      },
+      "revoke": {
+        "explain": "If this device is lost or stolen, revoke its key. Sales it signs from now on are held for review.",
+        "action": "Revoke this device key",
+        "done_one": "Revoked. {{count}} sale was filed with this key before.",
+        "done_other": "Revoked. {{count}} sales were filed with this key before.",
+        "already": "This device key was already revoked."
+      },
+      "legacyReport": {
+        "title": "Sales from older tills (last 7 days)",
+        "intro": "Queued sales from tills that cannot prove who made them. They are recorded under whoever was signed in when they were sent, which is not proof.",
+        "show": "Show",
+        "none": "None in the last 7 days."
+      }
+    },
     "refusal": {
       "offline": "The till could not reach Fawtir. Check the connection and try again.",
+      "POS_OFFLINE_KEY_ALREADY_REVOKED": "This device key was already revoked.",
+      "POS_OFFLINE_KEY_NOT_FOUND": "This device key was not found, or you may not revoke it.",
+      "POS_OFFLINE_KEY_HUMAN_ONLY": "Only a signed-in person can do this, not an API key or a support session.",
+      "POS_ATTRIBUTION_HUMAN_ONLY": "Only a signed-in person can decide this, not an API key or a support session.",
+      "POS_ATTRIBUTION_SELF": "You filed this sale, so someone else has to decide who made it.",
+      "POS_ATTRIBUTION_NOT_A_CANDIDATE": "That shift cannot have made this sale. Choose one from the list.",
+      "POS_ATTRIBUTION_ALREADY_RESOLVED": "Someone has already decided this sale. The decision is final.",
+      "POS_ATTRIBUTION_HOLD_NOT_FOUND": "This held sale was not found.",
+      "POS_ATTRIBUTION_REVIEWER_ONLY": "Only a manager who reviews till sales can decide this.",
+      "POS_LEGACY_RANGE_INVALID": "Choose a period of at most 92 days, with the start before the end.",
       "failed": "That did not go through. Try again.",
       "forbidden": "You do not have permission to do this at the till.",
       "planFeature": "Your plan does not include this.",
@@ -4971,6 +5063,8 @@
     },
     "warning": {
       "STOCK_BELOW_ZERO": "Line {{line}} took the stock below zero. Count it when you can.",
+      "POS_OFFLINE_ATTRIBUTION_HELD": "Filed. Who made this sale could not be proven; a manager will review it.",
+      "POS_PRINTED_TOTALS_DIFFER": "Filed. The printed totals differ from the server's; the difference is recorded.",
       "STOCK_UNIT_MISMATCH": "Line {{line}} is in another unit than the item is counted in, so no stock moved.",
       "POS_PRICE_STALE_ACCEPTED": "Line {{line}} was sold offline at an older price.",
       "POS_PRODUCT_NOT_SELLABLE_ACCEPTED": "Line {{line}} was sold offline after it went off sale.",

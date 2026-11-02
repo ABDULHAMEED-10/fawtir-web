@@ -24,6 +24,7 @@ import {
 } from '../../api/company/companyProfile'
 import { initialsOf } from '../../lib/posTill'
 import type { TillState } from '../../lib/posTill'
+import { saleCashierLabel } from '../../lib/posAttribution'
 
 type Ready = Extract<TillState, { status: 'ready' }>
 
@@ -437,7 +438,9 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
                 <ReceiptRow
                   label={t('pos.done.till', {
                     number: till.till.number,
-                    who: sale?.cashier.name ?? till.till.openShift?.cashier.name ?? '',
+                    who: sale
+                      ? saleCashierLabel(sale, t)
+                      : (till.till.openShift?.cashier.name ?? ''),
                   })}
                   value={till.branchName ?? ''}
                 />

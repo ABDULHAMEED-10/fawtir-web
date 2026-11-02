@@ -5,6 +5,7 @@ import { registerPosTill } from '../../api/pos/pos'
 import { usePosTill, type TillState } from '../../lib/posTill'
 import { posRefusalKey } from '../../lib/posRefusals'
 import { noteTillServer, usePosQueue } from '../../lib/posQueue'
+import { useOfflineSigningKey } from '../../lib/posSigning/useOfflineSigningKey'
 import { PosQueuePanel } from './PosQueuePanel'
 
 type Ready = Extract<TillState, { status: 'ready' }>
@@ -30,6 +31,7 @@ export function PosTillGate({
   return (
     <>
       <QueueSender till={state.till} />
+      <OfflineSigningKey state={state} />
       {showQueue ? <PosQueuePanel till={state} /> : null}
       {children(state)}
     </>
@@ -44,6 +46,22 @@ function QueueSender({ till }: { till: Ready['till'] }) {
   noteTillServer(till)
   usePosQueue(till.id)
   return null
+}
+
+/**
+ * Keeps the cashier's offline signing key registered. Says something only when the cashier can fix
+ * what stops it: the device clock. Every other state is silent, because a till that cannot sign
+ * still sells, and its queued sales are held for a manager instead.
+ */
+function OfflineSigningKey({ state }: { state: Ready }) {
+  const { t } = useTranslation()
+  const key = useOfflineSigningKey(state.till, state.userId, state.mine)
+  if (key !== 'clockSkew') return null
+  return (
+    <p role="status" className="mx-auto mb-3 w-full max-w-[1144px] rounded-md bg-surface-card px-4 py-3 text-sm text-text-secondary">
+      {t('pos.offline.clockSkew')}
+    </p>
+  )
 }
 
 function TillNotice({ textKey, action }: { textKey: string; action?: ReactNode }) {

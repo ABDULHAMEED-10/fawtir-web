@@ -2,10 +2,12 @@ import { useEffect, useSyncExternalStore } from 'react'
 import { ApiError, NetworkError } from '../api'
 import {
   createPosSale,
+  type PosPrintedTotals,
   type PosSaleDto,
   type PosSaleRequest,
   type PosTillDto,
 } from '../api/pos/pos'
+import { signQueuedSale } from './posSigning/signingKey'
 import {
   dropSlipPhotos,
   holdSlipPhotos,
@@ -407,6 +409,25 @@ async function sendNumbered(body: PosSaleRequest, key: string, canSkip: boolean)
   }
 }
 
+/**
+ * The queued body with its proof and printed totals, or as it was when this till cannot sign it
+ * (owner M-6: capable tills sign, older tills stay compatible). `printed` is part of what is signed
+ * and is sent only beside a proof: without one there is nothing it would add.
+ */
+async function signedIfPossible(
+  till: PosTillDto,
+  body: PosSaleRequest,
+  key: string,
+  printed: PosPrintedTotals | undefined,
+): Promise<PosSaleRequest> {
+  if (!printed || !till.openShift) return body
+  const signed = await signQueuedSale({ ...body, printed }, key, {
+    shiftId: till.openShift.shiftId,
+    cashierUserId: till.openShift.cashier.userId,
+  })
+  return signed ? { ...signed.body, offlineProof: signed.offlineProof } : body
+}
+
 /** The buyer taken out of the entry, sealed on the device when it can be. */
 async function sealed(entry: QueuedSale): Promise<QueuedSale> {
   const consumer = entry.body.customer.consumer
@@ -497,17 +518,24 @@ export async function submitSale(
   body: PosSaleRequest,
   key: string,
   photos: SlipPhoto[] = [],
+  printed?: PosPrintedTotals,
 ): Promise<SubmitResult> {
   const enqueue = async (): Promise<SubmitResult> => {
     const number = nextTillNumber(till, body.soldAt)
     if (!number) throw new NetworkError('offline')
     // Taken now, before the awaits below: a second sale must not print the same number.
     noteNumberUsed(till.id, number)
+    // Signed before the buyer is sealed, so the signed body is the body `bodyToSend` rebuilds (WEB-3).
     const entry = await sealed({
       key,
       tillId: till.id,
       number,
-      body: { ...body, queuedOffline: true, invoiceNumber: number },
+      body: await signedIfPossible(
+        till,
+        { ...body, queuedOffline: true, invoiceNumber: number },
+        key,
+        printed,
+      ),
       refusal: null,
     })
     save([...synced(), entry])
@@ -743,7 +771,13 @@ export async function correctQueuedSale(
       void _final
       void _notBefore
       void _setAside
-      return { ...again, body: { ...again.body, payments } }
+      // The old proof covers the old payments, and nobody here may sign as the cashier again: the
+      // corrected sale goes unsigned, with no printed totals either since the two travel together,
+      // and a binding-capable server holds it for a manager (WEB-4).
+      const { offlineProof: _proof, printed: _printed, ...unsigned } = again.body
+      void _proof
+      void _printed
+      return { ...again, body: { ...unsigned, payments } }
     }),
   )
   return flushQueue(tillId)

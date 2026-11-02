@@ -35,6 +35,17 @@ export type ShiftGroup = {
   total: number
 }
 
+/**
+ * The cashier a row proves, for the shift's header. A LEGACY row's `cashier` is its sender and a
+ * PENDING_REVIEW row has none proven, so neither may name the shift: the header would present an
+ * unverified person as the shift's cashier above a row that says they are not (WSR-9, owner M-6
+ * point 4). An older server sends no attribution, and its cashier is the one it always was.
+ */
+function provenCashier(row: PosTodaySaleRow): string {
+  if (row.attribution === 'LEGACY' || row.attribution === 'PENDING_REVIEW') return ''
+  return row.cashier?.name ?? ''
+}
+
 /** Consecutive sales of one shift, in the order the server sent them (newest first). */
 export function groupByShift(rows: PosTodaySaleRow[]): ShiftGroup[] {
   const groups: ShiftGroup[] = []
@@ -42,11 +53,12 @@ export function groupByShift(rows: PosTodaySaleRow[]): ShiftGroup[] {
     const last = groups[groups.length - 1]
     if (last && last.shiftId === row.shiftId) {
       last.sales.push(row)
+      if (!last.cashier) last.cashier = provenCashier(row)
       last.total += toBaisa(row.total)
     } else {
       groups.push({
         shiftId: row.shiftId,
-        cashier: row.cashier.name ?? '',
+        cashier: provenCashier(row),
         tillNumber: row.tillNumber,
         sales: [row],
         total: toBaisa(row.total),

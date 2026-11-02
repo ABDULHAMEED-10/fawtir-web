@@ -524,6 +524,17 @@ function CloseForm({
                 tone="take"
               />
               <Line label={t('pos.close.shouldHold')} value={omr(figures.expected)} tone="sum" />
+              {/* Shown beside the expected figure, never added to it (FIN option (i)): a counted
+                  close that includes this cash records the over, and this line explains it. */}
+              {(preview.lateCashFromHandedOverShift ?? 0) > 0 ? (
+                <Line
+                  label={t('pos.close.lateCash', {
+                    amount: omr(toBaisa(preview.lateCashFromHandedOverShift ?? 0)),
+                  })}
+                  note={t('pos.close.lateCashHint')}
+                  value=""
+                />
+              ) : null}
             </div>
           </section>
 
