@@ -72,6 +72,11 @@ import {
   loadWaitingCount,
   type WaitingCountDto,
 } from '../../api/expenditure/waitingDocuments'
+import {
+  loadRejectedDocuments,
+  rejectedDocumentsPath,
+  type RejectedPageDto,
+} from '../../api/expenditure/rejectedDocuments'
 import { formatAmount, formatCount, formatDate, formatInstantDay } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
 import kpiAttentionIcon from '../../assets/bills/kpi-attention.svg'
@@ -427,6 +432,7 @@ function BillsScreen() {
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
         {header}
         <WaitingDocumentsBanner />
+        <RejectedDocumentsBanner />
         {summary.read.status === 'loading' ? (
           <LoadingNotice />
         ) : (
@@ -459,6 +465,7 @@ function BillsScreen() {
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
       {header}
       <WaitingDocumentsBanner />
+      <RejectedDocumentsBanner />
       <BillKpiCards
         totals={totals}
         canStartRun={canCapture}
@@ -925,6 +932,53 @@ function WaitingDocumentsBanner() {
         className="inline-flex h-[38px] shrink-0 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
       >
         {t('waitingDocuments.banner.open')}
+      </Link>
+    </div>
+  )
+}
+
+/**
+ * Supplier documents our access point refused on arrival (batch 39 EXP), and the way to the list.
+ * A branch-limited person is refused that list (403, BA-1), so it is not read for them at all.
+ * Nothing is drawn while none were refused, while the read is on its way, or when it fails: a
+ * server before batch 39 answers 404 and the page stays as it was.
+ */
+function RejectedDocumentsBanner() {
+  const session = useSession()
+  if (session?.allBranches === false || !can(session, 'invoice.read')) return null
+  return <RejectedDocumentsCount />
+}
+
+// One row is enough: the banner needs only the total, and the server has no count route.
+const REJECTED_BANNER_PATH = rejectedDocumentsPath(0, 1)
+
+function RejectedDocumentsCount() {
+  const { t, i18n } = useTranslation()
+  const rejected = useApiRead<RejectedPageDto>(REJECTED_BANNER_PATH, () =>
+    loadRejectedDocuments(REJECTED_BANNER_PATH),
+  )
+  if (rejected.read.status !== 'ready' || rejected.read.data.total <= 0) return null
+  const total = rejected.read.data.total
+  return (
+    <div
+      role="status"
+      data-testid="rejected-documents-banner"
+      className="flex flex-wrap items-center justify-between gap-3 rounded-sm bg-surface-background px-4 py-3 text-text-secondary"
+    >
+      <p className="min-w-0 flex-1 text-sm font-medium leading-[1.6] md:min-w-[320px]">
+        <b className="font-semibold">
+          {t('rejectedDocuments.banner.title', {
+            count: total,
+            n: formatCount(total, i18n.language),
+          })}
+        </b>{' '}
+        {t('rejectedDocuments.banner.body')}
+      </p>
+      <Link
+        to="/expenditure/bills/rejected"
+        className="inline-flex h-[38px] shrink-0 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+      >
+        {t('rejectedDocuments.banner.open')}
       </Link>
     </div>
   )

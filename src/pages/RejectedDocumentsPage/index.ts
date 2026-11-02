@@ -1,0 +1,1 @@
+export { RejectedDocumentsPage } from './RejectedDocumentsPage'
