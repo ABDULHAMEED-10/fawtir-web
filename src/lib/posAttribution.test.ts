@@ -62,6 +62,18 @@ describe('the held payload a reviewer reads (WEB-8, C3)', () => {
   })
 })
 
+describe('the server-masked payload (cf49f0447)', () => {
+  it('leaves the server marker as it is', () => {
+    const shown = maskedPayload({
+      sale: { customer: { consumer: { identifierValue: '[masked]', contact: '[masked]' } } },
+    }) as { sale: { customer: { consumer: Record<string, string> } } }
+    expect(shown.sale.customer.consumer).toEqual({
+      identifierValue: '[masked]',
+      contact: '[masked]',
+    })
+  })
+})
+
 describe('wording for every new code (WEB-10)', () => {
   const codes = {
     refusal: [
