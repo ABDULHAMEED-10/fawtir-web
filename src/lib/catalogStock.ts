@@ -414,6 +414,8 @@ const STOCK_REFUSALS: Record<string, string> = {
   STOCK_UNIT_COST_INVALID: 'stock.refused.unitCostInvalid',
   STOCK_RECEIVED_ON_INVALID: 'stock.refused.receivedOnInvalid',
   STOCK_WRITE_OFF_NOTE_REQUIRED: 'stock.refused.noteRequired',
+  // Batch 39 SEC W-6 (owner), emitted from STK's branch: a card number in a stock note.
+  STOCK_NOTE_CARD_NUMBER: 'stock.refused.noteCardNumber',
   STOCK_REORDER_LEVEL_INVALID: 'stock.refused.reorderLevelInvalid',
   STOCK_ITEM_NOT_FOUND: 'stock.refused.itemNotFound',
   STOCK_NOT_COUNTED_PRODUCT: 'stock.refused.notCountedProduct',
