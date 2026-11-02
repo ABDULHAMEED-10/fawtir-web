@@ -350,8 +350,15 @@ export type PosTodaySaleRow = {
   tillId: string
   tillNumber: number
   shiftId: string
-  /** Both null while who sold it is unproven (V530); Today carries no `attribution`. */
-  cashier: PosPerson | { userId: null; name: null }
+  /**
+   * Null while who sold it is unproven (fix/b39-fin-latecash 8f4518909); a server between V530 and
+   * that change sends `{userId: null, name: null}` instead, read the same way.
+   */
+  cashier: PosPerson | { userId: null; name: null } | null
+  /** The signed-in sender; absent on an older server. */
+  filedBy?: PosPerson | null
+  /** Absent on an older server, null before V530. */
+  attribution?: PosAttribution | null
   summary: string
   items: number
   customer: { kind: PosCustomerKind; customerId: string; name: string | null }

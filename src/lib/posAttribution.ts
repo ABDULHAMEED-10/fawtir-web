@@ -8,10 +8,16 @@ import type { PosSaleDto } from '../api/pos/pos'
  * V530 sends no `attribution` and always a cashier, which reads as before.
  */
 export function saleCashierLabel(
-  sale: Pick<PosSaleDto, 'cashier' | 'filedBy' | 'attribution'>,
+  sale: {
+    cashier: { userId: string | null; name: string | null } | null
+    filedBy?: PosSaleDto['filedBy']
+    attribution?: PosSaleDto['attribution']
+  },
   t: TFunction,
 ): string {
-  if (sale.attribution === 'PENDING_REVIEW' || !sale.cashier) return t('pos.offline.pending')
+  if (sale.attribution === 'PENDING_REVIEW' || !sale.cashier || sale.cashier.userId === null) {
+    return t('pos.offline.pending')
+  }
   if (sale.attribution === 'LEGACY') {
     return t('pos.offline.legacy', { name: (sale.filedBy ?? sale.cashier).name ?? '' })
   }

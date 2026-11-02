@@ -8,6 +8,7 @@ import { posSaleRowActions } from '../../lib/rowActions'
 import { muscatToday, omr, toBaisa } from '../../lib/pos'
 import { PosTillGate } from './PosTillGate'
 import { offlineSigningEnabled } from '../../lib/posSigning/signingKey'
+import { saleCashierLabel } from '../../lib/posAttribution'
 import { useApiRead } from '../../hooks'
 import {
   posDayPath,
@@ -361,7 +362,7 @@ function SaleRow({ sale, canRefund }: { sale: PosTodaySaleRow; canRefund: boolea
           {sale.invoiceNumber.split('-').slice(-1)[0]}
         </Link>
         <span className="mt-0.5 block truncate text-xs font-medium text-text-quaternary">
-          {sale.cashier.userId === null ? t('pos.offline.pending') : sale.cashier.name}
+          {saleCashierLabel(sale, t)}
         </span>
       </span>
       <span className="min-w-[180px] flex-1 md:min-w-0">

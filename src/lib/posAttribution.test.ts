@@ -27,6 +27,17 @@ describe('who a till sale is shown as made by (WEB-7)', () => {
     expect(saleCashierLabel({ cashier: null }, t)).toBe('pos.offline.pending')
   })
 
+  it('reads every shape of a Today row the same way (B39-SR-3)', () => {
+    expect(saleCashierLabel({ cashier: null, filedBy: OMAR, attribution: 'PENDING_REVIEW' }, t)).toBe(
+      'pos.offline.pending',
+    )
+    expect(saleCashierLabel({ cashier: { userId: null, name: null } }, t)).toBe('pos.offline.pending')
+    expect(saleCashierLabel({ cashier: AISHA, filedBy: AISHA, attribution: 'LEGACY' }, t)).toBe(
+      'pos.offline.legacy:Aisha',
+    )
+    expect(saleCashierLabel({ cashier: AISHA }, t)).toBe('Aisha')
+  })
+
   it('shows a LEGACY sale as recorded by its sender, unverified', () => {
     expect(saleCashierLabel({ cashier: AISHA, filedBy: OMAR, attribution: 'LEGACY' }, t)).toBe(
       'pos.offline.legacy:Omar',
