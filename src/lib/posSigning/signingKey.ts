@@ -143,7 +143,7 @@ let oldServer = false
 let refused = false
 const registrations = new Map<string, Promise<SigningKeyState>>()
 
-/** For tests. */
+/** At every session end (`forgetSigningKeys`), and for tests. */
 export function resetSigningKeyState() {
   oldServer = false
   refused = false
