@@ -47,6 +47,9 @@ const WORDED = new Set([
   'POS_PAID_OUT_EXCEEDS_CASH',
   'POS_CASH_MOVEMENT_AMOUNT_INVALID',
   'POS_NOTE_TOO_LONG',
+  // Batch 39 SEC W-6 (owner): a card number typed into a cash-movement, close, card-difference or
+  // refund reason note. The problem names only `field`, never the value, and neither does this.
+  'POS_NOTE_CARD_NUMBER',
   'POS_SALE_NOT_FOUND',
   'POS_REFUND_NOT_OWN_SALE',
   'POS_REFUND_LINE_INVALID',
