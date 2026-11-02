@@ -36,6 +36,23 @@ const BODY: Record<DuplicateCheck['state'], string> = {
   notDuplicate: 'billDetail.duplicate.body.notDuplicate',
 }
 
+/**
+ * The undecided card's sentence by what the earlier document is. ACC-8 option A (owner, batch 39;
+ * backend c1035fa11) also holds a Peppol copy against an uploaded or scanned bill, and the
+ * original sentence ("The same supplier sent this … again over Peppol") is false for that pair.
+ * Until the earlier document is read, nothing about how it arrived is claimed.
+ */
+export function suspectedBodyKey(
+  state: DuplicateCheck['state'],
+  original: string,
+): string {
+  if (state !== 'suspected') return BODY[state]
+  if (original === 'UPLOADED') return 'billDetail.duplicate.body.suspectedUploaded'
+  if (original === 'SCANNED') return 'billDetail.duplicate.body.suspectedScanned'
+  if (original === 'PEPPOL') return BODY.suspected
+  return 'billDetail.duplicate.body.suspectedPending'
+}
+
 const DONE: Record<DuplicateResolutionDto, string> = {
   CONFIRMED_DUPLICATE: 'billDetail.duplicate.done.confirmed',
   NOT_DUPLICATE: 'billDetail.duplicate.done.notDuplicate',
@@ -133,10 +150,14 @@ export function DuplicateCheckCard({
   const noteError = error?.field ? error.text : null
   const decided =
     check.state !== 'suspected' && check.hold?.duplicateResolvedAt ? check.hold : null
+  const body = suspectedBodyKey(
+    check.state,
+    original.status === 'ready' ? original.data.bill.source : original.status,
+  )
 
   return (
     <Card id="duplicate-check" title={t(TITLE[check.state])}>
-      <p className="text-sm font-medium leading-[1.5] text-text-tertiary">{t(`${BODY[check.state]}${kind}`)}</p>
+      <p className="text-sm font-medium leading-[1.5] text-text-tertiary">{t(`${body}${kind}`)}</p>
       {decided?.duplicateResolvedAt ? (
         <p className="mt-2 text-sm font-medium leading-[1.5] text-text-tertiary">
           <span className="font-semibold text-text-primary">

@@ -6482,7 +6482,13 @@
         "notDuplicate": "Decided to be a separate bill, not a duplicate. It is handled as an ordinary bill.",
         "suspectedCreditNote": "The same supplier sent this credit note number again over Peppol. Compare it with the credit note already on file and decide. It can't be set against any bill until then.",
         "confirmedCreditNote": "Confirmed as a duplicate of the credit note already on file. It stays on hold and can't be set against any bill.",
-        "notDuplicateCreditNote": "Decided to be a separate credit note, not a duplicate. It is handled as an ordinary credit note."
+        "notDuplicateCreditNote": "Decided to be a separate credit note, not a duplicate. It is handled as an ordinary credit note.",
+        "suspectedUploaded": "This Peppol document looks like a copy of a bill already on file that was uploaded. The uploaded bill stays payable. Compare them and decide: if they are separate documents, both are owed; if they are the same, this copy stays on hold and is never paid.",
+        "suspectedScanned": "This Peppol document looks like a copy of a bill already on file that was scanned. The scanned bill stays payable. Compare them and decide: if they are separate documents, both are owed; if they are the same, this copy stays on hold and is never paid.",
+        "suspectedPending": "This document looks like a copy of one already on file. Compare them and decide. It cannot be paid until then.",
+        "suspectedUploadedCreditNote": "This Peppol credit note looks like a copy of a credit note already on file that was uploaded. The uploaded one can still be used. Compare them and decide. This copy can't be set against any bill until then.",
+        "suspectedScannedCreditNote": "This Peppol credit note looks like a copy of a credit note already on file that was scanned. The scanned one can still be used. Compare them and decide. This copy can't be set against any bill until then.",
+        "suspectedPendingCreditNote": "This credit note looks like a copy of one already on file. Compare them and decide. It can't be set against any bill until then."
       },
       "thisBill": "This bill",
       "original": "Already on file",
