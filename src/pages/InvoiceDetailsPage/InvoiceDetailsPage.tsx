@@ -479,6 +479,7 @@ function InvoiceScreen() {
     return <Navigate to={`/expenditure/self-billing/${encodeURIComponent(data.id)}`} replace />
   }
   const draft = isDraft(data)
+  const recordedStock = stockLineWarningTexts(t, data.warnings)
   const noteType = data.type === 'CREDIT_NOTE' || data.type === 'DEBIT_NOTE' ? data.type : null
   // Self-billing inverts the parties: the tenant is the buyer and customerId names the seller,
   // so every counterparty label on this page flips with the document type.
@@ -942,6 +943,19 @@ function InvoiceScreen() {
         <section className="rounded-sm border border-primary-300 bg-primary-25 p-4">
           <p className="text-sm font-medium leading-[1.5] text-text-secondary">
             {t('invoiceDetails.draftNotice')}
+          </p>
+        </section>
+      ) : null}
+
+      {/* The stock warnings recorded at issue (V518), which the single read returns from batch 39
+          STK-Q4B on for invoices as well as notes. Not while the arrival notice already says them. */}
+      {!draft && !notice && recordedStock.length > 0 ? (
+        <section
+          className="rounded-sm border border-primary-300 bg-primary-25 p-4"
+          data-testid="invoice-recorded-stock-warnings"
+        >
+          <p className="text-sm font-medium leading-[1.5] text-text-secondary">
+            {[t('invoiceDetails.stockWarnings'), ...recordedStock].join(' ')}
           </p>
         </section>
       ) : null}

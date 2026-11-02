@@ -2642,3 +2642,62 @@ describe('the discount column says what kind of discount it holds (DA-15)', () =
     expect(within(table).getByText('10%')).toBeTruthy()
   })
 })
+
+describe('stock warnings recorded at issue, on the single read (batch 39 STK-Q4B)', () => {
+  it('shows an issued invoice’s recorded STOCK_BELOW_ZERO in words, never the server’s text', async () => {
+    invoiceResponse = () =>
+      json(
+        200,
+        invoice({
+          warnings: [
+            {
+              line: 1,
+              code: 'STOCK_BELOW_ZERO',
+              message: 'Sold more than the branch had counted; on hand is now -2',
+            },
+          ],
+        }),
+      )
+    renderInvoice()
+    const box = await screen.findByTestId('invoice-recorded-stock-warnings')
+    expect(box.textContent).toContain('When it was issued, stock noted:')
+    expect(box.textContent).toContain('Line 1: it took the stock below zero. Count it when you can.')
+    expect(box.textContent).not.toContain('on hand is now')
+  })
+
+  it('shows nothing for a read without stock warnings, an older server, or other codes only', async () => {
+    for (const warnings of [undefined, null, [], [{ line: 1, code: 'ZR_NOT_ON_LIST' }]]) {
+      cleanup()
+      invoiceResponse = () => json(200, invoice({ warnings: warnings as never }))
+      renderInvoice()
+      expect(await screen.findByRole('link', { name: 'Duplicate' })).toBeTruthy()
+      expect(screen.queryByTestId('invoice-recorded-stock-warnings')).toBeNull()
+    }
+  })
+
+  it('does not say them twice on arrival from the composer, whose notice already does', async () => {
+    invoiceResponse = () =>
+      json(200, invoice({ warnings: [{ line: 1, code: 'STOCK_BELOW_ZERO' }] }))
+    render(
+      <ReferenceDataContext.Provider value={SEEDED_REFERENCE}>
+        <MemoryRouter
+          initialEntries={[
+            {
+              pathname: `/invoices/${ID}`,
+              state: {
+                issuedNumber: 'INV-2026-0042',
+                stockWarnings: [{ line: 1, code: 'STOCK_BELOW_ZERO' }],
+              },
+            },
+          ]}
+        >
+          <Routes>
+            <Route path="/invoices/:id" element={<InvoiceDetailsPage />} />
+          </Routes>
+        </MemoryRouter>
+      </ReferenceDataContext.Provider>,
+    )
+    expect(await screen.findByText(/Line 1: it took the stock below zero/)).toBeTruthy()
+    expect(screen.queryByTestId('invoice-recorded-stock-warnings')).toBeNull()
+  })
+})

@@ -138,8 +138,10 @@ export type InvoiceDetailDto = {
   /**
    * Line warnings on the authoring routes, never blocking; `[]` when none. The issue answer also
    * lists the lines that cite a counted product and moved no stock (`STOCK_UNIT_MISMATCH`,
-   * `STOCK_VARIANT_UNKNOWN`, `STOCK_QUANTITY_NOT_WHOLE`, `STOCK_QUANTITY_INVALID`). Absent from
-   * older servers and on the plain read.
+   * `STOCK_VARIANT_UNKNOWN`, `STOCK_QUANTITY_NOT_WHOLE`, `STOCK_QUANTITY_INVALID`), and
+   * `STOCK_BELOW_ZERO` for a line that moved stock below zero (batch 39 STK-Q4B). The single read
+   * returns the stock warnings recorded at issue (V518) for credit notes, and from STK-Q4B for
+   * invoices too; an invoice issued before V518 reads none. Absent from older servers.
    */
   warnings?: InvoiceLineWarningDto[] | null
   /** As on the list rows: `TILL` when a till sale or refund issued it. Absent from older servers. */
