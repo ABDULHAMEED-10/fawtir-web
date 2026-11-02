@@ -37,6 +37,7 @@ import {
   dueBy,
   dueNote,
   groupBySupplier,
+  candidateTwinOf,
   markPaidBlockKey,
   paidOn,
   refusalOf,
@@ -661,6 +662,15 @@ function RunBuilder({ runId }: { runId: string | null }) {
                                     })
                                   : t('paymentRuns.noDate')}
                               </p>
+                              {candidateTwinOf(bill) ? (
+                                <Link
+                                  to={`/expenditure/bills/${candidateTwinOf(bill)!.otherId}`}
+                                  data-testid="run-candidate-twin"
+                                  className="mt-0.5 block text-[10px] font-semibold leading-[1.2] text-pending-700 hover:underline"
+                                >
+                                  {t(`paymentRuns.twin.${candidateTwinOf(bill)!.certainty}`)}
+                                </Link>
+                              ) : null}
                               {blocks.has(bill.billId) && !takenOut.has(bill.billId) ? (
                                 <MarkPaidBlockChip label={t(blocks.get(bill.billId)!)} />
                               ) : null}

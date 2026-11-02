@@ -25,6 +25,23 @@ export type RunBill = {
   outstanding: number
   discount: number
   amount: number
+  /** On a candidate only (batch 39 EXP): as `BillRow.duplicateOf`, the sure twin's bill id. */
+  duplicateOf?: string | null
+  /** On a candidate only (batch 39 EXP): as `BillRow.possibleDuplicateOf`. */
+  possibleDuplicateOf?: string | null
+}
+
+/**
+ * The bill a candidate may be the same supplier document as, so whoever builds a run sees it
+ * before paying both copies (ACC-8 interim; batch 39 EXP §5). A sure pair wins over a possible one.
+ * A held copy never reaches the candidates, so this never names a decided hold.
+ */
+export function candidateTwinOf(
+  bill: Pick<RunBill, 'duplicateOf' | 'possibleDuplicateOf'>,
+): { certainty: 'sure' | 'possible'; otherId: string } | null {
+  if (bill.duplicateOf) return { certainty: 'sure', otherId: bill.duplicateOf }
+  if (bill.possibleDuplicateOf) return { certainty: 'possible', otherId: bill.possibleDuplicateOf }
+  return null
 }
 
 export type SupplierGroup = {

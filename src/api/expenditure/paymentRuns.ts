@@ -147,6 +147,10 @@ export type PaymentRunCandidateDto = {
   outstanding: number
   discount: number
   amount: number
+  /** Batch 39 EXP: the bill's sure twin (as `BillRow.duplicateOf`); absent from an older server. */
+  duplicateOf?: string | null
+  /** Batch 39 EXP: the other copy of a less certain pair; absent from an older server. */
+  possibleDuplicateOf?: string | null
 }
 
 /**
