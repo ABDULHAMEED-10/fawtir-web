@@ -726,6 +726,7 @@ export type MlsTransportState =
   | 'RETRY_SCHEDULED'
   | 'DEAD_LETTERED'
   | 'INBOUND_RECEIVED'
+  | 'INBOUND_PROCESSED'
 
 /** Backend `TddSubmissionStatus`: C5's receipt of our TDD, never a tax verdict. */
 export type TddSubmissionStatus =
@@ -744,7 +745,7 @@ export type TddSubmissionStatus =
 export type BillPeppolStatusDto = {
   deliveryId: string
   mlsCode: 'AP' | 'AB' | 'RE' | null
-  mlsTransportState: MlsTransportState | null
+  mlsTransportState: MlsTransportState | (string & {}) | null
   mlsDeliveredAt: string | null
   tddStatus: TddSubmissionStatus | null
 }
