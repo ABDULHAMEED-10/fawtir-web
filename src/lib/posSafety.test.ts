@@ -19,6 +19,18 @@ describe('containsCardNumber (mirrors backend CardNumbers, FIN-5)', () => {
     expect(containsCardNumber('')).toBe(false)
     expect(containsCardNumber(null)).toBe(false)
   })
+
+  // The server's cases in CardNumbersTest (aa7f73fb1, batch 36 SEC).
+  it('finds a grouped card number typed beside another group', () => {
+    expect(containsCardNumber('4111 1111 1111 1111 12 27')).toBe(true)
+    expect(containsCardNumber('12 4111 1111 1111 1111')).toBe(true)
+    expect(containsCardNumber('٤١١١ ١١١١ ١١١١ ١١١١ ١٢ ٢٧')).toBe(true)
+  })
+
+  it('still lets a long reference through when no span its separators bound is a card number', () => {
+    expect(containsCardNumber('1234 5678 9012 3456 7890 12')).toBe(false)
+    expect(containsCardNumber('9876-5432-1098-7654-3210-98')).toBe(false)
+  })
 })
 
 describe('the bank machine total keeps its sign (A-05)', () => {

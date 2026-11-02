@@ -7,9 +7,11 @@
  *
  * Same rule as the server: a run of 13 to 19 digits that passes the Luhn check, digits read in
  * ASCII, Arabic-Indic and Eastern Arabic-Indic, split freely by spaces, dashes, dots and the
- * invisible direction marks Arabic text carries. A longer run is not read as one, so a bank
- * reference that happens to hold a passing 16 digits is not refused. Applied to card references
- * only, as on the server.
+ * invisible direction marks Arabic text carries. An unbroken run longer than 19 digits is not read
+ * as one, so a bank reference that happens to hold a passing 16 digits is not refused; within a run
+ * the person split, the spans between the separators they typed are judged too (backend aa7f73fb1,
+ * batch 36 SEC), so a grouped card number typed beside its expiry is still found. Applied to card
+ * references only, as on the server.
  */
 const SHORTEST = 13
 const LONGEST = 19
@@ -61,20 +63,47 @@ function luhn(digits: string): boolean {
 
 const passes = (run: string) => run.length >= SHORTEST && run.length <= LONGEST && luhn(run)
 
+/**
+ * "4111 1111 1111 1111 12 27" (card, then expiry) joins into a 22-digit run that the whole-run rule
+ * lets through. The server has refused it since aa7f73fb1; missing it here kept the number in the
+ * offline queue, where the server then refuses the paid sale for good. Only spans a typed separator
+ * bounds are tried, as on the server, so an unbroken long reference stays allowed.
+ */
+function passesWholeOrGrouped(run: string, groupStarts: readonly number[]): boolean {
+  if (passes(run)) return true
+  for (let first = 0; first < groupStarts.length; first++) {
+    const start = groupStarts[first]
+    for (let next = first + 1; next <= groupStarts.length; next++) {
+      const end = next < groupStarts.length ? groupStarts[next] : run.length
+      if (end - start > LONGEST) break
+      if (passes(run.slice(start, end))) return true
+    }
+  }
+  return false
+}
+
 /** Whether any run of digits in the text is a card number. */
 export function containsCardNumber(text: string | null | undefined): boolean {
   if (!text) return false
   let run = ''
+  let groupStarts: number[] = []
+  let newGroup = true
   for (let i = 0; i <= text.length; i++) {
     const char = i < text.length ? text[i] : '\0'
     const digit = digitOf(char)
     if (digit >= 0) {
+      if (newGroup) {
+        groupStarts.push(run.length)
+        newGroup = false
+      }
       run += String(digit)
     } else if (isSeparator(char) && run.length > 0) {
-      continue
+      newGroup = true
     } else {
-      if (passes(run)) return true
+      if (passesWholeOrGrouped(run, groupStarts)) return true
       run = ''
+      groupStarts = []
+      newGroup = true
     }
   }
   return false
