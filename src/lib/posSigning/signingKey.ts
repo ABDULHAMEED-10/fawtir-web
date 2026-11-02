@@ -83,7 +83,10 @@ function usable(key: StoredSigningKey, now: number): boolean {
  * printed is filed whatever happens to the key.
  */
 export async function forgetSigningKeys(): Promise<void> {
-  registrations.clear()
+  // What the last session was told belongs to that session: a support session's 403 must not
+  // keep the next cashier signed in on this page from signing (WSR-12). A 404 is asked again too;
+  // it costs one request on an old server.
+  resetSigningKeyState()
   try {
     const vault = await posVault()
     for (const { id } of await storedKeys(vault)) await vault.delete('keys', id)

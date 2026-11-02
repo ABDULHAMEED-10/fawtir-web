@@ -195,6 +195,26 @@ describe('registration (WEB-1, WEB-2)', () => {
     expect((await vault.ids('keys')).filter((id) => id.startsWith('sign:'))).toEqual([])
   })
 
+  it('asks again after the session that was refused has ended', async () => {
+    registerReply = () => problem(403, 'IMPERSONATION_NOT_ALLOWED')
+    expect(await ensureSigningKey({ shiftId: SHIFT, userId: USER, tenantId: TENANT })).toBe('refused')
+    await forgetSigningKeys()
+    registerReply = () =>
+      json(
+        {
+          keyId: KEY_ID,
+          shiftId: SHIFT,
+          tillId: TILL_ID,
+          registeredAt: new Date().toISOString(),
+          validUntil: new Date(Date.now() + 3_600_000).toISOString(),
+          sessionMarker: 'm'.repeat(32),
+        },
+        201,
+      )
+    expect(await ensureSigningKey({ shiftId: SHIFT, userId: USER, tenantId: TENANT })).toBe('ready')
+    expect(registerCalls).toBe(2)
+  })
+
   it('does nothing with the flag off', async () => {
     vi.stubEnv('VITE_POS_OFFLINE_SIGNING', '')
     expect(await ensureSigningKey({ shiftId: SHIFT, userId: USER, tenantId: TENANT })).toBe('off')
