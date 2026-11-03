@@ -36,6 +36,12 @@ import {
   type PosShiftCloseDto,
 } from '../../api/pos/pos'
 import type { TillState } from '../../lib/posTill'
+import {
+  flushBeforeShiftEnd,
+  queuedFor,
+  useQueuedSales,
+  type ShiftEndFlush,
+} from '../../lib/posQueue'
 
 type Ready = Extract<TillState, { status: 'ready' }>
 
@@ -225,6 +231,8 @@ function NotYourShift({ error }: { error: ApiError }) {
 
 function CloseShift({ till, shiftId }: { till: Ready; shiftId: string }) {
   const preview = useApiRead<PosClosePreviewDto>(closePreviewPath(shiftId))
+  // Kept here, above the form, because the form is remounted by the reload that follows a send.
+  const [sentBeforeClose, setSentBeforeClose] = useState(0)
   if (preview.read.status === 'loading') return <LoadingNotice />
   if (preview.read.status === 'failed') {
     // The till's open shift is someone else's (`pos.close` with OWN): not a missing permission.
@@ -233,17 +241,33 @@ function CloseShift({ till, shiftId }: { till: Ready; shiftId: string }) {
     }
     return <ApiReadFailure error={preview.read.error} retry={preview.retry} />
   }
-  return <CloseForm till={till} preview={preview.read.data} reload={preview.retry} />
+  return (
+    <CloseForm
+      till={till}
+      preview={preview.read.data}
+      reload={preview.retry}
+      sentBeforeClose={sentBeforeClose}
+      onSent={(count) => {
+        setSentBeforeClose((before) => before + count)
+        preview.retry()
+      }}
+    />
+  )
 }
 
 function CloseForm({
   till,
   preview,
   reload,
+  sentBeforeClose,
+  onSent,
 }: {
   till: Ready
   preview: PosClosePreviewDto
   reload: () => void
+  sentBeforeClose: number
+  /** Sales were filed: the expected cash on screen no longer includes everything the server has. */
+  onSent: (count: number) => void
 }) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language.startsWith('ar') ? 'ar' : 'en-GB'
@@ -263,6 +287,10 @@ function CloseForm({
   const [refusal, setRefusal] = useState<unknown>(null)
   const [closed, setClosed] = useState<PosShiftCloseDto | null>(null)
   const key = useRef<{ fingerprint: string; key: string } | null>(null)
+  const waiting = useQueuedSales(till.till.id)
+  const [sending, setSending] = useState(false)
+  const [unsent, setUnsent] = useState<ShiftEndFlush | null>(null)
+  const warned = unsent !== null && waiting.length > 0
 
   const cash = byNote ? countedTotal(counted) : (total ?? 0)
   const gap = cash - figures.expected
@@ -286,9 +314,56 @@ function CloseForm({
     !terminalNegative &&
     (!cardDiffers || cardNote.trim().length > 0)
 
+  /** One bounded send of this till's waiting sales; whatever is left stays queued and is shown. */
+  const sendWaiting = async (): Promise<ShiftEndFlush> => {
+    if (queuedFor(till.till.id).length === 0) return { outcome: 'done', left: [] }
+    setSending(true)
+    try {
+      return await flushBeforeShiftEnd(till.till.id)
+    } catch {
+      return { outcome: 'offline', left: queuedFor(till.till.id) }
+    } finally {
+      setSending(false)
+    }
+  }
+
+  /**
+   * Whatever was filed changes the server's expected cash, so the count is checked against fresh
+   * figures before the shift is closed rather than closed against the ones the cashier saw.
+   */
+  const sendThenRecount = async (): Promise<ShiftEndFlush | null> => {
+    const before = queuedFor(till.till.id).length
+    const result = await sendWaiting()
+    const sent = before - result.left.length
+    if (sent > 0) {
+      onSent(sent)
+      return null
+    }
+    return result
+  }
+
+  const sendAgain = async () => {
+    setBusy(true)
+    const result = await sendThenRecount()
+    if (result) setUnsent(result)
+    setBusy(false)
+  }
+
   const close = async () => {
     setBusy(true)
     setRefusal(null)
+    // A queued sale that reaches the server after this close is not in its count, and a signed one
+    // is held for a manager (O-1), so the waiting ones get one bounded try first. Once the cashier
+    // has been told what is left, the next press closes: the close is warned about, never stopped
+    // (blocking it is not approved, batch 42 OFF-4).
+    if (!warned) {
+      const result = await sendThenRecount()
+      if (!result || result.left.length > 0) {
+        if (result) setUnsent(result)
+        setBusy(false)
+        return
+      }
+    }
     const body = closeRequest({
       byNote,
       counted,
@@ -629,6 +704,29 @@ function CloseForm({
                   )}
                 />
               ) : null}
+              {/* This device's queue, which the server cannot see: notYetAccepted below counts only
+                  sales it already has. */}
+              {waiting.length > 0 ? (
+                <LooseEnd
+                  done={false}
+                  title={t('pos.pendingSync.closeTitle', { count: waiting.length })}
+                  note={
+                    <>
+                      {t('pos.pendingSync.closeNote')}
+                      <span dir="ltr" className="mt-1 block">
+                        {waiting.map((entry) => entry.number).join(', ')}
+                      </span>
+                      {waiting.some((entry) => entry.refusal) ? (
+                        <span className="mt-1 block">
+                          {t('pos.pendingSync.someRefused', {
+                            count: waiting.filter((entry) => entry.refusal).length,
+                          })}
+                        </span>
+                      ) : null}
+                    </>
+                  }
+                />
+              ) : null}
               <LooseEnd
                 done={preview.looseEnds.notYetAccepted === 0}
                 title={
@@ -799,6 +897,39 @@ function CloseForm({
               {t(posRefusalKey(refusal), refusalValues(refusal))}
             </p>
           ) : null}
+          {sentBeforeClose > 0 && !closed ? (
+            <p
+              role="status"
+              className="mx-5 mb-2 rounded-sm bg-success-100 px-4 py-3 text-sm font-medium text-success-700"
+            >
+              {t('pos.pendingSync.sentRecount', { count: sentBeforeClose })}
+            </p>
+          ) : null}
+          {warned && !closed ? (
+            <div
+              role="alert"
+              className="mx-5 mb-2 flex flex-col gap-2 rounded-sm bg-pending-100 px-4 py-3 text-sm font-medium text-pending-700"
+            >
+              <p>
+                {t(
+                  unsent?.outcome === 'offline'
+                    ? 'pos.pendingSync.closeLeftOffline'
+                    : 'pos.pendingSync.closeLeft',
+                  { count: waiting.length },
+                )}
+              </p>
+              <div>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void sendAgain()}
+                  className="inline-flex h-9 items-center rounded-sm border border-border-subtle bg-white px-4 text-xs font-semibold text-text-primary disabled:opacity-60"
+                >
+                  {t('pos.pendingSync.sendAgain')}
+                </button>
+              </div>
+            </div>
+          ) : null}
           <div className="border-t border-border-subtle px-5 py-5">
             {closed ? (
               <p className="flex items-center gap-2 rounded-sm bg-success-100 px-3 py-3 text-sm font-medium text-success-700">
@@ -812,7 +943,11 @@ function CloseForm({
                 onClick={() => void close()}
                 className="inline-flex h-[52px] w-full items-center justify-center rounded-sm bg-primary-700 text-base font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-50"
               >
-                {t('pos.close.closeTill')}
+                {sending
+                  ? t('pos.pendingSync.sending')
+                  : warned
+                    ? t('pos.pendingSync.closeAnyway')
+                    : t('pos.close.closeTill')}
               </button>
             )}
           </div>

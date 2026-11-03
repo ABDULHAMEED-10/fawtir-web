@@ -5,6 +5,7 @@ import { Popover } from '../ui'
 import { LOGIN_ROUTE } from '../../lib/identity/login'
 import { dropLoginChallenge } from '../../lib/identity/loginChallenge'
 import { signOut } from '../../lib/identity/logout'
+import { flushBeforeSignOut, queuedTillIds } from '../../lib/posQueue'
 import { USER_MENU } from '../../lib/shell'
 import chevron from '../../assets/dashboard/chevron.svg'
 
@@ -39,6 +40,9 @@ export function UserMenu({
   const [open, setOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const [signOutFailed, setSignOutFailed] = useState(false)
+  // Sales still queued on this device after the pre-sign-out send. Once shown, the next press signs
+  // out: warned, never stopped (batch 42 OFF-4).
+  const [unsent, setUnsent] = useState<number | null>(null)
   // A disabled look cannot stop a second click or Enter landing before the re-render; each would
   // be another revocation request.
   const inFlight = useRef(false)
@@ -56,6 +60,14 @@ export function UserMenu({
     setSignOutFailed(false)
     let signedOut = false
     try {
+      // Checked before any await: with nothing queued, sign-out starts in the same task as before.
+      if (unsent === null && queuedTillIds().length > 0) {
+        const { left } = await flushBeforeSignOut()
+        if (left > 0) {
+          setUnsent(left)
+          return
+        }
+      }
       await signOut()
       signedOut = true
       dropLoginChallenge()
@@ -75,7 +87,9 @@ export function UserMenu({
     ? t('shell.user.signingOut')
     : signOutFailed
       ? t('shell.user.signOutFailed')
-      : t('shell.user.signOut')
+      : unsent !== null
+        ? t('pos.pendingSync.signOutAnyway')
+        : t('shell.user.signOut')
 
   return (
     <>
@@ -83,7 +97,11 @@ export function UserMenu({
           still heard when the menu is closed. Fuller than the item's label, which must stay one
           line: the popover is placed once, and a taller item would grow it over the trigger. */}
       <span role="status" className="sr-only">
-        {signOutFailed ? t('shell.user.signOutFailedStatus') : ''}
+        {signOutFailed
+          ? t('shell.user.signOutFailedStatus')
+          : unsent !== null
+            ? t('pos.pendingSync.signOutLeft', { count: unsent })
+            : ''}
       </span>
       <button
         ref={anchor}
@@ -133,6 +151,10 @@ export function UserMenu({
               to={LOGIN_ROUTE}
               role="menuitem"
               aria-disabled={signingOut || undefined}
+              // The fuller warning goes in a tooltip and the status line, not the item: see above.
+              title={
+                unsent !== null ? t('pos.pendingSync.signOutLeft', { count: unsent }) : undefined
+              }
               onClick={handleSignOut}
               className="block px-4 py-2.5 text-sm font-semibold text-danger-700 transition-colors hover:bg-danger-100"
             >

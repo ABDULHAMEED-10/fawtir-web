@@ -5151,6 +5151,26 @@
       "waitingBehind_other": "{{count}} later sales are waiting behind it. They go by themselves once the sale above is filed.",
       "buyerRemovedHint": "This sale cannot be filed from this device. This device cannot keep a buyer's ID safely, so the buyer was removed when the sale was refused, and a full invoice has to name them. The customer holds this invoice: contact Fawtir support."
     },
+    "pendingSync": {
+      "closeTitle_one": "1 sale made offline is still on this device",
+      "closeTitle_other": "{{count}} sales made offline are still on this device",
+      "closeNote": "The server does not have them yet, so they are not in the figures above. Closing tries to send them first. Nothing is lost if they cannot go: they stay on this device.",
+      "someRefused_one": "1 of them was refused and needs a manager. See the Till screen.",
+      "someRefused_other": "{{count}} of them were refused and need a manager. See the Till screen.",
+      "closeLeft_one": "1 sale could not be sent before closing. It stays on this device and nothing is lost. You can try again, or close anyway.",
+      "closeLeft_other": "{{count}} sales could not be sent before closing. They stay on this device and nothing is lost. You can try again, or close anyway.",
+      "closeLeftOffline_one": "This device is offline, so 1 sale could not be sent before closing. It stays on this device and nothing is lost. You can try again, or close anyway.",
+      "closeLeftOffline_other": "This device is offline, so {{count}} sales could not be sent before closing. They stay on this device and nothing is lost. You can try again, or close anyway.",
+      "sendAgain": "Try sending again",
+      "sending": "Sending waiting sales…",
+      "sentRecount_one": "1 waiting sale was sent before closing. The figures above now include it: check the count, then close.",
+      "sentRecount_other": "{{count}} waiting sales were sent before closing. The figures above now include them: check the count, then close.",
+      "closeAnyway": "Close anyway",
+      "signOutLeft_one": "1 sale is still waiting on this device. It stays here and is sent once someone signs in here and opens the till.",
+      "signOutLeft_other": "{{count}} sales are still waiting on this device. They stay here and are sent once someone signs in here and opens the till.",
+      "signOutAnyway": "Sign out anyway",
+      "switchAnyway": "Switch user anyway"
+    },
     "moneyNotAFigure": "That is not an amount. Type it like 4.510.",
     "lineDiscount": {
       "add": "Discount",

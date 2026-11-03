@@ -586,6 +586,14 @@ export async function submitSale(
 }
 
 let flushing = false
+/** Callers that found a run sending and wait for it to end rather than start a second one. */
+const idleWaiters = new Set<() => void>()
+
+function whenIdle(): Promise<void> {
+  if (!flushing) return Promise.resolve()
+  return new Promise((wake) => idleWaiters.add(wake))
+}
+
 /** Whether the server takes `skippedNumbers`, as the till last said (`openNumbers`). */
 const capable = new Map<string, boolean>()
 
@@ -727,8 +735,84 @@ export async function flushQueue(tillId: string): Promise<FlushOutcome> {
     return 'done'
   } finally {
     flushing = false
+    idleWaiters.forEach((wake) => wake())
+    idleWaiters.clear()
     void retrySlipPhotos(tillId)
   }
+}
+
+/**
+ * - `offline`: the browser says it has no connection, so nothing was tried;
+ * - `timeout`: the bound ran out while a send was still on its way. That send is not cancelled: it
+ *   carries its own key, so whatever the server does with it, it is filed once, and the queue keeps
+ *   the entry until it is.
+ */
+export type ShiftEndFlush = {
+  outcome: FlushOutcome | 'timeout'
+  left: QueuedSale[]
+}
+
+/**
+ * One bounded attempt to send the till's waiting sales before its shift is closed or its cashier
+ * signs out (OFFSEC41 §6.3, owner batch 42 OFF-4). A queued sale that reaches the server after its
+ * shift has ended is not in that shift's close, and a signed one is held for a manager (O-1), so
+ * sending it while the shift is still open saves a recount and a review.
+ *
+ * It only ever goes through `flushQueue`: the same single sender, the same keys, the same bodies
+ * (signed, if at all, when they were queued; never again here), and the same backoff, so an entry a
+ * person must look at first is not forced through. While another run is sending it waits for that
+ * run rather than starting a second one. It never removes an entry the server has not filed, and it
+ * never stops the close or the sign-out: what is left is the caller's to show (blocking the close is
+ * a policy the owner has not approved).
+ */
+export async function flushBeforeShiftEnd(
+  tillId: string,
+  { timeoutMs = 15_000 }: { timeoutMs?: number } = {},
+): Promise<ShiftEndFlush> {
+  if (queuedFor(tillId).length === 0) return { outcome: 'done', left: [] }
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return { outcome: 'offline', left: queuedFor(tillId) }
+  }
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const deadline = new Promise<'timeout'>((resolve) => {
+    timer = setTimeout(() => resolve('timeout'), timeoutMs)
+  })
+  const run = (async (): Promise<FlushOutcome> => {
+    const first = await flushQueue(tillId)
+    if (first !== 'busy') return first
+    await whenIdle()
+    return flushQueue(tillId)
+  })()
+  try {
+    const outcome = await Promise.race([run, deadline])
+    return { outcome, left: queuedFor(tillId) }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/** The tills with sales waiting on this device, whoever made them. */
+export function queuedTillIds(): string[] {
+  return [...new Set(synced().map((entry) => entry.tillId))]
+}
+
+/**
+ * Sign-out's turn at the same bounded attempt, for every till with sales on this device. A queued
+ * sale with no proof is filed under whoever sends it (LEGACY), so sending it now, while the person
+ * who sold it is most likely still the one signed in, beats leaving it for the next person who signs
+ * in here. The bound is shared across tills, so sign-out never waits longer than `timeoutMs` in all.
+ */
+export async function flushBeforeSignOut({
+  timeoutMs = 10_000,
+}: { timeoutMs?: number } = {}): Promise<{ left: number }> {
+  const until = Date.now() + timeoutMs
+  for (const tillId of queuedTillIds()) {
+    const remaining = until - Date.now()
+    if (remaining <= 0) break
+    const { outcome } = await flushBeforeShiftEnd(tillId, { timeoutMs: remaining })
+    if (outcome === 'offline' || outcome === 'timeout') break
+  }
+  return { left: synced().length }
 }
 
 /**
@@ -827,6 +911,8 @@ export function usePosQueue(tillId: string | null): QueuedSale[] {
 /** For tests. */
 export function resetPosQueue() {
   flushing = false
+  idleWaiters.forEach((wake) => wake())
+  idleWaiters.clear()
   capable.clear()
   if (retryTimer) clearTimeout(retryTimer)
   retryTimer = null
