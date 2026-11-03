@@ -344,7 +344,7 @@ describe('the refund screen on backend #808 (P.31)', () => {
     renderAt('/pos/refund?invoice=NZW-T01-INV-2026-000001')
     expect(
       await screen.findByText(
-        /already been refunded in full\. Credit notes: NZW-T01-CRN-2026-000001/,
+        /^NZW-T01-INV-2026-000001: Every item on this sale has already been refunded\. Credit notes: NZW-T01-CRN-2026-000001\.$/,
       ),
     ).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Refund/ })).toBeNull()

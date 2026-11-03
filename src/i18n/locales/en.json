@@ -4846,7 +4846,7 @@
       "done": "Refunded. Credit note {{number}} is issued.",
       "ringNew": "Ring up the replacement",
       "filedNoteLive": "The credit note is issued against the original invoice like any invoice and counts toward your monthly documents. Cash paid back shows on the shift's close.",
-      "alreadyRefunded": "This sale has already been refunded in full. Credit notes: {{numbers}}.",
+      "alreadyRefunded": "Every item on this sale has already been refunded. Credit notes: {{numbers}}.",
       "nothingToRefund": "Nothing on this sale can be refunded.",
       "givenFreeLine": "Given free: goes back on the shelf, no credit note",
       "noCreditNote": "Given free, so no credit note and no money back",
