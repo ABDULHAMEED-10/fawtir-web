@@ -21,7 +21,7 @@ import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNoti
 import { useApiRead } from '../../hooks'
 import { AppShell } from '../../layouts/AppShell'
 import { posRefusalKey } from '../../lib/posRefusals'
-import { maskedPayload } from '../../lib/posOfflineHolds'
+import { maskedPayload, offlineHoldTime as when } from '../../lib/posOfflineHolds'
 import type { TillState } from '../../lib/posTill'
 import { PosTillGate } from './PosTillGate'
 
@@ -45,11 +45,6 @@ const card = 'rounded-md bg-surface-card p-6'
 const button =
   'inline-flex h-11 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-60'
 
-function when(instant: string | null | undefined): string {
-  return instant
-    ? new Date(instant).toLocaleString('en-GB', { timeZone: 'Asia/Muscat', hour12: false })
-    : ''
-}
 
 function Holds({ till }: { till: Ready }) {
   const { t } = useTranslation()
