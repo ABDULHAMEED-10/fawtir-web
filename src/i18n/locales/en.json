@@ -4521,6 +4521,8 @@
       "theirReceipt": "Their receipt",
       "printAgain": "Print again",
       "vat": "VAT",
+      "sellerNameNotRecorded": "Seller name not recorded on this invoice",
+      "notRecorded": "not recorded on this invoice",
       "simplifiedInvoice": "Simplified tax invoice",
       "till": "Till {{number}} · {{who}}",
       "beforeVat": "Before VAT",

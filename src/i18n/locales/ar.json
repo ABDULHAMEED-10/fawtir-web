@@ -4774,6 +4774,8 @@
       "theirReceipt": "إيصالهم",
       "printAgain": "طباعة مرة أخرى",
       "vat": "الرقم الضريبي",
+      "sellerNameNotRecorded": "اسم البائع غير مسجّل في هذه الفاتورة",
+      "notRecorded": "غير مسجّل في هذه الفاتورة",
       "simplifiedInvoice": "فاتورة ضريبية مبسطة",
       "till": "صندوق {{number}} · {{who}}",
       "beforeVat": "قبل الضريبة",

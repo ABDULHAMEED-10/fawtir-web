@@ -23,6 +23,7 @@ import {
   type CompanyProfileDto,
 } from '../../api/company/companyProfile'
 import { initialsOf } from '../../lib/posTill'
+import { receiptSellerHeader } from '../../lib/posReceiptSeller'
 import type { TillState } from '../../lib/posTill'
 import { saleCashierLabel } from '../../lib/posAttribution'
 
@@ -138,10 +139,13 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
     filed: sent,
     accepted: accepted || (sent && !!company),
   }
-  const name = business?.legalName ?? entitlements?.tenantName ?? ''
-  const address = business
-    ? [business.registeredAddress, business.registeredCity].filter(Boolean).join(', ')
-    : ''
+  const seller = receiptSellerHeader(
+    sale ? sale.receipt.seller : undefined,
+    business,
+    entitlements?.tenantName,
+  )
+  const name = seller.name ?? ''
+  const address = seller.address
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
@@ -404,10 +408,24 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
               <span className="mx-auto flex size-11 items-center justify-center rounded-full bg-primary-700 text-sm font-semibold text-white">
                 {initialsOf(name || 'F')}
               </span>
-              <p className="mt-3 text-base font-semibold text-text-primary">{name}</p>
+              <p className="mt-3 text-base font-semibold text-text-primary">
+                {seller.source === 'frozen' && seller.name == null
+                  ? t('pos.done.sellerNameNotRecorded')
+                  : name}
+              </p>
               <p className="mt-1 text-xs font-medium leading-[1.5] text-text-quaternary">
                 {address}
-                {business ? (
+                {seller.source === 'frozen' ? (
+                  <>
+                    {address ? <br /> : null}
+                    {t('pos.done.vat')}{' '}
+                    {seller.vatNumber != null ? (
+                      <span dir="ltr">{seller.vatNumber}</span>
+                    ) : (
+                      t('pos.done.notRecorded')
+                    )}
+                  </>
+                ) : business ? (
                   <>
                     <br />
                     {t('pos.done.vat')} <span dir="ltr">{business.taxNumber}</span>
