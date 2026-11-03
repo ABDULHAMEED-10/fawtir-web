@@ -45,6 +45,44 @@ describe('who a till sale is shown as made by (WEB-7)', () => {
   })
 })
 
+// NOT RUN (batch 43, static only). BINDING-DESIGN §12.2 reads a pre-V530 row as LEGACY; owner M-6
+// point 4: a LEGACY sender is never shown as a proven cashier.
+describe('a queued sale with no attribution is its sender, unverified (OFF43)', () => {
+  it('names the sender of a queued sale filed before V530 as unverified', () => {
+    expect(
+      saleCashierLabel({ cashier: OMAR, filedBy: null, attribution: null, queuedOffline: true }, t),
+    ).toBe('pos.offline.legacy:Omar')
+  })
+
+  it('does the same when an older server sends no attribution at all', () => {
+    expect(saleCashierLabel({ cashier: OMAR, queuedOffline: true }, t)).toBe(
+      'pos.offline.legacy:Omar',
+    )
+  })
+
+  it('keeps the plain name of an online sale filed before V530', () => {
+    expect(saleCashierLabel({ cashier: AISHA, attribution: null, queuedOffline: false }, t)).toBe(
+      'Aisha',
+    )
+    expect(saleCashierLabel({ cashier: AISHA, queuedOffline: false }, t)).toBe('Aisha')
+  })
+
+  it('leaves a recorded attribution to decide, whatever the queued flag', () => {
+    expect(
+      saleCashierLabel(
+        { cashier: AISHA, filedBy: OMAR, attribution: 'VERIFIED', queuedOffline: true },
+        t,
+      ),
+    ).toBe('Aisha')
+    expect(
+      saleCashierLabel(
+        { cashier: null, filedBy: OMAR, attribution: 'PENDING_REVIEW', queuedOffline: true },
+        t,
+      ),
+    ).toBe('pos.offline.pending')
+  })
+})
+
 describe('the held payload a reviewer reads (WEB-8, C3)', () => {
   it('keeps only the last four characters of the buyer identifier and contact', () => {
     const shown = maskedPayload({

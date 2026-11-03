@@ -43,3 +43,23 @@ describe('the shift header names only a proven cashier', () => {
     expect(group.sales).toHaveLength(2)
   })
 })
+
+// NOT RUN (batch 43, static only). A queued row with no attribution is its sender, read as LEGACY
+// (BINDING-DESIGN §12.2, owner M-6 point 4), so it never names the shift either (OFF43).
+describe('a queued row without attribution names nobody', () => {
+  const queued = (saleId: string, cashier: PosTodaySaleRow['cashier'], attribution?: null) =>
+    ({ ...row(saleId, cashier, attribution), queuedOffline: true }) as PosTodaySaleRow
+  const online = (saleId: string, cashier: PosTodaySaleRow['cashier']) =>
+    ({ ...row(saleId, cashier, null), queuedOffline: false }) as PosTodaySaleRow
+
+  it('takes the name from the first online row after it', () => {
+    const [group] = groupByShift([queued('a', SENDER, null), online('b', AISHA)])
+    expect(group.cashier).toBe('Aisha')
+  })
+
+  it('with only queued rows from an older server, names nobody', () => {
+    const [group] = groupByShift([queued('a', SENDER), queued('b', SENDER, null)])
+    expect(group.cashier).toBe('')
+    expect(group.sales).toHaveLength(2)
+  })
+})
