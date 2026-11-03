@@ -76,12 +76,13 @@ export type QueuedSale = {
    */
   buyerRemoved?: boolean
   /**
-   * Who was signed in on this device when the sale was queued. Kept on the device only, never put in
-   * the body, so the server never reads it and it is never a cashier claim: it is editable here and
-   * proves nothing (owner round 5, P3b and point 11). It only decides whose session sends the entry
-   * by itself: the maker's alone. Anyone else sends it with "Send for {cashier}", knowing that it
-   * files with them as the sender. Absent on an entry queued before this was kept: its maker is
-   * unknown, so no session counts as theirs and it goes only by that explicit action.
+   * Who was signed in on this device when the sale was queued. It is editable here and proves
+   * nothing (owner round 5, P3b and point 11), so the server is only ever told it as an untrusted
+   * claim it records and decides nothing on (`claimedMakerUnverified`, owner Round 13, L-2). Here it
+   * decides whose session sends the entry by itself: the maker's alone. Anyone else sends it with
+   * "Send for {cashier}", knowing that it files with them as the sender. Absent on an entry queued
+   * before this was kept: its maker is unknown, so no session counts as theirs and it goes only by
+   * that explicit action.
    */
   madeBy?: PosPerson
 }
@@ -494,9 +495,23 @@ async function sealed(entry: QueuedSale): Promise<QueuedSale> {
  * instead of its replay (B38 OFF). A full invoice is never filed without its buyer either way.
  */
 async function bodyToSend(entry: QueuedSale): Promise<PosSaleRequest | null> {
-  if (!entry.sealed) return entry.body
+  const body = withMakerClaim(entry)
+  if (!entry.sealed) return body
   const consumer = await openBuyer(entry.key)
-  return consumer ? { ...entry.body, customer: { ...entry.body.customer, consumer } } : null
+  return consumer ? { ...body, customer: { ...body.customer, consumer } } : null
+}
+
+/**
+ * The maker as a claim the server records and never trusts (owner Round 13, L-2). Added when the
+ * entry is sent, not when it is queued, so an entry queued before this release carries it too; the
+ * server keeps it out of its request hashes, so the same sale with or without it is one sale. Never
+ * on a signed body: every field of one is signed, and adding a field after signing breaks the proof.
+ * Never to a server that has not said it takes it: it would refuse the unknown field.
+ */
+function withMakerClaim(entry: QueuedSale): PosSaleRequest {
+  const maker = entry.madeBy?.userId
+  if (!maker || entry.body.offlineProof || takesClaim.get(entry.tillId) !== true) return entry.body
+  return { ...entry.body, claimedMakerUnverified: maker }
 }
 
 /** Not a server refusal: this device could not open the buyer, so nothing was sent. */
@@ -656,10 +671,13 @@ function whenIdle(): Promise<void> {
 
 /** Whether the server takes `skippedNumbers`, as the till last said (`openNumbers`). */
 const capable = new Map<string, boolean>()
+/** Whether the server takes `claimedMakerUnverified`, as the till last said (`takesMakerClaim`). */
+const takesClaim = new Map<string, boolean>()
 
 /** Tells the queue what this till's server allows; until then it keeps strict number order. */
-export function noteTillServer(till: Pick<PosTillDto, 'id' | 'openNumbers'>) {
+export function noteTillServer(till: Pick<PosTillDto, 'id' | 'openNumbers' | 'takesMakerClaim'>) {
   capable.set(till.id, till.openNumbers === true)
+  takesClaim.set(till.id, till.takesMakerClaim === true)
 }
 
 /**
@@ -996,6 +1014,7 @@ export function resetPosQueue() {
   idleWaiters.forEach((wake) => wake())
   idleWaiters.clear()
   capable.clear()
+  takesClaim.clear()
   if (retryTimer) clearTimeout(retryTimer)
   retryTimer = null
   save([])

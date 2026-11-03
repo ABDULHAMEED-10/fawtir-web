@@ -9,6 +9,7 @@ import {
   numbersBefore,
   queuedFor,
   noteQueueSender,
+  noteTillServer,
   resetPosQueue,
   retryQueuedSale,
   stopQueueSendsForSignOut,
@@ -1084,5 +1085,70 @@ describe("a queued sale's warnings reach the next sale (B37 OFF-8)", () => {
     ])
     const after = await submitSale(TILL, BODY, 'pos-sale-key-warn-3')
     expect('sale' in after && after.sale.warnings).toEqual([])
+  })
+})
+
+// NOT RUN (batch 43, static only). Owner Round 13, L-2: the maker goes to the server only as an
+// untrusted claim, and only where it can neither break a proof nor be refused as an unknown field.
+describe('the maker sent as an untrusted claim (Round 13 L-2)', () => {
+  const WALK_IN: PosSaleRequest = { ...BODY, customer: { kind: 'WALK_IN' } }
+  const queued = (value: number, extra: Partial<PosSaleRequest> = {}) => {
+    const number = `NZW-T01-INV-2026-${String(value).padStart(6, '0')}`
+    return {
+      key: `pos-sale-key-claim-${value}`,
+      tillId: 'till-1',
+      number,
+      body: { ...WALK_IN, queuedOffline: true, invoiceNumber: number, ...extra },
+      refusal: null,
+      madeBy: { userId: 'u-1', name: 'Maryam' },
+    }
+  }
+  const sentBodies = () =>
+    calls
+      .filter((call) => call.url === '/api/v1/pos/sales' && call.init?.method === 'POST')
+      .map((call) => JSON.parse(String(call.init?.body)) as PosSaleRequest)
+
+  it('names the maker on an unsigned sale to a server that takes it, never on a signed one', async () => {
+    window.localStorage.setItem(
+      'fawtir.pos.queue',
+      JSON.stringify([
+        queued(49, { offlineProof: { keyId: 'k-1', signature: 'A'.repeat(86) } }),
+        queued(50),
+      ]),
+    )
+    noteTillServer({ id: 'till-1', openNumbers: false, takesMakerClaim: true })
+    online = true
+
+    await flushQueue('till-1')
+
+    const [signed, unsigned] = sentBodies()
+    expect(signed.invoiceNumber).toBe('NZW-T01-INV-2026-000049')
+    expect(signed).not.toHaveProperty('claimedMakerUnverified')
+    expect(unsigned.invoiceNumber).toBe('NZW-T01-INV-2026-000050')
+    expect(unsigned.claimedMakerUnverified).toBe('u-1')
+  })
+
+  it('sends nothing of the kind to a server that has not said it takes it', async () => {
+    window.localStorage.setItem('fawtir.pos.queue', JSON.stringify([queued(49)]))
+    noteTillServer({ id: 'till-1', openNumbers: false })
+    online = true
+
+    await flushQueue('till-1')
+
+    expect(sentBodies()).toHaveLength(1)
+    expect(sentBodies()[0]).not.toHaveProperty('claimedMakerUnverified')
+  })
+
+  it('names nobody for an entry whose maker was never kept', async () => {
+    const entry: Partial<ReturnType<typeof queued>> = queued(49)
+    delete entry.madeBy
+    window.localStorage.setItem('fawtir.pos.queue', JSON.stringify([entry]))
+    noteTillServer({ id: 'till-1', openNumbers: false, takesMakerClaim: true })
+    online = true
+
+    await retryQueuedSale('till-1', 'pos-sale-key-claim-49', 'u-1')
+
+    expect(sentBodies()).toHaveLength(1)
+    expect(sentBodies()[0]).not.toHaveProperty('claimedMakerUnverified')
   })
 })
