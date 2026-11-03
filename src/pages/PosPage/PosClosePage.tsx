@@ -296,13 +296,15 @@ function CloseForm({
   // Any filing while this form is up changes the server's expected cash: the pre-close send, a run
   // that outlived its bound and finished after the warning, or the till's background sender. Each
   // reloads the preview, so Close anyway never closes against figures the cashier can no longer
-  // trust (PRV42W-2). Held back while the pre-close send runs, so that send reloads once, at its end.
+  // trust (PRV42W-2). Held back while the pre-close send runs, so that send reloads once, at its end,
+  // and while the close itself is in flight: a remount then would drop its confirmation (PRV42W-10).
+  // A filing in either window is counted once busy clears, unless the close went through.
   useEffect(() => {
-    if (sending || closed) return
+    if (sending || busy || closed) return
     const filed = seenWaiting.current - waiting.length
     seenWaiting.current = waiting.length
     if (filed > 0) onSent(filed)
-  }, [waiting.length, sending, closed, onSent])
+  }, [waiting.length, sending, busy, closed, onSent])
 
   const cash = byNote ? countedTotal(counted) : (total ?? 0)
   const gap = cash - figures.expected

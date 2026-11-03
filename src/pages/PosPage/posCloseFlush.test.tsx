@@ -115,6 +115,8 @@ const json = (body: unknown, status = 200) =>
 /** Every POST in the order it was made: the sales and the close. */
 let posted: { url: string; key: string | null }[]
 let salesAnswer: boolean
+/** While set, the close request waits on it: a close still in flight. */
+let closeGate: Promise<void> | null
 
 /** Puts entries in the device's queue as another tab or an earlier session would have left them. */
 function queueOnDevice(entries: QueuedSale[]) {
@@ -132,6 +134,7 @@ beforeEach(async () => {
   window.localStorage.clear()
   posted = []
   salesAnswer = false
+  closeGate = null
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -152,6 +155,7 @@ beforeEach(async () => {
       if (url.includes('/close-preview')) return json(PREVIEW)
       if (url.endsWith('/close') && init?.method === 'POST') {
         posted.push({ url, key: new Headers(init.headers).get('Idempotency-Key') })
+        if (closeGate) await closeGate
         return json(CLOSED, 201)
       }
       return json({ type: 'about:blank', status: 404 }, 404)
@@ -294,6 +298,31 @@ describe('closing the till with sales still on this device (OFF-4)', () => {
     expect(screen.queryByRole('button', { name: i18n.t('pos.pendingSync.closeAnyway') })).toBeNull()
     fireEvent.click(await screen.findByRole('button', { name: i18n.t('pos.close.closeTill') }))
     await waitFor(() => expect(closes()).toHaveLength(1))
+  })
+
+  it('a filing while the close request is in flight does not reload the form or lose the confirmation (PRV42W-10)', async () => {
+    queueOnDevice([entry(49)])
+    renderClose()
+    await screen.findByText(i18n.t('pos.pendingSync.closeTitle', { count: 1 }))
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('pos.close.closeTill') }))
+    const anyway = await screen.findByRole('button', { name: i18n.t('pos.pendingSync.closeAnyway') })
+
+    let release!: () => void
+    closeGate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    fireEvent.click(anyway)
+    await waitFor(() => expect(closes()).toHaveLength(1))
+
+    // The background sender files the waiting sale while the close is still on its way.
+    salesAnswer = true
+    await flushQueue('till-1')
+    expect(queuedFor('till-1')).toEqual([])
+
+    release()
+    expect(await screen.findByText(/^Closed at/)).toBeTruthy()
+    expect(screen.queryByText(i18n.t('pos.pendingSync.sentRecount', { count: 1 }))).toBeNull()
+    expect(closes()).toHaveLength(1)
   })
 
   it.each(['en', 'ar'])('has its wording in %s', async (language) => {
