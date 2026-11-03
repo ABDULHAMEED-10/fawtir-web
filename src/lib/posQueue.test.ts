@@ -11,6 +11,7 @@ import {
   noteQueueSender,
   resetPosQueue,
   retryQueuedSale,
+  stopQueueSendsForSignOut,
   submitSale,
 } from './posQueue'
 import { heldSlipPhotos } from './posSlipOutbox'
@@ -632,6 +633,40 @@ describe('a refused sale never stops the till (E2E 30 Oct 2026, H-1)', () => {
     expect(entries[0].final).toBeUndefined()
     expect(entries[1].final).toBe(true)
   })
+
+  it.each([
+    ['another person is noted at the till', () => noteQueueSender('u-2')],
+    ['the person signs out', () => stopQueueSendsForSignOut()],
+  ])(
+    'a run stops before its next sale when %s mid-send; the sale on the wire is filed, the rest wait (PRV43-OFF L-1)',
+    async (_, change) => {
+      const server = fakeServer()
+      const reply = saleReply
+      saleReply = () => {
+        const answer = reply()
+        if (server.posts.length === 1) change()
+        return answer
+      }
+      await submitSale(TILL, WALK_IN, 'pos-sale-key-first')
+      await submitSale(TILL, WALK_IN, 'pos-sale-key-second')
+      online = true
+
+      expect(await flushQueue('till-1')).toBe('done')
+
+      expect(server.posts.map((post) => post.key)).toEqual(['pos-sale-key-first'])
+      expect(queuedFor('till-1').map((entry) => entry.key)).toEqual(['pos-sale-key-second'])
+
+      // Its maker, back at the till, sends it.
+      saleReply = reply
+      noteQueueSender('u-1')
+      await flushQueue('till-1')
+      expect(server.posts.map((post) => post.key)).toEqual([
+        'pos-sale-key-first',
+        'pos-sale-key-second',
+      ])
+      expect(queuedFor('till-1')).toEqual([])
+    },
+  )
 
   it('on the current server later sales keep selling behind a final refusal, in order, and say why', async () => {
     const server = fakeServer()

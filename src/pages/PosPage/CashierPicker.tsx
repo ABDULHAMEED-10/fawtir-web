@@ -5,7 +5,7 @@ import { Popover } from '../../components/ui'
 import { useEntitlements } from '../../hooks/useEntitlements'
 import { LOGIN_ROUTE } from '../../lib/identity/login'
 import { signOut } from '../../lib/identity/logout'
-import { flushBeforeSignOut, queuedOnDevice } from '../../lib/posQueue'
+import { flushBeforeSignOut, queuedOnDevice, stopQueueSendsForSignOut } from '../../lib/posQueue'
 import { withReturnPath } from '../../lib/identity/returnTo'
 import { startNewSale } from '../../lib/posSale'
 import { tillTime } from '../../lib/pos'
@@ -55,6 +55,8 @@ export function CashierPicker({ till, mine }: { till: PosTillDto; mine: boolean 
           return
         }
       }
+      // The bounded flush may have left a run sending; it must not go on under the next person.
+      stopQueueSendsForSignOut()
       await signOut()
       startNewSale()
       navigate(withReturnPath(LOGIN_ROUTE, '/pos'), { replace: true })

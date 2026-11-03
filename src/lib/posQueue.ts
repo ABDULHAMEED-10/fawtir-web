@@ -98,9 +98,27 @@ export type FlushOptions = { sender?: string | null; explicitKey?: string }
 /** Who the mounted till screens say is signed in; null while none is mounted. */
 let deviceSender: string | null = null
 
+/**
+ * Moves whenever the person the till screens name changes, and at sign-out. A run started under one
+ * person sends nothing further once it has moved (PRV43-OFF L-1): sign-out does not wait for a slow
+ * run, and the run's next POST would carry the next person's session, filing the first person's
+ * LEGACY sale as theirs.
+ */
+let senderGeneration = 0
+
 /** Set by the till screens while they are mounted, cleared when they go (sign-out included). */
 export function noteQueueSender(userId: string | null) {
+  if (userId !== deviceSender) senderGeneration += 1
   deviceSender = userId
+}
+
+/**
+ * Called just before signing out, so a run still sending stops before its next sale. The one already
+ * on the wire cannot be recalled: it went with the signing-out person's session and carries its own
+ * key, so it is filed once, under them, whatever the next person does.
+ */
+export function stopQueueSendsForSignOut() {
+  senderGeneration += 1
 }
 
 function sendsByItself(entry: QueuedSale, sender: string | null | undefined): boolean {
@@ -726,6 +744,7 @@ export async function flushQueue(
 ): Promise<FlushOutcome> {
   if (flushing) return 'busy'
   flushing = true
+  const generation = senderGeneration
   const canSkip = capable.get(tillId) === true
   try {
     for (const entry of queuedFor(tillId)) {
@@ -744,6 +763,9 @@ export async function flushQueue(
         if (canSkip) continue
         return 'done'
       }
+      // After the body is read, which can wait on the device's key store: the last moment before the
+      // POST takes whichever session is current.
+      if (senderGeneration !== generation) return 'done'
       try {
         const sale = await sendNumbered(body, entry.key, canSkip)
         noteForNextSale(entry, sale)
@@ -969,6 +991,7 @@ export function usePosQueue(tillId: string | null, sender: string | null = null)
 /** For tests. */
 export function resetPosQueue() {
   deviceSender = null
+  senderGeneration = 0
   flushing = false
   idleWaiters.forEach((wake) => wake())
   idleWaiters.clear()
