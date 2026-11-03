@@ -2,6 +2,7 @@ import { useEffect, useSyncExternalStore } from 'react'
 import { ApiError, NetworkError } from '../api'
 import {
   createPosSale,
+  type PosPerson,
   type PosPrintedTotals,
   type PosSaleDto,
   type PosSaleRequest,
@@ -74,6 +75,36 @@ export type QueuedSale = {
    * sale cannot be sent from this device any more, since a full invoice has to name them.
    */
   buyerRemoved?: boolean
+  /**
+   * Who was signed in on this device when the sale was queued. Kept on the device only, never put in
+   * the body, so the server never reads it and it is never a cashier claim: it is editable here and
+   * proves nothing (owner round 5, P3b and point 11). It only decides whose session sends the entry
+   * by itself: the maker's alone. Anyone else sends it with "Send for {cashier}", knowing that it
+   * files with them as the sender. Absent on an entry queued before this was kept: its maker is
+   * unknown, so no session counts as theirs and it goes only by that explicit action.
+   */
+  madeBy?: PosPerson
+}
+
+/**
+ * Whose waiting sales a session sends without being asked. `explicitKey` is one entry a person has
+ * chosen to send, whoever made it (Try again, Send for). A session with no known user sends nothing
+ * by itself: an unknown sender cannot be the maker. Left out, `sender` is the person the till
+ * screens last noted (`noteQueueSender`), read when the send starts: a timer set before a sign-out
+ * must not send the last person's sales on the next person's session.
+ */
+export type FlushOptions = { sender?: string | null; explicitKey?: string }
+
+/** Who the mounted till screens say is signed in; null while none is mounted. */
+let deviceSender: string | null = null
+
+/** Set by the till screens while they are mounted, cleared when they go (sign-out included). */
+export function noteQueueSender(userId: string | null) {
+  deviceSender = userId
+}
+
+function sendsByItself(entry: QueuedSale, sender: string | null | undefined): boolean {
+  return !!sender && entry.madeBy?.userId === sender
 }
 
 const QUEUE_KEY = 'fawtir.pos.queue'
@@ -512,6 +543,8 @@ function withNumberNotes(tillId: string, sale: PosSaleDto): PosSaleDto {
  * Sends one sale, or numbers it and keeps it when the till is offline (or already has a queue).
  * A refusal (`ApiError`) is not queued: it is the cashier's to put right, so it is thrown.
  * `photos` are bank slips scanned while offline: kept with the sale, attached once it is filed.
+ * `maker` is the signed-in person: kept on a queued entry so only their session sends it by itself,
+ * and the waiting sales sent first are theirs only.
  */
 export async function submitSale(
   till: PosTillDto,
@@ -519,6 +552,7 @@ export async function submitSale(
   key: string,
   photos: SlipPhoto[] = [],
   printed?: PosPrintedTotals,
+  maker: PosPerson | null = null,
 ): Promise<SubmitResult> {
   const enqueue = async (): Promise<SubmitResult> => {
     const number = nextTillNumber(till, body.soldAt)
@@ -537,6 +571,11 @@ export async function submitSale(
         printed,
       ),
       refusal: null,
+      ...(maker
+        ? { madeBy: maker }
+        : deviceSender
+          ? { madeBy: { userId: deviceSender, name: null } }
+          : {}),
     })
     save([...synced(), entry])
     return { queued: entry }
@@ -546,7 +585,10 @@ export async function submitSale(
   capable.set(till.id, canSkip)
   // The older sales go first: once they are in, this one is sent as an ordinary online sale and
   // its receipt says so (E2E 29 Oct 2026, F-5). Only while some still wait does it join them.
-  const outcome: FlushOutcome = queuedFor(till.id).length > 0 ? await flushQueue(till.id) : 'done'
+  const outcome: FlushOutcome =
+    queuedFor(till.id).length > 0
+      ? await flushQueue(till.id, maker ? { sender: maker.userId } : {})
+      : 'done'
   const waiting = queuedFor(till.id)
   if (waiting.length === 0) {
     try {
@@ -675,14 +717,22 @@ function refusedEntry(entry: QueuedSale, error: ApiError, verdict: RefusalVerdic
 /**
  * Sends the till's queued sales oldest number first. A sale the server would not take stays, with
  * its reason; later ones go past it only where the server allows that, and only when the refusal is
- * about that sale alone.
+ * about that sale alone. Only the entries `sender` made go by themselves, and `explicitKey`; any
+ * other entry is passed like one set aside, so in strict order it holds the later ones back.
  */
-export async function flushQueue(tillId: string): Promise<FlushOutcome> {
+export async function flushQueue(
+  tillId: string,
+  { sender = deviceSender, explicitKey }: FlushOptions = {},
+): Promise<FlushOutcome> {
   if (flushing) return 'busy'
   flushing = true
   const canSkip = capable.get(tillId) === true
   try {
     for (const entry of queuedFor(tillId)) {
+      if (entry.key !== explicitKey && !sendsByItself(entry, sender)) {
+        if (canSkip) continue
+        return 'done'
+      }
       const resting = entry.notBefore != null && Date.now() < Date.parse(entry.notBefore)
       if (entry.final || entry.setAside || resting) {
         if (canSkip) continue
@@ -763,11 +813,12 @@ export type ShiftEndFlush = {
  * person must look at first is not forced through. While another run is sending it waits for that
  * run rather than starting a second one. It never removes an entry the server has not filed, and it
  * never stops the close or the sign-out: what is left is the caller's to show (blocking the close is
- * a policy the owner has not approved).
+ * a policy the owner has not approved). Only `sender`'s own entries go (owner round 5, P3b): whoever
+ * else is closing sees the rest left, and sends them with Send for if they choose.
  */
 export async function flushBeforeShiftEnd(
   tillId: string,
-  { timeoutMs = 15_000 }: { timeoutMs?: number } = {},
+  { timeoutMs = 15_000, sender }: { timeoutMs?: number; sender?: string | null } = {},
 ): Promise<ShiftEndFlush> {
   if (queuedFor(tillId).length === 0) return { outcome: 'done', left: [] }
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
@@ -778,10 +829,10 @@ export async function flushBeforeShiftEnd(
     timer = setTimeout(() => resolve('timeout'), timeoutMs)
   })
   const run = (async (): Promise<FlushOutcome> => {
-    const first = await flushQueue(tillId)
+    const first = await flushQueue(tillId, { sender })
     if (first !== 'busy') return first
     await whenIdle()
-    return flushQueue(tillId)
+    return flushQueue(tillId, { sender })
   })()
   try {
     const outcome = await Promise.race([run, deadline])
@@ -803,21 +854,27 @@ export function queuedOnDevice(): number {
  * is filed under whoever sends it, into that till's open shift or a new one in the sender's name
  * (LEGACY). Sending another till's queue, or a till someone else is on, would file a colleague's
  * sales as the person signing out, which the owner's no-reattribution rule forbids (PRV42W-1).
- * Returns what is left on the whole device, so the warning covers the other tills too.
+ * Returns what is left on the whole device, so the warning covers the other tills too. Even on their
+ * own till only the entries the person signing out made go (owner round 5, P3b).
  */
 export async function flushBeforeSignOut(
   ownTillId: string | null,
-  { timeoutMs = 10_000 }: { timeoutMs?: number } = {},
+  { timeoutMs = 10_000, sender }: { timeoutMs?: number; sender?: string | null } = {},
 ): Promise<{ left: number }> {
-  if (ownTillId) await flushBeforeShiftEnd(ownTillId, { timeoutMs })
+  if (ownTillId) await flushBeforeShiftEnd(ownTillId, { timeoutMs, sender })
   return { left: queuedOnDevice() }
 }
 
 /**
  * Try again, for a person who has put the cause right: the same sale with the same key, so a sale
- * the server already has is answered as it was and nothing is paid or filed twice.
+ * the server already has is answered as it was and nothing is paid or filed twice. Also Send for: a
+ * person's explicit choice to send an entry someone else made, or whose maker is unknown.
  */
-export async function retryQueuedSale(tillId: string, key: string): Promise<FlushOutcome> {
+export async function retryQueuedSale(
+  tillId: string,
+  key: string,
+  sender?: string | null,
+): Promise<FlushOutcome> {
   save(
     synced().map((entry) => {
       if (entry.key !== key) return entry
@@ -828,7 +885,7 @@ export async function retryQueuedSale(tillId: string, key: string): Promise<Flus
       return again
     }),
   )
-  return flushQueue(tillId)
+  return flushQueue(tillId, { sender, explicitKey: key })
 }
 
 /** The server has it set aside: this device stops sending it by itself, and keeps it. */
@@ -845,6 +902,7 @@ export async function correctQueuedSale(
   tillId: string,
   key: string,
   payments: PosSaleRequest['payments'],
+  sender?: string | null,
 ): Promise<FlushOutcome> {
   save(
     synced().map((entry) => {
@@ -862,7 +920,7 @@ export async function correctQueuedSale(
       return { ...again, body: { ...unsigned, payments } }
     }),
   )
-  return flushQueue(tillId)
+  return flushQueue(tillId, { sender, explicitKey: key })
 }
 
 function subscribe(listener: () => void) {
@@ -883,14 +941,15 @@ export function useQueuedSales(tillId: string | null): QueuedSale[] {
 /**
  * The till's waiting sales, sent again whenever the browser comes back online, the page is looked
  * at again, and every minute, so a sale held by a cause that cleared (the subscription paid) goes
- * by itself.
+ * by itself. Only the entries `sender` made (owner round 5, P3b).
  */
-export function usePosQueue(tillId: string | null): QueuedSale[] {
+export function usePosQueue(tillId: string | null, sender: string | null = null): QueuedSale[] {
   const entries = useQueuedSales(tillId)
   useEffect(() => {
-    if (!tillId) return
-    void flushQueue(tillId)
-    const again = () => void flushQueue(tillId)
+    noteQueueSender(sender)
+    if (!tillId) return () => noteQueueSender(null)
+    void flushQueue(tillId, { sender })
+    const again = () => void flushQueue(tillId, { sender })
     const onVisible = () => {
       if (document.visibilityState === 'visible') again()
     }
@@ -901,13 +960,15 @@ export function usePosQueue(tillId: string | null): QueuedSale[] {
       window.removeEventListener('online', again)
       document.removeEventListener('visibilitychange', onVisible)
       window.clearInterval(timer)
+      noteQueueSender(null)
     }
-  }, [tillId])
+  }, [tillId, sender])
   return entries
 }
 
 /** For tests. */
 export function resetPosQueue() {
+  deviceSender = null
   flushing = false
   idleWaiters.forEach((wake) => wake())
   idleWaiters.clear()

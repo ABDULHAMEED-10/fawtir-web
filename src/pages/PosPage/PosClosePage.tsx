@@ -333,7 +333,7 @@ function CloseForm({
     if (queuedFor(till.till.id).length === 0) return { outcome: 'done', left: [] }
     setSending(true)
     try {
-      return await flushBeforeShiftEnd(till.till.id)
+      return await flushBeforeShiftEnd(till.till.id, { sender: till.userId })
     } catch {
       return { outcome: 'offline', left: queuedFor(till.till.id) }
     } finally {

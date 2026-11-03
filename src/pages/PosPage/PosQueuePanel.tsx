@@ -1,5 +1,6 @@
 import { useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { Rial } from '../../components/ui'
 import { useApiRead } from '../../hooks'
 import { omr, tillTime, toBaisa } from '../../lib/pos'
@@ -49,7 +50,12 @@ export function PosQueuePanel({ till }: { till: Ready }) {
   const online = useSyncExternalStore(onlineChanges, () => navigator.onLine)
   const onServer = open.read.status === 'ready' ? open.read.data : []
   const problems = entries.filter((entry) => entry.refusal)
-  const waiting = entries.length - problems.length
+  // Someone else's, or queued before makers were kept: this session never sends them by itself
+  // (owner round 5, P3b), so they are listed with Send for instead of counted as going on their own.
+  const others = entries.filter(
+    (entry) => !entry.refusal && !(till.userId && entry.madeBy?.userId === till.userId),
+  )
+  const waiting = entries.length - problems.length - others.length
   const here = new Set(problems.map((entry) => entry.number))
   const elsewhere = onServer.filter((row) => !here.has(row.invoiceNumber))
   const count = problems.length + elsewhere.length
@@ -71,6 +77,7 @@ export function PosQueuePanel({ till }: { till: Ready }) {
                     key={entry.key}
                     entry={entry}
                     tillId={till.till.id}
+                    sender={till.userId}
                     canSkip={canSkip}
                     onServer={onServer.find((row) => row.invoiceNumber === entry.number)}
                     refresh={open.retry}
@@ -102,7 +109,57 @@ export function PosQueuePanel({ till }: { till: Ready }) {
           )}
         </p>
       ) : null}
+      {others.length > 0 && (till.can.sell || till.can.manage) ? (
+        <section className="rounded-md bg-surface-card px-5 py-3">
+          <p className="text-xs font-medium text-text-tertiary">
+            {t('pos.queue.others', { count: others.length })}
+          </p>
+          <ul className="mt-2 flex flex-col gap-2">
+            {others.map((entry) => (
+              <OtherMaker key={entry.key} entry={entry} tillId={till.till.id} sender={till.userId} />
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
+  )
+}
+
+/** "Send for {cashier}": never a cashier claim, only who pressed it sending another person's sale. */
+function sendForLabel(t: TFunction, entry: QueuedSale) {
+  return entry.madeBy
+    ? t('pos.queue.sendFor', { cashier: entry.madeBy.name ?? '' })
+    : t('pos.queue.sendForUnknown')
+}
+
+function OtherMaker({
+  entry,
+  tillId,
+  sender,
+}: {
+  entry: QueuedSale
+  tillId: string
+  sender: string | null
+}) {
+  const { t, i18n } = useTranslation()
+  const locale = i18n.language.startsWith('ar') ? 'ar' : 'en-GB'
+  const [busy, setBusy] = useState(false)
+  const send = async () => {
+    setBusy(true)
+    try {
+      await retryQueuedSale(tillId, entry.key, sender)
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <li className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm font-semibold text-text-primary">
+      <span dir="ltr">{entry.number}</span>
+      <span className="font-medium text-text-tertiary">{tillTime(entry.body.soldAt, locale)}</span>
+      <button type="button" disabled={busy} onClick={() => void send()} className={QUIET_BUTTON}>
+        {sendForLabel(t, entry)}
+      </button>
+    </li>
   )
 }
 
@@ -184,12 +241,14 @@ function SetAsideNote({ reason }: { reason: string | null }) {
 function Problem({
   entry,
   tillId,
+  sender,
   canSkip,
   onServer,
   refresh,
 }: {
   entry: QueuedSale
   tillId: string
+  sender: string | null
   canSkip: boolean
   onServer?: PosOpenNumberDto
   refresh: () => void
@@ -204,7 +263,7 @@ function Problem({
   const retry = async () => {
     setBusy(true)
     try {
-      await retryQueuedSale(tillId, entry.key)
+      await retryQueuedSale(tillId, entry.key, sender)
       refresh()
     } finally {
       setBusy(false)
@@ -222,6 +281,7 @@ function Problem({
             ? { ...payment, amount: value, tendered: Math.max(value, payment.tendered ?? value) }
             : { ...payment, amount: value }
         }),
+        sender,
       )
       setMode('none')
       refresh()
@@ -258,7 +318,9 @@ function Problem({
             ? t('pos.queue.finalHint')
             : pendingValidation
               ? t('pos.queue.hsCodeHint')
-              : t('pos.queue.heldHint')}
+              : sender && entry.madeBy?.userId === sender
+                ? t('pos.queue.heldHint')
+                : t('pos.queue.sendForHint')}
       </p>
       {entry.setAside || onServer?.setAsideAt ? (
         <SetAsideNote reason={onServer?.setAsideReason ?? null} />
@@ -309,7 +371,9 @@ function Problem({
         <div className="mt-3 flex flex-wrap gap-2">
           {entry.buyerRemoved ? null : (
             <button type="button" disabled={busy} onClick={() => void retry()} className={BUTTON}>
-              {t('pos.queue.retry')}
+              {sender && entry.madeBy?.userId === sender
+                ? t('pos.queue.retry')
+                : sendForLabel(t, entry)}
             </button>
           )}
           {!entry.buyerRemoved && entry.refusal && PAYMENTS_CAN_BE_CORRECTED.has(entry.refusal) ? (

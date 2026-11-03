@@ -46,7 +46,9 @@ export function CashierPicker({ till, mine }: { till: PosTillDto; mine: boolean 
         // Only this till's queue, and only while its open shift is the signed-in person's own: a
         // LEGACY sale is filed under its sender, so sending a colleague's would make it this
         // person's sale (PRV42W-1). Otherwise it only warns.
-        const { left } = await flushBeforeSignOut(mine && till.openShift ? till.id : null)
+        const { left } = await flushBeforeSignOut(mine && till.openShift ? till.id : null, {
+          sender: entitlements?.userId,
+        })
         if (left > 0) {
           setUnsent(left)
           setBusy(false)

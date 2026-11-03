@@ -4,7 +4,13 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { SAMPLE_SALE } from '../../lib/posTestSale'
 import { resetOpenSale } from '../../lib/posSale'
-import { flushQueue, queuedFor, resetPosQueue, type QueuedSale } from '../../lib/posQueue'
+import {
+  flushQueue,
+  noteQueueSender,
+  queuedFor,
+  resetPosQueue,
+  type QueuedSale,
+} from '../../lib/posQueue'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import { resetSharedRequests } from '../../api'
 import { forgetWorkingBranch } from '../../lib/workingBranch'
@@ -102,6 +108,8 @@ const entry = (value: number, extra: Partial<QueuedSale> = {}): QueuedSale => {
       tip: null,
     },
     refusal: null,
+    // Made by the person closing, whose session sends it by itself (owner round 5, P3b).
+    madeBy: { userId: 'u-1', name: 'Maryam' },
     ...extra,
   }
 }
@@ -128,6 +136,8 @@ beforeEach(async () => {
   await i18n.changeLanguage('en')
   resetOpenSale(SAMPLE_SALE)
   resetPosQueue()
+  // The person signed in on this device: only the sales they queue go by themselves (round 5, P3b).
+  noteQueueSender('u-1')
   resetSharedRequests()
   forgetEntitlements()
   forgetWorkingBranch()
@@ -246,6 +256,26 @@ describe('closing the till with sales still on this device (OFF-4)', () => {
     // Closing anyway discards nothing: the sales stay on the device to go later.
     expect(queuedFor('till-1').map((sale) => sale.key)).toEqual(waiting.map((sale) => sale.key))
     expect(sales()).toEqual([])
+  })
+
+  // NOT RUN (batch 43, static only). Owner round 5, P3b: the close sends only the closer's own sales.
+  it("online, a colleague's queued sale and one with no recorded maker are not sent by the close, only warned of", async () => {
+    const waiting = [
+      entry(49, { madeBy: { userId: 'u-2', name: 'Salim' } }),
+      entry(50, { madeBy: undefined }),
+    ]
+    queueOnDevice(waiting)
+    renderClose()
+    await screen.findByText(i18n.t('pos.pendingSync.closeTitle', { count: 2 }))
+    salesAnswer = true
+
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('pos.close.closeTill') }))
+    expect(
+      await screen.findByText(i18n.t('pos.pendingSync.closeLeft', { count: 2 })),
+    ).toBeTruthy()
+    expect(sales()).toEqual([])
+    expect(closes()).toEqual([])
+    expect(queuedFor('till-1').map((sale) => sale.key)).toEqual(waiting.map((sale) => sale.key))
   })
 
   it('Try sending again sends them when the connection is back, and the close goes as usual', async () => {

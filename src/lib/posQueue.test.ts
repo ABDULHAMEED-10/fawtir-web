@@ -8,6 +8,7 @@ import {
   numberPrefix,
   numbersBefore,
   queuedFor,
+  noteQueueSender,
   resetPosQueue,
   retryQueuedSale,
   submitSale,
@@ -75,6 +76,8 @@ beforeEach(() => {
   vault = memoryVault(true)
   setPosVault(vault)
   resetPosQueue()
+  // The person signed in on this device: only the sales they queue go by themselves (round 5, P3b).
+  noteQueueSender('u-1')
   resetSharedRequests()
   online = false
   calls = []

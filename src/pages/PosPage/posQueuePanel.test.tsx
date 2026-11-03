@@ -6,6 +6,7 @@ import {
   flushQueue,
   noteTillServer,
   queuedFor,
+  noteQueueSender,
   resetPosQueue,
   submitSale,
 } from '../../lib/posQueue'
@@ -60,6 +61,8 @@ const problem = (status: number, body: object) =>
 beforeEach(async () => {
   window.localStorage.clear()
   resetPosQueue()
+  // The person signed in on this device: only the sales they queue go by themselves (round 5, P3b).
+  noteQueueSender('u-1')
   posts.length = 0
   await i18n.changeLanguage('en')
   reply = () => {
@@ -319,5 +322,87 @@ describe('the queue on the till and Today (H-1)', () => {
     expect(alert.textContent).toContain('الاشتراك للقراءة فقط')
     expect(screen.getByText('NZW-T01-INV-2026-000013').getAttribute('dir')).toBe('ltr')
     expect(screen.getByRole('button', { name: 'حاول مرة أخرى' })).toBeTruthy()
+  })
+})
+
+// NOT RUN (batch 43, static only). Owner round 5, P3b: the maker kept on the device decides only which
+// session sends an entry by itself; anyone else sends it by an explicit Send for.
+describe("a sale someone else made on this till (owner round 5, P3b)", () => {
+  const filed = () =>
+    new Response(JSON.stringify({ saleId: 's-1', invoiceNumber: 'NZW-T01-INV-2026-000013' }), {
+      status: 201,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  const SALIM = { userId: 'u-2', name: 'Salim' }
+
+  it('is never sent by this session, is listed apart, and goes only by Send for its maker', async () => {
+    await submitSale(TILL, BODY, 'pos-sale-key-other-1', [], undefined, SALIM)
+    expect(queuedFor('till-1')[0].madeBy).toEqual(SALIM)
+    reply = filed
+    const tried = posts.length
+    await flushQueue('till-1')
+    expect(posts.length).toBe(tried)
+
+    render(wrap(<PosQueuePanel till={READY(true)} />))
+    expect(screen.queryByText(/is waiting to be sent/)).toBeNull()
+    expect(screen.getByText(/is not sent by itself/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Send for Salim' }))
+    await waitFor(() => expect(queuedFor('till-1')).toEqual([]))
+    expect(posts.slice(tried)).toEqual(['pos-sale-key-other-1'])
+  })
+
+  it('the maker is kept on the device only: it is never in the body that is sent', async () => {
+    const bodies: string[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        bodies.push(String(init?.body ?? ''))
+        throw new TypeError('Failed to fetch')
+      }),
+    )
+    await submitSale(TILL, BODY, 'pos-sale-key-other-2', [], undefined, SALIM)
+    await flushQueue('till-1', { sender: 'u-2' })
+    expect(bodies.length).toBeGreaterThan(0)
+    for (const body of bodies) {
+      expect(body).not.toContain('madeBy')
+      expect(body).not.toContain('u-2')
+      expect(body).not.toContain('Salim')
+    }
+  })
+
+  it('an entry queued before makers were kept goes by neither session, only by its explicit action', async () => {
+    window.localStorage.setItem(
+      'fawtir.pos.queue',
+      JSON.stringify([
+        {
+          key: 'pos-sale-key-old',
+          tillId: 'till-1',
+          number: 'NZW-T01-INV-2026-000013',
+          body: { ...BODY, queuedOffline: true, invoiceNumber: 'NZW-T01-INV-2026-000013' },
+          refusal: null,
+        },
+      ]),
+    )
+    window.dispatchEvent(new StorageEvent('storage', { key: 'fawtir.pos.queue' }))
+    reply = filed
+    await flushQueue('till-1', { sender: 'u-1' })
+    await flushQueue('till-1', { sender: 'u-2' })
+    expect(posts).toEqual([])
+
+    render(wrap(<PosQueuePanel till={READY(true)} />))
+    fireEvent.click(screen.getByRole('button', { name: 'Send (who made it was not recorded)' }))
+    await waitFor(() => expect(queuedFor('till-1')).toEqual([]))
+    expect(posts).toEqual(['pos-sale-key-old'])
+  })
+
+  it("a manager sees a colleague's refused sale with Send for, not Try again", async () => {
+    await submitSale(TILL, BODY, 'pos-sale-key-other-3', [], undefined, SALIM)
+    reply = READ_ONLY
+    await flushQueue('till-1', { explicitKey: 'pos-sale-key-other-3' })
+    render(wrap(<PosQueuePanel till={READY(true)} />))
+    expect(screen.getByRole('alert').textContent).toContain('The subscription is read-only')
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Send for Salim' })).toBeTruthy()
+    expect(screen.getByText(/Sending it files it with you as the sender/)).toBeTruthy()
   })
 })

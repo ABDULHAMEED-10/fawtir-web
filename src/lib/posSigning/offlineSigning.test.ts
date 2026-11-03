@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetSharedRequests } from '../../api'
 import type { PosSaleRequest, PosTillDto } from '../../api/pos/pos'
-import { correctQueuedSale, queuedFor, resetPosQueue, submitSale } from '../posQueue'
+import {
+  correctQueuedSale,
+  noteQueueSender,
+  queuedFor,
+  resetPosQueue,
+  submitSale,
+} from '../posQueue'
 import { memoryVault, setPosVault, type PosVault } from '../posVault'
 import { bodyForSigning, canonicalSale, offlineSaleMessage } from './canonical'
 import {
@@ -68,6 +74,8 @@ beforeEach(() => {
   vault = memoryVault(true)
   setPosVault(vault)
   resetPosQueue()
+  // The person signed in on this device: only the sales they queue go by themselves (round 5, P3b).
+  noteQueueSender('u-1')
   resetSharedRequests()
   resetSigningKeyState()
   registered = null

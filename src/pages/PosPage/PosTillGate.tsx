@@ -30,7 +30,7 @@ export function PosTillGate({
   if (state.status === 'noTill') return <NoTill state={state} />
   return (
     <>
-      <QueueSender till={state.till} />
+      <QueueSender till={state.till} userId={state.userId} />
       <OfflineSigningKey state={state} />
       {showQueue ? <PosQueuePanel till={state} /> : null}
       {children(state)}
@@ -39,12 +39,13 @@ export function PosTillGate({
 }
 
 /**
- * Sends the till's offline sales (and their slip photos) on every till screen, as soon as the
- * browser is back online and every minute until they are all filed. Draws nothing.
+ * Sends the offline sales the signed-in person made on this till (and their slip photos) on every
+ * till screen, as soon as the browser is back online and every minute until they are filed. Draws
+ * nothing. A sale someone else made waits for an explicit Send for (owner round 5, P3b).
  */
-function QueueSender({ till }: { till: Ready['till'] }) {
+function QueueSender({ till, userId }: { till: Ready['till']; userId: string | null }) {
   noteTillServer(till)
-  usePosQueue(till.id)
+  usePosQueue(till.id, userId)
   return null
 }
 

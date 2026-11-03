@@ -5115,6 +5115,11 @@
       "hsCodeLines": "Lines without an HS code: {{lines}}.",
       "finalHint": "The customer holds this invoice and it stays open here until it is filed. Sending it again as it stands will not work. Correct it if you can, or contact Fawtir support. The till keeps selling meanwhile.",
       "retry": "Try again",
+      "sendFor": "Send for {{cashier}}",
+      "sendForUnknown": "Send (who made it was not recorded)",
+      "sendForHint": "Not sent by itself: someone else made it, or it was made before this device recorded who made each sale. Sending it files it with you as the sender. Nothing is charged or filed twice.",
+      "others_one": "1 sale made offline on this till is not sent by itself: someone else made it, or who made it was not recorded. It goes only when someone chooses to send it, and it is then filed with that person as the sender.",
+      "others_other": "{{count}} sales made offline on this till are not sent by themselves: someone else made them, or who made them was not recorded. Each goes only when someone chooses to send it, and it is then filed with that person as the sender.",
       "reason": {
         "readOnly": "The subscription is read-only. This sale goes by itself once the subscription is paid.",
         "planFeature": "The plan does not include the till. This sale goes once the plan does.",

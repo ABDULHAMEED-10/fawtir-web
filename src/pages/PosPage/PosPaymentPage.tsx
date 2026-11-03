@@ -266,6 +266,13 @@ function Payment({ till }: { till: Ready }) {
           vat: toRials(totals.vat),
           total: toRials(totals.sale),
         },
+        // Kept on this device only, so only this person's session sends it by itself (P3b).
+        till.userId
+          ? {
+              userId: till.userId,
+              name: (till.mine ? till.till.openShift?.cashier.name : null) ?? till.userName ?? null,
+            }
+          : null,
       )
       setFinishedSale({
         lines,
