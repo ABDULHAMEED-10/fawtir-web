@@ -34,13 +34,22 @@ export function maskedPayload(value: unknown, key: string | null = null): unknow
  * same in every browser), while 'shortOffset' is derived from the offset itself and reads "GMT+4"
  * wherever it is supported (ES2021 Intl.DateTimeFormat). Display only: the instant and every rule
  * judged on it are the server's.
+ *
+ * Safari before 15.4 and Chrome before 95 refuse 'shortOffset' with a RangeError, which would take
+ * the whole page down (PRV43-OFF L-3). There the zone is written out instead: Asia/Muscat has kept
+ * +04:00 with no daylight saving, so the literal is the same text 'shortOffset' prints.
  */
 export function offlineHoldTime(instant: string | null | undefined): string {
-  return instant
-    ? new Date(instant).toLocaleString('en-GB', {
-        timeZone: 'Asia/Muscat',
-        hour12: false,
-        timeZoneName: 'shortOffset',
-      })
-    : ''
+  if (!instant) return ''
+  const at = new Date(instant)
+  try {
+    return at.toLocaleString('en-GB', {
+      timeZone: 'Asia/Muscat',
+      hour12: false,
+      timeZoneName: 'shortOffset',
+    })
+  } catch (error) {
+    if (!(error instanceof RangeError)) throw error
+    return `${at.toLocaleString('en-GB', { timeZone: 'Asia/Muscat', hour12: false })} GMT+4`
+  }
 }
