@@ -342,11 +342,16 @@ describe('the refund screen on backend #808 (P.31)', () => {
           })
         : null
     renderAt('/pos/refund?invoice=NZW-T01-INV-2026-000001')
-    expect(
-      await screen.findByText(
-        /^NZW-T01-INV-2026-000001: Every item on this sale has already been refunded\. Credit notes: NZW-T01-CRN-2026-000001\.$/,
-      ),
-    ).toBeTruthy()
+    // The number sits in its own <span dir="ltr">, and findByText matches only an element's own text nodes, so
+    // the whole line is read off the status element itself (PRV43-OFF M-4).
+    const status = await screen.findByText(
+      (_, element) =>
+        element?.getAttribute('role') === 'status' &&
+        element.textContent?.startsWith('NZW-T01-INV-2026-000001') === true,
+    )
+    expect(status.textContent).toBe(
+      'NZW-T01-INV-2026-000001: Every item on this sale has already been refunded. Credit notes: NZW-T01-CRN-2026-000001.',
+    )
     expect(screen.queryByRole('button', { name: /Refund/ })).toBeNull()
   })
 
