@@ -1003,6 +1003,24 @@ describe('Recording and reversing payments', () => {
     expect(await screen.findByText('Payment reversed.')).toBeTruthy()
   })
 
+  it('says a till payment of a refunded or credited invoice is corrected at the till (FIN-4 Option B′)', async () => {
+    payResponse = () =>
+      json(409, {
+        type: 'https://api.fawtir.om/problems/conflict',
+        code: 'PAYMENT_REVERSAL_AFTER_REFUND_OR_CREDIT',
+        detail: 'no',
+      })
+    renderInvoice()
+    await screen.findByText('Reversed')
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Reverse' }))[0])
+    fireEvent.click(await screen.findByRole('button', { name: 'Reverse the payment' }))
+    await waitFor(() => expect(calls()).toContain(`POST ${URL_BASE}/payments/pay-1/reverse`))
+    expect(
+      await screen.findByText(/already has a refund or credit note, so it cannot be reversed/),
+    ).toBeTruthy()
+    expect(screen.queryByText('Payment reversed.')).toBeNull()
+  })
+
   it('offers neither to someone who may not manage payments, nor on a paid invoice', async () => {
     who = {
       ...ADMIN,

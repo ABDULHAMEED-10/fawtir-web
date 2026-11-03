@@ -48,3 +48,14 @@ describe('card number in a payment reference (DEC-30-06, B37 WEB-11)', () => {
     expect(lookup(ar, key)).not.toBe(lookup(en, key))
   })
 })
+
+describe('till payment reversal after a refund or credit note (FIN-4 Option B′, batch 43)', () => {
+  it('maps the 409 to a sentence of its own, worded in both languages, on no form field', () => {
+    const refusal = PAYMENT_REFUSALS.PAYMENT_REVERSAL_AFTER_REFUND_OR_CREDIT
+    expect(refusal.field).toBeNull()
+    expect(refusal.key).toBe('invoiceDetails.pay.error.reversalAfterRefundOrCredit')
+    expect(typeof lookup(en, refusal.key)).toBe('string')
+    expect(typeof lookup(ar, refusal.key)).toBe('string')
+    expect(lookup(ar, refusal.key)).not.toBe(lookup(en, refusal.key))
+  })
+})
