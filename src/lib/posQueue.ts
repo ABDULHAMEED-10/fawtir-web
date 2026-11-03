@@ -442,9 +442,14 @@ const MAX_SKIPPED = 200
  * Sends one numbered sale. Where the server allows it, a sale whose earlier numbers are stuck names
  * them when it is told it would leave a gap; they stay open for their own sales to be filed later.
  */
-async function sendNumbered(body: PosSaleRequest, key: string, canSkip: boolean) {
+async function sendNumbered(
+  body: PosSaleRequest,
+  key: string,
+  canSkip: boolean,
+  generation: number,
+) {
   try {
-    return await createPosSale(body, key)
+    return await sendWithClaimFallback(body, key, generation)
   } catch (error) {
     const expected =
       canSkip && error instanceof ApiError && error.code === 'POS_TILL_NUMBER_GAP'
@@ -455,8 +460,44 @@ async function sendNumbered(body: PosSaleRequest, key: string, canSkip: boolean)
         ? numbersBefore(body.invoiceNumber, expected)
         : []
     if (skippedNumbers.length === 0) throw error
-    return createPosSale({ ...body, skippedNumbers }, key)
+    // The retry is a second POST, and it would go with whichever session is current by now; the
+    // refused first one filed nothing, so stopping here loses nothing (PRV43-OFF2 N-7).
+    if (senderGeneration !== generation) throw new SenderChanged()
+    return sendWithClaimFallback({ ...claimAsTheServerTakes(body), skippedNumbers }, key, generation)
   }
+}
+
+/** The person the till screens name changed mid-run: the run stops without marking the entry. */
+class SenderChanged extends Error {}
+
+/**
+ * During a rolling deploy or a rollback the till can still believe a server takes the claim that no
+ * longer does, and that server refuses the whole request as malformed. The claim is audit-only, so the
+ * same sale goes again once without it, under the same key, with nothing else changed; the queue does
+ * not stall behind a field that decides nothing (PRV43-OFF2 N-6). The till stops sending the claim
+ * until it next reads what the server allows (`noteTillServer`).
+ */
+async function sendWithClaimFallback(body: PosSaleRequest, key: string, generation: number) {
+  try {
+    return await createPosSale(body, key)
+  } catch (error) {
+    const claimRefused =
+      body.claimedMakerUnverified !== undefined &&
+      error instanceof ApiError &&
+      error.status === 400 &&
+      error.problemType === 'malformed-request'
+    if (!claimRefused) throw error
+    takesClaim.set(body.tillId, false)
+    if (senderGeneration !== generation) throw new SenderChanged()
+    return createPosSale(claimAsTheServerTakes(body), key)
+  }
+}
+
+function claimAsTheServerTakes(body: PosSaleRequest): PosSaleRequest {
+  if (body.claimedMakerUnverified === undefined || takesClaim.get(body.tillId) === true) return body
+  const { claimedMakerUnverified: _claim, ...without } = body
+  void _claim
+  return without
 }
 
 /**
@@ -785,12 +826,13 @@ export async function flushQueue(
       // POST takes whichever session is current.
       if (senderGeneration !== generation) return 'done'
       try {
-        const sale = await sendNumbered(body, entry.key, canSkip)
+        const sale = await sendNumbered(body, entry.key, canSkip, generation)
         noteForNextSale(entry, sale)
         save(synced().filter((other) => other.key !== entry.key))
         await forget(entry)
         void sendSlipPhotos(entry.key, sale.saleId, tillId)
       } catch (error) {
+        if (error instanceof SenderChanged) return 'done'
         const refusalOver = () =>
           save(
             synced().map((other) =>

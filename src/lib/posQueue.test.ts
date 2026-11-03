@@ -1151,4 +1151,114 @@ describe('the maker sent as an untrusted claim (Round 13 L-2)', () => {
     expect(sentBodies()).toHaveLength(1)
     expect(sentBodies()[0]).not.toHaveProperty('claimedMakerUnverified')
   })
+
+  const sentKeys = () =>
+    calls
+      .filter((call) => call.url === '/api/v1/pos/sales' && call.init?.method === 'POST')
+      .map((call) => new Headers(call.init?.headers).get('Idempotency-Key'))
+
+  it('an older server refusing the unknown claim gets the same sale once more without it, and no claim after (PRV43-OFF2 N-6)', async () => {
+    window.localStorage.setItem('fawtir.pos.queue', JSON.stringify([queued(49), queued(50)]))
+    noteTillServer({ id: 'till-1', openNumbers: false, takesMakerClaim: true })
+    online = true
+    let replies = 0
+    saleReply = () => {
+      replies += 1
+      if (replies === 1) {
+        return new Response(
+          JSON.stringify({ type: 'https://api.fawtir.om/problems/malformed-request', status: 400 }),
+          { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
+        )
+      }
+      return json(
+        {
+          saleId: `sale-${replies}`,
+          invoiceNumber: 'n',
+          receipt: { qr: { status: 'PENDING' } },
+          filing: { dispatchState: 'QUEUED' },
+          warnings: [],
+        },
+        201,
+      )
+    }
+
+    expect(await flushQueue('till-1')).toBe('done')
+
+    const [refused, resent, next] = sentBodies()
+    expect(refused.claimedMakerUnverified).toBe('u-1')
+    expect(resent).not.toHaveProperty('claimedMakerUnverified')
+    const { claimedMakerUnverified: _claim, ...unclaimed } = refused
+    void _claim
+    expect(resent).toEqual(unclaimed)
+    expect(sentKeys().slice(0, 2)).toEqual(['pos-sale-key-claim-49', 'pos-sale-key-claim-49'])
+    expect(next).not.toHaveProperty('claimedMakerUnverified')
+    expect(sentBodies()).toHaveLength(3)
+    expect(queuedFor('till-1')).toEqual([])
+  })
+
+  it('a malformed-request refusal of a body with no claim is not resent', async () => {
+    window.localStorage.setItem('fawtir.pos.queue', JSON.stringify([queued(49)]))
+    noteTillServer({ id: 'till-1', openNumbers: false })
+    online = true
+    saleReply = () =>
+      new Response(
+        JSON.stringify({ type: 'https://api.fawtir.om/problems/malformed-request', status: 400 }),
+        { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+
+    await flushQueue('till-1')
+
+    expect(sentBodies()).toHaveLength(1)
+    expect(queuedFor('till-1')).toHaveLength(1)
+  })
+})
+
+// NOT RUN (batch 43, static only). PRV43-OFF2 N-7: the number-gap retry is a second POST, so it is
+// held to the same sender check as the first.
+describe('the number-gap retry after the sender changed', () => {
+  it('sends no retry once the till signed out during the refused first send; the entry waits unmarked', async () => {
+    const number = 'NZW-T01-INV-2026-000050'
+    window.localStorage.setItem(
+      'fawtir.pos.queue',
+      JSON.stringify([
+        {
+          key: 'pos-sale-key-gap-50',
+          tillId: 'till-1',
+          number,
+          body: {
+            ...BODY,
+            customer: { kind: 'WALK_IN' },
+            queuedOffline: true,
+            invoiceNumber: number,
+          },
+          refusal: null,
+          madeBy: { userId: 'u-1', name: 'Maryam' },
+        },
+      ]),
+    )
+    noteTillServer({ id: 'till-1', openNumbers: true })
+    online = true
+    saleReply = () => {
+      stopQueueSendsForSignOut()
+      return new Response(
+        JSON.stringify({
+          type: 'https://api.fawtir.om/problems/pos-till-number-gap',
+          status: 409,
+          code: 'POS_TILL_NUMBER_GAP',
+          expectedNumber: 'NZW-T01-INV-2026-000049',
+        }),
+        { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+    }
+
+    expect(await flushQueue('till-1')).toBe('done')
+
+    const posts = calls.filter(
+      (call) => call.url === '/api/v1/pos/sales' && call.init?.method === 'POST',
+    )
+    expect(posts).toHaveLength(1)
+    const [waiting] = queuedFor('till-1')
+    expect(waiting.key).toBe('pos-sale-key-gap-50')
+    expect(waiting.refusal ?? null).toBeNull()
+  })
 })
