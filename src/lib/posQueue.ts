@@ -791,28 +791,26 @@ export async function flushBeforeShiftEnd(
   }
 }
 
-/** The tills with sales waiting on this device, whoever made them. */
-export function queuedTillIds(): string[] {
-  return [...new Set(synced().map((entry) => entry.tillId))]
+/** Every sale still on this device, on any till and whoever made it: what sign-out warns about. */
+export function queuedOnDevice(): number {
+  return synced().length
 }
 
 /**
- * Sign-out's turn at the same bounded attempt, for every till with sales on this device. A queued
- * sale with no proof is filed under whoever sends it (LEGACY), so sending it now, while the person
- * who sold it is most likely still the one signed in, beats leaving it for the next person who signs
- * in here. The bound is shared across tills, so sign-out never waits longer than `timeoutMs` in all.
+ * Sign-out's turn at the same bounded attempt, for ONE till only, and only when the caller has
+ * checked that the signed-in person holds that till's open shift (`TillState.mine`); pass null
+ * otherwise and nothing is sent. A queued sale with no proof on a till that never registered a key
+ * is filed under whoever sends it, into that till's open shift or a new one in the sender's name
+ * (LEGACY). Sending another till's queue, or a till someone else is on, would file a colleague's
+ * sales as the person signing out, which the owner's no-reattribution rule forbids (PRV42W-1).
+ * Returns what is left on the whole device, so the warning covers the other tills too.
  */
-export async function flushBeforeSignOut({
-  timeoutMs = 10_000,
-}: { timeoutMs?: number } = {}): Promise<{ left: number }> {
-  const until = Date.now() + timeoutMs
-  for (const tillId of queuedTillIds()) {
-    const remaining = until - Date.now()
-    if (remaining <= 0) break
-    const { outcome } = await flushBeforeShiftEnd(tillId, { timeoutMs: remaining })
-    if (outcome === 'offline' || outcome === 'timeout') break
-  }
-  return { left: synced().length }
+export async function flushBeforeSignOut(
+  ownTillId: string | null,
+  { timeoutMs = 10_000 }: { timeoutMs?: number } = {},
+): Promise<{ left: number }> {
+  if (ownTillId) await flushBeforeShiftEnd(ownTillId, { timeoutMs })
+  return { left: queuedOnDevice() }
 }
 
 /**

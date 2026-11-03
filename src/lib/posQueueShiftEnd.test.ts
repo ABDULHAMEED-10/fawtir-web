@@ -209,28 +209,37 @@ describe('flushBeforeShiftEnd (OFF-4)', () => {
   })
 })
 
-describe('flushBeforeSignOut (OFF-4)', () => {
-  it('sends the waiting sales of every till on this device and says none are left', async () => {
+describe('flushBeforeSignOut (OFF-4, PRV42W-1)', () => {
+  it("sends only the signed-in person's own till, never another till's queue, and counts the whole device", async () => {
+    await twoQueued(TILL)
+    const other = await twoQueued(OTHER_TILL)
+    online = true
+    expect(await flushBeforeSignOut('till-1')).toEqual({ left: 2 })
+    // A LEGACY sale is filed under its sender: till 2's sales must not go as this person's.
+    expect(posts.map((post) => post.key)).toEqual(['till-1-key-a', 'till-1-key-b'])
+    expect(queuedFor('till-2')).toEqual(other)
+  })
+
+  it('with no till of their own it sends nothing at all and only counts', async () => {
     await twoQueued(TILL)
     await twoQueued(OTHER_TILL)
     online = true
-    expect(await flushBeforeSignOut()).toEqual({ left: 0 })
-    expect(posts).toHaveLength(4)
+    expect(await flushBeforeSignOut(null)).toEqual({ left: 4 })
+    expect(posts).toEqual([])
   })
 
-  it('offline, it returns at once with the count left, and the queue is untouched', async () => {
+  it('offline, it returns with the count left, and the queue is untouched', async () => {
     const queued = await twoQueued()
-    expect(await flushBeforeSignOut()).toEqual({ left: 2 })
+    expect(await flushBeforeSignOut('till-1')).toEqual({ left: 2 })
     expect(queuedFor('till-1')).toEqual(queued)
   })
 
-  it('never waits past its bound, however many tills wait', async () => {
+  it('never waits past its bound', async () => {
     await twoQueued(TILL)
-    await twoQueued(OTHER_TILL)
     online = true
     reply = () => new Promise<Response>(() => {})
     const started = Date.now()
-    expect(await flushBeforeSignOut({ timeoutMs: 30 })).toEqual({ left: 4 })
+    expect(await flushBeforeSignOut('till-1', { timeoutMs: 30 })).toEqual({ left: 2 })
     expect(Date.now() - started).toBeLessThan(1000)
   })
 })

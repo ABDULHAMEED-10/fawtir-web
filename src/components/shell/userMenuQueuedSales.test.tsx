@@ -100,18 +100,10 @@ const renderMenu = () =>
 
 const menuItem = (label: string) => screen.getByRole('menuitem', { name: label })
 
-describe('the user menu with sales still on this device (OFF-4)', () => {
-  it('online, it sends them first under their own key, then signs out', async () => {
+describe('the user menu with sales still on this device (OFF-4, PRV42W-1)', () => {
+  // The menu knows no till, so it never sends: a LEGACY sale would be filed as the signer's.
+  it('online, it sends nothing, says what is left, and the next press signs out', async () => {
     salesAnswer = true
-    renderMenu()
-    fireEvent.click(screen.getByRole('button', { name: /Maryam/ }))
-    fireEvent.click(menuItem(i18n.t('shell.user.signOut')))
-    expect((await screen.findByTestId('location')).textContent).toBe('/login')
-    expect(order).toEqual(['sale pos-sale-key-49', 'logout'])
-    expect(queuedFor('till-1')).toEqual([])
-  })
-
-  it('when they cannot go it says so and does not sign out yet; the next press signs out, and they stay', async () => {
     renderMenu()
     fireEvent.click(screen.getByRole('button', { name: /Maryam/ }))
     fireEvent.click(menuItem(i18n.t('shell.user.signOut')))
@@ -128,12 +120,12 @@ describe('the user menu with sales still on this device (OFF-4)', () => {
     fireEvent.click(again)
     expect((await screen.findByTestId('location')).textContent).toBe('/login')
     expect(order).toEqual(['logout'])
-    // Signing out anyway discards nothing: the sale waits on the device for the next sign-in.
+    // Signing out anyway discards nothing.
     expect(queuedFor('till-1').map((sale) => sale.key)).toEqual(['pos-sale-key-49'])
   })
 })
 
-describe('Switch user on the till with sales still on this device (OFF-4)', () => {
+describe('Switch user on the till with sales still on this device (OFF-4, PRV42W-1)', () => {
   const TILL = {
     id: 'till-1',
     name: 'Till 1',
@@ -144,21 +136,34 @@ describe('Switch user on the till with sales still on this device (OFF-4)', () =
       openedAt: '2026-10-29T03:00:00Z',
     },
   } as unknown as PosTillDto
+  const OTHER = { ...TILL, id: 'till-2', name: 'Till 2', code: 'T02' } as PosTillDto
 
-  const renderPicker = () =>
+  const renderPicker = (till: PosTillDto, mine: boolean) =>
     render(
       <MemoryRouter initialEntries={['/pos']}>
         <Routes>
-          <Route path="/pos" element={<CashierPicker till={TILL} mine />} />
+          <Route path="/pos" element={<CashierPicker till={till} mine={mine} />} />
           <Route path="*" element={<Probe />} />
         </Routes>
       </MemoryRouter>,
     )
 
-  it('warns, keeps the sale, and switches on the next press', async () => {
-    renderPicker()
+  const switchUser = (label = i18n.t('pos.till.switchUser')) => {
     fireEvent.click(screen.getByRole('button', { name: i18n.t('pos.whoIsOnTill') }))
-    fireEvent.click(screen.getByRole('button', { name: i18n.t('pos.till.switchUser') }))
+    fireEvent.click(screen.getByRole('button', { name: label }))
+  }
+
+  it('on their own shift and online, it sends this till\'s sale before signing out', async () => {
+    salesAnswer = true
+    renderPicker(TILL, true)
+    switchUser()
+    expect((await screen.findByTestId('location')).textContent).toBe('/login')
+    expect(order).toEqual(['sale pos-sale-key-49', 'logout'])
+  })
+
+  it('offline: warns, keeps the sale, and switches on the next press', async () => {
+    renderPicker(TILL, true)
+    switchUser()
     expect(
       await screen.findByText(i18n.t('pos.pendingSync.signOutLeft', { count: 1 })),
     ).toBeTruthy()
@@ -170,12 +175,27 @@ describe('Switch user on the till with sales still on this device (OFF-4)', () =
     expect(queuedFor('till-1')).toHaveLength(1)
   })
 
-  it('online, it sends the sale before signing out', async () => {
+  it('on another till, it never sends the sale queued for till 1, only warns', async () => {
     salesAnswer = true
-    renderPicker()
-    fireEvent.click(screen.getByRole('button', { name: i18n.t('pos.whoIsOnTill') }))
-    fireEvent.click(screen.getByRole('button', { name: i18n.t('pos.till.switchUser') }))
+    renderPicker(OTHER, true)
+    switchUser()
+    expect(
+      await screen.findByText(i18n.t('pos.pendingSync.signOutLeft', { count: 1 })),
+    ).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('pos.pendingSync.switchAnyway') }))
     expect((await screen.findByTestId('location')).textContent).toBe('/login')
-    expect(order).toEqual(['sale pos-sale-key-49', 'logout'])
+    expect(order).toEqual(['logout'])
+    expect(queuedFor('till-1').map((sale) => sale.key)).toEqual(['pos-sale-key-49'])
+  })
+
+  it("on a till whose open shift is someone else's, it sends nothing, only warns", async () => {
+    salesAnswer = true
+    renderPicker(TILL, false)
+    switchUser()
+    expect(
+      await screen.findByText(i18n.t('pos.pendingSync.signOutLeft', { count: 1 })),
+    ).toBeTruthy()
+    expect(order).toEqual([])
+    expect(queuedFor('till-1')).toHaveLength(1)
   })
 })

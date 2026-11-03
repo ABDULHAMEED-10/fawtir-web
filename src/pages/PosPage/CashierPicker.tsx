@@ -5,7 +5,7 @@ import { Popover } from '../../components/ui'
 import { useEntitlements } from '../../hooks/useEntitlements'
 import { LOGIN_ROUTE } from '../../lib/identity/login'
 import { signOut } from '../../lib/identity/logout'
-import { flushBeforeSignOut, queuedTillIds } from '../../lib/posQueue'
+import { flushBeforeSignOut, queuedOnDevice } from '../../lib/posQueue'
 import { withReturnPath } from '../../lib/identity/returnTo'
 import { startNewSale } from '../../lib/posSale'
 import { tillTime } from '../../lib/pos'
@@ -42,8 +42,11 @@ export function CashierPicker({ till, mine }: { till: PosTillDto; mine: boolean 
     setBusy(true)
     setFailed(false)
     try {
-      if (unsent === null && queuedTillIds().length > 0) {
-        const { left } = await flushBeforeSignOut()
+      if (unsent === null && queuedOnDevice() > 0) {
+        // Only this till's queue, and only while its open shift is the signed-in person's own: a
+        // LEGACY sale is filed under its sender, so sending a colleague's would make it this
+        // person's sale (PRV42W-1). Otherwise it only warns.
+        const { left } = await flushBeforeSignOut(mine && till.openShift ? till.id : null)
         if (left > 0) {
           setUnsent(left)
           setBusy(false)

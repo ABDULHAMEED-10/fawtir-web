@@ -5,7 +5,7 @@ import { Popover } from '../ui'
 import { LOGIN_ROUTE } from '../../lib/identity/login'
 import { dropLoginChallenge } from '../../lib/identity/loginChallenge'
 import { signOut } from '../../lib/identity/logout'
-import { flushBeforeSignOut, queuedTillIds } from '../../lib/posQueue'
+import { queuedOnDevice } from '../../lib/posQueue'
 import { USER_MENU } from '../../lib/shell'
 import chevron from '../../assets/dashboard/chevron.svg'
 
@@ -40,8 +40,8 @@ export function UserMenu({
   const [open, setOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const [signOutFailed, setSignOutFailed] = useState(false)
-  // Sales still queued on this device after the pre-sign-out send. Once shown, the next press signs
-  // out: warned, never stopped (batch 42 OFF-4).
+  // Sales still queued on this device. Once shown, the next press signs out: warned, never stopped
+  // (batch 42 OFF-4).
   const [unsent, setUnsent] = useState<number | null>(null)
   // A disabled look cannot stop a second click or Enter landing before the re-render; each would
   // be another revocation request.
@@ -60,13 +60,13 @@ export function UserMenu({
     setSignOutFailed(false)
     let signedOut = false
     try {
-      // Checked before any await: with nothing queued, sign-out starts in the same task as before.
-      if (unsent === null && queuedTillIds().length > 0) {
-        const { left } = await flushBeforeSignOut()
-        if (left > 0) {
-          setUnsent(left)
-          return
-        }
+      // Warns only, and sends nothing: this menu does not know which till, if any, the person holds
+      // the open shift on, and a LEGACY sale is filed under whoever sends it (PRV42W-1). The till's
+      // own Switch user sends that till's queue when it is theirs. Checked before any await, so with
+      // nothing queued sign-out starts in the same task as before.
+      if (unsent === null && queuedOnDevice() > 0) {
+        setUnsent(queuedOnDevice())
+        return
       }
       await signOut()
       signedOut = true
