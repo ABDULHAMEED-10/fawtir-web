@@ -3,7 +3,12 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { PosTodayPage } from './PosTodayPage'
-import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
+import {
+  forgetEntitlements,
+  loadEntitlements,
+  peekEntitlements,
+  type Entitlements,
+} from '../../lib/identity/entitlements'
 import { noteQueueSender, resetPosQueue } from '../../lib/posQueue'
 import { resetSharedRequests } from '../../api'
 import { forgetWorkingBranch } from '../../lib/workingBranch'
@@ -78,6 +83,11 @@ afterEach(() => {
 
 async function today(permissions: string[]) {
   signedIn = person(permissions)
+  // Loaded before the page renders, so its first render already has them: the till is ready, and the
+  // heading drawn, before the entitlements answer otherwise, and until it lands every link reads as
+  // not permitted, which would let the cashier case pass whatever the page does (PRV43-OFF2 N-8).
+  await loadEntitlements()
+  expect(peekEntitlements()?.permissions).toEqual(permissions)
   render(
     <MemoryRouter initialEntries={['/pos/today']}>
       <Routes>
