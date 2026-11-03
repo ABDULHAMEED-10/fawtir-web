@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
@@ -291,6 +291,18 @@ function CloseForm({
   const [sending, setSending] = useState(false)
   const [unsent, setUnsent] = useState<ShiftEndFlush | null>(null)
   const warned = unsent !== null && waiting.length > 0
+  const seenWaiting = useRef(waiting.length)
+
+  // Any filing while this form is up changes the server's expected cash: the pre-close send, a run
+  // that outlived its bound and finished after the warning, or the till's background sender. Each
+  // reloads the preview, so Close anyway never closes against figures the cashier can no longer
+  // trust (PRV42W-2). Held back while the pre-close send runs, so that send reloads once, at its end.
+  useEffect(() => {
+    if (sending || closed) return
+    const filed = seenWaiting.current - waiting.length
+    seenWaiting.current = waiting.length
+    if (filed > 0) onSent(filed)
+  }, [waiting.length, sending, closed, onSent])
 
   const cash = byNote ? countedTotal(counted) : (total ?? 0)
   const gap = cash - figures.expected
@@ -328,18 +340,13 @@ function CloseForm({
   }
 
   /**
-   * Whatever was filed changes the server's expected cash, so the count is checked against fresh
-   * figures before the shift is closed rather than closed against the ones the cashier saw.
+   * Null when anything was filed: the effect above reloads the preview, and the count is checked
+   * against fresh figures before the shift is closed rather than against the ones the cashier saw.
    */
   const sendThenRecount = async (): Promise<ShiftEndFlush | null> => {
     const before = queuedFor(till.till.id).length
     const result = await sendWaiting()
-    const sent = before - result.left.length
-    if (sent > 0) {
-      onSent(sent)
-      return null
-    }
-    return result
+    return before - result.left.length > 0 ? null : result
   }
 
   const sendAgain = async () => {

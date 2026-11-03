@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { SAMPLE_SALE } from '../../lib/posTestSale'
 import { resetOpenSale } from '../../lib/posSale'
-import { queuedFor, resetPosQueue, type QueuedSale } from '../../lib/posQueue'
+import { flushQueue, queuedFor, resetPosQueue, type QueuedSale } from '../../lib/posQueue'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import { resetSharedRequests } from '../../api'
 import { forgetWorkingBranch } from '../../lib/workingBranch'
@@ -274,6 +274,26 @@ describe('closing the till with sales still on this device (OFF-4)', () => {
     fireEvent.click(screen.getByRole('button', { name: i18n.t('pos.pendingSync.closeAnyway') }))
     await waitFor(() => expect(closes()).toHaveLength(1))
     expect(queuedFor('till-1')).toHaveLength(1)
+  })
+
+  it('a sale filed after the warning (background sender, late run) reloads the figures before any close (PRV42W-2)', async () => {
+    queueOnDevice([entry(49)])
+    renderClose()
+    await screen.findByText(i18n.t('pos.pendingSync.closeTitle', { count: 1 }))
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('pos.close.closeTill') }))
+    await screen.findByRole('button', { name: i18n.t('pos.pendingSync.closeAnyway') })
+
+    // The till's own sender files it later, outside the pre-close send.
+    salesAnswer = true
+    await flushQueue('till-1')
+    expect(
+      await screen.findByText(i18n.t('pos.pendingSync.sentRecount', { count: 1 })),
+    ).toBeTruthy()
+    expect(closes()).toEqual([])
+    // The form is read again, so the next press is an ordinary close, not Close anyway.
+    expect(screen.queryByRole('button', { name: i18n.t('pos.pendingSync.closeAnyway') })).toBeNull()
+    fireEvent.click(await screen.findByRole('button', { name: i18n.t('pos.close.closeTill') }))
+    await waitFor(() => expect(closes()).toHaveLength(1))
   })
 
   it.each(['en', 'ar'])('has its wording in %s', async (language) => {
