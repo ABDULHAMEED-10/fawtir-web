@@ -15,6 +15,22 @@ import paymentsShot from '../../assets/site/feature-payments.webp'
 import paymentsShotAr from '../../assets/site/feature-payments-ar.webp'
 import tddShot from '../../assets/site/feature-tdd.webp'
 import tddShotAr from '../../assets/site/feature-tdd-ar.webp'
+import customersShot from '../../assets/site/feature-customers.webp'
+import customersShotAr from '../../assets/site/feature-customers-ar.webp'
+import periodicShot from '../../assets/site/feature-periodic.webp'
+import periodicShotAr from '../../assets/site/feature-periodic-ar.webp'
+import recurringShot from '../../assets/site/feature-recurring.webp'
+import recurringShotAr from '../../assets/site/feature-recurring-ar.webp'
+import supplierNotesShot from '../../assets/site/feature-supplier-notes.webp'
+import supplierNotesShotAr from '../../assets/site/feature-supplier-notes-ar.webp'
+import archiveShot from '../../assets/site/feature-archive.webp'
+import archiveShotAr from '../../assets/site/feature-archive-ar.webp'
+import vatShot from '../../assets/site/feature-vat.webp'
+import vatShotAr from '../../assets/site/feature-vat-ar.webp'
+import cashShot from '../../assets/site/feature-cash.webp'
+import cashShotAr from '../../assets/site/feature-cash-ar.webp'
+import branchesShot from '../../assets/site/feature-branches.webp'
+import branchesShotAr from '../../assets/site/feature-branches-ar.webp'
 import wave1 from '../../assets/site/wave-1.svg'
 import wave2 from '../../assets/site/wave-2.svg'
 import wave3 from '../../assets/site/wave-3.svg'
@@ -32,7 +48,8 @@ import {
 
 /**
  * The public features page (Figma "Features", 191:12630), reorganised by module (owner, 4 Nov 2026):
- * six tabs, one shown at a time. Each opens with its main screens as large rows (copy beside a
+ * six tabs, one shown at a time. Each opens with its main screens as large rows (every tab, not
+ * only the till: owner, 4 Nov 2026) (copy beside a
  * framed screenshot, alternating open and boxed as in the frame), then a grid of the module's
  * smaller features. Only features the app has today are listed.
  */
@@ -42,22 +59,38 @@ type RowKey =
   | 'stock'
   | 'invoicing'
   | 'transactions'
+  | 'customers'
+  | 'periodic'
   | 'bills'
   | 'payments'
+  | 'recurring'
+  | 'supplierNotes'
   | 'tdd'
+  | 'archive'
   | 'dashboard'
+  | 'vatReport'
+  | 'cashFlow'
   | 'erp'
+  | 'branches'
 type Row = { key: RowKey; shot?: string; shotAr?: string; wave?: string }
 const ROWS: Row[] = [
   { key: 'till', shot: tillShot, wave: wave1 },
   { key: 'stock', shot: stockShot },
   { key: 'invoicing', shot: invoiceShot },
   { key: 'transactions', shot: findShot, wave: wave3 },
+  { key: 'customers', shot: customersShot, shotAr: customersShotAr },
+  { key: 'periodic', shot: periodicShot, shotAr: periodicShotAr, wave: wave1 },
   { key: 'bills', shot: billsShot, shotAr: billsShotAr, wave: wave2 },
   { key: 'payments', shot: paymentsShot, shotAr: paymentsShotAr },
+  { key: 'recurring', shot: recurringShot, shotAr: recurringShotAr, wave: wave3 },
+  { key: 'supplierNotes', shot: supplierNotesShot, shotAr: supplierNotesShotAr },
   { key: 'tdd', shot: tddShot, shotAr: tddShotAr, wave: wave1 },
+  { key: 'archive', shot: archiveShot, shotAr: archiveShotAr },
   { key: 'dashboard', shot: numbersShot },
+  { key: 'vatReport', shot: vatShot, shotAr: vatShotAr, wave: wave2 },
+  { key: 'cashFlow', shot: cashShot, shotAr: cashShotAr },
   { key: 'erp', wave: wave3 },
+  { key: 'branches', shot: branchesShot, shotAr: branchesShotAr },
 ]
 
 type ModuleKey = 'pos' | 'invoicing' | 'expenses' | 'tax' | 'reports' | 'company'
@@ -83,24 +116,20 @@ const MODULES: { key: ModuleKey; rows: RowKey[]; tiles: Tile[] }[] = [
   },
   {
     key: 'invoicing',
-    rows: ['invoicing', 'transactions'],
+    rows: ['invoicing', 'transactions', 'customers', 'periodic'],
     tiles: [
       ['notes', 'file'],
       ['reminders', 'bell'],
-      ['periodic', 'repeat'],
       ['bulk', 'upload'],
       ['approval', 'approve'],
-      ['customers', 'users'],
       ['replies', 'send'],
       ['payments', 'card'],
     ],
   },
   {
     key: 'expenses',
-    rows: ['bills', 'payments'],
+    rows: ['bills', 'payments', 'recurring', 'supplierNotes'],
     tiles: [
-      ['recurring', 'repeat'],
-      ['notes', 'file'],
       ['selfbilling', 'pen'],
       ['reminders', 'bell'],
       ['approvals', 'approve'],
@@ -111,12 +140,11 @@ const MODULES: { key: ModuleKey; rows: RowKey[]; tiles: Tile[] }[] = [
   },
   {
     key: 'tax',
-    rows: ['tdd'],
+    rows: ['tdd', 'archive'],
     tiles: [
       ['pintom', 'shield'],
       ['calllog', 'list'],
       ['report', 'chart'],
-      ['archive', 'archive'],
       ['b2c', 'clock'],
       ['proof', 'stamp'],
       ['resend', 'send'],
@@ -125,12 +153,10 @@ const MODULES: { key: ModuleKey; rows: RowKey[]; tiles: Tile[] }[] = [
   },
   {
     key: 'reports',
-    rows: ['dashboard'],
+    rows: ['dashboard', 'vatReport', 'cashFlow'],
     tiles: [
       ['income', 'trend'],
       ['expenses', 'chart'],
-      ['vat', 'percent'],
-      ['cash', 'flow'],
       ['compliance', 'shield'],
       ['lists', 'list'],
       ['pdf', 'download'],
@@ -139,9 +165,8 @@ const MODULES: { key: ModuleKey; rows: RowKey[]; tiles: Tile[] }[] = [
   },
   {
     key: 'company',
-    rows: ['erp'],
+    rows: ['erp', 'branches'],
     tiles: [
-      ['branches', 'branch'],
       ['roles', 'key'],
       ['approvals', 'approve'],
       ['team', 'users'],
@@ -380,7 +405,11 @@ function Tiles({ module, tiles }: { module: ModuleKey; tiles: Tile[] }) {
         <h2 className="landing-cap mb-8 text-[28px] font-semibold leading-[normal] max-md:text-[22px]">
           {t('site.features.moreTitle', { module: t(`site.features.modules.${module}`) })}
         </h2>
-        <ul className="grid w-full grid-cols-4 gap-[18px] max-lg:grid-cols-2 max-sm:grid-cols-1">
+        <ul
+          className={`grid w-full gap-[18px] max-lg:grid-cols-2 max-sm:grid-cols-1 ${
+            tiles.length % 3 === 0 && tiles.length % 4 !== 0 ? 'grid-cols-3' : 'grid-cols-4'
+          }`}
+        >
           {tiles.map(([key, icon]) => (
             <li key={key} className="flex flex-col gap-4 rounded-lg bg-white px-6 py-8">
               <span className="flex size-10 items-center justify-center rounded-lg bg-[#f4f6fb]">

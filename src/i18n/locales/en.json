@@ -23891,6 +23891,110 @@
             "body": "Export everything, any time."
           }
         }
+      },
+      "customers": {
+        "lead": "Every customer,",
+        "em": "ready to invoice",
+        "body": "Businesses, government bodies and walk-in consumers in one list. Fawtir checks who can receive e-invoices over Peppol and shows what each one owes you.",
+        "items": {
+          "a": "Business, government and consumer customers",
+          "b": "Peppol reachability checked for each one",
+          "c": "What is owed and what is overdue, per customer",
+          "d": "VAT numbers and contacts kept with the customer",
+          "e": "Imported once from a spreadsheet"
+        },
+        "alt": "The Customers screen in Fawtir: receivables, overdue amounts and which customers are ready for Peppol"
+      },
+      "periodic": {
+        "lead": "Monthly invoices,",
+        "em": "raised for you",
+        "body": "Set a schedule once and Fawtir issues the invoice every week, month or quarter. You see the revenue it brings and what is due in the next 30 days.",
+        "items": {
+          "a": "Weekly, monthly or quarterly schedules",
+          "b": "Priced when issued, so price changes are picked up",
+          "c": "What is due in the next 30 days",
+          "d": "Pause a schedule and resume it later",
+          "e": "Schedules that need your attention flagged"
+        },
+        "alt": "Periodic invoices in Fawtir: recurring revenue, invoices due in the next 30 days and each schedule"
+      },
+      "recurring": {
+        "lead": "Rent and utilities,",
+        "em": "expected on time",
+        "body": "Tell Fawtir which bills come every month. It tells you when one is late and flags an amount that has changed from the usual.",
+        "items": {
+          "a": "What you expect to pay every month",
+          "b": "Late bills shown, with the supplier to chase",
+          "c": "Amounts above the usual flagged",
+          "d": "The next bill to arrive, and when",
+          "e": "Pause a recurring bill and resume it later"
+        },
+        "alt": "Recurring bills in Fawtir: the monthly total, a late bill and the next one to arrive"
+      },
+      "supplierNotes": {
+        "lead": "Supplier credit,",
+        "em": "never forgotten",
+        "body": "Short deliveries, overcharges and damaged goods come back as credit notes. Fawtir keeps the credit you can still use and applies it to the next bill.",
+        "items": {
+          "a": "Credit you can still use, at a glance",
+          "b": "The reason for each note, kept with it",
+          "c": "Applied to a bill or refunded to you",
+          "d": "Linked to the bill it corrects",
+          "e": "What you recovered this quarter"
+        },
+        "alt": "Supplier credit notes in Fawtir: credit still to use, credit recovered this quarter and each note's status"
+      },
+      "archive": {
+        "lead": "Every document,",
+        "em": "kept as the law asks",
+        "body": "Every invoice and bill Fawtir sends or receives is archived with its XML, PDF, QR and Tax Authority reply. Nothing can be edited or deleted while it is kept.",
+        "items": {
+          "a": "Ten years under the Oman VAT Law, fifteen for property",
+          "b": "The XML, PDF, QR and replies kept together",
+          "c": "Integrity checked, nothing altered",
+          "d": "Legal hold for an audit",
+          "e": "Find any document by its number"
+        },
+        "alt": "The Documents archive in Fawtir: documents kept, space used, integrity checks and documents under legal hold"
+      },
+      "vatReport": {
+        "lead": "Your VAT return,",
+        "em": "already added up",
+        "body": "VAT collected on sales and paid on purchases, and what you owe the Tax Authority, quarter by quarter. The next return date is always in view.",
+        "items": {
+          "a": "Output VAT and input VAT side by side",
+          "b": "What is owed to the Tax Authority",
+          "c": "The next return and its due date",
+          "d": "Quarterly and monthly views",
+          "e": "Export as PDF for your accountant"
+        },
+        "alt": "The VAT and Tax report in Fawtir: VAT collected, VAT paid, the amount owed and the next return date"
+      },
+      "cashFlow": {
+        "lead": "Money in and out,",
+        "em": "month by month",
+        "body": "See what came in, what went out and what you kept, with what is already due to go out in the next 30 days.",
+        "items": {
+          "a": "Money in, money out and what was left",
+          "b": "What is due out in the next 30 days",
+          "c": "The next eight weeks at a glance",
+          "d": "Where the money went, by category",
+          "e": "Compared with last year"
+        },
+        "alt": "The Cash flow report in Fawtir: money in, money out, what was left and what is due in 30 days"
+      },
+      "branches": {
+        "lead": "Every branch,",
+        "em": "one company",
+        "body": "Add a branch for each shop or office. Each has its own address, invoice numbering, people and tills, and all invoice as the same company.",
+        "items": {
+          "a": "Each branch with its own invoice numbering",
+          "b": "The people who work there",
+          "c": "Tills per branch",
+          "d": "Invoices raised this month, per branch",
+          "e": "The head office marked, with every branch under it"
+        },
+        "alt": "Branches in Fawtir: each branch with its invoice numbering, invoices this month, people and tills"
       }
     },
     "contact": {
