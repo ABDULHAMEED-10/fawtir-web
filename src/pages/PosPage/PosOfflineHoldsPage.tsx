@@ -23,6 +23,7 @@ import { useApiRead } from '../../hooks'
 import { AppShell } from '../../layouts/AppShell'
 import { posRefusalKey } from '../../lib/posRefusals'
 import {
+  heldForMessage,
   heldForText,
   maskedPayload,
   offlineHoldTime as when,
@@ -247,10 +248,10 @@ function HeldFor({ heldFor }: { heldFor: OfflineHeldFor }) {
       <h3 className="font-semibold text-text-primary">{t('pos.offline.detail.heldFor.title')}</h3>
       <ul className="list-disc ps-5 text-text-secondary">
         {causes.map((cause, at) => (
-          <li key={`cause-${at}`}>{t(`pos.offline.detail.heldFor.${cause.key}`, cause.values)}</li>
+          <li key={`cause-${at}`}>{heldForMessage(t, cause)}</li>
         ))}
         {lines.map((line, at) => (
-          <li key={`line-${at}`}>{t(`pos.offline.detail.heldFor.${line.key}`, line.values)}</li>
+          <li key={`line-${at}`}>{heldForMessage(t, line)}</li>
         ))}
       </ul>
     </section>

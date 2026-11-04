@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next'
 import type { OfflineHeldFor } from '../api/pos/offlineBinding'
 
 /**
@@ -56,8 +57,23 @@ export function offlineHoldTime(instant: string | null | undefined): string {
   }
 }
 
-/** A message key under `pos.offline.detail.heldFor` and what fills it. */
-export type HeldForText = { key: string; values: Record<string, string | number> }
+/**
+ * A message key under `ns` (by default `pos.offline.detail.heldFor`) and what fills it. With `line`
+ * the message is shown after that line's number. Both reuse sentences already approved in English
+ * and Arabic, so no new wording waits on sign-off (PRV43-OFF3 L-2, L-3; owner Round 22).
+ */
+export type HeldForText = {
+  key: string
+  values: Record<string, string | number>
+  ns?: string
+  line?: number
+}
+
+/** The text of one entry of {@link heldForText}, in the current language. */
+export function heldForMessage(t: TFunction, entry: HeldForText): string {
+  const text = t(`${entry.ns ?? 'pos.offline.detail.heldFor'}.${entry.key}`, entry.values)
+  return entry.line === undefined ? text : t('invoiceIssue.stockWarning.line', { line: entry.line, text })
+}
 
 const KNOWN_CAUSES = new Set([
   'LEGACY_DISCOUNT_MAKER_UNPROVEN',
@@ -87,7 +103,7 @@ export function heldForText(heldFor: OfflineHeldFor): {
       ? { key: `cause.${cause}`, values: {} }
       : { key: 'unknownCause', values: { cause } },
   )
-  const lines = heldFor.lines.map((held): HeldForText => {
+  const lines = heldFor.lines.flatMap((held): HeldForText[] => {
     const values = {
       line: held.line,
       price: price(held.unitPrice),
@@ -95,12 +111,17 @@ export function heldForText(heldFor: OfflineHeldFor): {
       unit: held.unitCode ?? '',
       productUnit: held.productUnitCode ?? '',
     }
-    if (held.cause === 'LEGACY_PRICE_UNIT_NOT_COMPARABLE') return { key: 'unit', values }
-    if (held.cause === 'LEGACY_PRICE_NOT_ESTABLISHED') return { key: 'notEstablished', values }
-    if (held.cause === 'LEGACY_PRICE_BELOW_CATALOGUE') {
-      return { key: held.notOnSale ? 'belowNotOnSale' : 'below', values }
+    if (held.cause === 'LEGACY_PRICE_UNIT_NOT_COMPARABLE') {
+      const unit: HeldForText = { key: 'unit', values }
+      return held.notOnSale
+        ? [unit, { key: 'POS_PRODUCT_NOT_SELLABLE_ACCEPTED', ns: 'pos.warning', values: { line: held.line } }]
+        : [unit]
     }
-    return { key: 'unknownCause', values: { cause: held.cause } }
+    if (held.cause === 'LEGACY_PRICE_NOT_ESTABLISHED') return [{ key: 'notEstablished', values }]
+    if (held.cause === 'LEGACY_PRICE_BELOW_CATALOGUE') {
+      return [{ key: held.notOnSale ? 'belowNotOnSale' : 'below', values }]
+    }
+    return [{ key: 'unknownCause', values: { cause: held.cause }, line: held.line }]
   })
   return { causes, lines }
 }
