@@ -100,7 +100,7 @@ export function DuplicateReviewPanel({
       {decidable && (approver || submittable) ? (
         <label className="mt-4 block">
           <span className="text-sm font-semibold text-text-secondary">
-            {t(single ? 'billIntake.duplicate.reasonLabelSingle' : 'billIntake.duplicate.reasonLabel')}
+            {t('billIntake.duplicate.reasonLabel')}
           </span>
           <textarea
             value={review.reason}

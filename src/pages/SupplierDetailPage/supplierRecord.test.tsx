@@ -1243,7 +1243,7 @@ describe('Record a bill (Figma 163:27781)', () => {
     const different = await screen.findByRole('button', { name: "It's a different bill. Save it" })
     confirmResponse = succeed
     await waitFor(() => expect((different as HTMLButtonElement).disabled).toBe(false))
-    fireEvent.change(screen.getByRole('textbox', { name: 'Reason this is a different bill' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Why is this a different bill?' }), {
       target: { value: 'Second order' },
     })
     fireEvent.click(different)
@@ -1392,7 +1392,7 @@ describe('Record a bill (Figma 163:27781)', () => {
     const different = await screen.findByRole('button', { name: "It's a different bill. Save it" })
     confirmResponse = succeed
     await waitFor(() => expect((different as HTMLButtonElement).disabled).toBe(false))
-    fireEvent.change(screen.getByRole('textbox', { name: 'Reason this is a different bill' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Why is this a different bill?' }), {
       target: { value: 'Second order' },
     })
     fireEvent.click(different)

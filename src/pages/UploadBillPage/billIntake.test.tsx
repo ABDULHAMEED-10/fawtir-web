@@ -474,7 +474,7 @@ describe('upload a bill', () => {
       `/expenditure/bills/${ON_FILE}`,
     )
 
-    fireEvent.change(within(warning).getByRole('textbox', { name: 'Reason this is a different bill' }), {
+    fireEvent.change(within(warning).getByRole('textbox', { name: 'Why is this a different bill?' }), {
       target: { value: 'Second delivery' },
     })
     fireEvent.click(within(warning).getByRole('button', { name: /different bill/ }))
@@ -965,7 +965,7 @@ describe('a bill that may duplicate more than one bill on file', () => {
     ).toBeTruthy()
     expect(confirms()).toHaveLength(1)
 
-    fireEvent.change(within(warning()).getByRole('textbox', { name: 'Reason this is a different bill' }), {
+    fireEvent.change(within(warning()).getByRole('textbox', { name: 'Why is this a different bill?' }), {
       target: { value: '  Second delivery  ' },
     })
     fireEvent.click(within(warning()).getByRole('button', { name: ONE_DIFFERENT }))
