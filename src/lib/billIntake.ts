@@ -517,6 +517,9 @@ export const BILL_CONFIRM_REFUSALS: Record<string, { field: BillField | null; ke
   // so all three screens read them.
   BILL_INTAKE_PETTY_CASH_NOT_CASH: { field: null, key: 'billIntake.refused.pettyCashNotCash' },
   BILL_NOTE_TOO_LONG: { field: null, key: 'billIntake.refused.noteTooLong' },
+  // A payment sent with a bill the server would hold as a possible duplicate (PRV43-WEBEXP L-5).
+  // Not the bill page's onHold wording: a duplicate hold is never released by hand.
+  BILL_PAYMENT_ON_HOLD: { field: null, key: 'billIntake.refused.paymentOnHold' },
 }
 
 /** Why an upload was refused, by the server's code. */

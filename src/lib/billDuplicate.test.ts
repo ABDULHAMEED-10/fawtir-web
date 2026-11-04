@@ -267,6 +267,7 @@ describe('the refusals of the duplicate route', () => {
     expect(refusalMessageKey(conflict('BILL_NOT_HELD_AS_DUPLICATE'))).toBe('billDetail.duplicate.refused.notHeld')
     expect(refusalMessageKey(conflict('BILL_DUPLICATE_SAME_DOCUMENT_UUID'))).toBe('billDetail.duplicate.refused.sameDocumentUuid')
     expect(refusalMessageKey(conflict('BILL_DUPLICATE_DECIDER_IS_RECORDER'))).toBe('billDetail.duplicate.refused.deciderIsRecorder')
+    expect(refusalMessageKey(conflict('BILL_DUPLICATE_RECORDER_UNKNOWN'))).toBe('billDetail.duplicate.refused.recorderUnknown')
     expect(refusalMessageKey(conflict('BILL_HOLD_DUPLICATE_RELEASE_REFUSED'))).toBe('billDetail.duplicate.refused.releaseRefused')
     expect(refusalMessageKey(conflict('BILL_APPROVAL_HELD_AS_DUPLICATE'))).toBe('billDetail.duplicate.refused.approvalHeld')
     expect(refusalMessageKey(conflict('BILL_REJECTION_HELD_AS_DUPLICATE'))).toBe('billDetail.duplicate.refused.rejectionHeld')

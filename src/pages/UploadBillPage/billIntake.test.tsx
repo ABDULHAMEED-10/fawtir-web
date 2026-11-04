@@ -7,6 +7,7 @@ import { SessionContext } from '../../lib/session/session'
 import type { IntakeDto } from '../../api/expenditure/billIntake'
 import type { ReferenceDataDto } from '../../api/reference/referenceData'
 import {
+  BILL_CONFIRM_REFUSALS,
   billProblems,
   blankBillForm,
   fromIntake,
@@ -312,6 +313,13 @@ describe('the bill form rules', () => {
         lineNet: 100,
       },
     ])
+  })
+
+  it('round 20 L-5: a payment on a bill that would be held is worded, not left to the generic failure', () => {
+    expect(BILL_CONFIRM_REFUSALS.BILL_PAYMENT_ON_HOLD).toEqual({
+      field: null,
+      key: 'billIntake.refused.paymentOnHold',
+    })
   })
 
   it('round 20 L-6: the legacy notDuplicateOf is always sent as null, with or without an override', () => {
@@ -1084,6 +1092,21 @@ describe('a bill that may duplicate more than one bill on file', () => {
       expect(confirms()).toHaveLength(1)
     })
 
+    it('round 20 L-5: a submission refused BILL_PAYMENT_ON_HOLD says the payment waits for the approver; no success', async () => {
+      confirmAnswers.push(sameSupplierPeppolCopy(), refusedWith('BILL_PAYMENT_ON_HOLD'))
+      await openAndSaveAs(PAYER)
+      await screen.findByText('This may be a bill you already have')
+      giveReason('Copy of the Peppol bill for the approver')
+      fireEvent.click(within(warning()).getByRole('button', { name: 'Submit it for review' }))
+      expect(
+        await screen.findByText(
+          "This bill will be held as a possible duplicate, so its payment can't be recorded now. Save it without the payment, and record the payment once an authorized invoice approver has resolved the hold.",
+        ),
+      ).toBeTruthy()
+      expect(screen.queryByText('bill page')).toBeNull()
+      expect(screen.queryByText(/BILL_PAYMENT_ON_HOLD/)).toBeNull()
+    })
+
     it('round 19: when the server refuses a submission it is worded as a refusal and not offered again', async () => {
       confirmAnswers.push(sameSupplierPeppolCopy(), refusedWith('BILL_INTAKE_OVERRIDE_APPROVER_REQUIRED'))
       await openAndSaveAs(PAYER)
@@ -1245,7 +1268,7 @@ describe('a bill that may duplicate more than one bill on file', () => {
     sendAll()
     expect(
       await screen.findByText(
-        'One of the bills it was compared with is no longer on file. Save again to check it afresh.',
+        'One of the bills it was compared with is no longer on file, or no longer matches this bill. Save again to check it afresh.',
       ),
     ).toBeTruthy()
     expect(screen.queryByRole('textbox', { name: 'Why is this a different bill?' })).toBeNull()
