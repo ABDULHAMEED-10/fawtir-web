@@ -203,6 +203,7 @@ import {
   ValidationPolicyPage,
 } from './pages/ConsolePage'
 import { VerifyCodePage } from './pages/VerifyCodePage'
+import { SiteScrollTop } from './pages/HomePage/site'
 import { ErpGated, PlanGated } from './components/plan'
 import { DemoModule } from './components/feedback/DemoModule'
 
@@ -213,6 +214,7 @@ function App() {
   return (
     <div dir={isRtl ? 'rtl' : 'ltr'} className="min-h-dvh font-sans text-text-primary">
       <BrowserRouter>
+        <SiteScrollTop />
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/pricing" element={<PricingPage />} />

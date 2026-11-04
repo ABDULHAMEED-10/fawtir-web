@@ -1,6 +1,6 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { BrandLogo } from '../../components/BrandLogo'
 import { withRial } from '../../components/ui/Rial'
@@ -57,14 +57,30 @@ export function useSiteMeta(titleKey: string, descriptionKey: string) {
     setMeta('property', 'og:title', title)
     setMeta('property', 'og:description', description)
     setMeta('property', 'og:locale', i18n.language.startsWith('ar') ? 'ar_OM' : 'en_OM')
-  }, [t, i18n.language, titleKey, descriptionKey]) // A site page opens at its top (owner, 4 Nov 2026): the router keeps the last page's scroll, so a
-  // link low on the home page landed at the foot of the next page. A hash naming a real element
-  // (such as /#qr-code) is still left to the browser.
+  }, [t, i18n.language, titleKey, descriptionKey])
+}
+
+/**
+ * Every page reached from the public site, and every site page, opens at its top (owner, 4 Nov
+ * 2026): the router keeps the last page's scroll, so a link low on one page landed at the foot of
+ * the next. Moves inside the signed-in app are left alone, as is a hash naming an element on the
+ * page (such as /#qr-code).
+ */
+const SITE_PATHS = ['/', '/pricing', '/features', '/contact']
+export function SiteScrollTop() {
+  const { pathname } = useLocation()
+  const last = useRef(pathname)
   useEffect(() => {
+    const from = last.current
+    last.current = pathname
+    if (from === pathname) return
+    if (!SITE_PATHS.includes(from) && !SITE_PATHS.includes(pathname)) return
+    // On Features the hash only picks the tab, so that page always starts at its top.
     const id = window.location.hash.slice(1)
-    if (id && document.getElementById(id)) return
+    if (id && pathname !== '/features' && document.getElementById(id)) return
     window.scrollTo(0, 0)
-  }, [])
+  }, [pathname])
+  return null
 }
 
 /* ------------------------------------------------------------------ pieces */
