@@ -132,6 +132,7 @@ beforeEach(async () => {
             supplierBillNumber: 'MR-CN-0042',
             totalIncludingVat: 105,
             currencyCode: 'OMR',
+            held: false,
           })
     if (url.startsWith('/api/v1/bills/intake/') && method === 'DELETE')
       return new Response(null, { status: 204 })
@@ -470,6 +471,7 @@ describe('upload a supplier credit note', () => {
           supplierBillNumber: 'MR-CN-0042',
           totalIncludingVat: 105,
           currencyCode: 'OMR',
+          held: false,
         }),
       )
     })
@@ -507,6 +509,7 @@ describe('the outcome of a credit note set against its bill on upload', () => {
         supplierBillNumber: 'MR-CN-0042',
         totalIncludingVat: 105,
         currencyCode: 'OMR',
+        held: false,
         ...(creditApplied === undefined ? {} : { creditApplied }),
       })
     const onSaved = vi.fn()
@@ -549,6 +552,68 @@ describe('the outcome of a credit note set against its bill on upload', () => {
   })
 })
 
+/**
+ * PRV43-EXP5 L-4: a credit note the server holds as a possible duplicate applies nothing and
+ * cannot be used, so the save never says it was set against anything or is held for a bill. Only
+ * the confirm answer's `held` decides; anything but a boolean claims neither.
+ */
+describe('a credit note held as a possible duplicate on upload', () => {
+  const answering = (held: unknown, creditApplied: unknown = null) => {
+    confirmAnswer = async () =>
+      json(201, {
+        id: NOTE_ID,
+        supplierBillNumber: 'MR-CN-0042',
+        totalIncludingVat: 105,
+        currencyCode: 'OMR',
+        creditApplied,
+        ...(held === undefined ? {} : { held }),
+      })
+  }
+  async function saveAgainstTheBill() {
+    await uploadNote()
+    await chooseBill()
+    fireEvent.change(reasonField(), { target: { value: REASON } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save and set against the bill' }))
+    expect(await screen.findByText('credit note page')).toBeTruthy()
+    return JSON.parse(screen.getByTestId('arrived').textContent!)
+  }
+
+  it('says it is held for an approver when the server holds it', async () => {
+    answering(true)
+    const arrived = await saveAgainstTheBill()
+    expect(arrived).toEqual({ saved: { key: 'supplierCreditNotes.upload.savedHeldAsDuplicate' } })
+    expect(i18n.t(arrived.saved.key)).toBe(
+      'Saved. This note is held as a possible duplicate. Its credit cannot be used unless an approver decides it is not a duplicate.',
+    )
+  })
+
+  it('says it is held even beside a credit an older figure says was applied', async () => {
+    answering(true, { billId: BILL_ID, amount: 105 })
+    expect(await saveAgainstTheBill()).toEqual({
+      saved: { key: 'supplierCreditNotes.upload.savedHeldAsDuplicate' },
+    })
+  })
+
+  it('keeps the sentences it had when the server says it is not held', async () => {
+    answering(false, { billId: BILL_ID, amount: 105 })
+    // Set against a bill, the note's page is handed nothing, as before.
+    expect(await saveAgainstTheBill()).toBeNull()
+  })
+
+  it.each([
+    ['absent, as from an older server', undefined],
+    ['not a boolean', 'true'],
+    ['null', null],
+  ])('claims neither when held is %s', async (_label, held) => {
+    answering(held)
+    const arrived = await saveAgainstTheBill()
+    expect(arrived).toEqual({ saved: { key: 'supplierCreditNotes.upload.savedStatusUnknown' } })
+    expect(i18n.t(arrived.saved.key)).toBe(
+      "Saved. Check this note's status to see whether it is waiting for a decision.",
+    )
+  })
+})
+
 /** "Hold it as credit" (`holdAsCredit`) belongs to a credit note: the server refuses it on a 383. */
 describe('holding a credit against its bill on upload', () => {
   function renderComposer(kind: NoteKind, onSaved = vi.fn()) {
@@ -576,6 +641,7 @@ describe('holding a credit against its bill on upload', () => {
         supplierBillNumber: 'MR-CN-0042',
         totalIncludingVat: 105,
         currencyCode: 'OMR',
+        held: false,
         creditApplied: null,
       })
     const onSaved = renderComposer('credit')
@@ -807,6 +873,7 @@ describe('a credit note correcting a supplier debit note on upload', () => {
         supplierBillNumber: 'MR-CN-0042',
         totalIncludingVat: 105,
         currencyCode: 'OMR',
+        held: false,
         creditApplied: { billId: DEBIT_NOTE_ID, amount: 52.5 },
       })
     const onSaved = renderComposer('credit')
@@ -828,6 +895,28 @@ describe('a credit note correcting a supplier debit note on upload', () => {
     )
   })
 
+  it('PRV43-EXP5 L-4: never says a held credit closes the refused debit note', async () => {
+    confirmAnswer = async () =>
+      json(201, {
+        id: NOTE_ID,
+        supplierBillNumber: 'MR-CN-0042',
+        totalIncludingVat: 105,
+        currencyCode: 'OMR',
+        creditApplied: null,
+        held: true,
+      })
+    const onSaved = renderComposer('credit')
+    expect(await screen.findByDisplayValue('MR-CN-0042')).toBeTruthy()
+    fireEvent.click(await debitNoteRow())
+    fireEvent.change(reasonField(), { target: { value: REASON } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save and set against the debit note' }))
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1))
+    const [, key, values] = onSaved.mock.calls[0]
+    expect(key).toBe('supplierCreditNotes.upload.savedHeldAsDuplicate')
+    expect(values).toBeUndefined()
+  })
+
   for (const decision of [null, 'ACCEPTED'] as const)
     it(`names the debit note the credit is set against (${decision ?? 'undecided'})`, async () => {
       billRows = [BILL, { ...DEBIT_NOTE, debitNoteDecision: decision }]
@@ -837,6 +926,7 @@ describe('a credit note correcting a supplier debit note on upload', () => {
           supplierBillNumber: 'MR-CN-0042',
           totalIncludingVat: 105,
           currencyCode: 'OMR',
+          held: false,
           creditApplied: { billId: DEBIT_NOTE_ID, amount: 52.5 },
         })
       const onSaved = renderComposer('credit')
@@ -946,6 +1036,7 @@ describe('a credit note correcting a supplier debit note on upload', () => {
           supplierBillNumber: 'MR-CN-0042',
           totalIncludingVat: 105,
           currencyCode: 'OMR',
+          held: false,
           creditApplied: { billId: DEBIT_NOTE_ID, amount: 52.5 },
         })
       await uploadNote()

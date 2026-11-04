@@ -27,6 +27,7 @@ import {
   reviewAfterRefusal,
   type DuplicateOverride,
   type DuplicateReview,
+  duplicateBodyKey,
 } from '../../lib/billDuplicateOverride'
 import { DuplicateReviewPanel } from '../bills/DuplicateReviewPanel'
 import {
@@ -270,6 +271,12 @@ export function SupplierNoteIntake({
         note.creditApplied !== undefined
           ? note.creditApplied !== null
           : followUp === 'apply' && chosenBill!.outstandingAmount > 0
+      // A credit note held as a possible duplicate applies nothing and every apply is refused
+      // (CREDIT_NOTE_HELD_AS_DUPLICATE), so "held until you set it against a bill" or "closes the
+      // debit note" would be false. Only the server's `held` says so; a server that does not send
+      // it is answered with a sentence that claims neither (PRV43-EXP5 L-4, the W-1 rule for Scan).
+      // A debit note's page shows no save sentence, so its keys are left as they were.
+      const creditHeld = kind === 'credit' ? note.held : false
       let doneKey =
         kind === 'credit'
           ? refusedDebitNote
@@ -280,9 +287,12 @@ export function SupplierNoteIntake({
                 : 'supplierCreditNotes.upload.savedApplied'
               : 'supplierCreditNotes.upload.savedHeld'
           : 'supplierDebitNotes.upload.savedHeld'
-      const doneValues = refusedDebitNote
-        ? { note: chosenBill?.supplierBillNumber ?? '' }
-        : undefined
+      if (creditHeld === true) doneKey = 'supplierCreditNotes.upload.savedHeldAsDuplicate'
+      else if (creditHeld !== false) doneKey = 'supplierCreditNotes.upload.savedStatusUnknown'
+      const doneValues =
+        refusedDebitNote && creditHeld === false
+          ? { note: chosenBill?.supplierBillNumber ?? '' }
+          : undefined
       try {
         if (followUp === 'accept') {
           await acceptDebitNote(note.id)
@@ -1013,7 +1023,7 @@ export function SupplierNoteIntake({
               busy={busy}
               sentence={(bill) =>
                 withRial(
-                  t('billIntake.duplicate.body', {
+                  t(duplicateBodyKey(bill), {
                     number: bill.supplierBillNumber,
                     date: bill.issueDate ? formatDate(bill.issueDate, language) : '—',
                     total:

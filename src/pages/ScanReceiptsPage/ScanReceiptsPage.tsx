@@ -35,6 +35,7 @@ import {
   reviewAfterRefusal,
   type DuplicateOverride,
   type DuplicateReview,
+  duplicateBodyKey,
 } from '../../lib/billDuplicateOverride'
 import { DuplicateReviewPanel } from '../../components/bills/DuplicateReviewPanel'
 import {
@@ -82,6 +83,12 @@ type Receipt = {
   intake: IntakeDto
   file: File
   status: 'todo' | 'saved'
+  /**
+   * The server's answer to whether the saved bill is held (round 25, W-1), undefined when an older
+   * server did not say. Not inferred from what the save sent: an automatic hold against a
+   * same-supplier Peppol copy on another record follows a save that listed nothing.
+   */
+  held?: boolean
   form: BillForm
   vatNumber: string | null
   vatRate: VatRate
@@ -587,7 +594,7 @@ function ReceiptEditor({
     setBusy(true)
     setNotice(null)
     try {
-      await confirmIntake(
+      const bill = await confirmIntake(
         receipt.intake.id,
         toConfirmation(form, {
           category: receipt.category || null,
@@ -606,7 +613,11 @@ function ReceiptEditor({
               : null,
         }),
       )
-      onSaved({ ...receipt, status: 'saved' })
+      onSaved({
+        ...receipt,
+        status: 'saved',
+        held: typeof bill.held === 'boolean' ? bill.held : undefined,
+      })
     } catch (failure) {
       const same = reviewAfterRefusal(duplicate, failure)
       const overridden = overrideRefused(duplicate, failure)
@@ -735,7 +746,17 @@ function ReceiptEditor({
         </section>
 
         <div className="flex min-w-0 flex-1 flex-col gap-4">
-          {saved ? <Notice body={t('billIntake.scan.saved')} /> : null}
+          {saved ? (
+            <Notice
+              body={t(
+                receipt.held === true
+                  ? 'billIntake.scan.savedHeld'
+                  : receipt.held === false
+                    ? 'billIntake.scan.saved'
+                    : 'billIntake.scan.savedStatusUnknown',
+              )}
+            />
+          ) : null}
           {notice ? (
             <Notice
               body={notice}
@@ -1075,7 +1096,7 @@ function ReceiptEditor({
               busy={busy}
               sentence={(bill) =>
                 withRial(
-                  t('billIntake.duplicate.body', {
+                  t(duplicateBodyKey(bill), {
                     number: bill.supplierBillNumber,
                     date: bill.issueDate ? formatDate(bill.issueDate, i18n.language) : '',
                     total:

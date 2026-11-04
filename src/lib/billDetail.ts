@@ -749,6 +749,7 @@ const KNOWN_KINDS = new Set([
   'NOT_DUPLICATE',
   'REOPENED',
   'DUPLICATE_OVERRIDDEN',
+  'DUPLICATE_SUBMITTED_FOR_REVIEW',
 ])
 
 /** A kind this page has no wording for reads "Recorded", as the invoice history does; never the key. */
@@ -801,7 +802,8 @@ export function activityOf(detail: BillDetailDto, userId: string | null): Activi
       entry.kind === 'HELD' && entry.at !== null && duplicateOpenings.has(entry.at)
     // The server's detail is the same bills' numbers as text; they are drawn as links instead.
     const override =
-      entry.kind === 'DUPLICATE_OVERRIDDEN' && entry.duplicateOverride
+      (entry.kind === 'DUPLICATE_OVERRIDDEN' || entry.kind === 'DUPLICATE_SUBMITTED_FOR_REVIEW') &&
+      entry.duplicateOverride
         ? entry.duplicateOverride
         : null
     const byYou = userId !== null && entry.actor === userId

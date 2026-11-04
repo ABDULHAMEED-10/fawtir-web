@@ -6430,7 +6430,8 @@
         "CONFIRMED_DUPLICATE": "Confirmed as a duplicate",
         "NOT_DUPLICATE": "Decided not a duplicate",
         "REOPENED": "Reopened",
-        "DUPLICATE_OVERRIDDEN": "Recorded over possible duplicates"
+        "DUPLICATE_OVERRIDDEN": "Listed by the person who recorded it",
+        "DUPLICATE_SUBMITTED_FOR_REVIEW": "Submitted for review by the person who recorded it"
       },
       "byName": "by {{name}}",
       "overrideReason": "Why: {{reason}}",
@@ -6646,6 +6647,16 @@
       "thisBill": "This bill",
       "original": "Already on file",
       "openOriginal": "Open",
+      "coincidences": {
+        "title": "Potential coincidences",
+        "intro": "Peppol documents filed under other suppliers that have, or had when this bill was held, the same number, type, date, total and currency. Nothing shows they are from this supplier, so they are not confirmed duplicates. Check each one's status and review them before you decide.",
+        "notOnFile": "No longer on file",
+        "status": {
+          "ATTACHED_STILL_MATCHES": "Still matches",
+          "ATTACHED_NO_LONGER_MATCHES": "No longer matches",
+          "FOUND_SINCE_HOLD": "Not attached when the bill was held"
+        }
+      },
       "field": {
         "supplier": "Supplier",
         "number": "Their bill number",
@@ -6686,6 +6697,9 @@
         "alreadyResolved": "Someone has already decided whether this is a duplicate. The bill has been refreshed.",
         "notHeld": "This bill is no longer held as a possible duplicate. The bill has been refreshed.",
         "sameDocumentUuid": "Both copies carry the same document UUID, so it cannot be marked as not a duplicate.",
+        "deciderIsRecorder": "You recorded one of these bills, so another invoice approver must decide whether it is a duplicate.",
+        "recorderUnknown": "This duplicate can't be decided here: one of these bills was recorded by a person, but who recorded it isn't on file. Contact support.",
+        "evidenceChanged": "The potential coincidences beside this hold changed since you opened the bill. Review them as they stand now before you decide.",
         "releaseRefused": "This bill is held as a possible duplicate. Open it and decide whether it is one instead of releasing it.",
         "noteRequired": "Add a note saying why.",
         "noteTooLong": "That note is too long. Keep it to 500 characters or fewer.",
@@ -7509,6 +7523,8 @@
       "footerToFill_other": "{{count}} fields still to fill",
       "savedAppliedDebitNote": "Saved and set against the debit note.",
       "savedClosesRefusedDebitNote": "Saved. The credit closes refused debit note {{note}}; anything left over stays as credit.",
+      "savedHeldAsDuplicate": "Saved. This note is held as a possible duplicate. Its credit cannot be used unless an approver decides it is not a duplicate.",
+      "savedStatusUnknown": "Saved. Check this note's status to see whether it is waiting for a decision.",
       "refusedDebitNoteCloses": "This debit note was refused, so the credit closes it. Anything left over stays as credit.",
       "setNowNoteDebitNote": "The debit note is unpaid, so you simply pay OMR {{amount}} less.",
       "saveAndSetDebitNote": "Save and set against the debit note",
@@ -21778,6 +21794,7 @@
     "duplicate": {
       "title": "This may be a bill you already have",
       "body": "A bill {{number}} from this supplier is already recorded: dated {{date}}, {{total}}, {{source}}.",
+      "bodyFiguresOnly": "A bill {{number}} with the same details is already recorded, but nothing shows it is from this supplier: dated {{date}}, {{total}}, {{source}}. It may be a coincidence.",
       "source": {
         "PEPPOL": "received over Peppol",
         "UPLOADED": "uploaded",
@@ -21793,8 +21810,15 @@
       "reasonRequired": "Say why this bill is different from the ones listed.",
       "reasonTooLong": "Keep the reason to 280 characters.",
       "tooMany": "This bill matches too many bills on file to save in one go. Open them and check the supplier and number.",
-      "unknown": "One of the bills it was compared with is no longer on file. Save again to check it afresh.",
-      "cannotOverrideMany": "This bill matches more than one bill on file, and they cannot be set aside here yet. Open them and check the supplier and number."
+      "unknown": "One of the bills it was compared with is no longer on file, or no longer matches this bill. Save again to check it afresh.",
+      "unknownNotFound": "One of the bills it was compared with is no longer on file. Save again to check it afresh.",
+      "unknownNoLongerMatches": "One of the bills it was compared with is still on file but no longer matches this bill. Save again to check it afresh.",
+      "cannotOverrideMany": "This bill matches more than one bill on file, and they cannot be set aside here yet. Open them and check the supplier and number.",
+      "reasonRequiredSingle": "Enter a reason before confirming this is a different bill.",
+      "approverOnly": "Only an authorized invoice approver can confirm that this is a different bill. You can submit it for review.",
+      "approverRequired": "This action requires an authorized human invoice approver. Ask an invoice approver to record this bill.",
+      "approverMustRecord": "Only an authorized invoice approver can confirm that this is a different bill. Ask an invoice approver to record it.",
+      "submitForReview": "Submit it for review"
     },
     "discard": "Discard",
     "saving": "Saving…",
@@ -21829,6 +21853,8 @@
       "choose": "Choose receipt photos",
       "hint": "JPG, PNG or PDF, up to {{mb}} MB each. You can choose several at once.",
       "saved": "Saved as a bill.",
+      "savedHeld": "Saved as a bill and held as a possible duplicate. It is waiting for an authorized invoice approver, other than the person who recorded it, to decide. It has not been approved or paid.",
+      "savedStatusUnknown": "The bill was saved. Open it to see whether it is waiting for a decision.",
       "typeIt": "Nothing is read from the photo. Type the receipt in from the picture on the left.",
       "vatWorkedOut": "Worked out from the total and the rate. Type over it if the receipt says otherwise.",
       "owingNote": "It is recorded as a bill to pay later.",
@@ -21857,7 +21883,8 @@
       "vatRateMismatch": "That VAT rate does not match the VAT category. Choose the rate that goes with it.",
       "supplierSwitchedOff": "This supplier is switched off. Switch it back on to record a bill for it.",
       "pettyCashNotCash": "Petty cash can only be recorded as cash.",
-      "noteTooLong": "That note is too long. Shorten it to 500 characters."
+      "noteTooLong": "That note is too long. Shorten it to 500 characters.",
+      "paymentOnHold": "This bill will be held as a possible duplicate, so its payment can't be recorded now. Save it without the payment, and record the payment once an authorized invoice approver has resolved the hold."
     },
     "reading": {
       "pages_one": "{{count}} page",

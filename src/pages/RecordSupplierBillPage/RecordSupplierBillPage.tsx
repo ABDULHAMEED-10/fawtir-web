@@ -46,6 +46,7 @@ import {
   reviewAfterRefusal,
   type DuplicateOverride,
   type DuplicateReview,
+  duplicateBodyKey,
 } from '../../lib/billDuplicateOverride'
 import { DuplicateReviewPanel } from '../../components/bills/DuplicateReviewPanel'
 import {
@@ -384,7 +385,7 @@ function RecordBill({ id }: { id: string }) {
           onDifferent={(override) => void save(override)}
           busy={busy}
           sentence={(bill) =>
-            t('billIntake.duplicate.body', {
+            t(duplicateBodyKey(bill), {
               number: bill.supplierBillNumber,
               date: day(bill.issueDate),
               total:

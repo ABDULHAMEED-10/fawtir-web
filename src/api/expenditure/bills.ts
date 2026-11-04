@@ -394,21 +394,50 @@ export type BillHoldDto = {
   duplicateResolutionNote?: string | null
 }
 
+/**
+ * A potential coincidence beside a possible-duplicate hold (batch 43 round 28, O-A Option 1):
+ * another supplier's Peppol document with the bill's number, type, total, currency and issue date,
+ * sharing nothing that ties it to this supplier. Revalidated by the server on every read. The
+ * figures are all null when the id is no longer on file as one of this company's Peppol documents.
+ */
+export type DuplicateCoincidenceDto = {
+  billId: string
+  status: 'ATTACHED_STILL_MATCHES' | 'ATTACHED_NO_LONGER_MATCHES' | 'FOUND_SINCE_HOLD'
+  billNumber: string | null
+  issueDate: string | null
+  totalIncludingVat: number | null
+  currencyCode: string | null
+  source: 'PEPPOL' | null
+}
+
+/** `BillController.DuplicateEvidenceView`. `version` is echoed with the decision. */
+export type DuplicateEvidenceDto = {
+  duplicateOfBillId: string
+  coincidences: DuplicateCoincidenceDto[]
+  version: string
+}
+
 /** `BillHold.MAXIMUM_RESOLUTION_NOTE_LENGTH`, counted by the server after trimming. */
 export const DUPLICATE_NOTE_MAX_LENGTH = 500
 
 /**
  * Decides whether a held copy is a duplicate (`invoice.approve`). CONFIRMED_DUPLICATE keeps it
  * held for good; NOT_DUPLICATE releases it into an ordinary bill. Either is final.
+ *
+ * `evidenceVersion` is the `duplicateEvidence.version` the approver was shown (round 28): the
+ * server refuses the decision (`BILL_DUPLICATE_EVIDENCE_CHANGED`) unless it is the version as it
+ * stands then, so a coincidence that appeared or changed meanwhile is never decided unseen. Sent
+ * only when the bill carried evidence; a bill without any is decided as before.
  */
 export function resolveDuplicateBill(
   billId: string,
   decision: DuplicateResolutionDto,
   note: string,
+  evidenceVersion?: string | null,
 ): Promise<BillHoldDto> {
   return apiRequest<BillHoldDto>(`${billPath(billId)}/duplicate-resolution`, {
     method: 'POST',
-    body: { decision, note },
+    body: typeof evidenceVersion === 'string' ? { decision, note, evidenceVersion } : { decision, note },
   })
 }
 
@@ -450,6 +479,12 @@ export type BillDetailDto = {
   approvals: { id: string; decision: 'APPROVED' | 'REJECTED' | 'REOPENED'; reason: string | null; decidedBy: string; decidedAt: string }[]
   hold: BillHoldDto | null
   holdHistory: BillHoldDto[]
+  /**
+   * The potential coincidences beside the open possible-duplicate hold (batch 43 round 28):
+   * weaker evidence than the copy the hold names, never confirmed duplicates. Null when there are
+   * none; absent from an older server.
+   */
+  duplicateEvidence?: DuplicateEvidenceDto | null
   settlement: {
     billTotal: number | null
     paidAmount: number
@@ -562,12 +597,16 @@ export type BillDetailDto = {
       | 'REOPENED'
       // Recorded over the possible duplicates it was refused for (backend 9e768276b).
       | 'DUPLICATE_OVERRIDDEN'
+      // The recorder listed only copies the bill is held against, with a reason: a submission
+      // for review, naming no bill (owner Round 36 item 6). The server decides it; this page
+      // could not tell it from a listing whose every bill failed to resolve.
+      | 'DUPLICATE_SUBMITTED_FOR_REVIEW'
     detail: string | null
     actor: string | null
     /** `actor` by the team list's name; null when no person acted or they left the company. */
     actorName?: string | null
     /**
-     * On `DUPLICATE_OVERRIDDEN` only. The server sends `reason` only to a reader holding
+     * On `DUPLICATE_OVERRIDDEN` and `DUPLICATE_SUBMITTED_FOR_REVIEW` only. The server sends `reason` only to a reader holding
      * `invoice.approve` (owner batch 12); `reasonRecorded` says one was kept whoever reads. A
      * historical single-field override took no reason (owner batch 13). A bill that no longer
      * resolves is left out.

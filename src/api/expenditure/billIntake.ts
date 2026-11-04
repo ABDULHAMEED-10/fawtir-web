@@ -174,8 +174,12 @@ export type ConfirmIntakeDto = {
     paidOn: string | null
     pettyCash?: true
   } | null
-  /** The bill a possible-duplicate refusal named, which the person says is a different bill. */
-  notDuplicateOf: string | null
+  /**
+   * Always null (owner approval, batch 43 round 18, "Frontend Option 1"): the legacy single field
+   * takes no reason, so the override is sent as `notDuplicateOfIds` with `overrideReason` only.
+   * Still sent, as null, because the confirm body has always carried it.
+   */
+  notDuplicateOf: null
   /**
    * Every bill the refusals listed that the person says is a different bill, at most 20, sent with
    * `overrideReason`. Only after a refusal that carried `duplicates`: a server before the list
@@ -223,6 +227,13 @@ export type ConfirmedBillDto = {
    * from an older server, which does not say.
    */
   creditApplied?: { billId: string; amount: number } | null
+  /**
+   * Whether the bill has an open possible-duplicate hold now, read from the server's hold store
+   * (owner approval, batch 43 round 25, W-1). A hold a person places afterwards does not set it
+   * (PRV43-EXP5 L-2), and a replay after the hold was decided answers false. Absent from an older
+   * server, which does not say: absent is unknown, never "not held".
+   */
+  held?: boolean
 }
 
 export function confirmIntake(id: string, body: ConfirmIntakeDto): Promise<ConfirmedBillDto> {
@@ -284,16 +295,32 @@ const isDuplicateDto = (value: unknown): value is PossibleDuplicateDto =>
  * Every bill a 409 `BILL_INTAKE_POSSIBLE_DUPLICATE` named, or null for any other failure.
  * `listed` says the refusal carried `duplicates` (oldest first, at most five per answer), which
  * only a server that takes `notDuplicateOfIds` sends; an older one names `duplicateOf` alone.
+ *
+ * `heldForReview` is the server's `heldForReviewIfListed` (batch 43 round 19): listing the matches
+ * records the bill held for an approver. Only a literal `true` counts, so a server that does not
+ * send it never has a refusal presented as a submission.
+ *
+ * `figuresOnly` is the server's `figuresOnly` (batch 43 round 25, residual (1)): every match shares
+ * only figures with the bill, no supplier VAT number, participant or record, so it is a potential
+ * coincidence and must not be worded as this supplier's bill. Only a literal `true` counts, so an
+ * older server keeps the sentence it always had.
  */
-export function possibleDuplicates(
-  error: unknown,
-): { matches: PossibleDuplicateDto[]; listed: boolean } | null {
+export function possibleDuplicates(error: unknown): {
+  matches: PossibleDuplicateDto[]
+  listed: boolean
+  heldForReview: boolean
+  figuresOnly: boolean
+} | null {
   const single = possibleDuplicateOf(error)
   if (!single) return null
-  const duplicates = (error as ApiError).problem.duplicates
-  if (!Array.isArray(duplicates)) return { matches: [single], listed: false }
+  const problem = (error as ApiError).problem
+  const heldForReview = problem.heldForReviewIfListed === true
+  const figuresOnly = problem.figuresOnly === true
+  const duplicates = problem.duplicates
+  if (!Array.isArray(duplicates))
+    return { matches: [single], listed: false, heldForReview, figuresOnly }
   const matches = duplicates.filter(isDuplicateDto)
-  return { matches: matches.length > 0 ? matches : [single], listed: true }
+  return { matches: matches.length > 0 ? matches : [single], listed: true, heldForReview, figuresOnly }
 }
 
 /** `IntakePage`. `status=UNCONFIRMED` (the server's default) lists what was uploaded or scanned and never confirmed. */
