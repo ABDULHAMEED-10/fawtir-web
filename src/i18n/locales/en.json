@@ -23204,7 +23204,8 @@
         "features": "features",
         "partners": "for partners",
         "privacy": "privacy policy",
-        "terms": "terms of service"
+        "terms": "terms of service",
+        "refund": "refund policy"
       },
       "rights": "Fawtir © {{year}}. All rights reserved"
     },
@@ -23224,6 +23225,18 @@
       "contact": {
         "title": "Contact | Fawtir E-Invoicing for Oman",
         "description": "Talk to the Fawtir team in Muscat about e-invoicing, the Fawtara system, your till or your ERP."
+      },
+      "terms": {
+        "title": "Terms of service | Fawtir",
+        "description": "The terms that govern the use of Fawtir, e-invoicing and accounting for businesses in Oman."
+      },
+      "privacy": {
+        "title": "Privacy policy | Fawtir",
+        "description": "What information Fawtir collects, how it is used and protected, and your rights."
+      },
+      "refund": {
+        "title": "Refund policy | Fawtir",
+        "description": "When and how a Fawtir subscription payment can be refunded."
       }
     },
     "audience": {
@@ -24054,6 +24067,329 @@
         "emailTitle": "Our email",
         "addressTitle": "Our address",
         "address": "Al Rusayl 124, Sultanate of Oman"
+      }
+    },
+    "legal": {
+      "provider": "Insight Information Security LLC",
+      "updated": "Last updated: {{date}}",
+      "date": "4 November 2026",
+      "contents": "On this page",
+      "related": "Related",
+      "links": {
+        "terms": "Terms of service",
+        "privacy": "Privacy policy",
+        "refund": "Refund policy"
+      },
+      "terms": {
+        "lead": "Terms of",
+        "word": "service",
+        "intro": "These terms govern your use of Fawtir. Please read them carefully. By creating an account or using Fawtir, you agree to them on behalf of your business.",
+        "sections": {
+          "s01": {
+            "title": "About these terms",
+            "body": {
+              "a": "Fawtir is operated by {{provider}} (\"Fawtir\", \"we\", \"us\"). These terms form an agreement between us and the business that opens a Fawtir account (\"you\").",
+              "b": "The person who accepts these terms confirms that they are authorised to act for the business. Our Privacy policy and Refund policy form part of these terms."
+            }
+          },
+          "s02": {
+            "title": "The service",
+            "body": {
+              "a": "Fawtir is a cloud service for e-invoicing and accounting in the Sultanate of Oman. It lets you issue and receive electronic invoices, report them to the Oman Tax Authority through the Fawtara platform, exchange them over the Peppol network, sell at the point of sale, manage expenses and see reports.",
+              "b": "The features available to you depend on your plan. Compliance features are part of every plan."
+            }
+          },
+          "s03": {
+            "title": "Your account",
+            "body": {
+              "a": "Fawtir is for businesses registered in Oman. You agree to give accurate and complete information when you register, including your commercial registration and VAT details, and to keep it up to date.",
+              "b": "We review every registration before activating it, and we may decline one that we cannot verify.",
+              "c": "You are responsible for the people you invite, the roles you give them and everything done under your account. Keep sign-in details private, use two-step sign-in, and tell us at once if you suspect unauthorised access."
+            }
+          },
+          "s04": {
+            "title": "Your invoices and tax obligations",
+            "body": {
+              "a": "You remain responsible for the content of your invoices and other documents, for the VAT treatment you apply, and for your obligations to the Oman Tax Authority.",
+              "b": "Fawtir checks each document against the published PINT-OM rules before it is sent and reports it as the rules require, but it does not give tax, legal or accounting advice.",
+              "c": "A document reported to the Tax Authority cannot be edited or deleted. Mistakes are corrected with a credit note or debit note, which is reported in the same way."
+            }
+          },
+          "s05": {
+            "title": "Plans, fees and payment",
+            "items": {
+              "a": "Subscriptions are paid in advance, monthly or yearly, at the prices shown on our Pricing page in Omani rials. VAT is added where it applies.",
+              "b": "Where a free trial is offered, it starts when your registration is approved. You are not charged before approval.",
+              "c": "Each plan includes a monthly allowance of documents that resets on your subscription date. Unused documents do not carry over. Extra documents can be bought in advance at your plan's rate.",
+              "d": "You can pay by card, bank transfer or cash. Card payments are processed by our payment provider, Paymob, on its secure page. We never see or store your card details.",
+              "e": "An upgrade applies at once and is charged for the days left in the period. A downgrade applies at your next renewal."
+            }
+          },
+          "s06": {
+            "title": "Unpaid renewals",
+            "body": {
+              "a": "If a renewal is not paid, your account stays fully available for 7 days. After that it becomes read-only until payment is made.",
+              "b": "While read-only you can still sign in, view, search, download and export your records and pay your bill, but you cannot issue or send new documents. Documents your suppliers send you are still received and kept."
+            }
+          },
+          "s07": {
+            "title": "Cancelling",
+            "body": {
+              "a": "You can cancel at any time. Your subscription stays active until the end of the period you have paid for, and then the account becomes read-only.",
+              "b": "Refunds, where they apply, follow our Refund policy. Cancelling never deletes your records and does not disconnect you from the Fawtara platform."
+            }
+          },
+          "s08": {
+            "title": "Your data",
+            "body": {
+              "a": "You own the data you put into Fawtir. You give us the right to store and process it only to provide the service, to meet our legal obligations and to keep the service secure.",
+              "b": "Tax records must be kept for the period the law requires, so they are retained even after you cancel. You can read and export them at any time.",
+              "c": "How we handle personal data is explained in our Privacy policy."
+            }
+          },
+          "s09": {
+            "title": "Acceptable use",
+            "body": {
+              "a": "You agree not to:"
+            },
+            "items": {
+              "a": "issue false, fraudulent or misleading documents, or use Fawtir for any unlawful purpose;",
+              "b": "try to gain access to accounts or data that are not yours, or to disrupt or overload the service;",
+              "c": "copy, resell or reverse engineer the service, except as the law allows;",
+              "d": "upload harmful files or content that infringes the rights of others."
+            }
+          },
+          "s10": {
+            "title": "Suspension and termination",
+            "body": {
+              "a": "We may suspend or close an account that breaches these terms, that is used for fraud, or where the law requires it. Where we can, we will tell you first and give you a chance to put things right.",
+              "b": "If we close an account without fault on your part, any period you paid in advance that has not started is refunded."
+            }
+          },
+          "s11": {
+            "title": "Availability and third parties",
+            "body": {
+              "a": "We work to keep Fawtir available and secure, and we may carry out maintenance from time to time.",
+              "b": "Fawtir relies on systems we do not control, such as the Fawtara platform of the Oman Tax Authority, the Peppol network and payment providers. We are not responsible for their outages, but we will resend or report documents once they are available again."
+            }
+          },
+          "s12": {
+            "title": "Leaving Fawtir as your service provider",
+            "body": {
+              "a": "You can disconnect from Fawtir at any time on the Fawtara portal, or by connecting to another service provider. Your subscription then runs to the end of the period you have paid for and does not renew."
+            }
+          },
+          "s13": {
+            "title": "Intellectual property",
+            "body": {
+              "a": "Fawtir, its software, design and brand belong to us or our licensors. These terms give you the right to use the service while your subscription is active, and no other rights."
+            }
+          },
+          "s14": {
+            "title": "Limitation of liability",
+            "body": {
+              "a": "To the extent the law allows, Fawtir is provided as it is, and we are not liable for indirect or consequential losses, lost profits, or penalties that result from information you entered or decisions you made.",
+              "b": "Our total liability for any claim is limited to the fees you paid us in the twelve months before the claim arose."
+            }
+          },
+          "s15": {
+            "title": "Changes to these terms",
+            "body": {
+              "a": "We may update these terms from time to time. We will tell you about significant changes by email or in the app before they take effect. Continuing to use Fawtir after that means you accept the updated terms."
+            }
+          },
+          "s16": {
+            "title": "Governing law",
+            "body": {
+              "a": "These terms are governed by the laws of the Sultanate of Oman, and any dispute will be settled by the competent courts of the Sultanate of Oman."
+            }
+          },
+          "s17": {
+            "title": "Contact us",
+            "body": {
+              "a": "Questions about these terms can be sent to {{email}}."
+            }
+          }
+        }
+      },
+      "privacy": {
+        "lead": "Privacy",
+        "word": "policy",
+        "intro": "This policy explains what information Fawtir collects, how we use it and the choices you have. We handle personal data in line with the Personal Data Protection Law of the Sultanate of Oman.",
+        "sections": {
+          "s01": {
+            "title": "Who we are",
+            "body": {
+              "a": "Fawtir is operated by {{provider}}. We are responsible for the personal data described in this policy, except where we process data on your behalf, as explained below."
+            }
+          },
+          "s02": {
+            "title": "What this policy covers",
+            "body": {
+              "a": "This policy applies to our website, the Fawtir web app and the Fawtir mobile app, and to the emails and support we provide."
+            }
+          },
+          "s03": {
+            "title": "Information we collect",
+            "items": {
+              "a": "Account details: names, email addresses, phone numbers, roles and sign-in activity of the people who use your account.",
+              "b": "Company details: legal name, commercial registration, VAT number, address, Peppol identifier and the certificate used to sign your documents.",
+              "c": "Business records: invoices, credit and debit notes, bills, customers, suppliers, products, payments and the files you upload.",
+              "d": "Payment details: the result and reference of each payment. Card details are handled by our payment provider and never reach our servers.",
+              "e": "Technical details: device and browser type, IP address and logs that help us keep the service secure and working.",
+              "f": "Messages you send us, such as support requests."
+            }
+          },
+          "s04": {
+            "title": "How we use it",
+            "body": {
+              "a": "We use the information we collect only for these purposes:"
+            },
+            "items": {
+              "a": "to provide the service, including reporting your documents to the Oman Tax Authority and delivering them over the Peppol network;",
+              "b": "to manage your subscription, bills and payments;",
+              "c": "to give support and send you service messages, such as payment reminders and important notices;",
+              "d": "to keep the service secure, prevent fraud and investigate misuse;",
+              "e": "to meet our legal obligations."
+            }
+          },
+          "s05": {
+            "title": "Data you hold about others",
+            "body": {
+              "a": "The records you keep in Fawtir about your customers, suppliers and staff belong to you. For that data you decide why it is processed, and we process it only on your instructions to provide the service."
+            }
+          },
+          "s06": {
+            "title": "Who we share it with",
+            "body": {
+              "a": "We never sell personal data or use it for advertising. We share it only with:"
+            },
+            "items": {
+              "a": "the Oman Tax Authority, through the Fawtara platform, as e-invoicing law requires;",
+              "b": "your trading partners and their service providers on the Peppol network, when you send them a document;",
+              "c": "Paymob, to process card payments;",
+              "d": "carefully chosen service providers that host the service or send our emails, bound by confidentiality;",
+              "e": "public authorities, when the law requires us to."
+            }
+          },
+          "s07": {
+            "title": "How long we keep it",
+            "body": {
+              "a": "Tax records are kept for the period the law requires: ten years under the Oman VAT Law, and fifteen years for records relating to property. They cannot be deleted during that time, even after you cancel.",
+              "b": "Other personal data is kept while your account is active and afterwards only as long as needed for the purposes above or as the law requires."
+            }
+          },
+          "s08": {
+            "title": "How we protect it",
+            "items": {
+              "a": "encrypted connections between your device and Fawtir;",
+              "b": "roles and permissions, so each person sees only what they need;",
+              "c": "two-step sign-in and an activity log of who did what;",
+              "d": "files you upload are checked for malware before they are released;",
+              "e": "card details are entered only on our payment provider's page."
+            }
+          },
+          "s09": {
+            "title": "Your rights",
+            "body": {
+              "a": "Subject to the law, you can ask to access the personal data we hold about you, to correct it, to know how it is processed, and to withdraw consent where processing relies on it. Where the law requires us to keep tax records, we cannot delete them before the period ends.",
+              "b": "To make a request, write to {{email}}. If you are not satisfied with our answer, you may contact the competent authority in the Sultanate of Oman."
+            }
+          },
+          "s10": {
+            "title": "Cookies and local storage",
+            "body": {
+              "a": "We use only what the service needs to work: a cookie that keeps you signed in, and your browser's storage to remember choices such as your language. We do not use advertising cookies."
+            }
+          },
+          "s11": {
+            "title": "Children",
+            "body": {
+              "a": "Fawtir is a service for businesses and is not intended for anyone under 18."
+            }
+          },
+          "s12": {
+            "title": "Changes to this policy",
+            "body": {
+              "a": "We may update this policy from time to time. We will tell you about significant changes by email or in the app."
+            }
+          },
+          "s13": {
+            "title": "Contact us",
+            "body": {
+              "a": "Questions about privacy can be sent to {{email}}."
+            }
+          }
+        }
+      },
+      "refund": {
+        "lead": "Refund",
+        "word": "policy",
+        "intro": "This policy explains when a Fawtir payment can be refunded and how. It forms part of our Terms of service.",
+        "sections": {
+          "s01": {
+            "title": "General rule",
+            "body": {
+              "a": "Fawtir subscriptions are paid in advance. Payments for a period that has started, and for extra documents or add-ons that have been bought, are not refundable, except as set out below."
+            }
+          },
+          "s02": {
+            "title": "Monthly subscriptions",
+            "body": {
+              "a": "When you cancel a monthly subscription, it stays active until the end of the month you have paid for. The current month is not refunded.",
+              "b": "If you paid in advance for a month that has not yet started, that payment is refunded in full."
+            }
+          },
+          "s03": {
+            "title": "Yearly subscriptions",
+            "body": {
+              "a": "When you cancel a yearly subscription, we review a refund of the remaining whole months. If a refund is made, the subscription stays active until the end of the last month not refunded. Otherwise it stays active until the end of the year you have paid for."
+            }
+          },
+          "s04": {
+            "title": "Registrations that are not approved",
+            "body": {
+              "a": "If you paid with your registration and we do not approve it, the payment is refunded in full."
+            }
+          },
+          "s05": {
+            "title": "Plan changes",
+            "body": {
+              "a": "An upgrade is charged for the days left in the current period. A downgrade takes effect at your next renewal, and the difference is not refunded."
+            }
+          },
+          "s06": {
+            "title": "Extra documents and add-ons",
+            "body": {
+              "a": "Extra documents, extra users, extra branches and other add-ons are not refundable once bought."
+            }
+          },
+          "s07": {
+            "title": "If we close your account",
+            "body": {
+              "a": "If we cancel your subscription, any period you paid in advance that has not started is refunded. On a yearly subscription, a refund of the remaining whole months is reviewed in the same way as when you cancel."
+            }
+          },
+          "s08": {
+            "title": "Duplicate or incorrect charges",
+            "body": {
+              "a": "If you were charged twice or charged the wrong amount, tell us and we will refund the difference in full once we have checked it."
+            }
+          },
+          "s09": {
+            "title": "How refunds are paid",
+            "body": {
+              "a": "Card payments are refunded to the same card through our payment provider. Payments made by bank transfer or cash are refunded by bank transfer to an account in your company's name.",
+              "b": "Once a refund is issued, the time it takes to reach you depends on your bank."
+            }
+          },
+          "s10": {
+            "title": "How to ask for a refund",
+            "body": {
+              "a": "Write to {{email}} with your company name, commercial registration number, the bill or receipt number and the reason for the request. We will reply as soon as we can."
+            }
+          }
+        }
       }
     }
   },

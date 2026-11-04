@@ -29,7 +29,7 @@ export const INK = 'text-[#151c2d]'
 export const SOFT = 'text-[#494d56]'
 
 /** The site's pages, as the nav names and links them. */
-export type SitePage = 'home' | 'pricing' | 'features' | 'contact'
+export type SitePage = 'home' | 'pricing' | 'features' | 'contact' | 'legal'
 
 /* -------------------------------------------------------------------- meta */
 
@@ -66,7 +66,15 @@ export function useSiteMeta(titleKey: string, descriptionKey: string) {
  * the next. Moves inside the signed-in app are left alone, as is a hash naming an element on the
  * page (such as /#qr-code).
  */
-const SITE_PATHS = ['/', '/pricing', '/features', '/contact']
+const SITE_PATHS = [
+  '/',
+  '/pricing',
+  '/features',
+  '/contact',
+  '/terms',
+  '/privacy',
+  '/refund-policy',
+]
 export function SiteScrollTop() {
   const { pathname } = useLocation()
   const last = useRef(pathname)
@@ -551,9 +559,10 @@ export function Footer() {
     { key: 'pricing', to: '/pricing' },
     { key: 'features', to: '/features' },
     { key: 'partners', href: mail.partners },
-    // TODO(backend): SITE.md 1.4. The privacy policy and terms have no pages yet.
-    { key: 'privacy' },
-    { key: 'terms' },
+    // The legal pages (owner, 4 Nov 2026; SITE.md 1.6 replaces 1.4).
+    { key: 'privacy', to: '/privacy' },
+    { key: 'terms', to: '/terms' },
+    { key: 'refund', to: '/refund-policy' },
   ]
   // An icon links only to a page the company contact setting names (CS-1); the rest stay drawn.
   const socials: { icon: string; label: string; href: string | null }[] = [

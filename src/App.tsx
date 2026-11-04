@@ -6,7 +6,7 @@ import { BusinessIdentityPage } from './pages/BusinessIdentityPage'
 import { BusinessTypePage } from './pages/BusinessTypePage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { HomePage } from './pages/HomePage'
-import { ContactPage, FeaturesPage, PricingPage } from './pages/SitePages'
+import { ContactPage, FeaturesPage, LegalPage, PricingPage } from './pages/SitePages'
 import { LoginPage } from './pages/LoginPage'
 import { LoginCodePage } from './pages/LoginCodePage'
 import { NewPasswordPage } from './pages/NewPasswordPage'
@@ -220,6 +220,9 @@ function App() {
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/features" element={<FeaturesPage />} />
           <Route path="/contact" element={<ContactPage />} />
+          <Route path="/terms" element={<LegalPage doc="terms" />} />
+          <Route path="/privacy" element={<LegalPage doc="privacy" />} />
+          <Route path="/refund-policy" element={<LegalPage doc="refund" />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/login/mfa" element={<LoginCodePage />} />
           <Route path="/signup" element={<SignupPage />} />
