@@ -5082,7 +5082,7 @@
       "POS_PRINTED_TOTALS_DIFFER": "Filed. The printed totals differ from the server's; the difference is recorded.",
       "STOCK_UNIT_MISMATCH": "Line {{line}} is in another unit than the item is counted in, so no stock moved.",
       "POS_PRICE_STALE_ACCEPTED": "Line {{line}} was sold offline at an older price.",
-      "POS_PRODUCT_NOT_SELLABLE_ACCEPTED": "Line {{line}} was sold offline after it went off sale.",
+      "POS_PRODUCT_NOT_SELLABLE_ACCEPTED": "Line {{line}} was sold offline and is not on sale now.",
       "FILED_PAST_RESTRICTION": "Made offline, so it was filed although the company is restricted now.",
       "FILED_AFTER_24H_B2C": "Made offline and filed more than 24 hours later.",
       "SLIP_AMOUNT_DIFFERS": "The slip's amount is not the card payment's.",

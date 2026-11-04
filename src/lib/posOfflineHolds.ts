@@ -113,9 +113,10 @@ export function heldForText(heldFor: OfflineHeldFor): {
     }
     if (held.cause === 'LEGACY_PRICE_UNIT_NOT_COMPARABLE') {
       const unit: HeldForText = { key: 'unit', values }
-      // Its own key, not pos.warning.POS_PRODUCT_NOT_SELLABLE_ACCEPTED: that one is the till's sale
-      // warning (PosDonePage, PosRefundPage) and keeps its meaning. notOnSale says the product is off
-      // sale, never when it went off sale, so the wording must not claim an order (owner Round 27).
+      // Its own key beside the till's pos.warning.POS_PRODUCT_NOT_SELLABLE_ACCEPTED, which the server
+      // emits: both read the same approved sentence (owner Round 31 F-4 req 4, checked in
+      // posWarnings.test.ts). notOnSale says the product is off sale, never when it went off sale, so
+      // neither may claim an order (owner Round 27).
       return held.notOnSale ? [unit, { key: 'notOnSaleNow', values: { line: held.line } }] : [unit]
     }
     if (held.cause === 'LEGACY_PRICE_NOT_ESTABLISHED') return [{ key: 'notEstablished', values }]
