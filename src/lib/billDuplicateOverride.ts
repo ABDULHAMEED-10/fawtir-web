@@ -1,18 +1,21 @@
 import { ApiError } from '../api/errors'
 import { possibleDuplicates, type PossibleDuplicateDto } from '../api/expenditure/billIntake'
+import type { Entitlements } from './identity/entitlements'
+import { can } from './session/session'
 
 /** `BillIntakeService.MAX_DUPLICATE_OVERRIDES`: more ids than this are refused, not trimmed. */
 export const MAX_DUPLICATE_OVERRIDES = 20
 /** `BillIntakeService.MAX_OVERRIDE_REASON`, counted after trimming. */
 export const MAX_OVERRIDE_REASON = 280
+/** `BillIntakeService.OVERRIDE_PERMISSION`: who may say a possible duplicate is a different bill. */
+export const OVERRIDE_PERMISSION = 'invoice.approve'
 
 /**
  * A confirm the server refused as a possible duplicate, and what the person has said about it.
  *
  * `seen` keeps every bill any refusal named since the supplier or number last changed, not only
- * the latest refusal's. The single `notDuplicateOf` covers one bill, so with two on file the server
- * named the other one each time and the screens swapped between them for ever; the server lists at
- * most five per answer, so the rest arrive on the next one. Only all of them together record the bill.
+ * the latest refusal's: the server lists at most five per answer, so the rest arrive on the next
+ * one. Only all of them together record the bill.
  */
 export type DuplicateReview = {
   seen: PossibleDuplicateDto[]
@@ -23,16 +26,28 @@ export type DuplicateReview = {
   problem: string | null
 }
 
-export type DuplicateOverride =
-  | { notDuplicateOf: string }
-  | { notDuplicateOfIds: string[]; overrideReason: string }
+/**
+ * Always the listed ids with a reason, one bill or many (owner approval, batch 43 round 18,
+ * "Frontend Option 1"). The single `notDuplicateOf`, which takes no reason, is never sent: it left
+ * no reason beside the override in the bill's history.
+ */
+export type DuplicateOverride = { notDuplicateOfIds: string[]; overrideReason: string }
 
 /**
- * `single` keeps the older contract exactly: the one bill as `notDuplicateOf`, with no reason.
- * `unsupported` is two or more bills from a server that cannot take a list: nothing can be sent
- * that would record the bill, so nothing is offered.
+ * `unsupported` is a server whose refusal names no list (`duplicates`): it cannot take the ids with
+ * a reason, and the reasonless single field is no longer sent, so nothing is offered.
  */
 export type DuplicateReviewMode = 'single' | 'many' | 'unsupported' | 'tooMany'
+
+/**
+ * Whether to offer "It's a different bill". Display only: the server refuses everyone else
+ * (`BILL_INTAKE_OVERRIDE_APPROVER_REQUIRED`). A loaded session is a person's: `/me/entitlements`
+ * answers only for a signed-in user (`requireUserId`), never for an API key or another machine
+ * credential, so holding the permission in it is holding it as a human.
+ */
+export function mayDeclareDifferent(session: Entitlements | null): boolean {
+  return can(session, OVERRIDE_PERMISSION)
+}
 
 /** The review after a refusal, or null when the refusal is not a possible duplicate. */
 export function reviewAfterRefusal(
@@ -58,41 +73,49 @@ export function reviewAfterRefusal(
 }
 
 export function reviewMode(review: DuplicateReview): DuplicateReviewMode {
-  if (review.seen.length === 1) return 'single'
   if (!review.listed) return 'unsupported'
-  return review.seen.length > MAX_DUPLICATE_OVERRIDES ? 'tooMany' : 'many'
+  if (review.seen.length > MAX_DUPLICATE_OVERRIDES) return 'tooMany'
+  return review.seen.length === 1 ? 'single' : 'many'
+}
+
+/** The sentence asking for a reason: the one-bill wording, or the one naming the bills listed. */
+function reasonRequiredKey(review: DuplicateReview): string {
+  return review.seen.length === 1
+    ? 'billIntake.duplicate.reasonRequiredSingle'
+    : 'billIntake.duplicate.reasonRequired'
 }
 
 /** What "It's a different bill" sends, or the sentence that stops it before asking. */
 export function overrideOf(review: DuplicateReview): DuplicateOverride | { problem: string } {
   switch (reviewMode(review)) {
-    case 'single':
-      return { notDuplicateOf: review.seen[0].billId }
     case 'unsupported':
       return { problem: 'billIntake.duplicate.cannotOverrideMany' }
     case 'tooMany':
       return { problem: 'billIntake.duplicate.tooMany' }
+    case 'single':
     case 'many': {
       const reason = review.reason.trim()
-      if (!reason) return { problem: 'billIntake.duplicate.reasonRequired' }
+      if (!reason) return { problem: reasonRequiredKey(review) }
       if (reason.length > MAX_OVERRIDE_REASON) return { problem: 'billIntake.duplicate.reasonTooLong' }
       return { notDuplicateOfIds: review.seen.map((bill) => bill.billId), overrideReason: reason }
     }
   }
 }
 
-/** The refusals of the override itself (`BillIntakeService.requireOwnOverrides`), by code. */
+/** The refusals of the override itself (`BillIntakeService.requireOwnOverrides` and after), by code. */
 export const OVERRIDE_REFUSALS: Record<string, string> = {
   BILL_INTAKE_OVERRIDE_REASON_REQUIRED: 'billIntake.duplicate.reasonRequired',
   BILL_INTAKE_OVERRIDE_REASON_TOO_LONG: 'billIntake.duplicate.reasonTooLong',
   BILL_INTAKE_NOT_DUPLICATE_OF_TOO_MANY: 'billIntake.duplicate.tooMany',
   BILL_INTAKE_NOT_DUPLICATE_OF_UNKNOWN: 'billIntake.duplicate.unknown',
+  BILL_INTAKE_OVERRIDE_APPROVER_REQUIRED: 'billIntake.duplicate.approverRequired',
 }
 
 /**
  * A refusal of the override: the review as it now stands and the sentence, or null for any other
- * failure. An unknown bill (gone since it was named, or not this company's) ends the review: the
- * next save is answered with what is on file now, rather than with a list that holds the stale id.
+ * failure. An unknown bill (gone since it was named, no longer a possible duplicate, or not this
+ * company's) ends the review: the next save is answered with what is on file now, rather than
+ * with a list that holds the stale id.
  */
 export function overrideRefused(
   review: DuplicateReview | null,
@@ -100,19 +123,21 @@ export function overrideRefused(
 ): { review: DuplicateReview | null; key: string } | null {
   if (!(error instanceof ApiError) || !error.code || !Object.hasOwn(OVERRIDE_REFUSALS, error.code))
     return null
-  const key = OVERRIDE_REFUSALS[error.code]
+  const key =
+    error.code === 'BILL_INTAKE_OVERRIDE_REASON_REQUIRED' && review
+      ? reasonRequiredKey(review)
+      : OVERRIDE_REFUSALS[error.code]
   if (error.code === 'BILL_INTAKE_NOT_DUPLICATE_OF_UNKNOWN' || !review) return { review: null, key }
   return { review: { ...review, problem: key }, key }
 }
 
 /** The override as `toConfirmation` extras: no override is `notDuplicateOf: null`, as before. */
 export function overrideExtras(override: DuplicateOverride | null): {
-  notDuplicateOf: string | null
+  notDuplicateOf: null
   notDuplicateOfIds?: string[]
   overrideReason?: string
 } {
   if (!override) return { notDuplicateOf: null }
-  if ('notDuplicateOf' in override) return { notDuplicateOf: override.notDuplicateOf }
   return {
     notDuplicateOf: null,
     notDuplicateOfIds: override.notDuplicateOfIds,

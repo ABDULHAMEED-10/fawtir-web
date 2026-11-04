@@ -990,8 +990,8 @@ describe('Record a bill (Figma 163:27781)', () => {
   const uploaded = () => calls('POST', '/api/v1/bills/intake?source=UPLOADED&read=none')
   const confirmed = (intake: string) => calls('POST', `/api/v1/bills/intake/${intake}/confirm`)
 
-  async function typeBill() {
-    who = { ...MANAGER, permissions: [...MANAGER.permissions, 'invoice.payment.manage'] }
+  async function typeBill(alsoHolds: string[] = []) {
+    who = { ...MANAGER, permissions: [...MANAGER.permissions, 'invoice.payment.manage', ...alsoHolds] }
     renderRecord()
     await screen.findByRole('radio', { name: /PO-0033/ })
     fireEvent.change(screen.getByLabelText(/Their bill number/), { target: { value: 'QMS-2050' } })
@@ -1225,20 +1225,37 @@ describe('Record a bill (Figma 163:27781)', () => {
             currencyCode: 'OMR',
             source: 'UPLOADED',
           },
+          duplicates: [
+            {
+              billId: 'bill-old',
+              supplierBillNumber: 'QMS-2050',
+              issueDate: '2026-09-01',
+              total: 105,
+              currencyCode: 'OMR',
+              source: 'UPLOADED',
+            },
+          ],
         }),
         { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
       )
-    await typeBill()
+    await typeBill(['invoice.approve'])
     send()
     const different = await screen.findByRole('button', { name: "It's a different bill. Save it" })
     confirmResponse = succeed
     await waitFor(() => expect((different as HTMLButtonElement).disabled).toBe(false))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Reason this is a different bill' }), {
+      target: { value: 'Second order' },
+    })
     fireEvent.click(different)
 
     expect(await screen.findByText('bill page')).toBeTruthy()
     const posted = calls('POST', '/api/v1/bills').filter(([url]) => url === '/api/v1/bills')
     expect(posted).toHaveLength(2)
-    expect(JSON.parse(String(posted[1][1]?.body)).notDuplicateOf).toBe('bill-old')
+    expect(JSON.parse(String(posted[1][1]?.body))).toMatchObject({
+      notDuplicateOf: null,
+      notDuplicateOfIds: ['bill-old'],
+      overrideReason: 'Second order',
+    })
     expect(uploaded()).toHaveLength(0)
   })
 
@@ -1263,7 +1280,7 @@ describe('Record a bill (Figma 163:27781)', () => {
         }),
         { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
       )
-    await typeBill()
+    await typeBill(['invoice.approve'])
     send()
     const all = await screen.findByRole('button', { name: 'They are all different bills. Save it' })
     confirmResponse = succeed
@@ -1356,21 +1373,38 @@ describe('Record a bill (Figma 163:27781)', () => {
             currencyCode: 'OMR',
             source: 'UPLOADED',
           },
+          duplicates: [
+            {
+              billId: 'bill-old',
+              supplierBillNumber: 'QMS-2050',
+              issueDate: '2026-09-01',
+              total: 105,
+              currencyCode: 'OMR',
+              source: 'UPLOADED',
+            },
+          ],
         }),
         { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
       )
-    await typeBill()
+    await typeBill(['invoice.approve'])
     attach('bill.pdf')
     send()
     const different = await screen.findByRole('button', { name: "It's a different bill. Save it" })
     confirmResponse = succeed
     await waitFor(() => expect((different as HTMLButtonElement).disabled).toBe(false))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Reason this is a different bill' }), {
+      target: { value: 'Second order' },
+    })
     fireEvent.click(different)
 
     expect(await screen.findByText('bill page')).toBeTruthy()
     expect(uploaded()).toHaveLength(1)
     expect(confirmed('intake-1')).toHaveLength(2)
-    expect(JSON.parse(String(confirmed('intake-1')[1][1]?.body)).notDuplicateOf).toBe('bill-old')
+    expect(JSON.parse(String(confirmed('intake-1')[1][1]?.body))).toMatchObject({
+      notDuplicateOf: null,
+      notDuplicateOfIds: ['bill-old'],
+      overrideReason: 'Second order',
+    })
   })
 
   // The owner's approved sentences, word for word.

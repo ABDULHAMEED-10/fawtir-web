@@ -1,11 +1,25 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../api/errors'
+import type { Entitlements } from './identity/entitlements'
 import {
+  mayDeclareDifferent,
+  overrideExtras,
   overrideOf,
   overrideRefused,
   reviewAfterRefusal,
+  type DuplicateOverride,
   type DuplicateReview,
 } from './billDuplicateOverride'
+
+const MANAGER = {
+  userId: 'u-1',
+  username: 'manager',
+  tenantId: 't-1',
+  roles: [],
+  permissions: [],
+  scopes: [],
+  featureFlags: {},
+}
 
 const bill = (id: string, number = 'INV-1') => ({
   billId: id,
@@ -49,8 +63,22 @@ describe('the duplicate override', () => {
     expect(overrideOf(review(2, '   '))).toEqual({ problem: 'billIntake.duplicate.reasonRequired' })
   })
 
-  it('keeps one bill on the older field, with no reason', () => {
-    expect(overrideOf(review(1, ''))).toEqual({ notDuplicateOf: 'b-0' })
+  it('round 18: sends one bill as the listed id with its reason, never the reasonless single field', () => {
+    expect(overrideOf(review(1, ' Second delivery '))).toEqual({
+      notDuplicateOfIds: ['b-0'],
+      overrideReason: 'Second delivery',
+    })
+    expect(overrideOf(review(1, '  '))).toEqual({ problem: 'billIntake.duplicate.reasonRequiredSingle' })
+    expect(overrideExtras(overrideOf(review(1)) as DuplicateOverride)).toEqual({
+      notDuplicateOf: null,
+      notDuplicateOfIds: ['b-0'],
+      overrideReason: 'Reissued',
+    })
+  })
+
+  it('round 18: offers nothing for one bill from a server that cannot take a list', () => {
+    const only = reviewAfterRefusal(null, possible(['x'], 'INV-1', false))
+    expect(overrideOf(only!)).toEqual({ problem: 'billIntake.duplicate.cannotOverrideMany' })
   })
 
   it('offers nothing for two bills from a server that cannot take a list', () => {
@@ -79,5 +107,25 @@ describe('the duplicate override', () => {
       overrideRefused(review(2), refused('BILL_INTAKE_OVERRIDE_REASON_REQUIRED'))?.review?.problem,
     ).toBe('billIntake.duplicate.reasonRequired')
     expect(overrideRefused(review(2), refused('BILL_INTAKE_TOTAL_INVALID'))).toBeNull()
+  })
+
+  it('round 18: names the approver refusal and the one-bill reason refusal', () => {
+    const refused = (code: string) =>
+      new ApiError({ status: 400, problemType: 'expenditure-refused', code })
+    expect(
+      overrideRefused(review(1), refused('BILL_INTAKE_OVERRIDE_APPROVER_REQUIRED')),
+    ).toEqual({
+      review: { ...review(1), problem: 'billIntake.duplicate.approverRequired' },
+      key: 'billIntake.duplicate.approverRequired',
+    })
+    expect(
+      overrideRefused(review(1), refused('BILL_INTAKE_OVERRIDE_REASON_REQUIRED'))?.key,
+    ).toBe('billIntake.duplicate.reasonRequiredSingle')
+  })
+
+  it('round 18: offers the decision only to a session holding invoice.approve', () => {
+    const session = (permissions: string[]) => ({ ...MANAGER, permissions }) as Entitlements
+    expect(mayDeclareDifferent(session(['invoice.read', 'invoice.approve']))).toBe(true)
+    expect(mayDeclareDifferent(session(['invoice.read', 'invoice.payment.manage']))).toBe(false)
   })
 })

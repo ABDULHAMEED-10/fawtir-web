@@ -4,18 +4,24 @@ import { Link } from 'react-router-dom'
 import type { PossibleDuplicateDto } from '../../api/expenditure/billIntake'
 import {
   MAX_OVERRIDE_REASON,
+  mayDeclareDifferent,
   overrideOf,
   reviewMode,
   type DuplicateOverride,
   type DuplicateReview,
 } from '../../lib/billDuplicateOverride'
+import { useSession } from '../../lib/session/session'
 import warnIcon from '../../assets/bills/match-warn.svg'
 
 /**
- * The possible-duplicate warning every bill and note intake shows. With one bill on file it is the
- * warning those screens always drew, element for element; with more, each is listed in the same
- * sentence and a reason is asked for, because the server records it with the list (owner, 2026-10-31).
- * Each screen keeps its own sentence and button styles, so the single case does not change.
+ * The possible-duplicate warning every bill and note intake shows. Each screen keeps its own
+ * sentence and button styles.
+ *
+ * A reason is asked for one bill as for many (owner approval, batch 43 round 18, "Frontend
+ * Option 1"): the reasonless single field is no longer sent. Only an invoice approver is offered
+ * "It's a different bill"; anyone else sees it disabled with why, and can submit the same listing
+ * for review: the server records it held for an approver when the bill on file is the same
+ * supplier's copy, and refuses it by name (`BILL_INTAKE_OVERRIDE_APPROVER_REQUIRED`) otherwise.
  */
 export function DuplicateReviewPanel({
   review,
@@ -35,35 +41,15 @@ export function DuplicateReviewPanel({
   buttonClassName: string
 }) {
   const { t } = useTranslation()
+  const approver = mayDeclareDifferent(useSession())
   const mode = reviewMode(review)
+  const single = mode === 'single'
+  const decidable = single || mode === 'many'
 
   const different = () => {
     const override = overrideOf(review)
     if ('problem' in override) onChange({ ...review, problem: override.problem })
     else onDifferent(override)
-  }
-
-  if (mode === 'single') {
-    const bill = review.seen[0]
-    return (
-      <section role="alert" className="rounded-md border border-[#d8c9a8] bg-[#faf5ea] p-5">
-        <h2 className="flex items-center gap-2 text-base font-semibold text-text-primary">
-          <img src={warnIcon} alt="" className="size-5" />
-          {t('billIntake.duplicate.title')}
-        </h2>
-        <p className="mt-2 text-sm font-medium leading-[1.5] text-text-secondary">
-          {sentence(bill)}
-        </p>
-        <div className="mt-4 flex flex-wrap gap-3">
-          <Link to={`/expenditure/bills/${bill.billId}`} className={linkClassName}>
-            {t('billIntake.duplicate.open')}
-          </Link>
-          <button type="button" disabled={busy} onClick={different} className={buttonClassName}>
-            {t('billIntake.duplicate.different')}
-          </button>
-        </div>
-      </section>
-    )
   }
 
   // Not stored on the review: they hold for as long as the review does, whatever is typed.
@@ -78,24 +64,39 @@ export function DuplicateReviewPanel({
     <section role="alert" className="rounded-md border border-[#d8c9a8] bg-[#faf5ea] p-5">
       <h2 className="flex items-center gap-2 text-base font-semibold text-text-primary">
         <img src={warnIcon} alt="" className="size-5" />
-        {t('billIntake.duplicate.titleMany', { count: review.seen.length })}
+        {single
+          ? t('billIntake.duplicate.title')
+          : t('billIntake.duplicate.titleMany', { count: review.seen.length })}
       </h2>
-      <ul className="mt-2 flex flex-col gap-3">
-        {review.seen.map((bill) => (
-          <li key={bill.billId} className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm font-medium leading-[1.5] text-text-secondary">
-              {sentence(bill)}
-            </p>
-            <Link to={`/expenditure/bills/${bill.billId}`} className={linkClassName}>
+      {single ? (
+        <>
+          <p className="mt-2 text-sm font-medium leading-[1.5] text-text-secondary">
+            {sentence(review.seen[0])}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link to={`/expenditure/bills/${review.seen[0].billId}`} className={linkClassName}>
               {t('billIntake.duplicate.open')}
             </Link>
-          </li>
-        ))}
-      </ul>
-      {mode === 'many' ? (
+          </div>
+        </>
+      ) : (
+        <ul className="mt-2 flex flex-col gap-3">
+          {review.seen.map((bill) => (
+            <li key={bill.billId} className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm font-medium leading-[1.5] text-text-secondary">
+                {sentence(bill)}
+              </p>
+              <Link to={`/expenditure/bills/${bill.billId}`} className={linkClassName}>
+                {t('billIntake.duplicate.open')}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+      {decidable ? (
         <label className="mt-4 block">
           <span className="text-sm font-semibold text-text-secondary">
-            {t('billIntake.duplicate.reasonLabel')}
+            {t(single ? 'billIntake.duplicate.reasonLabelSingle' : 'billIntake.duplicate.reasonLabel')}
           </span>
           <textarea
             value={review.reason}
@@ -110,12 +111,28 @@ export function DuplicateReviewPanel({
       {standing ? (
         <p className="mt-2 text-sm font-medium text-warning-700">{t(standing)}</p>
       ) : null}
-      {mode === 'many' ? (
-        <div className="mt-4 flex flex-wrap gap-3">
-          <button type="button" disabled={busy} onClick={different} className={buttonClassName}>
-            {t('billIntake.duplicate.differentAll')}
+      {decidable ? (
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            disabled={busy || !approver}
+            onClick={different}
+            aria-describedby={approver ? undefined : 'duplicate-approver-only'}
+            className={buttonClassName}
+          >
+            {t(single ? 'billIntake.duplicate.different' : 'billIntake.duplicate.differentAll')}
           </button>
+          {approver ? null : (
+            <button type="button" disabled={busy} onClick={different} className={buttonClassName}>
+              {t('billIntake.duplicate.submitForReview')}
+            </button>
+          )}
         </div>
+      ) : null}
+      {decidable && !approver ? (
+        <p id="duplicate-approver-only" className="mt-2 text-sm font-medium text-text-secondary">
+          {t('billIntake.duplicate.approverOnly')}
+        </p>
       ) : null}
     </section>
   )

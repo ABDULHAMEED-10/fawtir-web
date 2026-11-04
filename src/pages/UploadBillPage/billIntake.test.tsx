@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
+import { SessionContext } from '../../lib/session/session'
 import type { IntakeDto } from '../../api/expenditure/billIntake'
 import type { ReferenceDataDto } from '../../api/reference/referenceData'
 import {
@@ -436,6 +437,16 @@ describe('upload a bill', () => {
           currencyCode: 'OMR',
           source: 'PEPPOL',
         },
+        duplicates: [
+          {
+            billId: ON_FILE,
+            supplierBillNumber: 'MR-INV-8821',
+            issueDate: '2026-08-30',
+            total: 105,
+            currencyCode: 'OMR',
+            source: 'PEPPOL',
+          },
+        ],
       }),
     )
     renderAt('/expenditure/bills/upload')
@@ -463,6 +474,9 @@ describe('upload a bill', () => {
       `/expenditure/bills/${ON_FILE}`,
     )
 
+    fireEvent.change(within(warning).getByRole('textbox', { name: 'Reason this is a different bill' }), {
+      target: { value: 'Second delivery' },
+    })
     fireEvent.click(within(warning).getByRole('button', { name: /different bill/ }))
     expect(await screen.findByText('bill page')).toBeTruthy()
 
@@ -476,7 +490,11 @@ describe('upload a bill', () => {
       currency: 'OMR',
       notDuplicateOf: null,
     })
-    expect(bodyOf(second).notDuplicateOf).toBe(ON_FILE)
+    expect(bodyOf(second)).toMatchObject({
+      notDuplicateOf: null,
+      notDuplicateOfIds: [ON_FILE],
+      overrideReason: 'Second delivery',
+    })
   })
 
   it('starts with the supplier whose VAT number the file states, found on the list (DB-12)', async () => {
@@ -921,18 +939,115 @@ describe('a bill that may duplicate more than one bill on file', () => {
   const giveReason = (reason: string) =>
     fireEvent.change(within(warning()).getByRole('textbox'), { target: { value: reason } })
 
-  it('keeps one listed match exactly as before: notDuplicateOf alone, no reason', async () => {
+  it('round 18: one name-only match asks for a reason, then sends the listed id with it, never notDuplicateOf', async () => {
     confirmAnswers.push(possible([X]))
     await openAndSave()
     expect(await screen.findByText('This may be a bill you already have')).toBeTruthy()
-    expect(within(warning()).queryByRole('textbox')).toBeNull()
 
     fireEvent.click(within(warning()).getByRole('button', { name: ONE_DIFFERENT }))
+    expect(
+      await within(warning()).findByText('Enter a reason before confirming this is a different bill.'),
+    ).toBeTruthy()
+    expect(confirms()).toHaveLength(1)
+
+    fireEvent.change(within(warning()).getByRole('textbox', { name: 'Reason this is a different bill' }), {
+      target: { value: '  Second delivery  ' },
+    })
+    fireEvent.click(within(warning()).getByRole('button', { name: ONE_DIFFERENT }))
     expect(await screen.findByText('bill page')).toBeTruthy()
-    const body = bodyOf(confirms()[1])
-    expect(body.notDuplicateOf).toBe(X)
-    expect('notDuplicateOfIds' in body).toBe(false)
-    expect('overrideReason' in body).toBe(false)
+    expect(bodyOf(confirms()[1])).toEqual(
+      expect.objectContaining({
+        notDuplicateOf: null,
+        notDuplicateOfIds: [X],
+        overrideReason: 'Second delivery',
+      }),
+    )
+  })
+
+  describe('round 18: a person without invoice.approve', () => {
+    const PAYER = {
+      userId: 'u-payer',
+      username: 'payer',
+      tenantId: 't-1',
+      roles: [],
+      permissions: ['invoice.read', 'invoice.list', 'invoice.payment.manage'],
+      scopes: [],
+      featureFlags: {},
+    } as Entitlements
+
+    async function openAndSaveAs(session: Entitlements) {
+      uploads.push(XML_INTAKE)
+      render(
+        <SessionContext.Provider value={session}>
+          <MemoryRouter initialEntries={['/expenditure/bills/upload']}>
+            <Routes>
+              <Route path="/expenditure/bills/upload" element={<UploadBillPage />} />
+              <Route path="/expenditure/bills/upload/:intakeId" element={<UploadBillPage />} />
+              <Route path="/expenditure/bills/:id" element={<p>bill page</p>} />
+            </Routes>
+          </MemoryRouter>
+        </SessionContext.Provider>,
+      )
+      await pick([new File(['<Invoice/>'], 'bill.xml', { type: 'application/xml' })])
+      await screen.findByDisplayValue('MR-INV-8821')
+      fireEvent.click(screen.getByRole('button', { name: 'Save the bill' }))
+    }
+
+    it('sees the decision disabled with why, for one match and for many', async () => {
+      confirmAnswers.push(possible([X, Y]))
+      await openAndSaveAs(PAYER)
+      await screen.findByText('This may be one of 2 bills you already have')
+      const all = within(warning()).getByRole('button', { name: ALL_DIFFERENT }) as HTMLButtonElement
+      expect(all.disabled).toBe(true)
+      expect(
+        within(warning()).getByText(
+          'Only an authorized invoice approver can confirm that this is a different bill. You can submit it for review.',
+        ),
+      ).toBeTruthy()
+      fireEvent.click(all)
+      expect(confirms()).toHaveLength(1)
+    })
+
+    it('submits the bill for review with the listed id and reason; the server holds it', async () => {
+      confirmAnswers.push(possible([X]))
+      await openAndSaveAs(PAYER)
+      await screen.findByText('This may be a bill you already have')
+      expect(
+        (within(warning()).getByRole('button', { name: ONE_DIFFERENT }) as HTMLButtonElement).disabled,
+      ).toBe(true)
+      giveReason('Copy of the Peppol bill for the approver')
+      fireEvent.click(within(warning()).getByRole('button', { name: 'Submit it for review' }))
+      expect(await screen.findByText('bill page')).toBeTruthy()
+      expect(bodyOf(confirms()[1])).toMatchObject({
+        notDuplicateOf: null,
+        notDuplicateOfIds: [X],
+        overrideReason: 'Copy of the Peppol bill for the approver',
+      })
+    })
+
+    it('words the approver refusal when the server will not hold the bill', async () => {
+      confirmAnswers.push(possible([X]), refusedWith('BILL_INTAKE_OVERRIDE_APPROVER_REQUIRED'))
+      await openAndSaveAs(PAYER)
+      await screen.findByText('This may be a bill you already have')
+      giveReason('Different delivery')
+      fireEvent.click(within(warning()).getByRole('button', { name: 'Submit it for review' }))
+      expect(
+        await within(warning()).findByText(
+          'This action requires an authorized human invoice approver. Submit the bill for review instead.',
+        ),
+      ).toBeTruthy()
+      expect(screen.queryByText(/BILL_INTAKE_OVERRIDE_APPROVER_REQUIRED/)).toBeNull()
+    })
+
+    it('an approver is offered the decision and no review button', async () => {
+      confirmAnswers.push(possible([X]))
+      await openAndSaveAs({ ...PAYER, permissions: [...PAYER.permissions, 'invoice.approve'] })
+      await screen.findByText('This may be a bill you already have')
+      expect(
+        (within(warning()).getByRole('button', { name: ONE_DIFFERENT }) as HTMLButtonElement).disabled,
+      ).toBe(false)
+      expect(within(warning()).queryByRole('button', { name: 'Submit it for review' })).toBeNull()
+    })
   })
 
   it('lists both bills, asks why, and saves over both with the reason trimmed', async () => {
@@ -967,15 +1082,16 @@ describe('a bill that may duplicate more than one bill on file', () => {
   it('ends the X/Y swap: the second bill named is added to the first, not put in its place', async () => {
     confirmAnswers.push(possible([X]), possible([Y]))
     await openAndSave()
-    fireEvent.click(
-      within(await screen.findByRole('alert', { name: '' })).getByRole('button', {
-        name: ONE_DIFFERENT,
-      }),
-    )
-    expect(await screen.findByText('This may be one of 2 bills you already have')).toBeTruthy()
-    expect(bodyOf(confirms()[1]).notDuplicateOf).toBe(X)
-
+    await screen.findByRole('alert', { name: '' })
     giveReason('Two deliveries billed under one number')
+    fireEvent.click(within(warning()).getByRole('button', { name: ONE_DIFFERENT }))
+    expect(await screen.findByText('This may be one of 2 bills you already have')).toBeTruthy()
+    expect(bodyOf(confirms()[1])).toMatchObject({
+      notDuplicateOf: null,
+      notDuplicateOfIds: [X],
+      overrideReason: 'Two deliveries billed under one number',
+    })
+
     sendAll()
     expect(await screen.findByText('bill page')).toBeTruthy()
     expect(bodyOf(confirms()[2])).toMatchObject({
@@ -985,23 +1101,14 @@ describe('a bill that may duplicate more than one bill on file', () => {
     })
   })
 
-  it('never sends the list to a server that did not list the matches', async () => {
-    confirmAnswers.push(possible(null, X), possible(null, Y))
+  it('round 18: offers nothing to a server that did not list the matches, since the reasonless field is gone', async () => {
+    confirmAnswers.push(possible(null, X))
     await openAndSave()
-    fireEvent.click(
-      within(await screen.findByRole('alert', { name: '' })).getByRole('button', {
-        name: ONE_DIFFERENT,
-      }),
-    )
     expect(await screen.findByText(/they cannot be set aside here yet/)).toBeTruthy()
     expect(within(warning()).queryByRole('button')).toBeNull()
     expect(within(warning()).queryByRole('textbox')).toBeNull()
-    expect(confirms()).toHaveLength(2)
-    for (const call of confirms()) {
-      expect('notDuplicateOfIds' in bodyOf(call)).toBe(false)
-      expect('overrideReason' in bodyOf(call)).toBe(false)
-    }
-    expect(bodyOf(confirms()[1]).notDuplicateOf).toBe(X)
+    expect(confirms()).toHaveLength(1)
+    expect(bodyOf(confirms()[0]).notDuplicateOf).toBeNull()
   })
 
   it('gathers the ids across refusals and stops past 20 without asking', async () => {

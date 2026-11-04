@@ -343,6 +343,16 @@ describe('scan receipts: a possible duplicate', () => {
         currencyCode: 'OMR',
         source,
       },
+      duplicates: [
+        {
+          billId: 'b-on-file',
+          supplierBillNumber: 'R-4471',
+          issueDate: '2026-09-12',
+          total: 28.4,
+          currencyCode: 'OMR',
+          source,
+        },
+      ],
     })
 
   it('names the bill on file, and saves only when told it is a different bill', async () => {
@@ -360,11 +370,16 @@ describe('scan receipts: a possible duplicate', () => {
     )
     expect(bodyOf(calls('POST', '/api/v1/bills/intake/r-1/confirm')[0]).notDuplicateOf).toBeNull()
 
+    fireEvent.change(screen.getByRole('textbox', { name: 'Reason this is a different bill' }), {
+      target: { value: 'Two visits' },
+    })
     fireEvent.click(screen.getByRole('button', { name: /It's a different bill/ }))
     await waitFor(() => expect(calls('POST', '/api/v1/bills/intake/r-1/confirm')).toHaveLength(2))
-    expect(bodyOf(calls('POST', '/api/v1/bills/intake/r-1/confirm')[1]).notDuplicateOf).toBe(
-      'b-on-file',
-    )
+    expect(bodyOf(calls('POST', '/api/v1/bills/intake/r-1/confirm')[1])).toMatchObject({
+      notDuplicateOf: null,
+      notDuplicateOfIds: ['b-on-file'],
+      overrideReason: 'Two visits',
+    })
     expect(await screen.findByText('Saved as a bill.')).toBeTruthy()
   })
 
