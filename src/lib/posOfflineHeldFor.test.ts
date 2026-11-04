@@ -76,14 +76,13 @@ describe('the causes on a held sale (PRV43-OFF2 N-1)', () => {
       'belowNotOnSale',
       'unit',
       'notEstablished',
+      'notOnSaleNow',
     ]) {
       expect(
         i18n.exists(`pos.offline.detail.heldFor.${key}`, { lng: 'ar', fallbackLng: false }),
       ).toBe(true)
     }
-    for (const key of ['invoiceIssue.stockWarning.line', 'pos.warning.POS_PRODUCT_NOT_SELLABLE_ACCEPTED']) {
-      expect(i18n.exists(key, { lng: 'ar', fallbackLng: false })).toBe(true)
-    }
+    expect(i18n.exists('invoiceIssue.stockWarning.line', { lng: 'ar', fallbackLng: false })).toBe(true)
   })
 
   // PRV43-OFF3 L-2: a line cause this build does not know keeps the line it names.
@@ -98,8 +97,9 @@ describe('the causes on a held sale (PRV43-OFF2 N-1)', () => {
     ])
   })
 
-  // PRV43-OFF3 L-3: a line in another unit whose product went off sale says so too.
-  it('says an off-sale line in another unit was off sale', async () => {
+  // PRV43-OFF3 L-3: a line in another unit whose product is off sale says so too, in the owner's
+  // Round 27 wording, which claims nothing about when it went off sale.
+  it('says an off-sale line in another unit is not on sale now', async () => {
     await i18n.changeLanguage('en')
     const { lines } = heldForText({
       causes: ['LEGACY_PRICE_UNIT_NOT_COMPARABLE'],
@@ -123,7 +123,7 @@ describe('the causes on a held sale (PRV43-OFF2 N-1)', () => {
     })
     expect(lines.map((entry) => heldForMessage(i18n.t, entry))).toEqual([
       'Line 2: sold at 10.000 per XCT; the catalogue price is 2.000 per EA, not converted',
-      'Line 2 was sold offline after it went off sale.',
+      'Line 2 was sold offline and is not on sale now.',
       'Line 3: sold at 10.000 per XCT; the catalogue price is 2.000 per EA, not converted',
     ])
   })

@@ -4965,7 +4965,8 @@
           "below": "Line {{line}}: sold at {{price}}; the catalogue price when it was filed is {{catalogue}}",
           "belowNotOnSale": "Line {{line}}: sold at {{price}}; the price stored for it is {{catalogue}} (no longer on sale)",
           "unit": "Line {{line}}: sold at {{price}} per {{unit}}; the catalogue price is {{catalogue}} per {{productUnit}}, not converted",
-          "notEstablished": "Line {{line}}: no price could be found to compare with"
+          "notEstablished": "Line {{line}}: no price could be found to compare with",
+          "notOnSaleNow": "Line {{line}} was sold offline and is not on sale now."
         }
       },
       "resolve": {

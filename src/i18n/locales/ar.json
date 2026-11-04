@@ -5284,7 +5284,8 @@
           "below": "البند {{line}}: بيع بسعر {{price}}؛ سعر الكتالوج عند تسجيل البيع {{catalogue}}",
           "belowNotOnSale": "البند {{line}}: بيع بسعر {{price}}؛ السعر المحفوظ له {{catalogue}} (لم يعد معروضًا للبيع)",
           "unit": "البند {{line}}: بيع بسعر {{price}} لكل {{unit}}؛ سعر الكتالوج {{catalogue}} لكل {{productUnit}}، دون تحويل",
-          "notEstablished": "البند {{line}}: لم يُعثر على سعر للمقارنة"
+          "notEstablished": "البند {{line}}: لم يُعثر على سعر للمقارنة",
+          "notOnSaleNow": "بيع البند {{line}} دون اتصال، وهو غير معروض للبيع الآن."
         }
       },
       "resolve": {

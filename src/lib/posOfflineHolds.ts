@@ -58,20 +58,20 @@ export function offlineHoldTime(instant: string | null | undefined): string {
 }
 
 /**
- * A message key under `ns` (by default `pos.offline.detail.heldFor`) and what fills it. With `line`
- * the message is shown after that line's number. Both reuse sentences already approved in English
- * and Arabic, so no new wording waits on sign-off (PRV43-OFF3 L-2, L-3; owner Round 22).
+ * A message key under `pos.offline.detail.heldFor` and what fills it. With `line` the message is
+ * shown after that line's number, reusing the approved `invoiceIssue.stockWarning.line` wrapper
+ * (PRV43-OFF3 L-2). `notOnSaleNow` is owner-approved in English (Round 27); its Arabic is a draft
+ * awaiting native sign-off.
  */
 export type HeldForText = {
   key: string
   values: Record<string, string | number>
-  ns?: string
   line?: number
 }
 
 /** The text of one entry of {@link heldForText}, in the current language. */
 export function heldForMessage(t: TFunction, entry: HeldForText): string {
-  const text = t(`${entry.ns ?? 'pos.offline.detail.heldFor'}.${entry.key}`, entry.values)
+  const text = t(`pos.offline.detail.heldFor.${entry.key}`, entry.values)
   return entry.line === undefined ? text : t('invoiceIssue.stockWarning.line', { line: entry.line, text })
 }
 
@@ -113,9 +113,10 @@ export function heldForText(heldFor: OfflineHeldFor): {
     }
     if (held.cause === 'LEGACY_PRICE_UNIT_NOT_COMPARABLE') {
       const unit: HeldForText = { key: 'unit', values }
-      return held.notOnSale
-        ? [unit, { key: 'POS_PRODUCT_NOT_SELLABLE_ACCEPTED', ns: 'pos.warning', values: { line: held.line } }]
-        : [unit]
+      // Its own key, not pos.warning.POS_PRODUCT_NOT_SELLABLE_ACCEPTED: that one is the till's sale
+      // warning (PosDonePage, PosRefundPage) and keeps its meaning. notOnSale says the product is off
+      // sale, never when it went off sale, so the wording must not claim an order (owner Round 27).
+      return held.notOnSale ? [unit, { key: 'notOnSaleNow', values: { line: held.line } }] : [unit]
     }
     if (held.cause === 'LEGACY_PRICE_NOT_ESTABLISHED') return [{ key: 'notEstablished', values }]
     if (held.cause === 'LEGACY_PRICE_BELOW_CATALOGUE') {
