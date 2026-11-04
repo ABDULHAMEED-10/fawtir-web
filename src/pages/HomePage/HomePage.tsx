@@ -272,7 +272,7 @@ const STRIP = [
 
 /**
  * One line under the module cards (owner, 4 Nov 2026): the company-wide parts, as small chips,
- * leading to the Features page's Company and team tab rather than a fifth card.
+ * leading to the Features page (its Invoicing tab, owner 4 Nov 2026) rather than a fifth card.
  */
 function CompanyStrip() {
   const { t } = useTranslation()
@@ -290,7 +290,7 @@ function CompanyStrip() {
         ))}
       </ul>
       <Link
-        to="/features#company"
+        to="/features#invoicing"
         className="inline-flex items-center gap-1 text-sm font-semibold text-[#2c4eb7] hover:underline"
       >
         {t('landing.features.strip.more')}
