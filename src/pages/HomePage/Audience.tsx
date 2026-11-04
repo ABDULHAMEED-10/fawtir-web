@@ -109,7 +109,6 @@ function InvoicePreview() {
           </div>
         </div>
       </div>
-      <figcaption className={`mt-3 text-center text-xs ${SOFT}`}>{t(`${base}.caption`)}</figcaption>
     </figure>
   )
 }

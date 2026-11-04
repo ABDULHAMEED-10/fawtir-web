@@ -57,9 +57,6 @@ export function QrSection() {
             loading="lazy"
             className="w-full max-w-[320px] rounded-lg border border-[#e3e8f6] shadow-[0_16px_40px_rgba(21,28,45,0.12)]"
           />
-          <figcaption className={`mt-4 text-center text-xs ${SOFT}`}>
-            {t('landing.qr.caption')}
-          </figcaption>
         </figure>
       </div>
     </section>
