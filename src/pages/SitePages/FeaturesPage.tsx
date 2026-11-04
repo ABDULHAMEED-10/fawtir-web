@@ -104,7 +104,33 @@ const ROWS: Row[] = [
 
 type ModuleKey = 'pos' | 'invoicing' | 'expenses' | 'tax' | 'reports' | 'company'
 type Tile = [key: string, icon: string]
+/** Tax Authority first: what Fawtir is for (owner, 4 Nov 2026). */
 const MODULES: { key: ModuleKey; rows: RowKey[]; tiles: Tile[] }[] = [
+  {
+    key: 'tax',
+    rows: ['tdd', 'journey', 'archive'],
+    tiles: [
+      ['pintom', 'shield'],
+      ['calllog', 'list'],
+      ['report', 'chart'],
+      ['b2c', 'clock'],
+      ['proof', 'stamp'],
+      ['resend', 'send'],
+      ['peppol', 'globe'],
+    ],
+  },
+  {
+    key: 'invoicing',
+    rows: ['invoicing', 'transactions', 'customers', 'periodic'],
+    tiles: [
+      ['notes', 'file'],
+      ['reminders', 'bell'],
+      ['bulk', 'upload'],
+      ['approval', 'approve'],
+      ['replies', 'send'],
+      ['payments', 'card'],
+    ],
+  },
   {
     key: 'pos',
     rows: ['till', 'stock'],
@@ -124,18 +150,6 @@ const MODULES: { key: ModuleKey; rows: RowKey[]; tiles: Tile[] }[] = [
     ],
   },
   {
-    key: 'invoicing',
-    rows: ['invoicing', 'transactions', 'customers', 'periodic'],
-    tiles: [
-      ['notes', 'file'],
-      ['reminders', 'bell'],
-      ['bulk', 'upload'],
-      ['approval', 'approve'],
-      ['replies', 'send'],
-      ['payments', 'card'],
-    ],
-  },
-  {
     key: 'expenses',
     rows: ['bills', 'payments', 'recurring', 'supplierNotes'],
     tiles: [
@@ -145,19 +159,6 @@ const MODULES: { key: ModuleKey; rows: RowKey[]; tiles: Tile[] }[] = [
       ['waiting', 'inbox'],
       ['suppliers', 'users'],
       ['vat', 'percent'],
-    ],
-  },
-  {
-    key: 'tax',
-    rows: ['tdd', 'journey', 'archive'],
-    tiles: [
-      ['pintom', 'shield'],
-      ['calllog', 'list'],
-      ['report', 'chart'],
-      ['b2c', 'clock'],
-      ['proof', 'stamp'],
-      ['resend', 'send'],
-      ['peppol', 'globe'],
     ],
   },
   {
@@ -190,7 +191,7 @@ function moduleFromHash(hash: string): ModuleKey {
   const id = hash.replace('#', '')
   const old: Record<string, ModuleKey> = { filing: 'tax', qr: 'tax', erp: 'company' }
   const found = MODULES.find((m) => m.key === id || (m.rows as string[]).includes(id))
-  return found ? found.key : (old[id] ?? 'pos')
+  return found ? found.key : (old[id] ?? 'tax')
 }
 
 const ITEMS = ['a', 'b', 'c', 'd', 'e']
@@ -221,7 +222,7 @@ export function FeaturesPage() {
 function ModuleTabs() {
   const { t } = useTranslation()
   const [active, setActive] = useState<ModuleKey>(() =>
-    typeof window === 'undefined' ? 'pos' : moduleFromHash(window.location.hash),
+    typeof window === 'undefined' ? 'tax' : moduleFromHash(window.location.hash),
   )
   const navRef = useRef<HTMLElement>(null)
   // The bar sticks to the top; it slides away while scrolling down and returns on the way up

@@ -297,21 +297,21 @@ describe('Pricing page', () => {
 })
 
 describe('Features page', () => {
-  // Six module tabs (owner, 4 Nov 2026), one panel shown at a time; each opens with its main
+  // Six module tabs, Tax Authority first (owner, 4 Nov 2026), one panel shown at a time; each opens with its main
   // screens and ends with its smaller features.
   it('groups the features into module tabs and switches panels', () => {
     renderPage(<FeaturesPage />)
     expect(screen.getByRole('heading', { level: 1 }).textContent).toContain(
       i18n.t('site.features.hero.word'),
     )
-    const tabs = ['pos', 'invoicing', 'expenses', 'tax', 'reports', 'company'].map((key) =>
+    const tabs = ['tax', 'invoicing', 'pos', 'expenses', 'reports', 'company'].map((key) =>
       screen.getByRole('tab', { name: i18n.t(`site.features.modules.${key}`) }),
     )
     expect(tabs[0].getAttribute('aria-selected')).toBe('true')
-    expect(screen.getByText(i18n.t('site.features.tiles.pos.barcode.title'))).toBeTruthy()
+    expect(screen.getByText(i18n.t('site.features.tiles.tax.pintom.title'))).toBeTruthy()
 
-    fireEvent.click(tabs[2])
-    expect(tabs[2].getAttribute('aria-selected')).toBe('true')
+    fireEvent.click(tabs[3])
+    expect(tabs[3].getAttribute('aria-selected')).toBe('true')
     const expenses = screen.getByRole('tabpanel', {
       name: i18n.t('site.features.modules.expenses'),
     })
