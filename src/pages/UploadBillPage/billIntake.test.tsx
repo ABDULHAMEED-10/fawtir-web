@@ -984,8 +984,8 @@ describe('a bill that may duplicate more than one bill on file', () => {
     })
   const figuresOnlyCoincidence = () => matchOf('PEPPOL', false)
   const sameRecordUpload = () => matchOf('UPLOADED', false)
-  const refusedWith = (code: string) =>
-    json(400, { type: 'https://api.fawtir.om/problems/expenditure-refused', error: code })
+  const refusedWith = (code: string, extra: Record<string, unknown> = {}) =>
+    json(400, { type: 'https://api.fawtir.om/problems/expenditure-refused', error: code, ...extra })
   const confirms = () => calls('POST', '/api/v1/bills/intake/i-xml/confirm')
   const warning = () => screen.getByRole('alert', { name: '' })
   const ALL_DIFFERENT = 'They are all different bills. Save it'
@@ -1346,6 +1346,54 @@ describe('a bill that may duplicate more than one bill on file', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save the bill' }))
     // Only Y is on file now: the older single warning, with no stale X carried over.
     expect(await screen.findByText('This may be a bill you already have')).toBeTruthy()
+  })
+
+  it.each([
+    [
+      'REFERENCE_NOT_FOUND',
+      'One of the bills it was compared with is no longer on file. Save again to check it afresh.',
+    ],
+    [
+      'REFERENCE_NO_LONGER_MATCHES',
+      'One of the bills it was compared with is still on file but no longer matches this bill. Save again to check it afresh.',
+    ],
+  ])('round 23 L-3: words an unknown bill with reason %s, and asks afresh on the next save', async (reason, sentence) => {
+    confirmAnswers.push(
+      possible([X, Y]),
+      refusedWith('BILL_INTAKE_NOT_DUPLICATE_OF_UNKNOWN', { reason }),
+      possible([Y]),
+    )
+    await openAndSave()
+    await screen.findByText('This may be one of 2 bills you already have')
+    giveReason('Reissued numbers')
+    sendAll()
+    expect(await screen.findByText(sentence)).toBeTruthy()
+    expect(
+      screen.queryByText(
+        'One of the bills it was compared with is no longer on file, or no longer matches this bill. Save again to check it afresh.',
+      ),
+    ).toBeNull()
+    expect(screen.queryByText(new RegExp(reason))).toBeNull()
+    expect(screen.queryByRole('textbox', { name: 'Why is this a different bill?' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save the bill' }))
+    expect(await screen.findByText('This may be a bill you already have')).toBeTruthy()
+  })
+
+  it('round 23 L-3: a reason this screen does not know keeps the combined sentence', async () => {
+    confirmAnswers.push(
+      possible([X, Y]),
+      refusedWith('BILL_INTAKE_NOT_DUPLICATE_OF_UNKNOWN', { reason: 'REFERENCE_SOMETHING_ELSE' }),
+    )
+    await openAndSave()
+    await screen.findByText('This may be one of 2 bills you already have')
+    giveReason('Reissued numbers')
+    sendAll()
+    expect(
+      await screen.findByText(
+        'One of the bills it was compared with is no longer on file, or no longer matches this bill. Save again to check it afresh.',
+      ),
+    ).toBeTruthy()
   })
 
   it('says it in Arabic', async () => {

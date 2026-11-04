@@ -133,6 +133,25 @@ export const OVERRIDE_REFUSALS: Record<string, string> = {
 }
 
 /**
+ * Owner round 23 (L-3 split): the server adds `reason` to an unknown-bill refusal. Only these two
+ * exact values pick their own sentence; anything else, including an older server that sends none,
+ * keeps the approved combined sentence, which is true of both.
+ */
+export type DuplicateReferenceReason = 'REFERENCE_NOT_FOUND' | 'REFERENCE_NO_LONGER_MATCHES'
+
+const UNKNOWN_REFERENCE_KEYS: Record<DuplicateReferenceReason, string> = {
+  REFERENCE_NOT_FOUND: 'billIntake.duplicate.unknownNotFound',
+  REFERENCE_NO_LONGER_MATCHES: 'billIntake.duplicate.unknownNoLongerMatches',
+}
+
+function unknownReferenceKey(error: ApiError): string {
+  const reason = error.problem.reason
+  return typeof reason === 'string' && Object.hasOwn(UNKNOWN_REFERENCE_KEYS, reason)
+    ? UNKNOWN_REFERENCE_KEYS[reason as DuplicateReferenceReason]
+    : OVERRIDE_REFUSALS.BILL_INTAKE_NOT_DUPLICATE_OF_UNKNOWN
+}
+
+/**
  * A refusal of the override: the review as it now stands and the sentence, or null for any other
  * failure. An unknown bill (gone since it was named, no longer a possible duplicate, or not this
  * company's) ends the review: the next save is answered with what is on file now, rather than
@@ -147,7 +166,9 @@ export function overrideRefused(
   const key =
     error.code === 'BILL_INTAKE_OVERRIDE_REASON_REQUIRED' && review
       ? reasonRequiredKey(review)
-      : OVERRIDE_REFUSALS[error.code]
+      : error.code === 'BILL_INTAKE_NOT_DUPLICATE_OF_UNKNOWN'
+        ? unknownReferenceKey(error)
+        : OVERRIDE_REFUSALS[error.code]
   if (error.code === 'BILL_INTAKE_NOT_DUPLICATE_OF_UNKNOWN' || !review) return { review: null, key }
   // The server has just said this listing is not recorded held, so it is never offered again as a
   // submission for review (owner round 19: never present a refusal as a submission).

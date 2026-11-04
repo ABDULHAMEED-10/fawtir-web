@@ -112,6 +112,30 @@ describe('the duplicate override', () => {
     expect(overrideRefused(review(2), refused('BILL_INTAKE_TOTAL_INVALID'))).toBeNull()
   })
 
+  it('round 23 L-3: words an unknown bill by the reason the server gives, and falls back without one', () => {
+    const unknown = (problem: Record<string, unknown>) =>
+      new ApiError({
+        status: 400,
+        problemType: 'expenditure-refused',
+        code: 'BILL_INTAKE_NOT_DUPLICATE_OF_UNKNOWN',
+        problem: { error: 'BILL_INTAKE_NOT_DUPLICATE_OF_UNKNOWN', ...problem },
+      })
+    expect(overrideRefused(review(2), unknown({ reason: 'REFERENCE_NOT_FOUND' }))).toEqual({
+      review: null,
+      key: 'billIntake.duplicate.unknownNotFound',
+    })
+    expect(overrideRefused(review(2), unknown({ reason: 'REFERENCE_NO_LONGER_MATCHES' }))).toEqual({
+      review: null,
+      key: 'billIntake.duplicate.unknownNoLongerMatches',
+    })
+    for (const older of [{}, { reason: null }, { reason: 'SOMETHING_NEW' }, { reason: 1 }, { reason: 'reference_not_found' }]) {
+      expect(overrideRefused(review(2), unknown(older))).toEqual({
+        review: null,
+        key: 'billIntake.duplicate.unknown',
+      })
+    }
+  })
+
   it('round 18: names the approver refusal and the one-bill reason refusal', () => {
     const refused = (code: string) =>
       new ApiError({ status: 400, problemType: 'expenditure-refused', code })

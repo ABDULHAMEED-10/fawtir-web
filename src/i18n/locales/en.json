@@ -21776,6 +21776,8 @@
       "reasonTooLong": "Keep the reason to 280 characters.",
       "tooMany": "This bill matches too many bills on file to save in one go. Open them and check the supplier and number.",
       "unknown": "One of the bills it was compared with is no longer on file, or no longer matches this bill. Save again to check it afresh.",
+      "unknownNotFound": "One of the bills it was compared with is no longer on file. Save again to check it afresh.",
+      "unknownNoLongerMatches": "One of the bills it was compared with is still on file but no longer matches this bill. Save again to check it afresh.",
       "cannotOverrideMany": "This bill matches more than one bill on file, and they cannot be set aside here yet. Open them and check the supplier and number.",
       "reasonRequiredSingle": "Enter a reason before confirming this is a different bill.",
       "approverOnly": "Only an authorized invoice approver can confirm that this is a different bill. You can submit it for review.",
