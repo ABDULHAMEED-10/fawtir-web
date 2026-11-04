@@ -23564,6 +23564,12 @@
           "title": "Leave whenever",
           "body": "Export everything, including the original files sent to the Tax Authority."
         }
+      },
+      "modules": {
+        "pos": "Point of sale",
+        "invoicing": "Invoicing",
+        "tax": "Tax Authority",
+        "reports": "Reports"
       }
     },
     "contact": {

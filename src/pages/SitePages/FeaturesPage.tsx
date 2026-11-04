@@ -1,7 +1,8 @@
-import { Fragment, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Audience } from '../HomePage/Audience'
 import { Counter, Steps } from '../HomePage/HomePage'
+import { QrSection } from '../HomePage/QrSection'
 import tillShot from '../../assets/site/feature-till.webp'
 import invoiceShot from '../../assets/site/feature-invoice.webp'
 import proofShot from '../../assets/site/feature-proof.webp'
@@ -48,6 +49,25 @@ const ROWS: { key: RowKey; shot: string; wave?: string }[] = [
   { key: 'transactions', shot: findShot, wave: wave3 },
   { key: 'dashboard', shot: numbersShot },
 ]
+/**
+ * Module tabs (owner, 4 Nov 2026): the rows grouped by the part of Fawtir they belong to, one
+ * group shown at a time. The till's steps and phones (moved from the home page) and stock sit
+ * under Point of sale; the QR section joins the Tax Authority tab.
+ */
+type ModuleKey = 'pos' | 'invoicing' | 'tax' | 'reports'
+const MODULES: { key: ModuleKey; rows: RowKey[] }[] = [
+  { key: 'pos', rows: ['till', 'stock'] },
+  { key: 'invoicing', rows: ['invoicing', 'transactions'] },
+  { key: 'tax', rows: ['filing'] },
+  { key: 'reports', rows: ['dashboard'] },
+]
+/** The module a link lands on: its own key, or the key of a row inside it (old links). */
+function moduleFromHash(hash: string): ModuleKey {
+  const id = hash.replace('#', '')
+  const found = MODULES.find((m) => m.key === id || (m.rows as string[]).includes(id))
+  return found ? found.key : 'pos'
+}
+
 const ITEMS = ['a', 'b', 'c', 'd', 'e']
 
 export function FeaturesPage() {
@@ -63,21 +83,7 @@ export function FeaturesPage() {
         body={t('site.features.hero.body')}
       />
       <main>
-        <Tabs />
-        <div className="mt-[100px] flex flex-col gap-[200px] max-md:mt-12 max-md:gap-24">
-          {ROWS.map((row) => (
-            <Fragment key={row.key}>
-              {row.wave ? <OpenRow row={row} /> : <BoxedRow row={row} />}
-              {/* Moved from the home page so it does not repeat the till (owner, 4 Nov 2026). */}
-              {row.key === 'till' ? (
-                <div className="-mt-[200px] max-md:-mt-24">
-                  <Steps />
-                  <Counter />
-                </div>
-              ) : null}
-            </Fragment>
-          ))}
-        </div>
+        <ModuleTabs />
         <Audience photo="office" till="clothes" />
         <Parts />
       </main>
@@ -89,34 +95,79 @@ export function FeaturesPage() {
 
 /* -------------------------------------------------------------------- tabs */
 
-function Tabs() {
+function ModuleTabs() {
   const { t } = useTranslation()
-  const [active, setActive] = useState<RowKey>('till')
+  const [active, setActive] = useState<ModuleKey>(() =>
+    typeof window === 'undefined' ? 'pos' : moduleFromHash(window.location.hash),
+  )
+  const choose = (key: ModuleKey) => {
+    setActive(key)
+    window.history.replaceState(null, '', `#${key}`)
+  }
+  const row = (key: RowKey) => {
+    const found = ROWS.find((r) => r.key === key)!
+    return found.wave ? <OpenRow key={key} row={found} /> : <BoxedRow key={key} row={found} />
+  }
   return (
-    <nav
-      aria-label={t('site.features.tabs.label')}
-      className="mx-auto w-full max-w-[1520px] px-4 md:px-8 min-[1600px]:px-0"
-    >
-      <ul className="flex overflow-x-auto rounded-lg bg-[#fafafa]">
-        {ROWS.map((row) => {
-          const on = row.key === active
-          return (
-            <li key={row.key} className="min-w-fit flex-1">
-              <a
-                href={`#${row.key}`}
-                onClick={() => setActive(row.key)}
-                aria-current={on ? 'true' : undefined}
-                className={`flex h-12 items-center justify-center whitespace-nowrap border-b-[2.5px] px-4 text-base leading-[normal] ${
+    <>
+      <nav
+        aria-label={t('site.features.tabs.label')}
+        className="mx-auto w-full max-w-[1520px] px-4 md:px-8 min-[1600px]:px-0"
+      >
+        <div role="tablist" className="flex overflow-x-auto rounded-lg bg-[#fafafa]">
+          {MODULES.map((m) => {
+            const on = m.key === active
+            return (
+              <button
+                key={m.key}
+                type="button"
+                role="tab"
+                id={`tab-${m.key}`}
+                aria-selected={on}
+                aria-controls={`panel-${m.key}`}
+                onClick={() => choose(m.key)}
+                className={`flex h-12 min-w-fit flex-1 items-center justify-center whitespace-nowrap border-b-[2.5px] px-4 text-base leading-[normal] ${
                   on ? 'border-[#2c4eb7] font-semibold text-[#2c4eb7]' : `border-transparent ${INK}`
                 }`}
               >
-                {t(`site.features.tabs.${row.key}`)}
-              </a>
-            </li>
-          )
-        })}
-      </ul>
-    </nav>
+                {t(`site.features.modules.${m.key}`)}
+              </button>
+            )
+          })}
+        </div>
+      </nav>
+      {/* Every panel stays in the page for search engines; only the chosen one shows. */}
+      {MODULES.map((m) => (
+        <div
+          key={m.key}
+          id={`panel-${m.key}`}
+          role="tabpanel"
+          aria-labelledby={`tab-${m.key}`}
+          hidden={m.key !== active}
+          className="mt-[100px] max-md:mt-12"
+        >
+          <div className="flex flex-col gap-[200px] max-md:gap-24">
+            {m.key === 'pos' ? (
+              <>
+                {row('till')}
+                <div className="-mt-[200px] max-md:-mt-24">
+                  <Steps />
+                  <Counter />
+                </div>
+                {row('stock')}
+              </>
+            ) : (
+              m.rows.map(row)
+            )}
+            {m.key === 'tax' ? (
+              <div className="-mt-[200px] max-md:-mt-24">
+                <QrSection />
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ))}
+    </>
   )
 }
 
