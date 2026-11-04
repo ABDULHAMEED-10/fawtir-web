@@ -40,7 +40,9 @@ const APPROVED: [string, string][] = [
 
 // Round 25 (W-1) needs this one for a server that does not say whether it holds the bill. Its EN
 // text is PENDING owner approval, so it is pinned apart from APPROVED: an approval that rewords it
-// changes this list, not the approved one.
+// changes this list, not the approved one. Round 28 adds the potential coincidences on the bill
+// page (O-A Option 1, L-7), their refusal, the note upload's hold sentences (L-4) and the reworded
+// DUPLICATE_OVERRIDDEN activity label, all pending too.
 const PENDING: [string, string][] = [
   [
     'billIntake.scan.savedStatusUnknown',
@@ -50,9 +52,31 @@ const PENDING: [string, string][] = [
     'billIntake.duplicate.bodyFiguresOnly',
     'A bill {{number}} with the same details is already recorded, but nothing shows it is from this supplier: dated {{date}}, {{total}}, {{source}}. It may be a coincidence.',
   ],
+  ['billDetail.duplicate.coincidences.title', 'Potential coincidences'],
+  [
+    'billDetail.duplicate.coincidences.intro',
+    "Other suppliers' Peppol documents with the same number, date and total. Nothing shows they are from this supplier, so they are not confirmed duplicates. Review them before you decide.",
+  ],
+  ['billDetail.duplicate.coincidences.notOnFile', 'No longer on file'],
+  ['billDetail.duplicate.coincidences.status.ATTACHED_STILL_MATCHES', 'Still matches'],
+  ['billDetail.duplicate.coincidences.status.ATTACHED_NO_LONGER_MATCHES', 'No longer matches'],
+  ['billDetail.duplicate.coincidences.status.FOUND_SINCE_HOLD', 'Found since the bill was held'],
+  [
+    'billDetail.duplicate.refused.evidenceChanged',
+    'These potential coincidences changed since you opened the bill. Review them again before you decide.',
+  ],
+  ['billDetail.activity.kind.DUPLICATE_OVERRIDDEN', 'Recorded as different from these documents'],
+  [
+    'supplierCreditNotes.upload.savedHeldAsDuplicate',
+    'Saved. This note is held as a possible duplicate until an approver decides; its credit cannot be used before then.',
+  ],
+  [
+    'supplierCreditNotes.upload.savedStatusUnknown',
+    "Saved. Check this note's status to see whether it is waiting for a decision.",
+  ],
 ]
 
-describe('batch 43 duplicate strings (rounds 20 to 25)', () => {
+describe('batch 43 duplicate strings (rounds 20 to 28)', () => {
   it.each(APPROVED)('%s reads exactly as approved in English', (key, text) => {
     expect(lookup(en, key)).toBe(text)
   })

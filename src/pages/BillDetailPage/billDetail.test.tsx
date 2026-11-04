@@ -3765,7 +3765,7 @@ describe('a bill recorded over possible duplicates, in its activity', () => {
     { billId: OTHER_B, billNumber: null, issueDate: null },
   ]
   const event = async () =>
-    (await screen.findByText(/Recorded over possible duplicates/)).closest('li') as HTMLElement
+    (await screen.findByText(/Recorded as different from these documents/)).closest('li') as HTMLElement
 
   it('links each bill it was said to differ from, names who did it and shows an approver the reason', async () => {
     billResponse = () =>
@@ -3833,7 +3833,7 @@ describe('a bill recorded over possible duplicates, in its activity', () => {
       )
     renderBill()
     expect(await screen.findByText(new RegExp(i18n.t('invoiceDetails.event.other')))).toBeTruthy()
-    expect(screen.queryByText(/Recorded over possible duplicates/)).toBeNull()
+    expect(screen.queryByText(/Recorded as different from these documents/)).toBeNull()
     expect(screen.queryByText(/^Why:/)).toBeNull()
     expect(screen.queryByText(/A reason was recorded/)).toBeNull()
   })
@@ -3842,9 +3842,9 @@ describe('a bill recorded over possible duplicates, in its activity', () => {
     billResponse = () => overridden({ overriddenBills: bills, reasonRecorded: true })
     await i18n.changeLanguage('ar')
     renderBill()
-    const item = (await screen.findByText(/سُجّلت رغم احتمال التكرار/)).closest('li') as HTMLElement
+    const item = (await screen.findByText(/سُجّلت على أنها مختلفة عن هذه المستندات/)).closest('li') as HTMLElement
     expect(within(item).getByRole('link', { name: 'INV-7' })).toBeTruthy()
     expect(within(item).getByText('سُجّل سبب. يمكن للمعتمِدين الاطلاع عليه.')).toBeTruthy()
-    expect(within(item).queryByText(/Recorded over|A reason was recorded/)).toBeNull()
+    expect(within(item).queryByText(/Recorded as different|A reason was recorded/)).toBeNull()
   })
 })

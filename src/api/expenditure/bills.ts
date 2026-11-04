@@ -394,21 +394,50 @@ export type BillHoldDto = {
   duplicateResolutionNote?: string | null
 }
 
+/**
+ * A potential coincidence beside a possible-duplicate hold (batch 43 round 28, O-A Option 1):
+ * another supplier's Peppol document with the bill's number, type, total, currency and issue date,
+ * sharing nothing that ties it to this supplier. Revalidated by the server on every read. The
+ * figures are all null when the id is no longer on file as one of this company's Peppol documents.
+ */
+export type DuplicateCoincidenceDto = {
+  billId: string
+  status: 'ATTACHED_STILL_MATCHES' | 'ATTACHED_NO_LONGER_MATCHES' | 'FOUND_SINCE_HOLD'
+  billNumber: string | null
+  issueDate: string | null
+  totalIncludingVat: number | null
+  currencyCode: string | null
+  source: 'PEPPOL' | null
+}
+
+/** `BillController.DuplicateEvidenceView`. `version` is echoed with the decision. */
+export type DuplicateEvidenceDto = {
+  duplicateOfBillId: string
+  coincidences: DuplicateCoincidenceDto[]
+  version: string
+}
+
 /** `BillHold.MAXIMUM_RESOLUTION_NOTE_LENGTH`, counted by the server after trimming. */
 export const DUPLICATE_NOTE_MAX_LENGTH = 500
 
 /**
  * Decides whether a held copy is a duplicate (`invoice.approve`). CONFIRMED_DUPLICATE keeps it
  * held for good; NOT_DUPLICATE releases it into an ordinary bill. Either is final.
+ *
+ * `evidenceVersion` is the `duplicateEvidence.version` the approver was shown (round 28): the
+ * server refuses the decision (`BILL_DUPLICATE_EVIDENCE_CHANGED`) unless it is the version as it
+ * stands then, so a coincidence that appeared or changed meanwhile is never decided unseen. Sent
+ * only when the bill carried evidence; a bill without any is decided as before.
  */
 export function resolveDuplicateBill(
   billId: string,
   decision: DuplicateResolutionDto,
   note: string,
+  evidenceVersion?: string | null,
 ): Promise<BillHoldDto> {
   return apiRequest<BillHoldDto>(`${billPath(billId)}/duplicate-resolution`, {
     method: 'POST',
-    body: { decision, note },
+    body: typeof evidenceVersion === 'string' ? { decision, note, evidenceVersion } : { decision, note },
   })
 }
 
@@ -450,6 +479,12 @@ export type BillDetailDto = {
   approvals: { id: string; decision: 'APPROVED' | 'REJECTED' | 'REOPENED'; reason: string | null; decidedBy: string; decidedAt: string }[]
   hold: BillHoldDto | null
   holdHistory: BillHoldDto[]
+  /**
+   * The potential coincidences beside the open possible-duplicate hold (batch 43 round 28):
+   * weaker evidence than the copy the hold names, never confirmed duplicates. Null when there are
+   * none; absent from an older server.
+   */
+  duplicateEvidence?: DuplicateEvidenceDto | null
   settlement: {
     billTotal: number | null
     paidAmount: number

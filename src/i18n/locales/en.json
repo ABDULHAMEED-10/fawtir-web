@@ -6410,7 +6410,7 @@
         "CONFIRMED_DUPLICATE": "Confirmed as a duplicate",
         "NOT_DUPLICATE": "Decided not a duplicate",
         "REOPENED": "Reopened",
-        "DUPLICATE_OVERRIDDEN": "Recorded over possible duplicates"
+        "DUPLICATE_OVERRIDDEN": "Recorded as different from these documents"
       },
       "byName": "by {{name}}",
       "overrideReason": "Why: {{reason}}",
@@ -6626,6 +6626,16 @@
       "thisBill": "This bill",
       "original": "Already on file",
       "openOriginal": "Open",
+      "coincidences": {
+        "title": "Potential coincidences",
+        "intro": "Other suppliers' Peppol documents with the same number, date and total. Nothing shows they are from this supplier, so they are not confirmed duplicates. Review them before you decide.",
+        "notOnFile": "No longer on file",
+        "status": {
+          "ATTACHED_STILL_MATCHES": "Still matches",
+          "ATTACHED_NO_LONGER_MATCHES": "No longer matches",
+          "FOUND_SINCE_HOLD": "Found since the bill was held"
+        }
+      },
       "field": {
         "supplier": "Supplier",
         "number": "Their bill number",
@@ -6668,6 +6678,7 @@
         "sameDocumentUuid": "Both copies carry the same document UUID, so it cannot be marked as not a duplicate.",
         "deciderIsRecorder": "You recorded one of these bills, so another invoice approver must decide whether it is a duplicate.",
         "recorderUnknown": "This duplicate can't be decided here: one of these bills was recorded by a person, but who recorded it isn't on file. Contact support.",
+        "evidenceChanged": "These potential coincidences changed since you opened the bill. Review them again before you decide.",
         "releaseRefused": "This bill is held as a possible duplicate. Open it and decide whether it is one instead of releasing it.",
         "noteRequired": "Add a note saying why.",
         "noteTooLong": "That note is too long. Keep it to 500 characters or fewer.",

@@ -160,6 +160,8 @@ const CONFLICT_REFUSALS: Record<string, string> = {
   // Backend batch 43 round 20: a person recorded one of the pair after V229 but no recorder is
   // stored, so the server refuses rather than guess who the maker was.
   BILL_DUPLICATE_RECORDER_UNKNOWN: 'billDetail.duplicate.refused.recorderUnknown',
+  // Backend batch 43 round 28: the potential coincidences changed after the page read them.
+  BILL_DUPLICATE_EVIDENCE_CHANGED: 'billDetail.duplicate.refused.evidenceChanged',
   BILL_HOLD_DUPLICATE_RELEASE_REFUSED: 'billDetail.duplicate.refused.releaseRefused',
   // Approving a copy that became a held duplicate after the screen was read.
   BILL_APPROVAL_HELD_AS_DUPLICATE: 'billDetail.duplicate.refused.approvalHeld',
