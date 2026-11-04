@@ -188,7 +188,14 @@ function Overview() {
           </div>
         </div>
 
-        <div className="relative mx-auto mt-auto h-[600px] w-[442px] max-w-full overflow-hidden max-xl:mt-16 max-sm:h-[460px]">
+        {/* The mobile app's line (owner, 4 Nov 2026), set over its phone. */}
+        <p className="landing-cap mx-auto mt-auto max-w-[560px] pt-20 text-center max-xl:pt-0 text-[28px] font-semibold leading-[1.25] max-xl:mt-16 max-md:text-[22px]">
+          {t('landing.overview.mobileLead')}{' '}
+          <span className={`landing-em font-light italic ${SOFT}`}>
+            {t('landing.overview.mobileEm')}
+          </span>
+        </p>
+        <div className="relative mx-auto mt-8 h-[600px] w-[442px] max-w-full overflow-hidden max-sm:h-[460px]">
           <div className="absolute inset-x-0 top-0 h-[913px]">
             <img
               src={overviewPhone}

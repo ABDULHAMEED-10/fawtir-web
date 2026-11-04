@@ -23034,7 +23034,9 @@
       "s3": "something else makes the invoice, something else again files it. Three systems,",
       "s4": "three records, and a daily job of making them agree.",
       "closing": "Fawtir does not join those steps together. It never separates them.",
-      "phoneAlt": "The Fawtir mobile app: total revenue, outstanding and overdue amounts and recent invoices"
+      "phoneAlt": "The Fawtir mobile app: total revenue, outstanding and overdue amounts and recent invoices",
+      "mobileLead": "Invoice from anywhere.",
+      "mobileEm": "Fawtir mobile takes care of the rest."
     },
     "features": {
       "titleLead": "Your till does more than",
