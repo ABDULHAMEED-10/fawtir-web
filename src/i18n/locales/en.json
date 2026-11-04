@@ -2529,6 +2529,7 @@
         "periodClosed": "That date falls in a closed accounting period.",
         "notIssued": "Payments can only be recorded against an issued invoice.",
         "alreadyReversed": "That payment was already reversed. The list has been refreshed.",
+        "reversalAfterRefundOrCredit": "This payment was taken at the till, and the invoice already has a refund or credit note, so it cannot be reversed. Make any further correction with a refund at the till or a credit note.",
         "paymentGone": "That payment could not be found. The list has been refreshed.",
         "referenceCardNumber": "That looks like the card number. Type the approval code from the bank slip as the reference, never the card number."
       },

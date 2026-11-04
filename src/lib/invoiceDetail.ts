@@ -330,6 +330,12 @@ export const PAYMENT_REFUSALS: Record<string, { field: PaymentField | null; key:
   PERIOD_CLOSED: { field: 'paymentDate', key: 'invoiceDetails.pay.error.periodClosed' },
   PAYMENT_REQUIRES_ISSUED_INVOICE: { field: null, key: 'invoiceDetails.pay.error.notIssued' },
   PAYMENT_ALREADY_REVERSED: { field: null, key: 'invoiceDetails.pay.error.alreadyReversed' },
+  // FIN-4 Option B′ (owner, batch 43): a till payment once the invoice has a refund or an issued credit
+  // note. Without it the reverse dialog fell back to the server's generic sentence.
+  PAYMENT_REVERSAL_AFTER_REFUND_OR_CREDIT: {
+    field: null,
+    key: 'invoiceDetails.pay.error.reversalAfterRefundOrCredit',
+  },
   PAYMENT_NOT_FOUND: { field: null, key: 'invoiceDetails.pay.error.paymentGone' },
 }
 
