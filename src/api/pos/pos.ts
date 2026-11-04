@@ -330,6 +330,11 @@ export type PosSaleDto = {
       payload: string | null
       pngUrl: string | null
     }
+    /**
+     * The seller frozen on the issued invoice (CMP-5 S-A), never the live profile. Absent from a
+     * server before S-A; on a server with it, always present, a value null when not recorded.
+     */
+    seller?: PosReceiptSellerDto | null
   }
   filing: PosFiling
   warnings: PosWarning[]
@@ -340,6 +345,18 @@ export type PosSaleDto = {
 }
 
 export type PosAttribution = 'ONLINE' | 'VERIFIED' | 'PENDING_REVIEW' | 'LEGACY'
+
+export type PosReceiptSellerDto = {
+  legalName: string | null
+  vatNumber: string | null
+  streetName: string | null
+  additionalStreetName: string | null
+  buildingNumber: string | null
+  cityName: string | null
+  postalZone: string | null
+  countrySubentity: string | null
+  countryCode: string | null
+}
 
 export function createPosSale(body: PosSaleRequest, idempotencyKey: string): Promise<PosSaleDto> {
   return apiRequest<PosSaleDto>(POS_SALES_PATH, {

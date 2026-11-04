@@ -61,6 +61,12 @@ const WORDED = new Set([
   // DEC-30-01: a line whose credit history cannot say whether goods came back is refunded from the
   // invoice, never at the till.
   'POS_REFUND_LINE_CREDIT_UNCLEAR',
+  // The refund's credit note meets the sale's document ceiling (PosRestExceptionHandler sends both,
+  // as 409). Read as "Try again" they were retried into the same refusal, typically after a credit
+  // note from the invoice screen had used the sale up (PRV43-CMP F3-1, owner round 12). EXCEEDS
+  // must not say the sale is fully credited: a smaller refund may still fit.
+  'CREDIT_NOTE_NOTHING_CORRECTABLE',
+  'CREDIT_NOTE_EXCEEDS_CORRECTABLE_AMOUNT',
   'POS_SALE_CANCELLED',
   'POS_REFUND_QUANTITY_EXCEEDS',
   'POS_REFUND_MONEY_DOES_NOT_MATCH',

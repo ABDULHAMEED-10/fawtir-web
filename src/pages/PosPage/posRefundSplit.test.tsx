@@ -467,3 +467,31 @@ describe('the close, card refunds', () => {
     expect(figuresOf(preview(10)).terminalNet).toBe(false)
   })
 })
+
+describe('the sale document ceiling (PRV43-CMP F3-1, owner round 12)', () => {
+  it.each(['CREDIT_NOTE_NOTHING_CORRECTABLE', 'CREDIT_NOTE_EXCEEDS_CORRECTABLE_AMOUNT'])(
+    'a %s refusal of the refund is worded by its code on the page, not "Try again"',
+    async (code) => {
+      refund = () => json({ status: 409, code, detail: 'not shown' }, 409)
+      await open()
+      await waitFor(() => expect(field('Card').value).toBe('10.000'))
+      fireEvent.change(field(i18n.t('pos.pay.approvalCode')), { target: { value: 'AUTH-77' } })
+      fireEvent.click(refundButton())
+      await waitFor(() => expect(refunds).toHaveLength(1))
+      expect(await screen.findByText(i18n.t(`pos.refusal.${code}`))).toBeTruthy()
+      expect(screen.queryByText(i18n.t('pos.refusal.failed'))).toBeNull()
+      expect(document.body.textContent).not.toContain('not shown')
+    },
+  )
+
+  it('a ceiling code the till does not know still reads as the general failure', async () => {
+    refund = () => json({ status: 409, code: 'CREDIT_NOTE_SOMETHING_NEW', detail: 'not shown' }, 409)
+    await open()
+    await waitFor(() => expect(field('Card').value).toBe('10.000'))
+    fireEvent.change(field(i18n.t('pos.pay.approvalCode')), { target: { value: 'AUTH-77' } })
+    fireEvent.click(refundButton())
+    await waitFor(() => expect(refunds).toHaveLength(1))
+    expect(await screen.findByText(i18n.t('pos.refusal.failed'))).toBeTruthy()
+    expect(document.body.textContent).not.toContain('not shown')
+  })
+})

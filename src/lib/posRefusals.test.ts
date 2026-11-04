@@ -27,3 +27,41 @@ describe('the new till sentences in Arabic', () => {
     },
   )
 })
+
+describe('the sale document ceiling on a till refund (PRV43-CMP F3-1, owner round 12)', () => {
+  it.each(['CREDIT_NOTE_NOTHING_CORRECTABLE', 'CREDIT_NOTE_EXCEEDS_CORRECTABLE_AMOUNT'])(
+    '%s is worded by its code, never as "Try again"',
+    (code) => {
+      const key = posRefusalKey(coded(409, code))
+      expect(key).toBe(`pos.refusal.${code}`)
+      expect(i18n.exists(key, { lng: 'en', fallbackLng: false })).toBe(true)
+      expect(i18n.t(key)).not.toBe(i18n.t('pos.refusal.failed'))
+      expect(i18n.t(key)).not.toMatch(/try again/i)
+    },
+  )
+
+  it('nothing left says so and points at the existing credit notes', () => {
+    expect(i18n.t('pos.refusal.CREDIT_NOTE_NOTHING_CORRECTABLE')).toMatch(
+      /^There is no remaining amount available to credit on this sale\. Review its existing credit notes\./,
+    )
+  })
+
+  it('more than is left never says the sale is used up: a smaller refund may still fit', () => {
+    const sentence = i18n.t('pos.refusal.CREDIT_NOTE_EXCEEDS_CORRECTABLE_AMOUNT')
+    expect(sentence).toMatch(/more than the amount still available to credit on this sale/)
+    expect(sentence).not.toMatch(/no remaining|nothing (is )?left|fully|already credited|used up/i)
+  })
+
+  it('a code the till does not word still reads as the general failure', () => {
+    expect(posRefusalKey(coded(409, 'CREDIT_NOTE_SOMETHING_NEW'))).toBe('pos.refusal.failed')
+  })
+
+  it.each([
+    'pos.refusal.CREDIT_NOTE_NOTHING_CORRECTABLE',
+    'pos.refusal.CREDIT_NOTE_EXCEEDS_CORRECTABLE_AMOUNT',
+  ])('%s exists in Arabic (native sign-off pending)', async (key) => {
+    await i18n.changeLanguage('ar')
+    expect(i18n.exists(key, { lng: 'ar', fallbackLng: false })).toBe(true)
+    expect(i18n.t(key)).not.toMatch(/[A-Za-z]{4,}/)
+  })
+})
