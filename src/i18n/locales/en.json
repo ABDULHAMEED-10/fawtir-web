@@ -4846,7 +4846,7 @@
       "done": "Refunded. Credit note {{number}} is issued.",
       "ringNew": "Ring up the replacement",
       "filedNoteLive": "The credit note is issued against the original invoice like any invoice and counts toward your monthly documents. Cash paid back shows on the shift's close.",
-      "alreadyRefunded": "This sale has already been refunded in full. Credit notes: {{numbers}}.",
+      "alreadyRefunded": "Every item on this sale has already been refunded. Credit notes: {{numbers}}.",
       "nothingToRefund": "Nothing on this sale can be refunded.",
       "givenFreeLine": "Given free: goes back on the shelf, no credit note",
       "noCreditNote": "Given free, so no credit note and no money back",
@@ -4952,7 +4952,22 @@
         "discountMax": "Highest discount (%)",
         "signatureSha256": "Signature (SHA-256)",
         "withheld": "Withheld: the sale contained a card number. SHA-256:",
-        "noPayload": "No signed sale was sent."
+        "noPayload": "No signed sale was sent.",
+        "heldFor": {
+          "title": "Why the server held it",
+          "cause": {
+            "LEGACY_DISCOUNT_MAKER_UNPROVEN": "A manual discount, and nothing shows who gave it",
+            "LEGACY_PRICE_BELOW_CATALOGUE": "Priced below the catalogue",
+            "LEGACY_PRICE_UNIT_NOT_COMPARABLE": "Sold in another unit at another price",
+            "LEGACY_PRICE_NOT_ESTABLISHED": "No catalogue price to compare with"
+          },
+          "unknownCause": "Held for: {{cause}}",
+          "below": "Line {{line}}: sold at {{price}}; the catalogue price when it was filed is {{catalogue}}",
+          "belowNotOnSale": "Line {{line}}: sold at {{price}}; the price stored for it is {{catalogue}} (no longer on sale)",
+          "unit": "Line {{line}}: sold at {{price}} per {{unit}}; the catalogue price is {{catalogue}} per {{productUnit}}, not converted",
+          "notEstablished": "Line {{line}}: no price could be found to compare with",
+          "notOnSaleNow": "Line {{line}} was sold offline and is not on sale now."
+        }
       },
       "resolve": {
         "title": "Who made this sale?",
@@ -5067,7 +5082,7 @@
       "POS_PRINTED_TOTALS_DIFFER": "Filed. The printed totals differ from the server's; the difference is recorded.",
       "STOCK_UNIT_MISMATCH": "Line {{line}} is in another unit than the item is counted in, so no stock moved.",
       "POS_PRICE_STALE_ACCEPTED": "Line {{line}} was sold offline at an older price.",
-      "POS_PRODUCT_NOT_SELLABLE_ACCEPTED": "Line {{line}} was sold offline after it went off sale.",
+      "POS_PRODUCT_NOT_SELLABLE_ACCEPTED": "Line {{line}} was sold offline and is not on sale now.",
       "FILED_PAST_RESTRICTION": "Made offline, so it was filed although the company is restricted now.",
       "FILED_AFTER_24H_B2C": "Made offline and filed more than 24 hours later.",
       "SLIP_AMOUNT_DIFFERS": "The slip's amount is not the card payment's.",
@@ -5115,6 +5130,11 @@
       "hsCodeLines": "Lines without an HS code: {{lines}}.",
       "finalHint": "The customer holds this invoice and it stays open here until it is filed. Sending it again as it stands will not work. Correct it if you can, or contact Fawtir support. The till keeps selling meanwhile.",
       "retry": "Try again",
+      "sendFor": "Send for {{cashier}}",
+      "sendForUnknown": "Send (who made it was not recorded)",
+      "sendForHint": "Not sent by itself: someone else made it, or it was made before this device recorded who made each sale. Sending it files it with you as the sender. Nothing is charged or filed twice.",
+      "others_one": "1 sale made offline on this till is not sent by itself: someone else made it, or who made it was not recorded. It goes only when someone chooses to send it, and it is then filed with that person as the sender.",
+      "others_other": "{{count}} sales made offline on this till are not sent by themselves: someone else made them, or who made them was not recorded. Each goes only when someone chooses to send it, and it is then filed with that person as the sender.",
       "reason": {
         "readOnly": "The subscription is read-only. This sale goes by itself once the subscription is paid.",
         "planFeature": "The plan does not include the till. This sale goes once the plan does.",

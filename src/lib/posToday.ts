@@ -1,5 +1,6 @@
 import type { PosTodayDto, PosTodaySaleRow, PosTodayTab } from '../api/pos/pos'
 import { omr, toBaisa } from './pos'
+import { unprovenSender } from './posAttribution'
 
 /**
  * The day so far (Figma 143:20498), from `GET /v1/pos/sales` and `GET /v1/pos/today`.
@@ -39,10 +40,11 @@ export type ShiftGroup = {
  * The cashier a row proves, for the shift's header. A LEGACY row's `cashier` is its sender and a
  * PENDING_REVIEW row has none proven, so neither may name the shift: the header would present an
  * unverified person as the shift's cashier above a row that says they are not (WSR-9, owner M-6
- * point 4). An older server sends no attribution, and its cashier is the one it always was.
+ * point 4). Without an attribution, an online row's cashier is the one it always was, while a
+ * queued one's is its sender, read as LEGACY (`unprovenSender`, OFF43).
  */
 function provenCashier(row: PosTodaySaleRow): string {
-  if (row.attribution === 'LEGACY' || row.attribution === 'PENDING_REVIEW') return ''
+  if (row.attribution === 'PENDING_REVIEW' || unprovenSender(row)) return ''
   return row.cashier?.name ?? ''
 }
 

@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import i18n from '../../i18n'
 import { dropLoginChallenge } from '../../lib/identity/loginChallenge'
-import { queuedFor, resetPosQueue, type QueuedSale } from '../../lib/posQueue'
+import { noteQueueSender, queuedFor, resetPosQueue, type QueuedSale } from '../../lib/posQueue'
 import { forgetEntitlements } from '../../lib/identity/entitlements'
 import { resetSharedRequests } from '../../api'
 import type { PosTillDto } from '../../api/pos/pos'
@@ -33,6 +33,7 @@ const queued: QueuedSale = {
     tip: null,
   },
   refusal: null,
+  madeBy: { userId: 'u-1', name: 'Maryam' },
 }
 
 const json = (body: unknown, status = 200) =>
@@ -53,6 +54,8 @@ beforeEach(async () => {
   forgetEntitlements()
   resetSharedRequests()
   resetPosQueue()
+  // The person signed in on this device: only the sales they queue go by themselves (round 5, P3b).
+  noteQueueSender('u-1')
   document.cookie = `FAWTIR_CSRF=${CSRF}; path=/`
   order = []
   salesAnswer = false
@@ -198,4 +201,23 @@ describe('Switch user on the till with sales still on this device (OFF-4, PRV42W
     expect(order).toEqual([])
     expect(queuedFor('till-1')).toHaveLength(1)
   })
+
+  // NOT RUN (batch 43, static only). Owner round 5, P3b: on their own shift a person signing out sends
+  // only the sales they made; a colleague's, or one queued before makers were kept, stays and is warned of.
+  for (const [label, madeBy] of [
+    ['a colleague', { userId: 'u-2', name: 'Salim' }],
+    ['nobody recorded', undefined],
+  ] as const) {
+    it(`on their own shift, a sale made by ${label} is not sent, only warned of`, async () => {
+      localStorage.setItem('fawtir.pos.queue', JSON.stringify([{ ...queued, madeBy }]))
+      salesAnswer = true
+      renderPicker(TILL, true)
+      switchUser()
+      expect(
+        await screen.findByText(i18n.t('pos.pendingSync.signOutLeft', { count: 1 })),
+      ).toBeTruthy()
+      expect(order).toEqual([])
+      expect(queuedFor('till-1').map((sale) => sale.key)).toEqual(['pos-sale-key-49'])
+    })
+  }
 })

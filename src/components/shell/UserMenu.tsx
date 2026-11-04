@@ -5,7 +5,7 @@ import { Popover } from '../ui'
 import { LOGIN_ROUTE } from '../../lib/identity/login'
 import { dropLoginChallenge } from '../../lib/identity/loginChallenge'
 import { signOut } from '../../lib/identity/logout'
-import { queuedOnDevice } from '../../lib/posQueue'
+import { queuedOnDevice, stopQueueSendsForSignOut } from '../../lib/posQueue'
 import { USER_MENU } from '../../lib/shell'
 import chevron from '../../assets/dashboard/chevron.svg'
 
@@ -68,6 +68,8 @@ export function UserMenu({
         setUnsent(queuedOnDevice())
         return
       }
+      // A till screen's background run must not go on under the next person (PRV43-OFF L-1).
+      stopQueueSendsForSignOut()
       await signOut()
       signedOut = true
       dropLoginChallenge()

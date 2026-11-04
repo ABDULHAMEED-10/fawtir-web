@@ -13,6 +13,7 @@ import {
   type HoldStatus,
   type LegacyOfflineSale,
   type OfflineHoldCandidate,
+  type OfflineHeldFor,
   type OfflineHoldDetail,
   type OfflineHoldSummary,
   type OfflineKeyRevoked,
@@ -21,7 +22,12 @@ import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNoti
 import { useApiRead } from '../../hooks'
 import { AppShell } from '../../layouts/AppShell'
 import { posRefusalKey } from '../../lib/posRefusals'
-import { maskedPayload } from '../../lib/posOfflineHolds'
+import {
+  heldForMessage,
+  heldForText,
+  maskedPayload,
+  offlineHoldTime as when,
+} from '../../lib/posOfflineHolds'
 import type { TillState } from '../../lib/posTill'
 import { PosTillGate } from './PosTillGate'
 
@@ -45,11 +51,6 @@ const card = 'rounded-md bg-surface-card p-6'
 const button =
   'inline-flex h-11 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-60'
 
-function when(instant: string | null | undefined): string {
-  return instant
-    ? new Date(instant).toLocaleString('en-GB', { timeZone: 'Asia/Muscat', hour12: false })
-    : ''
-}
 
 function Holds({ till }: { till: Ready }) {
   const { t } = useTranslation()
@@ -208,6 +209,7 @@ function HoldDetail({
             </div>
           ))}
       </dl>
+      {hold.heldFor ? <HeldFor heldFor={hold.heldFor} /> : null}
       {hold.payloadWithheld === 'CARD_NUMBER' ? (
         <p className="text-sm text-text-secondary">
           {t('pos.offline.detail.withheld')}{' '}
@@ -231,6 +233,28 @@ function HoldDetail({
         <Resolve holdId={holdId} userId={userId} onResolved={onResolved} />
       ) : null}
     </div>
+  )
+}
+
+/**
+ * What the server recorded when it held the sale (PRV43-OFF2 N-1), so the reviewer decides with the
+ * server's reasons in front of them and not a guess at them. Codes and prices are shown as recorded.
+ */
+function HeldFor({ heldFor }: { heldFor: OfflineHeldFor }) {
+  const { t } = useTranslation()
+  const { causes, lines } = heldForText(heldFor)
+  return (
+    <section className="flex flex-col gap-1.5 text-sm">
+      <h3 className="font-semibold text-text-primary">{t('pos.offline.detail.heldFor.title')}</h3>
+      <ul className="list-disc ps-5 text-text-secondary">
+        {causes.map((cause, at) => (
+          <li key={`cause-${at}`}>{heldForMessage(t, cause)}</li>
+        ))}
+        {lines.map((line, at) => (
+          <li key={`line-${at}`}>{heldForMessage(t, line)}</li>
+        ))}
+      </ul>
+    </section>
   )
 }
 

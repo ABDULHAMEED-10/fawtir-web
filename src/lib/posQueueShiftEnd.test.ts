@@ -6,6 +6,7 @@ import {
   flushBeforeSignOut,
   flushQueue,
   queuedFor,
+  noteQueueSender,
   resetPosQueue,
   submitSale,
   type QueuedSale,
@@ -58,6 +59,8 @@ beforeEach(() => {
   window.localStorage.clear()
   setPosVault(memoryVault(true))
   resetPosQueue()
+  // The person signed in on this device: only the sales they queue go by themselves (round 5, P3b).
+  noteQueueSender('u-1')
   resetSharedRequests()
   online = false
   posts = []

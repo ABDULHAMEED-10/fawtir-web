@@ -9,7 +9,13 @@ import { PosQueuePanel } from './PosQueuePanel'
 import { PosRefundPage } from './PosRefundPage'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import { resetOpenSale, setFinishedSale } from '../../lib/posSale'
-import { flushQueue, queuedFor, resetPosQueue, submitSale } from '../../lib/posQueue'
+import {
+  flushQueue,
+  noteQueueSender,
+  queuedFor,
+  resetPosQueue,
+  submitSale,
+} from '../../lib/posQueue'
 import { approvalCodeOk } from '../../lib/posPayment'
 import { startingCount } from '../../lib/posClose'
 import { NO_SALE_DISCOUNT, totalsFor } from '../../lib/pos'
@@ -150,6 +156,8 @@ beforeEach(async () => {
   await i18n.changeLanguage('en')
   resetOpenSale([])
   resetPosQueue()
+  // The person signed in on this device: only the sales they queue go by themselves (round 5, P3b).
+  noteQueueSender('u-1')
   resetSharedRequests()
   forgetEntitlements()
   forgetWorkingBranch()

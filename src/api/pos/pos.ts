@@ -44,6 +44,11 @@ export type PosTillDto = {
   series: Record<string, PosSeries>
   /** The server keeps open numbers (skip, set aside, the outstanding list); an older one leaves this out. */
   openNumbers?: boolean
+  /**
+   * The server takes `claimedMakerUnverified` (owner Round 13, L-2). An older one leaves this out and
+   * refuses the unknown field, so the till sends it only where this is true.
+   */
+  takesMakerClaim?: boolean
 }
 
 export type PosShiftDto = {
@@ -215,6 +220,12 @@ export type PosSaleRequest = {
   offlineProof?: { keyId: string; signature: string }
   /** The totals the receipt printed, as JSON numbers; signed with the sale. */
   printed?: PosPrintedTotals
+  /**
+   * Who was signed in on this device when the sale was queued, as the device says (owner Round 13,
+   * L-2). UNTRUSTED: the server records it in the audit as a claim and decides nothing on it. Only on
+   * an unsigned queued sale, to a server with `takesMakerClaim`; outside the stored request hashes.
+   */
+  claimedMakerUnverified?: string
 }
 
 export type PosPrintedTotals = {

@@ -8,8 +8,11 @@ import {
   numberPrefix,
   numbersBefore,
   queuedFor,
+  noteQueueSender,
+  noteTillServer,
   resetPosQueue,
   retryQueuedSale,
+  stopQueueSendsForSignOut,
   submitSale,
 } from './posQueue'
 import { heldSlipPhotos } from './posSlipOutbox'
@@ -75,6 +78,8 @@ beforeEach(() => {
   vault = memoryVault(true)
   setPosVault(vault)
   resetPosQueue()
+  // The person signed in on this device: only the sales they queue go by themselves (round 5, P3b).
+  noteQueueSender('u-1')
   resetSharedRequests()
   online = false
   calls = []
@@ -630,6 +635,40 @@ describe('a refused sale never stops the till (E2E 30 Oct 2026, H-1)', () => {
     expect(entries[1].final).toBe(true)
   })
 
+  it.each([
+    ['another person is noted at the till', () => noteQueueSender('u-2')],
+    ['the person signs out', () => stopQueueSendsForSignOut()],
+  ])(
+    'a run stops before its next sale when %s mid-send; the sale on the wire is filed, the rest wait (PRV43-OFF L-1)',
+    async (_, change) => {
+      const server = fakeServer()
+      const reply = saleReply
+      saleReply = () => {
+        const answer = reply()
+        if (server.posts.length === 1) change()
+        return answer
+      }
+      await submitSale(TILL, WALK_IN, 'pos-sale-key-first')
+      await submitSale(TILL, WALK_IN, 'pos-sale-key-second')
+      online = true
+
+      expect(await flushQueue('till-1')).toBe('done')
+
+      expect(server.posts.map((post) => post.key)).toEqual(['pos-sale-key-first'])
+      expect(queuedFor('till-1').map((entry) => entry.key)).toEqual(['pos-sale-key-second'])
+
+      // Its maker, back at the till, sends it.
+      saleReply = reply
+      noteQueueSender('u-1')
+      await flushQueue('till-1')
+      expect(server.posts.map((post) => post.key)).toEqual([
+        'pos-sale-key-first',
+        'pos-sale-key-second',
+      ])
+      expect(queuedFor('till-1')).toEqual([])
+    },
+  )
+
   it('on the current server later sales keep selling behind a final refusal, in order, and say why', async () => {
     const server = fakeServer()
     server.refuseKeys.add('pos-sale-key-bad')
@@ -1046,5 +1085,199 @@ describe("a queued sale's warnings reach the next sale (B37 OFF-8)", () => {
     ])
     const after = await submitSale(TILL, BODY, 'pos-sale-key-warn-3')
     expect('sale' in after && after.sale.warnings).toEqual([])
+  })
+})
+
+// NOT RUN (batch 43, static only). Owner Round 13, L-2: the maker goes to the server only as an
+// untrusted claim, and only where it can neither break a proof nor be refused as an unknown field.
+describe('the maker sent as an untrusted claim (Round 13 L-2)', () => {
+  const WALK_IN: PosSaleRequest = { ...BODY, customer: { kind: 'WALK_IN' } }
+  const queued = (value: number, extra: Partial<PosSaleRequest> = {}) => {
+    const number = `NZW-T01-INV-2026-${String(value).padStart(6, '0')}`
+    return {
+      key: `pos-sale-key-claim-${value}`,
+      tillId: 'till-1',
+      number,
+      body: { ...WALK_IN, queuedOffline: true, invoiceNumber: number, ...extra },
+      refusal: null,
+      madeBy: { userId: 'u-1', name: 'Maryam' },
+    }
+  }
+  const sentBodies = () =>
+    calls
+      .filter((call) => call.url === '/api/v1/pos/sales' && call.init?.method === 'POST')
+      .map((call) => JSON.parse(String(call.init?.body)) as PosSaleRequest)
+
+  it('names the maker on an unsigned sale to a server that takes it, never on a signed one', async () => {
+    window.localStorage.setItem(
+      'fawtir.pos.queue',
+      JSON.stringify([
+        queued(49, { offlineProof: { keyId: 'k-1', signature: 'A'.repeat(86) } }),
+        queued(50),
+      ]),
+    )
+    noteTillServer({ id: 'till-1', openNumbers: false, takesMakerClaim: true })
+    online = true
+
+    await flushQueue('till-1')
+
+    const [signed, unsigned] = sentBodies()
+    expect(signed.invoiceNumber).toBe('NZW-T01-INV-2026-000049')
+    expect(signed).not.toHaveProperty('claimedMakerUnverified')
+    expect(unsigned.invoiceNumber).toBe('NZW-T01-INV-2026-000050')
+    expect(unsigned.claimedMakerUnverified).toBe('u-1')
+  })
+
+  it('sends nothing of the kind to a server that has not said it takes it', async () => {
+    window.localStorage.setItem('fawtir.pos.queue', JSON.stringify([queued(49)]))
+    noteTillServer({ id: 'till-1', openNumbers: false })
+    online = true
+
+    await flushQueue('till-1')
+
+    expect(sentBodies()).toHaveLength(1)
+    expect(sentBodies()[0]).not.toHaveProperty('claimedMakerUnverified')
+  })
+
+  it('names nobody for an entry whose maker was never kept', async () => {
+    const entry: Partial<ReturnType<typeof queued>> = queued(49)
+    delete entry.madeBy
+    window.localStorage.setItem('fawtir.pos.queue', JSON.stringify([entry]))
+    noteTillServer({ id: 'till-1', openNumbers: false, takesMakerClaim: true })
+    online = true
+
+    await retryQueuedSale('till-1', 'pos-sale-key-claim-49', 'u-1')
+
+    expect(sentBodies()).toHaveLength(1)
+    expect(sentBodies()[0]).not.toHaveProperty('claimedMakerUnverified')
+  })
+
+  const sentKeys = () =>
+    calls
+      .filter((call) => call.url === '/api/v1/pos/sales' && call.init?.method === 'POST')
+      .map((call) => new Headers(call.init?.headers).get('Idempotency-Key'))
+
+  it('an older server refusing the unknown claim gets the same sale once more without it, and no claim after (PRV43-OFF2 N-6)', async () => {
+    window.localStorage.setItem('fawtir.pos.queue', JSON.stringify([queued(49), queued(50)]))
+    noteTillServer({ id: 'till-1', openNumbers: false, takesMakerClaim: true })
+    online = true
+    let replies = 0
+    saleReply = () => {
+      replies += 1
+      if (replies === 1) {
+        return new Response(
+          JSON.stringify({ type: 'https://api.fawtir.om/problems/malformed-request', status: 400 }),
+          { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
+        )
+      }
+      return json(
+        {
+          saleId: `sale-${replies}`,
+          invoiceNumber: 'n',
+          receipt: { qr: { status: 'PENDING' } },
+          filing: { dispatchState: 'QUEUED' },
+          warnings: [],
+        },
+        201,
+      )
+    }
+
+    expect(await flushQueue('till-1')).toBe('done')
+
+    const [refused, resent, next] = sentBodies()
+    expect(refused.claimedMakerUnverified).toBe('u-1')
+    expect(resent).not.toHaveProperty('claimedMakerUnverified')
+    const { claimedMakerUnverified: _claim, ...unclaimed } = refused
+    void _claim
+    expect(resent).toEqual(unclaimed)
+    expect(sentKeys().slice(0, 2)).toEqual(['pos-sale-key-claim-49', 'pos-sale-key-claim-49'])
+    expect(next).not.toHaveProperty('claimedMakerUnverified')
+    expect(sentBodies()).toHaveLength(3)
+    expect(queuedFor('till-1')).toEqual([])
+  })
+
+  it('a malformed-request refusal of a body with no claim is not resent', async () => {
+    window.localStorage.setItem('fawtir.pos.queue', JSON.stringify([queued(49)]))
+    noteTillServer({ id: 'till-1', openNumbers: false })
+    online = true
+    saleReply = () =>
+      new Response(
+        JSON.stringify({ type: 'https://api.fawtir.om/problems/malformed-request', status: 400 }),
+        { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+
+    await flushQueue('till-1')
+
+    expect(sentBodies()).toHaveLength(1)
+    expect(queuedFor('till-1')).toHaveLength(1)
+  })
+
+  // PRV43-OFF3 L-5: only the malformed-request refusal is the older server's answer to the claim; any
+  // other 400 is about the sale itself, and resending it without the claim would change nothing.
+  it('a body carrying the claim refused 400 as anything but malformed-request is not resent', async () => {
+    window.localStorage.setItem('fawtir.pos.queue', JSON.stringify([queued(49)]))
+    noteTillServer({ id: 'till-1', openNumbers: false, takesMakerClaim: true })
+    online = true
+    saleReply = () =>
+      new Response(
+        JSON.stringify({ type: 'https://api.fawtir.om/problems/validation-failed', status: 400 }),
+        { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+
+    await flushQueue('till-1')
+
+    expect(sentBodies()).toHaveLength(1)
+    expect(sentBodies()[0].claimedMakerUnverified).toBe('u-1')
+    expect(queuedFor('till-1')).toHaveLength(1)
+  })
+})
+
+// NOT RUN (batch 43, static only). PRV43-OFF2 N-7: the number-gap retry is a second POST, so it is
+// held to the same sender check as the first.
+describe('the number-gap retry after the sender changed', () => {
+  it('sends no retry once the till signed out during the refused first send; the entry waits unmarked', async () => {
+    const number = 'NZW-T01-INV-2026-000050'
+    window.localStorage.setItem(
+      'fawtir.pos.queue',
+      JSON.stringify([
+        {
+          key: 'pos-sale-key-gap-50',
+          tillId: 'till-1',
+          number,
+          body: {
+            ...BODY,
+            customer: { kind: 'WALK_IN' },
+            queuedOffline: true,
+            invoiceNumber: number,
+          },
+          refusal: null,
+          madeBy: { userId: 'u-1', name: 'Maryam' },
+        },
+      ]),
+    )
+    noteTillServer({ id: 'till-1', openNumbers: true })
+    online = true
+    saleReply = () => {
+      stopQueueSendsForSignOut()
+      return new Response(
+        JSON.stringify({
+          type: 'https://api.fawtir.om/problems/pos-till-number-gap',
+          status: 409,
+          code: 'POS_TILL_NUMBER_GAP',
+          expectedNumber: 'NZW-T01-INV-2026-000049',
+        }),
+        { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+    }
+
+    expect(await flushQueue('till-1')).toBe('done')
+
+    const posts = calls.filter(
+      (call) => call.url === '/api/v1/pos/sales' && call.init?.method === 'POST',
+    )
+    expect(posts).toHaveLength(1)
+    const [waiting] = queuedFor('till-1')
+    expect(waiting.key).toBe('pos-sale-key-gap-50')
+    expect(waiting.refusal ?? null).toBeNull()
   })
 })

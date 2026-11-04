@@ -14,7 +14,7 @@ import {
   useFinishedSale,
   useOpenSale,
 } from '../../lib/posSale'
-import { resetPosQueue } from '../../lib/posQueue'
+import { noteQueueSender, resetPosQueue } from '../../lib/posQueue'
 import { heldSlipPhotos } from '../../lib/posSlipOutbox'
 import { memoryVault, setPosVault } from '../../lib/posVault'
 import { CashierPicker } from './CashierPicker'
@@ -113,6 +113,8 @@ describe('taking the payment (P.12)', () => {
     await i18n.changeLanguage('en')
     resetOpenSale(SAMPLE_SALE)
     resetPosQueue()
+    // The person signed in on this device: only the sales they queue go by themselves (round 5, P3b).
+    noteQueueSender('u-1')
     resetSharedRequests()
     forgetEntitlements()
     window.localStorage.clear()
@@ -339,6 +341,8 @@ describe('POS follow-ups (Abdul, 28 Oct 2026)', () => {
     await i18n.changeLanguage('en')
     resetOpenSale(SAMPLE_SALE)
     resetPosQueue()
+    // The person signed in on this device: only the sales they queue go by themselves (round 5, P3b).
+    noteQueueSender('u-1')
     resetSharedRequests()
     forgetEntitlements()
     window.localStorage.clear()
