@@ -1211,6 +1211,25 @@ describe('the maker sent as an untrusted claim (Round 13 L-2)', () => {
     expect(sentBodies()).toHaveLength(1)
     expect(queuedFor('till-1')).toHaveLength(1)
   })
+
+  // PRV43-OFF3 L-5: only the malformed-request refusal is the older server's answer to the claim; any
+  // other 400 is about the sale itself, and resending it without the claim would change nothing.
+  it('a body carrying the claim refused 400 as anything but malformed-request is not resent', async () => {
+    window.localStorage.setItem('fawtir.pos.queue', JSON.stringify([queued(49)]))
+    noteTillServer({ id: 'till-1', openNumbers: false, takesMakerClaim: true })
+    online = true
+    saleReply = () =>
+      new Response(
+        JSON.stringify({ type: 'https://api.fawtir.om/problems/validation-failed', status: 400 }),
+        { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+
+    await flushQueue('till-1')
+
+    expect(sentBodies()).toHaveLength(1)
+    expect(sentBodies()[0].claimedMakerUnverified).toBe('u-1')
+    expect(queuedFor('till-1')).toHaveLength(1)
+  })
 })
 
 // NOT RUN (batch 43, static only). PRV43-OFF2 N-7: the number-gap retry is a second POST, so it is
