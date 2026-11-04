@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ErpFlow } from '../HomePage/Audience'
 import { FeatureIcon } from './FeatureIcon'
@@ -190,9 +190,31 @@ function ModuleTabs() {
   const [active, setActive] = useState<ModuleKey>(() =>
     typeof window === 'undefined' ? 'pos' : moduleFromHash(window.location.hash),
   )
+  const navRef = useRef<HTMLElement>(null)
+  // The bar sticks to the top; it slides away while scrolling down and returns on the way up
+  // (owner, 4 Nov 2026), so it never covers the content being read.
+  const [hidden, setHidden] = useState(false)
+  useEffect(() => {
+    let last = window.scrollY
+    const onScroll = () => {
+      const y = window.scrollY
+      const nav = navRef.current
+      const pinned = nav ? nav.getBoundingClientRect().top <= 80 : false
+      if (Math.abs(y - last) < 6) return
+      setHidden(pinned && y > last)
+      last = y
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
   const choose = (key: ModuleKey) => {
     setActive(key)
     window.history.replaceState(null, '', `#${key}`)
+    // Far down a long module, start the new one from its top, under the bar.
+    const panels = document.getElementById('feature-panels')
+    if (panels && panels.getBoundingClientRect().top < 0) {
+      window.scrollTo({ top: window.scrollY + panels.getBoundingClientRect().top - 140 })
+    }
   }
   const row = (key: RowKey) => {
     const found = ROWS.find((r) => r.key === key)!
@@ -201,10 +223,16 @@ function ModuleTabs() {
   return (
     <>
       <nav
+        ref={navRef}
         aria-label={t('site.features.tabs.label')}
-        className="mx-auto w-full max-w-[1520px] px-4 md:px-8 min-[1600px]:px-0"
+        className={`sticky top-0 z-30 mx-auto w-full max-w-[1520px] px-4 pt-3 transition-transform duration-300 max-lg:top-[68px] md:px-8 min-[1600px]:px-0 ${
+          hidden ? '-translate-y-[calc(100%+80px)]' : 'translate-y-0'
+        }`}
       >
-        <div role="tablist" className="flex overflow-x-auto rounded-lg bg-[#fafafa]">
+        <div
+          role="tablist"
+          className="flex overflow-x-auto rounded-lg bg-[#fafafa] shadow-[0_4px_16px_rgba(21,28,45,0.06)]"
+        >
           {MODULES.map((m) => {
             const on = m.key === active
             return (
@@ -227,36 +255,38 @@ function ModuleTabs() {
         </div>
       </nav>
       {/* Every panel stays in the page for search engines; only the chosen one shows. */}
-      {MODULES.map((m) => (
-        <div
-          key={m.key}
-          id={`panel-${m.key}`}
-          role="tabpanel"
-          aria-labelledby={`tab-${m.key}`}
-          hidden={m.key !== active}
-          className="mt-[100px] max-md:mt-12"
-        >
-          <div className="flex flex-col gap-[200px] max-md:gap-24">
-            {m.key === 'pos' ? (
-              <>
-                {row('till')}
+      <div id="feature-panels">
+        {MODULES.map((m) => (
+          <div
+            key={m.key}
+            id={`panel-${m.key}`}
+            role="tabpanel"
+            aria-labelledby={`tab-${m.key}`}
+            hidden={m.key !== active}
+            className="mt-[100px] max-md:mt-12"
+          >
+            <div className="flex flex-col gap-[200px] max-md:gap-24">
+              {m.key === 'pos' ? (
+                <>
+                  {row('till')}
+                  <div className="-mt-[200px] max-md:-mt-24">
+                    <Steps />
+                  </div>
+                  {row('stock')}
+                </>
+              ) : (
+                m.rows.map(row)
+              )}
+              {m.key === 'tax' ? (
                 <div className="-mt-[200px] max-md:-mt-24">
-                  <Steps />
+                  <QrSection />
                 </div>
-                {row('stock')}
-              </>
-            ) : (
-              m.rows.map(row)
-            )}
-            {m.key === 'tax' ? (
-              <div className="-mt-[200px] max-md:-mt-24">
-                <QrSection />
-              </div>
-            ) : null}
-            <Tiles module={m.key} tiles={m.tiles} />
+              ) : null}
+              <Tiles module={m.key} tiles={m.tiles} />
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </>
   )
 }

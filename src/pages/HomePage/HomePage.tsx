@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import checkIcon from '../../assets/home/check.svg'
 import texture from '../../assets/home/texture.jpg'
@@ -34,6 +35,7 @@ import showcaseDashboardAr from '../../assets/home/showcase-dashboard-ar.webp'
 import './HomePage.css'
 import { ClosingBand, Cta, Footer, Heading, INK, Nav, SOFT, Texture, useSiteMeta } from './site'
 import { QrSection } from './QrSection'
+import { FeatureIcon } from '../SitePages/FeatureIcon'
 import { Audience } from './Audience'
 import { useSiteMail } from './siteMail'
 
@@ -259,6 +261,47 @@ function FeatureCard({ feature }: { feature: Feature }) {
   )
 }
 
+const STRIP = [
+  ['branches', 'branch'],
+  ['roles', 'key'],
+  ['approvals', 'approve'],
+  ['profile', 'building'],
+  ['languages', 'globe'],
+  ['mobile', 'phone'],
+] as const
+
+/**
+ * One line under the module cards (owner, 4 Nov 2026): the company-wide parts, as small chips,
+ * leading to the Features page's Company and team tab rather than a fifth card.
+ */
+function CompanyStrip() {
+  const { t } = useTranslation()
+  return (
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-lg border border-[#eaedf8] bg-[#f7f9ff] px-8 py-5 max-md:px-5">
+      <p className="landing-cap text-lg font-semibold leading-[normal]">
+        {t('landing.features.strip.lead')}
+      </p>
+      <ul className="flex flex-1 flex-wrap items-center gap-x-5 gap-y-2">
+        {STRIP.map(([key, icon]) => (
+          <li key={key} className={`flex items-center gap-2 text-sm font-medium ${SOFT}`}>
+            <FeatureIcon name={icon} />
+            {t(`landing.features.strip.${key}`)}
+          </li>
+        ))}
+      </ul>
+      <Link
+        to="/features#company"
+        className="inline-flex items-center gap-1 text-sm font-semibold text-[#2c4eb7] hover:underline"
+      >
+        {t('landing.features.strip.more')}
+        <span aria-hidden="true" className="rtl:-scale-x-100">
+          →
+        </span>
+      </Link>
+    </div>
+  )
+}
+
 function Features() {
   const { t } = useTranslation()
   return (
@@ -278,6 +321,7 @@ function Features() {
             ))}
           </div>
         ))}
+        <CompanyStrip />
       </div>
     </section>
   )

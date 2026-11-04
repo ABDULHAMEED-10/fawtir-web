@@ -151,7 +151,9 @@ describe('Pricing page', () => {
   it('quotes no grace-day figure: grace is a console setting the catalogue does not publish (GEN-2)', () => {
     const params = faqParams(CATALOGUE)
     expect(params).not.toHaveProperty('grace')
-    expect(i18n.t('plans.faq.a5', { ...params, lng: 'en' })).toContain('you keep a grace period before')
+    expect(i18n.t('plans.faq.a5', { ...params, lng: 'en' })).toContain(
+      'you keep a grace period before',
+    )
     expect(i18n.t('plans.faq.a5', { ...params, lng: 'en' })).not.toMatch(/\d+ days of grace/)
     expect(i18n.t('plans.faq.a5', { ...params, lng: 'ar' })).toContain('تحصل على مهلة قبل')
   })
@@ -172,7 +174,9 @@ describe('Pricing page', () => {
     const params = faqParams(CATALOGUE)
     expect(params).not.toHaveProperty('thresholds')
     const counts = i18n.t('plans.faq.a3', { ...params, lng: 'en' })
-    expect(counts).toContain('Supplier invoices, credit notes and debit notes you receive count too')
+    expect(counts).toContain(
+      'Supplier invoices, credit notes and debit notes you receive count too',
+    )
     expect(counts).toContain('sending it again is free')
     const over = i18n.t('plans.faq.a4', { ...params, lng: 'en' })
     expect(over).toContain('as you get close to your allowance')
@@ -185,7 +189,7 @@ describe('Pricing page', () => {
     expect(i18n.t('plans.faq.a4', { ...params, lng: 'ar' })).not.toContain('بالمئة')
   })
 
-  it('marks the ERP extraction add-on from the catalogue\'s erpAddon, not a web list (ER-1, PL-6)', () => {
+  it("marks the ERP extraction add-on from the catalogue's erpAddon, not a web list (ER-1, PL-6)", () => {
     const addon = { currency: 'OMR', monthlyPrice: '20.000', annualPrice: '240.000' }
     const starter: SignupCataloguePlan = { ...STARTER, erpAddon: null }
     const business: SignupCataloguePlan = { ...STARTER, code: 'BUSINESS', erpAddon: null }
@@ -234,7 +238,10 @@ describe('Pricing page', () => {
 
   it('quotes the VAT rate the server sends with the plans, and says no VAT is added at zero', () => {
     const vatCell = (plans: readonly SignupCataloguePlan[]) =>
-      comparisonGroups(plans).flatMap((group) => group.rows).find((row) => row.key === 'vat')!.cell(null)
+      comparisonGroups(plans)
+        .flatMap((group) => group.rows)
+        .find((row) => row.key === 'vat')!
+        .cell(null)
     const noVat = CATALOGUE.map((plan) => ({ ...plan, vatRate: '0.00000' }))
     const params = faqParams(noVat)
     expect(faqAnswerKey(6, params)).toBe('plans.faq.a7NoVat')
@@ -290,17 +297,28 @@ describe('Pricing page', () => {
 })
 
 describe('Features page', () => {
-  it('draws the six rows and jumps to one from its tab', () => {
+  // Six module tabs (owner, 4 Nov 2026), one panel shown at a time; each opens with its main
+  // screens and ends with its smaller features.
+  it('groups the features into module tabs and switches panels', () => {
     renderPage(<FeaturesPage />)
-    for (const key of ['till', 'invoicing', 'filing', 'stock', 'transactions', 'dashboard']) {
-      expect(screen.getByText(i18n.t(`site.features.${key}.em`))).toBeTruthy()
-      expect(screen.getByAltText(i18n.t(`site.features.${key}.alt`))).toBeTruthy()
-    }
-    const stock = screen.getByRole('link', { name: i18n.t('site.features.tabs.stock') })
-    expect(stock.getAttribute('href')).toBe('#stock')
-    fireEvent.click(stock)
-    expect(stock.getAttribute('aria-current')).toBe('true')
-    expect(screen.getByText(i18n.t('site.features.parts.leave.title'))).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toContain(
+      i18n.t('site.features.hero.word'),
+    )
+    const tabs = ['pos', 'invoicing', 'expenses', 'tax', 'reports', 'company'].map((key) =>
+      screen.getByRole('tab', { name: i18n.t(`site.features.modules.${key}`) }),
+    )
+    expect(tabs[0].getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByText(i18n.t('site.features.tiles.pos.barcode.title'))).toBeTruthy()
+
+    fireEvent.click(tabs[2])
+    expect(tabs[2].getAttribute('aria-selected')).toBe('true')
+    const expenses = screen.getByRole('tabpanel', {
+      name: i18n.t('site.features.modules.expenses'),
+    })
+    expect(within(expenses).getByAltText(i18n.t('site.features.bills.alt'))).toBeTruthy()
+    expect(
+      within(expenses).getByText(i18n.t('site.features.tiles.expenses.selfbilling.title')),
+    ).toBeTruthy()
   })
 })
 
