@@ -23269,22 +23269,22 @@
       "tag": "Fawtara QR code",
       "titleLead": "A QR code on every",
       "titleEm": "consumer invoice",
-      "sub": "The Oman Tax Authority asks for a QR code on every invoice to a consumer, full or simplified, made by the seller's own system. Fawtir makes it for you as the sale finishes, in the format the Authority sets.",
+      "sub": "The Tax Authority requires a QR code on every consumer invoice. Fawtir adds it for you.",
       "p1": {
-        "title": "Made as the sale finishes",
-        "body": "No add-on and no extra step. The till raises the invoice, files it with the Tax Authority well inside the 24 hours the rules allow, and puts the QR on the receipt."
+        "title": "Made at the sale",
+        "body": "No extra step. It is on the receipt the moment the sale ends."
       },
       "p2": {
-        "title": "Wherever your customer looks",
-        "body": "On the customer screen at the counter, on the printed receipt, and on a receipt sent by email or text message."
+        "title": "On every receipt",
+        "body": "Printed, on the customer screen, or sent by email or text."
       },
       "p3": {
-        "title": "Holds what the Authority asks for",
-        "body": "Your business name and VAT number, the invoice number, its date and time, the total and the VAT."
+        "title": "What the Authority asks for",
+        "body": "Seller, VAT number, invoice number, date, total and VAT."
       },
       "p4": {
-        "title": "Business customers go over Peppol",
-        "body": "Invoices to companies and government bodies travel as full e-invoices over Peppol, straight into the buyer's own system."
+        "title": "Businesses get Peppol",
+        "body": "Company and government invoices go as full e-invoices."
       },
       "alt": "A real receipt from the Fawtir till: a simplified tax invoice for Al Bahja Coffee with its QR code",
       "caption": "An example sale from the Fawtir till."

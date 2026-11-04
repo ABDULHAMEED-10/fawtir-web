@@ -544,12 +544,15 @@ export function Footer() {
     <footer className="relative mt-[200px] overflow-hidden rounded-t-lg bg-[#fafafa] max-md:mt-20">
       {/* The wordmark is Latin, so the footer keeps its left-to-right layout in Arabic too. */}
       <div className="relative mx-auto flex w-full max-w-[1920px] items-start justify-between gap-12 px-[min(117px,6.094vw)] pb-16 rtl:[direction:ltr] max-xl:flex-col max-xl:px-8 max-md:px-4">
-        <img
-          src={footerLogo}
-          alt=""
-          aria-hidden="true"
-          className="pointer-events-none mt-[min(100px,5.2vw)] h-auto w-[280px] shrink-0 max-xl:order-last max-xl:mt-0 max-md:w-[180px]"
-        />
+        <div className="flex shrink-0 flex-col gap-4 pt-[min(100px,5.2vw)] max-xl:order-last max-xl:pt-0">
+          <img
+            src={footerLogo}
+            alt=""
+            aria-hidden="true"
+            className="pointer-events-none h-auto w-[280px] max-md:w-[180px]"
+          />
+          <p className={`text-sm ${SOFT}`}>{t('landing.footer.rights', { year })}</p>
+        </div>
         <div className="relative flex w-[min(950px,49.48vw)] flex-col gap-[min(100px,5.2vw)] pt-[min(100px,5.2vw)] rtl:[direction:rtl] max-xl:w-full max-xl:gap-16 max-xl:pt-16 max-md:gap-12 max-md:pt-12">
           <form
             onSubmit={subscribe}
@@ -629,9 +632,6 @@ export function Footer() {
                 ),
               )}
             </div>
-            <p className={`landing-cap text-base leading-[normal] ${SOFT}`}>
-              {t('landing.footer.rights', { year })}
-            </p>
           </div>
         </div>
       </div>
