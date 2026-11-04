@@ -96,6 +96,10 @@ const calls = (method: string, prefix: string) =>
   )
 const bodyOf = (call: unknown[]) => JSON.parse((call[1] as RequestInit).body as string)
 
+/** A confirm answer from a server that says whether it holds the bill (round 25, W-1). */
+const savedBill = (held: boolean) =>
+  json(201, { id: 'b-new', supplierBillNumber: 'X', totalIncludingVat: 1, currencyCode: 'OMR', held })
+
 beforeEach(async () => {
   await i18n.changeLanguage('en')
   forgetEntitlements()
@@ -364,7 +368,7 @@ describe('scan receipts: a possible duplicate', () => {
   it('names the bill on file, and saves only when told it is a different bill', async () => {
     who = APPROVER
     stored = { 'r-1': typed('r-1', 'Nizwa Hardware Store', 28.4) }
-    confirmAnswers = [duplicateOf('SCANNED')]
+    confirmAnswers = [duplicateOf('SCANNED'), savedBill(false)]
     renderAt('/expenditure/bills/scan?intake=r-1')
     await screen.findByText('Receipt 1 of 1')
     fireEvent.click(screen.getByRole('button', { name: 'Save and next' }))
@@ -417,6 +421,7 @@ describe('scan receipts: a possible duplicate', () => {
           },
         ],
       }),
+      savedBill(true),
     ]
     renderAt('/expenditure/bills/scan?intake=r-1')
     await screen.findByText('Receipt 1 of 1')
@@ -454,6 +459,111 @@ describe('scan receipts: a possible duplicate', () => {
     await screen.findByText('This may be a bill you already have')
     expect(screen.getByText(words)).toBeTruthy()
     expect(screen.queryByText(/billIntake\.duplicate/)).toBeNull()
+  })
+})
+
+describe('scan receipts: round 25 W-1, the saved message follows the server', () => {
+  const SAVED_HELD =
+    'Saved as a bill and held as a possible duplicate. It is waiting for an authorized invoice approver, other than the person who recorded it, to decide. It has not been approved or paid.'
+  const UNKNOWN = 'The bill was saved. Open it to see whether it is waiting for a decision.'
+  const save = async () => {
+    renderAt('/expenditure/bills/scan?intake=r-1')
+    await screen.findByText('Receipt 1 of 1')
+    fireEvent.click(screen.getByRole('button', { name: 'Save and next' }))
+  }
+
+  it('an automatic hold, with nothing listed or refused, says held', async () => {
+    stored = { 'r-1': typed('r-1', 'Nizwa Hardware Store', 28.4) }
+    confirmAnswers = [savedBill(true)]
+    await save()
+
+    expect(await screen.findByText(SAVED_HELD)).toBeTruthy()
+    expect(screen.queryByText('Saved as a bill.')).toBeNull()
+    expect(screen.queryByText(UNKNOWN)).toBeNull()
+    expect(calls('POST', '/api/v1/bills/intake/r-1/confirm')).toHaveLength(1)
+    const sent = bodyOf(calls('POST', '/api/v1/bills/intake/r-1/confirm')[0])
+    expect(sent.notDuplicateOfIds ?? null).toBeNull()
+    expect(sent.notDuplicateOf).toBeNull()
+  })
+
+  it('a bill the server did not hold says "Saved as a bill." and nothing about a hold', async () => {
+    stored = { 'r-1': typed('r-1', 'Nizwa Hardware Store', 28.4) }
+    confirmAnswers = [savedBill(false)]
+    await save()
+
+    expect(await screen.findByText('Saved as a bill.')).toBeTruthy()
+    expect(screen.queryByText(SAVED_HELD)).toBeNull()
+    expect(screen.queryByText(UNKNOWN)).toBeNull()
+  })
+
+  it('an older server that does not say makes no claim either way', async () => {
+    stored = { 'r-1': typed('r-1', 'Nizwa Hardware Store', 28.4) }
+    confirmAnswers = [json(201, { id: 'b-new', supplierBillNumber: 'X', totalIncludingVat: 1, currencyCode: 'OMR' })]
+    await save()
+
+    expect(await screen.findByText(UNKNOWN)).toBeTruthy()
+    expect(screen.queryByText('Saved as a bill.')).toBeNull()
+    expect(screen.queryByText(SAVED_HELD)).toBeNull()
+  })
+
+  it.each([['a string', 'true'], ['null', null]])(
+    'a held value that is %s is not taken for an answer',
+    async (_label, held) => {
+      stored = { 'r-1': typed('r-1', 'Nizwa Hardware Store', 28.4) }
+      confirmAnswers = [
+        json(201, { id: 'b-new', supplierBillNumber: 'X', totalIncludingVat: 1, currencyCode: 'OMR', held }),
+      ]
+      await save()
+
+      expect(await screen.findByText(UNKNOWN)).toBeTruthy()
+      expect(screen.queryByText(SAVED_HELD)).toBeNull()
+      expect(screen.queryByText('Saved as a bill.')).toBeNull()
+    },
+  )
+
+  it('a submission for review on an older server is not called held from what was sent', async () => {
+    stored = { 'r-1': typed('r-1', 'Nizwa Hardware Store', 28.4) }
+    const match = {
+      billId: 'b-on-file',
+      supplierBillNumber: 'R-4471',
+      issueDate: '2026-09-12',
+      total: 28.4,
+      currencyCode: 'OMR',
+      source: 'PEPPOL',
+    }
+    confirmAnswers = [
+      json(409, {
+        type: 'https://api.fawtir.om/problems/resource-conflict',
+        error: 'BILL_INTAKE_POSSIBLE_DUPLICATE',
+        heldForReviewIfListed: true,
+        duplicateOf: match,
+        duplicates: [match],
+      }),
+      json(201, { id: 'b-new', supplierBillNumber: 'R-4471', totalIncludingVat: 28.4, currencyCode: 'OMR' }),
+    ]
+    await save()
+    await screen.findByText('This may be a bill you already have')
+    fireEvent.change(screen.getByRole('textbox', { name: 'Why is this a different bill?' }), {
+      target: { value: 'Two visits' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit it for review' }))
+
+    expect(await screen.findByText(UNKNOWN)).toBeTruthy()
+    expect(screen.queryByText(SAVED_HELD)).toBeNull()
+    expect(screen.queryByText('Saved as a bill.')).toBeNull()
+  })
+
+  it('a refusal shows the refusal and no saved message of any kind', async () => {
+    stored = { 'r-1': typed('r-1', 'Nizwa Hardware Store', 28.4) }
+    confirmAnswers = [
+      json(400, { type: 'https://api.fawtir.om/problems/expenditure-refused', error: 'BILL_INTAKE_ALREADY_CONFIRMED' }),
+    ]
+    await save()
+
+    expect(await screen.findByText('This file was already saved as a bill.')).toBeTruthy()
+    expect(screen.queryByText('Saved as a bill.')).toBeNull()
+    expect(screen.queryByText(SAVED_HELD)).toBeNull()
+    expect(screen.queryByText(UNKNOWN)).toBeNull()
   })
 })
 

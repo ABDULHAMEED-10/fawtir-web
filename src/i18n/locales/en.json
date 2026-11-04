@@ -21819,6 +21819,7 @@
       "hint": "JPG, PNG or PDF, up to {{mb}} MB each. You can choose several at once.",
       "saved": "Saved as a bill.",
       "savedHeld": "Saved as a bill and held as a possible duplicate. It is waiting for an authorized invoice approver, other than the person who recorded it, to decide. It has not been approved or paid.",
+      "savedStatusUnknown": "The bill was saved. Open it to see whether it is waiting for a decision.",
       "typeIt": "Nothing is read from the photo. Type the receipt in from the picture on the left.",
       "vatWorkedOut": "Worked out from the total and the rate. Type over it if the receipt says otherwise.",
       "owingNote": "It is recorded as a bill to pay later.",

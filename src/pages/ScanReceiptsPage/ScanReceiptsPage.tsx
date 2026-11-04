@@ -83,9 +83,9 @@ type Receipt = {
   file: File
   status: 'todo' | 'saved'
   /**
-   * Saved held as a possible duplicate (PRV43-WEBEXP L-2). The confirmed bill carries no hold, so
-   * this is what the save sent: the listing of the one copy the server said it would hold against
-   * (`heldForReviewIfListed`).
+   * The server's answer to whether the saved bill is held (round 25, W-1), undefined when an older
+   * server did not say. Not inferred from what the save sent: an automatic hold against a
+   * same-supplier Peppol copy on another record follows a save that listed nothing.
    */
   held?: boolean
   form: BillForm
@@ -593,7 +593,7 @@ function ReceiptEditor({
     setBusy(true)
     setNotice(null)
     try {
-      await confirmIntake(
+      const bill = await confirmIntake(
         receipt.intake.id,
         toConfirmation(form, {
           category: receipt.category || null,
@@ -615,7 +615,7 @@ function ReceiptEditor({
       onSaved({
         ...receipt,
         status: 'saved',
-        held: override !== null && duplicate?.heldForReview === true && duplicate.seen.length === 1,
+        held: typeof bill.held === 'boolean' ? bill.held : undefined,
       })
     } catch (failure) {
       const same = reviewAfterRefusal(duplicate, failure)
@@ -746,7 +746,15 @@ function ReceiptEditor({
 
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           {saved ? (
-            <Notice body={t(receipt.held ? 'billIntake.scan.savedHeld' : 'billIntake.scan.saved')} />
+            <Notice
+              body={t(
+                receipt.held === true
+                  ? 'billIntake.scan.savedHeld'
+                  : receipt.held === false
+                    ? 'billIntake.scan.saved'
+                    : 'billIntake.scan.savedStatusUnknown',
+              )}
+            />
           ) : null}
           {notice ? (
             <Notice

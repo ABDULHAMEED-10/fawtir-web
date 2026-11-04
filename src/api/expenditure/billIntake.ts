@@ -227,6 +227,12 @@ export type ConfirmedBillDto = {
    * from an older server, which does not say.
    */
   creditApplied?: { billId: string; amount: number } | null
+  /**
+   * Whether the server holds the bill now, read from its hold store (owner approval, batch 43
+   * round 25, W-1). Absent from an older server, which does not say: absent is unknown, never
+   * "not held".
+   */
+  held?: boolean
 }
 
 export function confirmIntake(id: string, body: ConfirmIntakeDto): Promise<ConfirmedBillDto> {
