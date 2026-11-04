@@ -18,6 +18,7 @@ import {
   toCorrections,
   vatIncluded,
 } from '../../lib/billIntake'
+import { overrideExtras } from '../../lib/billDuplicateOverride'
 import { UploadBillPage } from './UploadBillPage'
 import { UploadCreditNotePage } from '../UploadCreditNotePage'
 import { UploadDebitNotePage } from '../UploadDebitNotePage'
@@ -311,6 +312,16 @@ describe('the bill form rules', () => {
         lineNet: 100,
       },
     ])
+  })
+
+  it('round 20 L-6: the legacy notDuplicateOf is always sent as null, with or without an override', () => {
+    expect(toConfirmation(blankBillForm()).notDuplicateOf).toBeNull()
+    const overridden = toConfirmation(
+      blankBillForm(),
+      overrideExtras({ notDuplicateOfIds: ['b-1'], overrideReason: 'Second delivery' }),
+    )
+    expect(overridden.notDuplicateOf).toBeNull()
+    expect(overridden.notDuplicateOfIds).toEqual(['b-1'])
   })
 
   it('refuses what the server would, and a due date before the bill date', () => {

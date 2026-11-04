@@ -174,8 +174,12 @@ export type ConfirmIntakeDto = {
     paidOn: string | null
     pettyCash?: true
   } | null
-  /** The bill a possible-duplicate refusal named, which the person says is a different bill. */
-  notDuplicateOf: string | null
+  /**
+   * Always null (owner approval, batch 43 round 18, "Frontend Option 1"): the legacy single field
+   * takes no reason, so the override is sent as `notDuplicateOfIds` with `overrideReason` only.
+   * Still sent, as null, because the confirm body has always carried it.
+   */
+  notDuplicateOf: null
   /**
    * Every bill the refusals listed that the person says is a different bill, at most 20, sent with
    * `overrideReason`. Only after a refusal that carried `duplicates`: a server before the list

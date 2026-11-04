@@ -378,7 +378,7 @@ export function billProblems(
 export type ConfirmExtras = {
   category?: string | null
   paidOnTheSpot?: ConfirmIntakeDto['paidOnTheSpot']
-  notDuplicateOf?: string | null
+  notDuplicateOf?: null
   /** Sent, with `overrideReason`, only when given: a server before the list refuses the field. */
   notDuplicateOfIds?: string[]
   overrideReason?: string
@@ -435,7 +435,7 @@ export function toConfirmation(form: BillForm, extras: ConfirmExtras = {}): Conf
     purchaseOrderReference: null,
     category: extras.category ?? null,
     paidOnTheSpot: extras.paidOnTheSpot ?? null,
-    notDuplicateOf: extras.notDuplicateOf ?? null,
+    notDuplicateOf: null,
     ...(extras.notDuplicateOfIds?.length
       ? { notDuplicateOfIds: extras.notDuplicateOfIds, overrideReason: extras.overrideReason }
       : {}),
