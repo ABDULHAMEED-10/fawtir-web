@@ -57,7 +57,14 @@ export function useSiteMeta(titleKey: string, descriptionKey: string) {
     setMeta('property', 'og:title', title)
     setMeta('property', 'og:description', description)
     setMeta('property', 'og:locale', i18n.language.startsWith('ar') ? 'ar_OM' : 'en_OM')
-  }, [t, i18n.language, titleKey, descriptionKey])
+  }, [t, i18n.language, titleKey, descriptionKey]) // A site page opens at its top (owner, 4 Nov 2026): the router keeps the last page's scroll, so a
+  // link low on the home page landed at the foot of the next page. A hash naming a real element
+  // (such as /#qr-code) is still left to the browser.
+  useEffect(() => {
+    const id = window.location.hash.slice(1)
+    if (id && document.getElementById(id)) return
+    window.scrollTo(0, 0)
+  }, [])
 }
 
 /* ------------------------------------------------------------------ pieces */
