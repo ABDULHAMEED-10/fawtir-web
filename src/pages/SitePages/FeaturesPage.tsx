@@ -1,71 +1,163 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Audience } from '../HomePage/Audience'
+import { ErpFlow } from '../HomePage/Audience'
+import { FeatureIcon } from './FeatureIcon'
 import { Steps } from '../HomePage/HomePage'
 import { QrSection } from '../HomePage/QrSection'
 import tillShot from '../../assets/site/feature-till.webp'
 import invoiceShot from '../../assets/site/feature-invoice.webp'
-import proofShot from '../../assets/site/feature-proof.webp'
 import stockShot from '../../assets/site/feature-stock.webp'
 import findShot from '../../assets/site/feature-find.webp'
 import numbersShot from '../../assets/site/feature-numbers.webp'
+import billsShot from '../../assets/site/feature-bills.webp'
+import billsShotAr from '../../assets/site/feature-bills-ar.webp'
+import paymentsShot from '../../assets/site/feature-payments.webp'
+import paymentsShotAr from '../../assets/site/feature-payments-ar.webp'
+import tddShot from '../../assets/site/feature-tdd.webp'
+import tddShotAr from '../../assets/site/feature-tdd-ar.webp'
 import wave1 from '../../assets/site/wave-1.svg'
 import wave2 from '../../assets/site/wave-2.svg'
 import wave3 from '../../assets/site/wave-3.svg'
-import wifiOffIcon from '../../assets/site/icon-wifi-off.svg'
-import globeIcon from '../../assets/site/icon-globe.svg'
-import phoneIcon from '../../assets/site/icon-phone.svg'
-import branchIcon from '../../assets/site/icon-branch.svg'
-import patternIcon from '../../assets/site/icon-pattern.svg'
-import signatureIcon from '../../assets/site/icon-signature.svg'
-import photoIcon from '../../assets/site/icon-photo.svg'
-import exportIcon from '../../assets/site/icon-export.svg'
 import '../HomePage/HomePage.css'
 import {
   CheckList,
   ClosingBand,
   Footer,
-  Heading,
   INK,
   PageHero,
   SOFT,
   Texture,
-  Washes,
   useSiteMeta,
 } from '../HomePage/site'
 
 /**
- * The public features page (Figma "Features", 191:12630): a tab bar that jumps to six rows, the
- * rows alternating open (copy first, a wave behind) and boxed (mockup first, in a bordered panel),
- * then the small parts. The mockups are the frame's own renders; the words are code.
+ * The public features page (Figma "Features", 191:12630), reorganised by module (owner, 4 Nov 2026):
+ * six tabs, one shown at a time. Each opens with its main screens as large rows (copy beside a
+ * framed screenshot, alternating open and boxed as in the frame), then a grid of the module's
+ * smaller features. Only features the app has today are listed.
  */
 
-type RowKey = 'till' | 'invoicing' | 'filing' | 'stock' | 'transactions' | 'dashboard'
-const ROWS: { key: RowKey; shot: string; wave?: string }[] = [
+type RowKey =
+  | 'till'
+  | 'stock'
+  | 'invoicing'
+  | 'transactions'
+  | 'bills'
+  | 'payments'
+  | 'tdd'
+  | 'dashboard'
+  | 'erp'
+type Row = { key: RowKey; shot?: string; shotAr?: string; wave?: string }
+const ROWS: Row[] = [
   { key: 'till', shot: tillShot, wave: wave1 },
-  { key: 'invoicing', shot: invoiceShot },
-  { key: 'filing', shot: proofShot, wave: wave2 },
   { key: 'stock', shot: stockShot },
+  { key: 'invoicing', shot: invoiceShot },
   { key: 'transactions', shot: findShot, wave: wave3 },
+  { key: 'bills', shot: billsShot, shotAr: billsShotAr, wave: wave2 },
+  { key: 'payments', shot: paymentsShot, shotAr: paymentsShotAr },
+  { key: 'tdd', shot: tddShot, shotAr: tddShotAr, wave: wave1 },
   { key: 'dashboard', shot: numbersShot },
+  { key: 'erp', wave: wave3 },
 ]
-/**
- * Module tabs (owner, 4 Nov 2026): the rows grouped by the part of Fawtir they belong to, one
- * group shown at a time. The till's steps (moved from the home page) and stock sit
- * under Point of sale; the QR section joins the Tax Authority tab.
- */
-type ModuleKey = 'pos' | 'invoicing' | 'tax' | 'reports'
-const MODULES: { key: ModuleKey; rows: RowKey[] }[] = [
-  { key: 'pos', rows: ['till', 'stock'] },
-  { key: 'invoicing', rows: ['invoicing', 'transactions'] },
-  { key: 'tax', rows: ['filing'] },
-  { key: 'reports', rows: ['dashboard'] },
+
+type ModuleKey = 'pos' | 'invoicing' | 'expenses' | 'tax' | 'reports' | 'company'
+type Tile = [key: string, icon: string]
+const MODULES: { key: ModuleKey; rows: RowKey[]; tiles: Tile[] }[] = [
+  {
+    key: 'pos',
+    rows: ['till', 'stock'],
+    tiles: [
+      ['barcode', 'barcode'],
+      ['sizes', 'layers'],
+      ['split', 'split'],
+      ['held', 'pause'],
+      ['refunds', 'undo'],
+      ['company', 'building'],
+      ['offline', 'wifiOff'],
+      ['close', 'cash'],
+      ['cashier', 'user'],
+      ['discount', 'percent'],
+      ['receipt', 'receipt'],
+      ['tills', 'store'],
+    ],
+  },
+  {
+    key: 'invoicing',
+    rows: ['invoicing', 'transactions'],
+    tiles: [
+      ['notes', 'file'],
+      ['reminders', 'bell'],
+      ['periodic', 'repeat'],
+      ['bulk', 'upload'],
+      ['approval', 'approve'],
+      ['customers', 'users'],
+      ['replies', 'send'],
+      ['payments', 'card'],
+    ],
+  },
+  {
+    key: 'expenses',
+    rows: ['bills', 'payments'],
+    tiles: [
+      ['recurring', 'repeat'],
+      ['notes', 'file'],
+      ['selfbilling', 'pen'],
+      ['reminders', 'bell'],
+      ['approvals', 'approve'],
+      ['waiting', 'inbox'],
+      ['suppliers', 'users'],
+      ['vat', 'percent'],
+    ],
+  },
+  {
+    key: 'tax',
+    rows: ['tdd'],
+    tiles: [
+      ['pintom', 'shield'],
+      ['calllog', 'list'],
+      ['report', 'chart'],
+      ['archive', 'archive'],
+      ['b2c', 'clock'],
+      ['proof', 'stamp'],
+      ['resend', 'send'],
+      ['peppol', 'globe'],
+    ],
+  },
+  {
+    key: 'reports',
+    rows: ['dashboard'],
+    tiles: [
+      ['income', 'trend'],
+      ['expenses', 'chart'],
+      ['vat', 'percent'],
+      ['cash', 'flow'],
+      ['compliance', 'shield'],
+      ['lists', 'list'],
+      ['pdf', 'download'],
+      ['compare', 'pie'],
+    ],
+  },
+  {
+    key: 'company',
+    rows: ['erp'],
+    tiles: [
+      ['branches', 'branch'],
+      ['roles', 'key'],
+      ['approvals', 'approve'],
+      ['team', 'users'],
+      ['log', 'log'],
+      ['languages', 'globe'],
+      ['mobile', 'phone'],
+      ['export', 'download'],
+    ],
+  },
 ]
 /** The module a link lands on: its own key, or the key of a row inside it (old links). */
 function moduleFromHash(hash: string): ModuleKey {
   const id = hash.replace('#', '')
+  const old: Record<string, ModuleKey> = { filing: 'tax', qr: 'tax' }
   const found = MODULES.find((m) => m.key === id || (m.rows as string[]).includes(id))
-  return found ? found.key : 'pos'
+  return found ? found.key : (old[id] ?? 'pos')
 }
 
 const ITEMS = ['a', 'b', 'c', 'd', 'e']
@@ -84,8 +176,6 @@ export function FeaturesPage() {
       />
       <main>
         <ModuleTabs />
-        <Audience photo="office" till="clothes" />
-        <Parts />
       </main>
       <ClosingBand />
       <Footer />
@@ -163,6 +253,7 @@ function ModuleTabs() {
                 <QrSection />
               </div>
             ) : null}
+            <Tiles module={m.key} tiles={m.tiles} />
           </div>
         </div>
       ))}
@@ -187,11 +278,19 @@ function RowCopy({ rowKey }: { rowKey: RowKey }) {
   )
 }
 
-function Shot({ row }: { row: (typeof ROWS)[number] }) {
-  const { t } = useTranslation()
+function Shot({ row }: { row: Row }) {
+  const { t, i18n } = useTranslation()
+  if (row.key === 'erp') {
+    return (
+      <div className="relative w-full max-w-[660px] shrink-0 lg:w-[min(660px,40%)] [&>figure]:m-0 [&>figure]:p-0">
+        <ErpFlow />
+      </div>
+    )
+  }
+  const ar = i18n.language.startsWith('ar')
   return (
     <img
-      src={row.shot}
+      src={ar && row.shotAr ? row.shotAr : row.shot}
       alt={t(`site.features.${row.key}.alt`)}
       loading="lazy"
       className="landing-sheet relative block h-auto w-full max-w-[660px] shrink-0 rounded-lg bg-white lg:w-[min(660px,40%)]"
@@ -200,7 +299,7 @@ function Shot({ row }: { row: (typeof ROWS)[number] }) {
 }
 
 /** Copy on the start side, the mockup on the end side, a wave drawn across behind them. */
-function OpenRow({ row }: { row: (typeof ROWS)[number] }) {
+function OpenRow({ row }: { row: Row }) {
   return (
     <section id={row.key} className="relative isolate scroll-mt-8">
       <img
@@ -220,7 +319,7 @@ function OpenRow({ row }: { row: (typeof ROWS)[number] }) {
 }
 
 /** The mockup on the start side inside a bordered, textured 1720 panel; copy on the end side. */
-function BoxedRow({ row }: { row: (typeof ROWS)[number] }) {
+function BoxedRow({ row }: { row: Row }) {
   return (
     <section
       id={row.key}
@@ -239,43 +338,29 @@ function BoxedRow({ row }: { row: (typeof ROWS)[number] }) {
   )
 }
 
-/* ------------------------------------------------------------------- parts */
+/* ------------------------------------------------------------------- tiles */
 
-const PARTS: { key: string; icon: string }[] = [
-  { key: 'offline', icon: wifiOffIcon },
-  { key: 'languages', icon: globeIcon },
-  { key: 'phone', icon: phoneIcon },
-  { key: 'branches', icon: branchIcon },
-  { key: 'patterns', icon: patternIcon },
-  { key: 'signatures', icon: signatureIcon },
-  { key: 'bills', icon: photoIcon },
-  { key: 'leave', icon: exportIcon },
-]
-
-function Parts() {
+/** The module's smaller features, in the style of the frame's "parts" grid. */
+function Tiles({ module, tiles }: { module: ModuleKey; tiles: Tile[] }) {
   const { t } = useTranslation()
+  const base = `site.features.tiles.${module}`
   return (
-    <section className="relative isolate mx-auto mt-[200px] w-full max-w-[1720px] px-4 pb-[100px] pt-[140px] max-md:mt-24 max-md:pt-16 md:px-8 min-[1800px]:px-0">
-      <Washes />
-      <div className="mx-auto flex max-w-[1424px] flex-col items-center gap-[60px] max-md:gap-10">
-        <Heading
-          lead={t('site.features.parts.lead')}
-          em={t('site.features.parts.em')}
-          className="text-center"
-        />
+    <section className="mx-auto w-full max-w-[1520px] px-4 md:px-8 min-[1600px]:px-0">
+      <div className="rounded-lg bg-[#f7f9ff] px-10 py-12 max-md:px-4 max-md:py-8">
+        <h2 className="landing-cap mb-8 text-[28px] font-semibold leading-[normal] max-md:text-[22px]">
+          {t('site.features.moreTitle', { module: t(`site.features.modules.${module}`) })}
+        </h2>
         <ul className="grid w-full grid-cols-4 gap-[18px] max-lg:grid-cols-2 max-sm:grid-cols-1">
-          {PARTS.map((part) => (
-            <li key={part.key} className="flex flex-col gap-4 rounded-lg bg-white px-6 py-8">
+          {tiles.map(([key, icon]) => (
+            <li key={key} className="flex flex-col gap-4 rounded-lg bg-white px-6 py-8">
               <span className="flex size-10 items-center justify-center rounded-lg bg-[#f4f6fb]">
-                <img src={part.icon} alt="" className="size-[22px]" />
+                <FeatureIcon name={icon} />
               </span>
               <div className="flex flex-col gap-2">
                 <h3 className="landing-cap text-base font-semibold leading-[normal]">
-                  {t(`site.features.parts.${part.key}.title`)}
+                  {t(`${base}.${key}.title`)}
                 </h3>
-                <p className="text-sm leading-5 text-[#737781]">
-                  {t(`site.features.parts.${part.key}.body`)}
-                </p>
+                <p className="text-sm leading-5 text-[#737781]">{t(`${base}.${key}.body`)}</p>
               </div>
             </li>
           ))}

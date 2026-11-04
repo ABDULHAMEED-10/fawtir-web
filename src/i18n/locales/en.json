@@ -23449,10 +23449,10 @@
     },
     "features": {
       "hero": {
-        "lead": "Six things, and",
-        "word": "they are all",
-        "tail": "The same thing",
-        "body": "Fawtir is not six features in a bundle. It is one record of one sale, looked at six different ways."
+        "lead": "One system for",
+        "word": "every part",
+        "tail": "of your business",
+        "body": "Sell at the counter, invoice customers, pay suppliers, report to the Tax Authority and see your numbers, all from one record."
       },
       "tabs": {
         "label": "Features",
@@ -23581,7 +23581,284 @@
         "pos": "Point of sale",
         "invoicing": "Invoicing",
         "tax": "Tax Authority",
-        "reports": "Reports"
+        "reports": "Reports",
+        "expenses": "Expenses",
+        "company": "Company and team"
+      },
+      "moreTitle": "Also in {{module}}",
+      "bills": {
+        "lead": "Supplier bills,",
+        "em": "however they arrive",
+        "body": "Bills come in over Peppol, as an upload, or from a photo of the receipt. Fawtir reads them, matches them to your orders and holds them for approval.",
+        "items": {
+          "a": "Received over Peppol, straight from the supplier",
+          "b": "Upload a PDF or scan a receipt with your phone",
+          "c": "Matched against your purchase orders",
+          "d": "Duplicates caught before they are paid",
+          "e": "Each bill's VAT counted for your return"
+        },
+        "alt": "The Bills screen in Fawtir: what needs attention, what is due this week, what you owe and what is ready to pay"
+      },
+      "payments": {
+        "lead": "Pay suppliers",
+        "em": "in one run",
+        "body": "Pick the approved bills to pay, and Fawtir groups them by supplier so you can see what is paid and what is still owed.",
+        "items": {
+          "a": "Approved bills only, never by mistake",
+          "b": "Grouped by supplier, with one reference per run",
+          "c": "Scheduled, sent to the bank, paid",
+          "d": "Partial payments and supplier credit applied",
+          "e": "Every run kept with its bills"
+        },
+        "alt": "Payment runs in Fawtir: each run with its state, payment date and amount"
+      },
+      "tdd": {
+        "lead": "Every invoice,",
+        "em": "followed to the Tax Authority",
+        "body": "Each invoice and note becomes a Tax Data Document. You see whether the Authority accepted it, how long it took, and why one was refused.",
+        "items": {
+          "a": "Accepted, waiting or refused, at a glance",
+          "b": "The reason for a refusal, in plain words",
+          "c": "Fix and send again from the same screen",
+          "d": "Time to acceptance, this year and last",
+          "e": "Whether the customer received it over Peppol"
+        },
+        "alt": "The TDD and OTA screen in Fawtir: invoices accepted by the Tax Authority, waiting on you, and the time to acceptance"
+      },
+      "erp": {
+        "lead": "Keep your ERP,",
+        "em": "add compliance",
+        "body": "Your ERP sends invoices by API or file. Fawtir maps the fields, checks every invoice against PINT-OM and reports it, then sends it to the buyer over Peppol.",
+        "items": {
+          "a": "API push or file upload",
+          "b": "Field mapping you set once",
+          "c": "Checked before anything is sent",
+          "d": "Every document tracked to acceptance",
+          "e": "Your branches stay in your ERP"
+        },
+        "alt": "Your ERP sends invoices to Fawtir, which checks them and sends them to Peppol and the Tax Authority"
+      },
+      "tiles": {
+        "pos": {
+          "barcode": {
+            "title": "Barcode scanning",
+            "body": "Scan with a barcode scanner, or type the code."
+          },
+          "sizes": {
+            "title": "Sizes and add-ons",
+            "body": "One item in several sizes, with extras priced on top."
+          },
+          "split": {
+            "title": "Split payments and tips",
+            "body": "Cash and card on one sale, with a tip."
+          },
+          "held": {
+            "title": "Held sales",
+            "body": "Park a sale and come back to it, even after a shift change."
+          },
+          "refunds": {
+            "title": "Refunds at the till",
+            "body": "The credit note is made and reported for you."
+          },
+          "company": {
+            "title": "Full invoice at the counter",
+            "body": "A business buyer gets a full tax invoice, sent over Peppol."
+          },
+          "offline": {
+            "title": "Keeps selling offline",
+            "body": "Sales queue on the till and are filed when the connection is back."
+          },
+          "close": {
+            "title": "End-of-day cash count",
+            "body": "Count by note and coin; the difference is shown."
+          },
+          "cashier": {
+            "title": "Switch cashier",
+            "body": "Each sale is recorded under the person who made it."
+          },
+          "discount": {
+            "title": "Discount limits",
+            "body": "Set how much each role may take off a sale."
+          },
+          "receipt": {
+            "title": "Receipts your way",
+            "body": "Printed, on the customer screen, or by email or text."
+          },
+          "tills": {
+            "title": "Several tills",
+            "body": "Each till has its own number series, in every branch."
+          }
+        },
+        "invoicing": {
+          "notes": {
+            "title": "Credit and debit notes",
+            "body": "Corrections linked to the original invoice."
+          },
+          "reminders": {
+            "title": "Payment reminders",
+            "body": "Sent on the schedule you set."
+          },
+          "periodic": {
+            "title": "Repeat invoices",
+            "body": "Monthly invoices raised for you."
+          },
+          "bulk": {
+            "title": "Bulk upload",
+            "body": "Many invoices from one spreadsheet."
+          },
+          "approval": {
+            "title": "Approval before issuing",
+            "body": "Invoices above your limit wait for a manager."
+          },
+          "customers": {
+            "title": "Customers in one place",
+            "body": "Imported once, VAT numbers and Peppol IDs checked."
+          },
+          "replies": {
+            "title": "Delivery replies",
+            "body": "See whether the buyer's provider confirmed delivery."
+          },
+          "payments": {
+            "title": "Payments recorded",
+            "body": "Full or partial, by cash, card or transfer."
+          }
+        },
+        "expenses": {
+          "recurring": {
+            "title": "Recurring bills",
+            "body": "Rent and subscriptions, raised each period."
+          },
+          "notes": {
+            "title": "Supplier credit and debit notes",
+            "body": "Applied to the bills they correct."
+          },
+          "selfbilling": {
+            "title": "Self-billing",
+            "body": "Invoice on a supplier's behalf under a signed agreement."
+          },
+          "reminders": {
+            "title": "Bill reminders",
+            "body": "Know what falls due this week."
+          },
+          "approvals": {
+            "title": "Approvals",
+            "body": "Bills wait for the right person before payment."
+          },
+          "waiting": {
+            "title": "Documents waiting",
+            "body": "Files that arrived but cannot be opened are kept aside."
+          },
+          "suppliers": {
+            "title": "Suppliers in one place",
+            "body": "Imported once, with their VAT numbers and Peppol IDs."
+          },
+          "vat": {
+            "title": "Input VAT counted",
+            "body": "Ready for your VAT return."
+          }
+        },
+        "tax": {
+          "pintom": {
+            "title": "Checked against PINT-OM",
+            "body": "Errors are caught before an invoice leaves."
+          },
+          "calllog": {
+            "title": "OTA call log",
+            "body": "Every exchange with the Tax Authority, kept."
+          },
+          "report": {
+            "title": "Compliance report",
+            "body": "One report to hand to your accountant or auditor."
+          },
+          "archive": {
+            "title": "Ten-year archive",
+            "body": "Every document kept as the VAT law requires, never editable."
+          },
+          "b2c": {
+            "title": "Consumer invoices on time",
+            "body": "Reported within the 24 hours the rules allow."
+          },
+          "proof": {
+            "title": "Proof for an auditor",
+            "body": "Every step signed, sent and accepted, with its time."
+          },
+          "resend": {
+            "title": "Fix and resend",
+            "body": "A refused invoice is corrected and sent again."
+          },
+          "peppol": {
+            "title": "Your Peppol listing",
+            "body": "So customers can send you e-invoices too."
+          }
+        },
+        "reports": {
+          "income": {
+            "title": "Income report",
+            "body": "Invoiced, VAT and top customers, by month and year."
+          },
+          "expenses": {
+            "title": "Expenditure report",
+            "body": "What you spent, with whom, and on what."
+          },
+          "vat": {
+            "title": "VAT report",
+            "body": "Output VAT, input VAT and the net for your return."
+          },
+          "cash": {
+            "title": "Cash flow",
+            "body": "Money in and out, period by period."
+          },
+          "compliance": {
+            "title": "Compliance report",
+            "body": "How many invoices were accepted, and how fast."
+          },
+          "lists": {
+            "title": "Lists to export",
+            "body": "Any list to a spreadsheet."
+          },
+          "pdf": {
+            "title": "Export as PDF",
+            "body": "Every report and chart exports on its own."
+          },
+          "compare": {
+            "title": "Compared with last year",
+            "body": "Every figure shows how it moved."
+          }
+        },
+        "company": {
+          "branches": {
+            "title": "Branches",
+            "body": "Each with its own address and invoice numbering."
+          },
+          "roles": {
+            "title": "Roles and permissions",
+            "body": "Decide who can sell, invoice, approve and pay."
+          },
+          "approvals": {
+            "title": "Approval rules",
+            "body": "Set limits for invoices, bills and discounts."
+          },
+          "team": {
+            "title": "Invite your team",
+            "body": "Each person signs in with their own account."
+          },
+          "log": {
+            "title": "Activity log",
+            "body": "Who did what, and when."
+          },
+          "languages": {
+            "title": "Arabic and English",
+            "body": "Every screen, invoice and receipt in both."
+          },
+          "mobile": {
+            "title": "On your phone",
+            "body": "Invoice and check the numbers from the Fawtir app."
+          },
+          "export": {
+            "title": "Your data is yours",
+            "body": "Export everything, any time."
+          }
+        }
       }
     },
     "contact": {

@@ -204,7 +204,7 @@ function Destination({
  * over Peppol and the Tax Authority's Fawtara (owner, 1 Nov 2026: real logos, a flow that reads as
  * a product diagram rather than three boxes). One column at every width, so it never crowds.
  */
-function ErpFlow() {
+export function ErpFlow() {
   const { t } = useTranslation()
   const base = 'landing.audience.erp.flow'
   const chips = ['mapped', 'checked', 'tracked'] as const
