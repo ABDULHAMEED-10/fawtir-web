@@ -126,7 +126,9 @@ describe('wording for every new code (WEB-10)', () => {
       'POS_ATTRIBUTION_REVIEWER_ONLY',
       'POS_LEGACY_RANGE_INVALID',
     ],
-    warning: ['POS_OFFLINE_ATTRIBUTION_HELD', 'POS_PRINTED_TOTALS_DIFFER'],
+    // POS_PRODUCT_NOT_SELLABLE_ACCEPTED: the hold detail stopped reusing it (8234ef0d), which dropped its only
+    // locale check; the till still shows it on PosDonePage (PRV43-OFF6 F-4).
+    warning: ['POS_OFFLINE_ATTRIBUTION_HELD', 'POS_PRINTED_TOTALS_DIFFER', 'POS_PRODUCT_NOT_SELLABLE_ACCEPTED'],
   }
   for (const [name, locale] of [
     ['en', en],
