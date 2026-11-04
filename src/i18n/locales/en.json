@@ -4952,7 +4952,21 @@
         "discountMax": "Highest discount (%)",
         "signatureSha256": "Signature (SHA-256)",
         "withheld": "Withheld: the sale contained a card number. SHA-256:",
-        "noPayload": "No signed sale was sent."
+        "noPayload": "No signed sale was sent.",
+        "heldFor": {
+          "title": "Why the server held it",
+          "cause": {
+            "LEGACY_DISCOUNT_MAKER_UNPROVEN": "A manual discount, and nothing shows who gave it",
+            "LEGACY_PRICE_BELOW_CATALOGUE": "Priced below the catalogue",
+            "LEGACY_PRICE_UNIT_NOT_COMPARABLE": "Sold in another unit at another price",
+            "LEGACY_PRICE_NOT_ESTABLISHED": "No catalogue price to compare with"
+          },
+          "unknownCause": "Held for: {{cause}}",
+          "below": "Line {{line}}: sold at {{price}}; the catalogue price when it was filed is {{catalogue}}",
+          "belowNotOnSale": "Line {{line}}: sold at {{price}}; the price stored for it is {{catalogue}} (no longer on sale)",
+          "unit": "Line {{line}}: sold at {{price}} per {{unit}}; the catalogue price is {{catalogue}} per {{productUnit}}, not converted",
+          "notEstablished": "Line {{line}}: no price could be found to compare with"
+        }
       },
       "resolve": {
         "title": "Who made this sale?",

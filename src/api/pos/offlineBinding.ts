@@ -91,6 +91,27 @@ export type OfflineHoldDetail = {
   discountPercentMax: number | null
   printedTotal: number | null
   serverTotal: number | null
+  /**
+   * Why a sale that would have been filed LEGACY was held anyway, as the server recorded it at filing
+   * (PRV43-OFF2 N-1). Absent from an older server and null for a hold its proof alone explains.
+   */
+  heldFor?: OfflineHeldFor | null
+}
+
+export type OfflineHeldFor = {
+  causes: string[]
+  lines: OfflineHeldLine[]
+}
+
+export type OfflineHeldLine = {
+  line: number
+  cause: string
+  unitPrice: number | null
+  /** The catalogue price when the sale was filed, not when it was made: no history is kept. */
+  cataloguePriceAtFiling: number | null
+  unitCode: string | null
+  productUnitCode: string | null
+  notOnSale: boolean
 }
 
 export type OfflineHoldCandidate = {

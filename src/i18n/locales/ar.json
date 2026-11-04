@@ -5271,7 +5271,21 @@
         "discountMax": "أعلى خصم (%)",
         "signatureSha256": "التوقيع (SHA-256)",
         "withheld": "محجوب: احتوى البيع على رقم بطاقة. SHA-256:",
-        "noPayload": "لم يُرسل بيع موقّع."
+        "noPayload": "لم يُرسل بيع موقّع.",
+        "heldFor": {
+          "title": "سبب احتجاز الخادم للبيع",
+          "cause": {
+            "LEGACY_DISCOUNT_MAKER_UNPROVEN": "خصم يدوي، ولا يوجد ما يثبت من منحه",
+            "LEGACY_PRICE_BELOW_CATALOGUE": "السعر أقل من سعر الكتالوج",
+            "LEGACY_PRICE_UNIT_NOT_COMPARABLE": "بيع بوحدة أخرى وبسعر آخر",
+            "LEGACY_PRICE_NOT_ESTABLISHED": "لا يوجد سعر في الكتالوج للمقارنة"
+          },
+          "unknownCause": "سبب الاحتجاز: {{cause}}",
+          "below": "البند {{line}}: بيع بسعر {{price}}؛ سعر الكتالوج عند تسجيل البيع {{catalogue}}",
+          "belowNotOnSale": "البند {{line}}: بيع بسعر {{price}}؛ السعر المحفوظ له {{catalogue}} (لم يعد معروضًا للبيع)",
+          "unit": "البند {{line}}: بيع بسعر {{price}} لكل {{unit}}؛ سعر الكتالوج {{catalogue}} لكل {{productUnit}}، دون تحويل",
+          "notEstablished": "البند {{line}}: لم يُعثر على سعر للمقارنة"
+        }
       },
       "resolve": {
         "title": "من أجرى هذا البيع؟",

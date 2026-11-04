@@ -1,3 +1,5 @@
+import type { OfflineHeldFor } from '../api/pos/offlineBinding'
+
 /**
  * The signed envelope as a reviewer sees it. From fix/b39-off cf49f0447 the server itself sends the
  * buyer's identifier and contact as `[masked]` (C3); an earlier build sent them whole. The screen
@@ -52,4 +54,53 @@ export function offlineHoldTime(instant: string | null | undefined): string {
     if (!(error instanceof RangeError)) throw error
     return `${at.toLocaleString('en-GB', { timeZone: 'Asia/Muscat', hour12: false })} GMT+4`
   }
+}
+
+/** A message key under `pos.offline.detail.heldFor` and what fills it. */
+export type HeldForText = { key: string; values: Record<string, string | number> }
+
+const KNOWN_CAUSES = new Set([
+  'LEGACY_DISCOUNT_MAKER_UNPROVEN',
+  'LEGACY_PRICE_BELOW_CATALOGUE',
+  'LEGACY_PRICE_UNIT_NOT_COMPARABLE',
+  'LEGACY_PRICE_NOT_ESTABLISHED',
+])
+
+/** Three places as the till prints, more when the price has them (a catalogue price keeps six). */
+function price(value: number | null): string {
+  if (value === null) return ''
+  const places = String(value).split('.')[1]?.length ?? 0
+  return value.toFixed(Math.min(6, Math.max(3, places)))
+}
+
+/**
+ * The server's causes and the lines they name, as messages (PRV43-OFF2 N-1). A cause this build
+ * does not know is shown by its code rather than dropped: the reviewer must see every reason the
+ * server gave. Nothing here judges the sale; it only says what the server recorded.
+ */
+export function heldForText(heldFor: OfflineHeldFor): {
+  causes: HeldForText[]
+  lines: HeldForText[]
+} {
+  const causes = heldFor.causes.map((cause) =>
+    KNOWN_CAUSES.has(cause)
+      ? { key: `cause.${cause}`, values: {} }
+      : { key: 'unknownCause', values: { cause } },
+  )
+  const lines = heldFor.lines.map((held): HeldForText => {
+    const values = {
+      line: held.line,
+      price: price(held.unitPrice),
+      catalogue: price(held.cataloguePriceAtFiling),
+      unit: held.unitCode ?? '',
+      productUnit: held.productUnitCode ?? '',
+    }
+    if (held.cause === 'LEGACY_PRICE_UNIT_NOT_COMPARABLE') return { key: 'unit', values }
+    if (held.cause === 'LEGACY_PRICE_NOT_ESTABLISHED') return { key: 'notEstablished', values }
+    if (held.cause === 'LEGACY_PRICE_BELOW_CATALOGUE') {
+      return { key: held.notOnSale ? 'belowNotOnSale' : 'below', values }
+    }
+    return { key: 'unknownCause', values: { cause: held.cause } }
+  })
+  return { causes, lines }
 }
