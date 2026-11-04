@@ -3784,6 +3784,8 @@ describe('a bill recorded over possible duplicates, in its activity', () => {
     expect(within(item).queryByText(/A reason was recorded/)).toBeNull()
     // The server's own text of the same numbers is not drawn beside the links.
     expect(within(item).queryByText(/INV-7, INV-8/)).toBeNull()
+    // A real listing keeps its own label: it is not a submission for review (Round 36 item 6).
+    expect(screen.queryByText(/Submitted for review/)).toBeNull()
   })
 
   it('tells a reader who cannot approve only that a reason was kept', async () => {
@@ -3813,10 +3815,11 @@ describe('a bill recorded over possible duplicates, in its activity', () => {
     expect(within(item).queryByText(/by Huda/)).toBeNull()
   })
 
-  // PRV43-EXP6 M-1 (owner Round 33, Option 3): the server leaves the copy the hold names off this
-  // step, so a submission for review carries only the recorder's reason, and the approver's later
-  // decision is a step of its own, by its own person.
-  it('shows a submission for review as the recorder listing nothing, apart from the later decision', async () => {
+  // PRV43-EXP6 M-1 (owner Round 33, Option 3) and Round 36 item 6: a recorder who listed only the
+  // copy the hold names, with a reason, submitted the bill for review. The server sends that as its
+  // own step, naming no bill and carrying the reason; the approver's later decision is a step of
+  // its own, by its own person. The label is PENDING owner approval.
+  it('shows a submission for review as its own step with the reason, apart from the later decision', async () => {
     billResponse = () =>
       json(
         200,
@@ -3831,7 +3834,7 @@ describe('a bill recorded over possible duplicates, in its activity', () => {
             },
             {
               at: '2026-10-30T09:15:00Z',
-              kind: 'DUPLICATE_OVERRIDDEN',
+              kind: 'DUPLICATE_SUBMITTED_FOR_REVIEW',
               detail: null,
               actor: 'u-2',
               actorName: 'Huda',
@@ -3841,7 +3844,10 @@ describe('a bill recorded over possible duplicates, in its activity', () => {
         }),
       )
     renderBill()
-    const listed = await event()
+    const listed = (await screen.findByText(/Submitted for review by the person who recorded it/)).closest(
+      'li',
+    ) as HTMLElement
+    expect(screen.queryByText(/Listed by the person who recorded it/)).toBeNull()
     expect(within(listed).queryByRole('link')).toBeNull()
     expect(within(listed).getByText(/by Huda/)).toBeTruthy()
     expect(within(listed).getByText('Why: Please check')).toBeTruthy()
@@ -3851,7 +3857,55 @@ describe('a bill recorded over possible duplicates, in its activity', () => {
     ) as HTMLElement
     expect(decided).not.toBe(listed)
     expect(within(decided).getByText(/Two deliveries/)).toBeTruthy()
-    expect(within(decided).queryByText(/Listed by the person who recorded it|Please check/)).toBeNull()
+    expect(within(decided).queryByText(/Submitted for review|Please check/)).toBeNull()
+  })
+
+  it('tells a reader who cannot approve only that a reason was kept on a submission for review', async () => {
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          activity: [
+            {
+              at: '2026-10-30T09:15:00Z',
+              kind: 'DUPLICATE_SUBMITTED_FOR_REVIEW',
+              detail: null,
+              actor: 'u-2',
+              actorName: 'Huda',
+              duplicateOverride: { overriddenBills: [], reasonRecorded: true },
+            },
+          ],
+        }),
+      )
+    renderBill()
+    const item = (await screen.findByText(/Submitted for review by the person who recorded it/)).closest(
+      'li',
+    ) as HTMLElement
+    expect(within(item).getByText('A reason was recorded. Approvers can read it.')).toBeTruthy()
+    expect(within(item).queryByText(/^Why:/)).toBeNull()
+  })
+
+  it('reads a submission for review in Arabic', async () => {
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          activity: [
+            {
+              at: '2026-10-30T09:15:00Z',
+              kind: 'DUPLICATE_SUBMITTED_FOR_REVIEW',
+              detail: null,
+              actor: 'u-2',
+              actorName: 'Huda',
+              duplicateOverride: { overriddenBills: [], reasonRecorded: true },
+            },
+          ],
+        }),
+      )
+    await i18n.changeLanguage('ar')
+    renderBill()
+    expect(await screen.findByText(/أرسلها للمراجعة الشخص الذي سجّلها/)).toBeTruthy()
+    expect(screen.queryByText(/Submitted for review|أدرجها الشخص الذي سجّلها/)).toBeNull()
   })
 
   it('reads an entry without the override block as text, as any other step', async () => {
@@ -3875,6 +3929,7 @@ describe('a bill recorded over possible duplicates, in its activity', () => {
     renderBill()
     expect(await screen.findByText(new RegExp(i18n.t('invoiceDetails.event.other')))).toBeTruthy()
     expect(screen.queryByText(/Listed by the person who recorded it/)).toBeNull()
+    expect(screen.queryByText(/Submitted for review by the person who recorded it/)).toBeNull()
     expect(screen.queryByText(/^Why:/)).toBeNull()
     expect(screen.queryByText(/A reason was recorded/)).toBeNull()
   })

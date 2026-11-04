@@ -6843,7 +6843,8 @@
         "CONFIRMED_DUPLICATE": "تم تأكيد أنها مكررة",
         "NOT_DUPLICATE": "تقرّر أنها ليست مكررة",
         "REOPENED": "أُعيد فتحها",
-        "DUPLICATE_OVERRIDDEN": "أدرجها الشخص الذي سجّلها"
+        "DUPLICATE_OVERRIDDEN": "أدرجها الشخص الذي سجّلها",
+        "DUPLICATE_SUBMITTED_FOR_REVIEW": "أرسلها للمراجعة الشخص الذي سجّلها"
       },
       "byName": "بواسطة {{name}}",
       "overrideReason": "السبب: {{reason}}",

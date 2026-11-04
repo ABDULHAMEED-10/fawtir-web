@@ -6410,7 +6410,8 @@
         "CONFIRMED_DUPLICATE": "Confirmed as a duplicate",
         "NOT_DUPLICATE": "Decided not a duplicate",
         "REOPENED": "Reopened",
-        "DUPLICATE_OVERRIDDEN": "Listed by the person who recorded it"
+        "DUPLICATE_OVERRIDDEN": "Listed by the person who recorded it",
+        "DUPLICATE_SUBMITTED_FOR_REVIEW": "Submitted for review by the person who recorded it"
       },
       "byName": "by {{name}}",
       "overrideReason": "Why: {{reason}}",

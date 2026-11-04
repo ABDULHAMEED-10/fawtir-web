@@ -73,6 +73,12 @@ const APPROVED: [string, string][] = [
   ],
 ]
 
+// Owner Round 36 item 6 PROPOSED this text; it is not approved, so it is pinned apart from
+// APPROVED and an approval that rewords it changes this list. Its Arabic waits for native sign-off.
+const PENDING: [string, string][] = [
+  ['billDetail.activity.kind.DUPLICATE_SUBMITTED_FOR_REVIEW', 'Submitted for review by the person who recorded it'],
+]
+
 /** The {{placeholders}} of a text, sorted, so a translation that drops or renames one is caught. */
 function placeholders(text: unknown): string[] {
   return [...String(text).matchAll(/\{\{\s*(\w+)\s*\}\}/g)].map((found) => found[1]).sort()
@@ -83,14 +89,18 @@ describe('batch 43 duplicate strings (rounds 20 to 34)', () => {
     expect(lookup(en, key)).toBe(text)
   })
 
-  it.each(APPROVED)('%s has an Arabic text of its own, pending native sign-off', (key) => {
+  it.each(PENDING)('%s reads as proposed in English, PENDING OWNER APPROVAL', (key, text) => {
+    expect(lookup(en, key)).toBe(text)
+  })
+
+  it.each([...APPROVED, ...PENDING])('%s has an Arabic text of its own, pending native sign-off', (key) => {
     const arabic = lookup(ar, key)
     expect(typeof arabic).toBe('string')
     expect(arabic).not.toBe(lookup(en, key))
     expect(arabic as string).toMatch(/[\u0600-\u06FF]/)
   })
 
-  it.each(APPROVED)('%s keeps the same placeholders in Arabic', (key) => {
+  it.each([...APPROVED, ...PENDING])('%s keeps the same placeholders in Arabic', (key) => {
     expect(placeholders(lookup(ar, key))).toEqual(placeholders(lookup(en, key)))
   })
 

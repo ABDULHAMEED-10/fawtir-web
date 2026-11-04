@@ -597,12 +597,16 @@ export type BillDetailDto = {
       | 'REOPENED'
       // Recorded over the possible duplicates it was refused for (backend 9e768276b).
       | 'DUPLICATE_OVERRIDDEN'
+      // The recorder listed only copies the bill is held against, with a reason: a submission
+      // for review, naming no bill (owner Round 36 item 6). The server decides it; this page
+      // could not tell it from a listing whose every bill failed to resolve.
+      | 'DUPLICATE_SUBMITTED_FOR_REVIEW'
     detail: string | null
     actor: string | null
     /** `actor` by the team list's name; null when no person acted or they left the company. */
     actorName?: string | null
     /**
-     * On `DUPLICATE_OVERRIDDEN` only. The server sends `reason` only to a reader holding
+     * On `DUPLICATE_OVERRIDDEN` and `DUPLICATE_SUBMITTED_FOR_REVIEW` only. The server sends `reason` only to a reader holding
      * `invoice.approve` (owner batch 12); `reasonRecorded` says one was kept whoever reads. A
      * historical single-field override took no reason (owner batch 13). A bill that no longer
      * resolves is left out.
