@@ -9,14 +9,10 @@ import owner1 from '../../assets/home/owner-1.webp'
 import owner2 from '../../assets/home/owner-2.webp'
 import overviewCurve from '../../assets/home/overview-curve.svg'
 import overviewPhone from '../../assets/home/overview-phone.webp'
-import mockTill from '../../assets/home/mock-till.webp'
-import mockTillAr from '../../assets/home/mock-till-ar.webp'
-import mockInvoices from '../../assets/home/mock-invoices.webp'
-import mockInvoicesAr from '../../assets/home/mock-invoices-ar.webp'
 import mockFiling from '../../assets/home/mock-filing.webp'
 import mockFilingAr from '../../assets/home/mock-filing-ar.webp'
-import mockStock from '../../assets/home/mock-stock.webp'
-import mockStockAr from '../../assets/home/mock-stock-ar.webp'
+import mockInvoices from '../../assets/home/mock-invoices.webp'
+import mockInvoicesAr from '../../assets/home/mock-invoices-ar.webp'
 import mockDashboard from '../../assets/home/mock-dashboard.webp'
 import mockDashboardAr from '../../assets/home/mock-dashboard-ar.webp'
 import stepSale from '../../assets/home/step-sale.webp'
@@ -61,9 +57,7 @@ export function HomePage() {
       <Audience />
       <Overview />
       <Features />
-      <Steps />
       <QrSection />
-      <Counter />
       <Showcase />
       <ClosingBand />
       <Footer />
@@ -230,9 +224,13 @@ const centred = (width: number): CSSProperties => ({
   translate: '-50% 0',
 })
 
+/**
+ * The home page keeps filing, invoicing and the dashboard here (owner, 4 Nov 2026); the till and
+ * stock have their own sections on the Features page, so they are not repeated.
+ */
 const FEATURE_ROWS: Feature[][] = [
   [
-    { key: 'till', mock: mockTill, mockAr: mockTillAr, mockStyle: centred(412) },
+    { key: 'filing', mock: mockFiling, mockAr: mockFilingAr, mockStyle: centred(412) },
     {
       key: 'invoicing',
       mock: mockInvoices,
@@ -242,13 +240,12 @@ const FEATURE_ROWS: Feature[][] = [
     },
   ],
   [
-    { key: 'filing', mock: mockFiling, mockAr: mockFilingAr, mockStyle: centred(412) },
-    { key: 'stock', mock: mockStock, mockAr: mockStockAr, mockStyle: centred(412) },
     {
       key: 'dashboard',
       mock: mockDashboard,
       mockAr: mockDashboardAr,
-      mockStyle: { width: 451, insetInlineStart: 38.67 },
+      mockStyle: centred(620),
+      wide: true,
     },
   ],
 ]
@@ -299,8 +296,8 @@ function Features() {
       className="mx-auto mt-[200px] flex w-full max-w-[1920px] flex-col items-center gap-[60px] max-md:mt-24"
     >
       <div className="flex w-full max-w-[716px] flex-col items-center gap-6 px-4 text-center">
-        <Heading lead={t('landing.features.titleLead')} em={t('landing.features.titleEm')} />
-        <p className="landing-cap text-xl leading-[normal]">{t('landing.features.sub')}</p>
+        <Heading lead={t('landing.features.otaLead')} em={t('landing.features.otaEm')} />
+        <p className="landing-cap text-xl leading-[normal]">{t('landing.features.otaSub')}</p>
       </div>
       <div className="flex w-full max-w-[1920px] flex-col gap-6 px-[200px] max-[1919px]:px-[max(2rem,calc((100vw-1520px)/2))] max-md:px-4">
         {FEATURE_ROWS.map((row, index) => (
@@ -327,7 +324,8 @@ const STEP_SHOTS: Record<(typeof STEPS)[number], [string, string]> = {
   serve: [stepServe, stepServeAr],
 }
 
-function Steps() {
+/** The till's four steps; shown on the Features page under the till tab (owner, 4 Nov 2026). */
+export function Steps() {
   const { t, i18n } = useTranslation()
   const ar = i18n.language.startsWith('ar')
   const mail = useSiteMail()
@@ -420,7 +418,8 @@ function Steps() {
 
 /* ---------------------------------------------------------------- counter */
 
-function Counter() {
+/** The till on a phone; shown on the Features page under the till tab (owner, 4 Nov 2026). */
+export function Counter() {
   const { t } = useTranslation()
   const catalog = useShot(posCatalog, posCatalogAr)
   const items = ['taps', 'tabs', 'cashUp', 'offline'] as const

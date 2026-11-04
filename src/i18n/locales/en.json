@@ -23072,7 +23072,10 @@
         "em": "dashboard",
         "body": "Twelve months of revenue, what customers owe you, your VAT position for the quarter and what needs your attention.",
         "alt": "The dashboard's revenue chart: twelve months of invoiced sales"
-      }
+      },
+      "otaLead": "Invoice, report, see it all.",
+      "otaEm": "In one place",
+      "otaSub": "Every sale becomes the right invoice, is checked against Oman's PINT-OM rules and reported to the Tax Authority, and shows on your dashboard."
     },
     "steps": {
       "titleLead": "Sell, Invoice, File,",

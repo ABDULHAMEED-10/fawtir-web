@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Audience } from '../HomePage/Audience'
+import { Counter, Steps } from '../HomePage/HomePage'
 import tillShot from '../../assets/site/feature-till.webp'
 import invoiceShot from '../../assets/site/feature-invoice.webp'
 import proofShot from '../../assets/site/feature-proof.webp'
@@ -64,9 +65,18 @@ export function FeaturesPage() {
       <main>
         <Tabs />
         <div className="mt-[100px] flex flex-col gap-[200px] max-md:mt-12 max-md:gap-24">
-          {ROWS.map((row) =>
-            row.wave ? <OpenRow key={row.key} row={row} /> : <BoxedRow key={row.key} row={row} />,
-          )}
+          {ROWS.map((row) => (
+            <Fragment key={row.key}>
+              {row.wave ? <OpenRow row={row} /> : <BoxedRow row={row} />}
+              {/* Moved from the home page so it does not repeat the till (owner, 4 Nov 2026). */}
+              {row.key === 'till' ? (
+                <div className="-mt-[200px] max-md:-mt-24">
+                  <Steps />
+                  <Counter />
+                </div>
+              ) : null}
+            </Fragment>
+          ))}
         </div>
         <Audience photo="office" till="clothes" />
         <Parts />
