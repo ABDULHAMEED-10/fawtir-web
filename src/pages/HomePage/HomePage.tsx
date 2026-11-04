@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import checkIcon from '../../assets/home/check.svg'
 import texture from '../../assets/home/texture.jpg'
@@ -9,12 +9,14 @@ import owner1 from '../../assets/home/owner-1.webp'
 import owner2 from '../../assets/home/owner-2.webp'
 import overviewCurve from '../../assets/home/overview-curve.svg'
 import overviewPhone from '../../assets/home/overview-phone.webp'
-import mockFiling from '../../assets/home/mock-filing.webp'
-import mockFilingAr from '../../assets/home/mock-filing-ar.webp'
-import mockInvoices from '../../assets/home/mock-invoices.webp'
-import mockInvoicesAr from '../../assets/home/mock-invoices-ar.webp'
-import mockDashboard from '../../assets/home/mock-dashboard.webp'
-import mockDashboardAr from '../../assets/home/mock-dashboard-ar.webp'
+import cardInvoices from '../../assets/home/card-invoices.webp'
+import cardInvoicesAr from '../../assets/home/card-invoices-ar.webp'
+import cardBills from '../../assets/home/card-bills.webp'
+import cardBillsAr from '../../assets/home/card-bills-ar.webp'
+import cardTdd from '../../assets/home/card-tdd.webp'
+import cardTddAr from '../../assets/home/card-tdd-ar.webp'
+import cardReports from '../../assets/home/card-reports.webp'
+import cardReportsAr from '../../assets/home/card-reports-ar.webp'
 import stepSale from '../../assets/home/step-sale.webp'
 import stepSaleAr from '../../assets/home/step-sale-ar.webp'
 import stepInvoice from '../../assets/home/step-invoice.webp'
@@ -210,43 +212,24 @@ function Overview() {
 /* --------------------------------------------------------------- features */
 
 type Feature = {
-  key: 'till' | 'invoicing' | 'filing' | 'stock' | 'dashboard'
+  key: 'invoicing' | 'bills' | 'filing' | 'reports'
   mock: string
   mockAr: string
-  /** Where the frame puts the mockup: centred at its drawn width, or pinned from the left. */
-  mockStyle: CSSProperties
-  wide?: boolean
 }
 
-const centred = (width: number): CSSProperties => ({
-  width,
-  insetInlineStart: '50%',
-  translate: '-50% 0',
-})
-
 /**
- * The home page keeps filing, invoicing and the dashboard here (owner, 4 Nov 2026); the till and
- * stock have their own sections on the Features page, so they are not repeated.
+ * One card per module (owner, 4 Nov 2026): money in, money out, the Tax Authority and the reports.
+ * Each is the live app against the mock API at 3x, cropped to the work area, in the page's language.
+ * The till and stock have their own sections on the Features page; the dashboard is the showcase.
  */
 const FEATURE_ROWS: Feature[][] = [
   [
-    { key: 'filing', mock: mockFiling, mockAr: mockFilingAr, mockStyle: centred(412) },
-    {
-      key: 'invoicing',
-      mock: mockInvoices,
-      mockAr: mockInvoicesAr,
-      mockStyle: centred(874),
-      wide: true,
-    },
+    { key: 'invoicing', mock: cardInvoices, mockAr: cardInvoicesAr },
+    { key: 'bills', mock: cardBills, mockAr: cardBillsAr },
   ],
   [
-    {
-      key: 'dashboard',
-      mock: mockDashboard,
-      mockAr: mockDashboardAr,
-      mockStyle: centred(620),
-      wide: true,
-    },
+    { key: 'filing', mock: cardTdd, mockAr: cardTddAr },
+    { key: 'reports', mock: cardReports, mockAr: cardReportsAr },
   ],
 ]
 
@@ -255,34 +238,22 @@ function FeatureCard({ feature }: { feature: Feature }) {
   const mock = useShot(feature.mock, feature.mockAr)
   const base = `landing.features.${feature.key}`
   return (
-    <article
-      className={`relative h-[484.67px] overflow-hidden rounded-lg border border-[#eaedf8] bg-white ${
-        feature.wide || feature.key !== 'till'
-          ? 'w-full lg:w-auto lg:flex-1'
-          : 'w-full lg:basis-[490.667px] lg:shrink'
-      }`}
-    >
+    <article className="relative flex w-full flex-col overflow-hidden rounded-lg border border-[#eaedf8] bg-white lg:flex-1">
       <Texture flip="rotate" />
       <div className="relative px-[39px] pt-[39px] max-md:px-6 max-md:pt-6">
         <h3 className="landing-cap text-[32px] font-semibold leading-[normal] max-md:text-[26px]">
           {t(`${base}.lead`)}
           <span className={`landing-em font-light italic ${SOFT}`}>{t(`${base}.em`)}</span>
-          {feature.key === 'stock' ? t(`${base}.tail`) : null}
         </h3>
-        <p
-          className={`landing-cap mt-4 text-lg leading-7 ${
-            feature.wide ? 'max-w-[925px]' : 'max-w-[411px]'
-          }`}
-        >
-          {t(`${base}.body`)}
-        </p>
+        <p className="landing-cap mt-4 max-w-[560px] text-lg leading-7">{t(`${base}.body`)}</p>
       </div>
       <img
         src={mock}
         alt={t(`${base}.alt`)}
-        className="absolute bottom-0 max-w-none rtl:!translate-x-1/2"
-        style={feature.mockStyle}
+        width={2040}
+        height={1050}
         loading="lazy"
+        className="relative mx-auto mt-auto block w-[90%] pt-8"
       />
     </article>
   )

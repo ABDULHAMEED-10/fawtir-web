@@ -23052,13 +23052,13 @@
         "lead": "Instant ",
         "em": "invoicing",
         "body": "Every sale becomes the right invoice B2C at the counter, B2B with the company details, B2G with the buyer reference. Fawtir picks, you do not.",
-        "alt": "The invoices screen: outstanding, settled, awaiting payment and overdue totals above the invoice tabs"
+        "alt": "The Invoices screen in Fawtir: what is outstanding, settled, awaiting payment and overdue, and every invoice with its status"
       },
       "filing": {
         "lead": "Tax Authority ",
-        "em": "filing",
+        "em": "TDD and OTA",
         "body": "Checked against Oman's PINT-OM rules, then reported to the Tax Authority for you. Every invoice keeps its filing record.",
-        "alt": "The Tax Authority screen: the typical time for an invoice to be accepted, 2 minutes 14 seconds"
+        "alt": "The TDD and OTA screen in Fawtir: invoices accepted by the Tax Authority, waiting on you, and the time to acceptance"
       },
       "stock": {
         "lead": "Products ",
@@ -23075,7 +23075,19 @@
       },
       "otaLead": "Invoice, report, see it all.",
       "otaEm": "In one place",
-      "otaSub": "Every sale becomes the right invoice, is checked against Oman's PINT-OM rules and reported to the Tax Authority, and shows on your dashboard."
+      "otaSub": "Invoices out, bills in, every one reported to the Tax Authority, and reports that add it all up.",
+      "bills": {
+        "lead": "Supplier ",
+        "em": "bills",
+        "body": "Bills arrive over Peppol or from a photo of the receipt, are matched to your orders, approved and paid, with their VAT counted for you.",
+        "alt": "The Bills screen in Fawtir: what needs attention, what is due this week, what you owe and what is ready to pay"
+      },
+      "reports": {
+        "lead": "Reports ",
+        "em": "that add it up",
+        "body": "Income, expenses, VAT and cash flow by month, quarter and year. Every chart exports to PDF.",
+        "alt": "The Income report in Fawtir: invoiced net of VAT, VAT charged, invoices sent and monthly and quarterly charts"
+      }
     },
     "steps": {
       "titleLead": "Sell, Invoice, File,",
