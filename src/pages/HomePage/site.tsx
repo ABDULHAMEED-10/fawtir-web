@@ -543,14 +543,14 @@ export function Footer() {
   return (
     <footer className="relative mt-[200px] overflow-hidden rounded-t-lg bg-[#fafafa] max-md:mt-20">
       {/* The wordmark is Latin, so the footer keeps its left-to-right layout in Arabic too. */}
-      <div className="relative mx-auto w-full max-w-[1920px] rtl:[direction:ltr] xl:h-[min(925px,48.18vw)]">
+      <div className="relative mx-auto flex w-full max-w-[1920px] items-start justify-between gap-12 px-[min(117px,6.094vw)] pb-16 rtl:[direction:ltr] max-xl:flex-col max-xl:px-8 max-md:px-4">
         <img
           src={footerLogo}
           alt=""
           aria-hidden="true"
-          className="pointer-events-none absolute bottom-[min(60px,3.125vw)] left-[min(117px,6.094vw)] h-auto w-[min(1720px,89.583vw)] max-w-none max-xl:bottom-[60px] max-xl:left-6 max-xl:w-[855px] max-md:w-[342px]"
+          className="pointer-events-none mt-[min(100px,5.2vw)] h-auto w-[280px] shrink-0 max-xl:order-last max-xl:mt-0 max-md:w-[180px]"
         />
-        <div className="relative ml-auto flex w-[min(950px,49.48vw)] flex-col gap-[min(100px,5.2vw)] pt-[min(100px,5.2vw)] rtl:[direction:rtl] max-xl:w-full max-xl:gap-16 max-xl:px-8 max-xl:pb-[460px] max-xl:pt-16 max-md:gap-12 max-md:px-4 max-md:pb-[250px] max-md:pt-12 xl:mr-[min(83px,4.323vw)]">
+        <div className="relative flex w-[min(950px,49.48vw)] flex-col gap-[min(100px,5.2vw)] pt-[min(100px,5.2vw)] rtl:[direction:rtl] max-xl:w-full max-xl:gap-16 max-xl:pt-16 max-md:gap-12 max-md:pt-12">
           <form
             onSubmit={subscribe}
             className="flex items-center gap-[min(60px,3.125vw)] max-lg:flex-col max-lg:items-stretch max-lg:gap-6"
