@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Audience } from '../HomePage/Audience'
-import { Counter, Steps } from '../HomePage/HomePage'
+import { Steps } from '../HomePage/HomePage'
 import { QrSection } from '../HomePage/QrSection'
 import tillShot from '../../assets/site/feature-till.webp'
 import invoiceShot from '../../assets/site/feature-invoice.webp'
@@ -51,7 +51,7 @@ const ROWS: { key: RowKey; shot: string; wave?: string }[] = [
 ]
 /**
  * Module tabs (owner, 4 Nov 2026): the rows grouped by the part of Fawtir they belong to, one
- * group shown at a time. The till's steps and phones (moved from the home page) and stock sit
+ * group shown at a time. The till's steps (moved from the home page) and stock sit
  * under Point of sale; the QR section joins the Tax Authority tab.
  */
 type ModuleKey = 'pos' | 'invoicing' | 'tax' | 'reports'
@@ -152,7 +152,6 @@ function ModuleTabs() {
                 {row('till')}
                 <div className="-mt-[200px] max-md:-mt-24">
                   <Steps />
-                  <Counter />
                 </div>
                 {row('stock')}
               </>
