@@ -27,6 +27,14 @@ export function QrSection() {
     >
       <div className="relative grid overflow-hidden rounded-lg border border-[#eaedf8] bg-white lg:grid-cols-[minmax(0,1fr)_minmax(0,560px)]">
         <Texture flip="rotate" />
+        {/* The site's curve across the whole card (owner, 4 Nov 2026), behind the copy and the
+            receipt, as in the overview and the band. */}
+        <img
+          src={curve}
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-[12%] h-[220px] w-full max-w-none opacity-80 rtl:-scale-x-100 max-lg:bottom-[38%]"
+        />
         <div className="relative px-10 py-12 max-md:px-6 max-md:py-8">
           <p className="inline-flex rounded-full bg-[#eef2ff] px-3 py-1 text-sm font-medium leading-5 text-[#2c4eb7]">
             {t('landing.qr.tag')}
@@ -49,14 +57,7 @@ export function QrSection() {
             ))}
           </ul>
         </div>
-        <figure className="relative flex flex-col items-center justify-center bg-[#f7f9ff] px-10 py-12 max-md:px-6 max-md:py-8">
-          {/* The site's curve behind the receipt (owner, 4 Nov 2026), as in the overview and band. */}
-          <img
-            src={curve}
-            alt=""
-            aria-hidden="true"
-            className="pointer-events-none absolute start-[-10%] top-1/2 h-[180px] w-[130%] max-w-none -translate-y-1/2 rtl:-scale-x-100"
-          />
+        <figure className="relative flex flex-col items-center justify-center bg-[#f7f9ff]/40 px-10 py-12 max-md:px-6 max-md:py-8">
           <img
             src={ar ? qrReceiptAr : qrReceipt}
             alt={t('landing.qr.alt')}
