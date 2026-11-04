@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import checkIcon from '../../assets/home/check.svg'
 import qrReceipt from '../../assets/home/qr-receipt.webp'
 import qrReceiptAr from '../../assets/home/qr-receipt-ar.webp'
+import curve from '../../assets/home/pos-curve.svg'
 import { Heading, SOFT, Texture } from './site'
 
 /**
@@ -49,13 +50,20 @@ export function QrSection() {
           </ul>
         </div>
         <figure className="relative flex flex-col items-center justify-center bg-[#f7f9ff] px-10 py-12 max-md:px-6 max-md:py-8">
+          {/* The site's curve behind the receipt (owner, 4 Nov 2026), as in the overview and band. */}
+          <img
+            src={curve}
+            alt=""
+            aria-hidden="true"
+            className="pointer-events-none absolute start-[-10%] top-1/2 h-[180px] w-[130%] max-w-none -translate-y-1/2 rtl:-scale-x-100"
+          />
           <img
             src={ar ? qrReceiptAr : qrReceipt}
             alt={t('landing.qr.alt')}
             width={703}
             height={ar ? 1497 : 1490}
             loading="lazy"
-            className="w-full max-w-[320px] rounded-lg border border-[#e3e8f6] shadow-[0_16px_40px_rgba(21,28,45,0.12)]"
+            className="relative w-full max-w-[320px] rounded-lg border border-[#e3e8f6] shadow-[0_16px_40px_rgba(21,28,45,0.12)]"
           />
         </figure>
       </div>
