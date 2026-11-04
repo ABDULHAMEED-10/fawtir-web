@@ -27,6 +27,7 @@ import {
   reviewAfterRefusal,
   type DuplicateOverride,
   type DuplicateReview,
+  duplicateBodyKey,
 } from '../../lib/billDuplicateOverride'
 import { DuplicateReviewPanel } from '../bills/DuplicateReviewPanel'
 import {
@@ -1013,7 +1014,7 @@ export function SupplierNoteIntake({
               busy={busy}
               sentence={(bill) =>
                 withRial(
-                  t('billIntake.duplicate.body', {
+                  t(duplicateBodyKey(duplicate), {
                     number: bill.supplierBillNumber,
                     date: bill.issueDate ? formatDate(bill.issueDate, language) : '—',
                     total:

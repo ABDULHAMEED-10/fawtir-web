@@ -27,6 +27,11 @@ export type DuplicateReview = {
    * including after the server refused such a submission.
    */
   heldForReview: boolean
+  /**
+   * The latest refusal's `figuresOnly` (round 25, residual (1)): its matches are potential
+   * coincidences, with nothing tying them to this supplier. Absent is false, as on an older server.
+   */
+  figuresOnly?: boolean
   reason: string
   /** The sentence (i18n key) of what stopped the last "It's a different bill". */
   problem: string | null
@@ -88,9 +93,20 @@ export function reviewAfterRefusal(
     // an approver, so a review that has gathered more than one bill is never a submission, even
     // when an earlier answer named only the copy.
     heldForReview: found.heldForReview && seen.length === 1,
+    figuresOnly: found.figuresOnly,
     reason: sameQuestion ? previous.reason : '',
     problem: null,
   }
+}
+
+/**
+ * The sentence each match is named in. "From this supplier" would answer the very question a
+ * figures-only coincidence leaves open, so such a refusal says it may be a coincidence instead.
+ */
+export function duplicateBodyKey(review: DuplicateReview): string {
+  return review.figuresOnly === true
+    ? 'billIntake.duplicate.bodyFiguresOnly'
+    : 'billIntake.duplicate.body'
 }
 
 export function reviewMode(review: DuplicateReview): DuplicateReviewMode {

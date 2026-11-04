@@ -1212,6 +1212,59 @@ describe('a bill that may duplicate more than one bill on file', () => {
       ).toBe(false)
       expect(within(warning()).queryByRole('button', { name: 'Submit it for review' })).toBeNull()
     })
+
+    // Round 25, residual (1): a match that shares only figures with the bill is a potential
+    // coincidence, worded as one; the decision rules are the ones above, unchanged.
+    const COINCIDENCE =
+      /A bill MR-INV-8821 with the same details is already recorded, but nothing shows it is from this supplier: .* It may be a coincidence\./
+    const flaggedCoincidence = (figuresOnly?: unknown) =>
+      json(409, {
+        type: 'https://api.fawtir.om/problems/resource-conflict',
+        error: 'BILL_INTAKE_POSSIBLE_DUPLICATE',
+        duplicateOf: { ...onFile(X), source: 'PEPPOL' },
+        duplicates: [{ ...onFile(X), source: 'PEPPOL' }],
+        heldForReviewIfListed: false,
+        ...(figuresOnly === undefined ? {} : { figuresOnly }),
+      })
+
+    it('round 25 residual (1): a figures-only refusal names the match as a possible coincidence; a payer still cannot pass it', async () => {
+      confirmAnswers.push(flaggedCoincidence(true))
+      await openAndSaveAs(PAYER)
+      await screen.findByText('This may be a bill you already have')
+      // textContent, not getByText: the total is set apart in its own element (withRial).
+      expect(warning().textContent).toMatch(COINCIDENCE)
+      expect(warning().textContent).not.toMatch(/from this supplier is already recorded/)
+      expect(within(warning()).queryByRole('button', { name: ONE_DIFFERENT })).toBeNull()
+      expect(within(warning()).queryByRole('button', { name: 'Submit it for review' })).toBeNull()
+      expect(within(warning()).getByText(APPROVER_MUST_RECORD)).toBeTruthy()
+      expect(confirms()).toHaveLength(1)
+    })
+
+    it('round 25 residual (1): an approver sees the coincidence wording and the decision', async () => {
+      confirmAnswers.push(flaggedCoincidence(true))
+      await openAndSaveAs({ ...PAYER, permissions: [...PAYER.permissions, 'invoice.approve'] })
+      await screen.findByText('This may be a bill you already have')
+      // textContent, not getByText: the total is set apart in its own element (withRial).
+      expect(warning().textContent).toMatch(COINCIDENCE)
+      expect(
+        (within(warning()).getByRole('button', { name: ONE_DIFFERENT }) as HTMLButtonElement).disabled,
+      ).toBe(false)
+      expect(within(warning()).queryByRole('button', { name: 'Submit it for review' })).toBeNull()
+    })
+
+    it.each([
+      ['false', false],
+      ['absent, as from an older server', undefined],
+      ['not a boolean', 'true'],
+    ])('round 25 residual (1): figures-only %s keeps the existing sentence', async (_label, figuresOnly) => {
+      confirmAnswers.push(flaggedCoincidence(figuresOnly))
+      await openAndSaveAs(PAYER)
+      await screen.findByText('This may be a bill you already have')
+      expect(
+        within(warning()).getByText(/A bill MR-INV-8821 from this supplier is already recorded/),
+      ).toBeTruthy()
+      expect(warning().textContent).not.toMatch(/It may be a coincidence/)
+    })
   })
 
   it('lists both bills, asks why, and saves over both with the reason trimmed', async () => {

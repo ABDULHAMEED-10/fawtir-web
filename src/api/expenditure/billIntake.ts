@@ -298,18 +298,28 @@ const isDuplicateDto = (value: unknown): value is PossibleDuplicateDto =>
  * `heldForReview` is the server's `heldForReviewIfListed` (batch 43 round 19): listing the matches
  * records the bill held for an approver. Only a literal `true` counts, so a server that does not
  * send it never has a refusal presented as a submission.
+ *
+ * `figuresOnly` is the server's `figuresOnly` (batch 43 round 25, residual (1)): every match shares
+ * only figures with the bill, no supplier VAT number, participant or record, so it is a potential
+ * coincidence and must not be worded as this supplier's bill. Only a literal `true` counts, so an
+ * older server keeps the sentence it always had.
  */
-export function possibleDuplicates(
-  error: unknown,
-): { matches: PossibleDuplicateDto[]; listed: boolean; heldForReview: boolean } | null {
+export function possibleDuplicates(error: unknown): {
+  matches: PossibleDuplicateDto[]
+  listed: boolean
+  heldForReview: boolean
+  figuresOnly: boolean
+} | null {
   const single = possibleDuplicateOf(error)
   if (!single) return null
   const problem = (error as ApiError).problem
   const heldForReview = problem.heldForReviewIfListed === true
+  const figuresOnly = problem.figuresOnly === true
   const duplicates = problem.duplicates
-  if (!Array.isArray(duplicates)) return { matches: [single], listed: false, heldForReview }
+  if (!Array.isArray(duplicates))
+    return { matches: [single], listed: false, heldForReview, figuresOnly }
   const matches = duplicates.filter(isDuplicateDto)
-  return { matches: matches.length > 0 ? matches : [single], listed: true, heldForReview }
+  return { matches: matches.length > 0 ? matches : [single], listed: true, heldForReview, figuresOnly }
 }
 
 /** `IntakePage`. `status=UNCONFIRMED` (the server's default) lists what was uploaded or scanned and never confirmed. */

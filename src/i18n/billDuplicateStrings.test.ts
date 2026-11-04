@@ -46,6 +46,10 @@ const PENDING: [string, string][] = [
     'billIntake.scan.savedStatusUnknown',
     'The bill was saved. Open it to see whether it is waiting for a decision.',
   ],
+  [
+    'billIntake.duplicate.bodyFiguresOnly',
+    'A bill {{number}} with the same details is already recorded, but nothing shows it is from this supplier: dated {{date}}, {{total}}, {{source}}. It may be a coincidence.',
+  ],
 ]
 
 describe('batch 43 duplicate strings (rounds 20 to 25)', () => {

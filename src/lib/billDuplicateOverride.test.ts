@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { ApiError } from '../api/errors'
 import type { Entitlements } from './identity/entitlements'
 import {
+  duplicateBodyKey,
   mayDeclareDifferent,
   overrideExtras,
   sessionKnown,
@@ -161,6 +162,34 @@ describe('the duplicate override', () => {
   it('round 19: the latest refusal decides held-for-review', () => {
     const held = reviewAfterRefusal(null, possible(['b-0'], 'INV-1', true, true))
     expect(reviewAfterRefusal(held, possible(['b-0', 'b-1'], 'INV-1', true, false))?.heldForReview).toBe(false)
+  })
+
+  it('round 25 residual (1): takes figures-only from the server, and only a literal true', () => {
+    const flagged = (figuresOnly: unknown) =>
+      new ApiError({
+        status: 409,
+        problemType: 'resource-conflict',
+        code: 'BILL_INTAKE_POSSIBLE_DUPLICATE',
+        problem: {
+          duplicateOf: bill('b-0'),
+          duplicates: [bill('b-0')],
+          heldForReviewIfListed: false,
+          ...(figuresOnly === undefined ? {} : { figuresOnly }),
+        },
+      })
+    const coincidence = reviewAfterRefusal(null, flagged(true))!
+    expect(coincidence.figuresOnly).toBe(true)
+    expect(duplicateBodyKey(coincidence)).toBe('billIntake.duplicate.bodyFiguresOnly')
+    for (const other of [false, 'true', 1, null, undefined]) {
+      const review = reviewAfterRefusal(null, flagged(other))!
+      expect(review.figuresOnly).toBe(false)
+      expect(duplicateBodyKey(review)).toBe('billIntake.duplicate.body')
+    }
+    // The latest refusal decides, in both directions.
+    expect(reviewAfterRefusal(coincidence, flagged(undefined))?.figuresOnly).toBe(false)
+    expect(reviewAfterRefusal(reviewAfterRefusal(null, flagged(false)), flagged(true))?.figuresOnly).toBe(true)
+    // A review built before the field existed keeps the sentence it always had.
+    expect(duplicateBodyKey(review(1))).toBe('billIntake.duplicate.body')
   })
 
   it('round 19: after the approver refusal the listing is no longer offered as a submission', () => {

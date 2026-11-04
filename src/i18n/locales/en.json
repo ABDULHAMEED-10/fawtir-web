@@ -21760,6 +21760,7 @@
     "duplicate": {
       "title": "This may be a bill you already have",
       "body": "A bill {{number}} from this supplier is already recorded: dated {{date}}, {{total}}, {{source}}.",
+      "bodyFiguresOnly": "A bill {{number}} with the same details is already recorded, but nothing shows it is from this supplier: dated {{date}}, {{total}}, {{source}}. It may be a coincidence.",
       "source": {
         "PEPPOL": "received over Peppol",
         "UPLOADED": "uploaded",
