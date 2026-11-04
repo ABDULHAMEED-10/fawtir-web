@@ -20,7 +20,7 @@ import warnIcon from '../../assets/bills/match-warn.svg'
  *
  * A reason is asked for one bill as for many (owner approval, batch 43 round 18, "Frontend
  * Option 1"): the reasonless single field is no longer sent. Only an invoice approver is offered
- * "It's a different bill"; anyone else sees it disabled with why. "Submit it for review" is offered
+ * "It's a different bill". "Submit it for review" is offered
  * to them only when the refusal said `heldForReviewIfListed` (owner approval, batch 43 round 19,
  * "Non-approver matches - keep refusal"): the server then records the same listing held for an
  * approver (a same-supplier Peppol copy, ACC-8). On a figures-only coincidence or a second copy
