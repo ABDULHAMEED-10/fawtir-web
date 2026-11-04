@@ -5151,6 +5151,26 @@
       "waitingBehind_other": "{{count}} later sales are waiting behind it. They go by themselves once the sale above is filed.",
       "buyerRemovedHint": "This sale cannot be filed from this device. This device cannot keep a buyer's ID safely, so the buyer was removed when the sale was refused, and a full invoice has to name them. The customer holds this invoice: contact Fawtir support."
     },
+    "pendingSync": {
+      "closeTitle_one": "1 sale made offline is still on this device",
+      "closeTitle_other": "{{count}} sales made offline are still on this device",
+      "closeNote": "The server has not confirmed them, so the figures above may not include them. Closing tries to send them first. If they cannot go, they stay on this device as long as this browser's data is kept.",
+      "someRefused_one": "1 of them was refused. See the Till screen for why.",
+      "someRefused_other": "{{count}} of them were refused. See the Till screen for why.",
+      "closeLeft_one": "1 sale is not confirmed as filed yet. It stays on this device as long as this browser's data is kept. You can try again, or close anyway.",
+      "closeLeft_other": "{{count}} sales are not confirmed as filed yet. They stay on this device as long as this browser's data is kept. You can try again, or close anyway.",
+      "closeLeftOffline_one": "This device is offline, so 1 sale is not confirmed as filed. It stays on this device as long as this browser's data is kept. You can try again, or close anyway.",
+      "closeLeftOffline_other": "This device is offline, so {{count}} sales are not confirmed as filed. They stay on this device as long as this browser's data is kept. You can try again, or close anyway.",
+      "sendAgain": "Try sending again",
+      "sending": "Sending waiting sales…",
+      "sentRecount_one": "1 waiting sale was sent, so the figures above have been read again. Check the count, then close.",
+      "sentRecount_other": "{{count}} waiting sales were sent, so the figures above have been read again. Check the count, then close.",
+      "closeAnyway": "Close anyway",
+      "signOutLeft_one": "1 sale on this device is not confirmed as filed. It stays on this device as long as this browser's data is kept. See the Till screen.",
+      "signOutLeft_other": "{{count}} sales on this device are not confirmed as filed. They stay on this device as long as this browser's data is kept. See the Till screen.",
+      "signOutAnyway": "Sign out anyway",
+      "switchAnyway": "Switch user anyway"
+    },
     "moneyNotAFigure": "That is not an amount. Type it like 4.510.",
     "lineDiscount": {
       "add": "Discount",

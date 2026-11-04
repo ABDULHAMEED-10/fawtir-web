@@ -5,6 +5,7 @@ import { Popover } from '../../components/ui'
 import { useEntitlements } from '../../hooks/useEntitlements'
 import { LOGIN_ROUTE } from '../../lib/identity/login'
 import { signOut } from '../../lib/identity/logout'
+import { flushBeforeSignOut, queuedOnDevice } from '../../lib/posQueue'
 import { withReturnPath } from '../../lib/identity/returnTo'
 import { startNewSale } from '../../lib/posSale'
 import { tillTime } from '../../lib/pos'
@@ -29,6 +30,8 @@ export function CashierPicker({ till, mine }: { till: PosTillDto; mine: boolean 
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
+  // As in the user menu: once the cashier has seen what is left, the next press switches.
+  const [unsent, setUnsent] = useState<number | null>(null)
   const locale = i18n.language.startsWith('ar') ? 'ar' : 'en-GB'
 
   const name = (mine ? till.openShift?.cashier.name : null) ?? entitlements?.username ?? ''
@@ -39,6 +42,17 @@ export function CashierPicker({ till, mine }: { till: PosTillDto; mine: boolean 
     setBusy(true)
     setFailed(false)
     try {
+      if (unsent === null && queuedOnDevice() > 0) {
+        // Only this till's queue, and only while its open shift is the signed-in person's own: a
+        // LEGACY sale is filed under its sender, so sending a colleague's would make it this
+        // person's sale (PRV42W-1). Otherwise it only warns.
+        const { left } = await flushBeforeSignOut(mine && till.openShift ? till.id : null)
+        if (left > 0) {
+          setUnsent(left)
+          setBusy(false)
+          return
+        }
+      }
       await signOut()
       startNewSale()
       navigate(withReturnPath(LOGIN_ROUTE, '/pos'), { replace: true })
@@ -98,8 +112,13 @@ export function CashierPicker({ till, mine }: { till: PosTillDto; mine: boolean 
             disabled={busy}
             className="flex w-full items-center px-3 py-2.5 text-start text-sm font-medium text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-60"
           >
-            {t('pos.till.switchUser')}
+            {unsent !== null ? t('pos.pendingSync.switchAnyway') : t('pos.till.switchUser')}
           </button>
+          {unsent !== null ? (
+            <p role="status" className="px-3 pb-2 text-xs font-medium text-pending-700">
+              {t('pos.pendingSync.signOutLeft', { count: unsent })}
+            </p>
+          ) : null}
           {failed ? (
             <p className="px-3 pb-2 text-xs font-medium text-danger-700">
               {t('pos.till.switchFailed')}
