@@ -82,6 +82,12 @@ type Receipt = {
   intake: IntakeDto
   file: File
   status: 'todo' | 'saved'
+  /**
+   * Saved held as a possible duplicate (PRV43-WEBEXP L-2). The confirmed bill carries no hold, so
+   * this is what the save sent: the listing of the one copy the server said it would hold against
+   * (`heldForReviewIfListed`).
+   */
+  held?: boolean
   form: BillForm
   vatNumber: string | null
   vatRate: VatRate
@@ -606,7 +612,11 @@ function ReceiptEditor({
               : null,
         }),
       )
-      onSaved({ ...receipt, status: 'saved' })
+      onSaved({
+        ...receipt,
+        status: 'saved',
+        held: override !== null && duplicate?.heldForReview === true && duplicate.seen.length === 1,
+      })
     } catch (failure) {
       const same = reviewAfterRefusal(duplicate, failure)
       const overridden = overrideRefused(duplicate, failure)
@@ -735,7 +745,9 @@ function ReceiptEditor({
         </section>
 
         <div className="flex min-w-0 flex-1 flex-col gap-4">
-          {saved ? <Notice body={t('billIntake.scan.saved')} /> : null}
+          {saved ? (
+            <Notice body={t(receipt.held ? 'billIntake.scan.savedHeld' : 'billIntake.scan.saved')} />
+          ) : null}
           {notice ? (
             <Notice
               body={notice}

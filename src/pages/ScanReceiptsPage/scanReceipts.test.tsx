@@ -390,6 +390,57 @@ describe('scan receipts: a possible duplicate', () => {
     expect(await screen.findByText('Saved as a bill.')).toBeTruthy()
   })
 
+  it('round 20 L-2: a submitted save says it waits for an independent approver, never that it is approved or paid', async () => {
+    // MANAGER records and pays but lacks invoice.approve.
+    stored = { 'r-1': typed('r-1', 'Nizwa Hardware Store', 28.4) }
+    confirmAnswers = [
+      json(409, {
+        type: 'https://api.fawtir.om/problems/resource-conflict',
+        error: 'BILL_INTAKE_POSSIBLE_DUPLICATE',
+        heldForReviewIfListed: true,
+        duplicateOf: {
+          billId: 'b-on-file',
+          supplierBillNumber: 'R-4471',
+          issueDate: '2026-09-12',
+          total: 28.4,
+          currencyCode: 'OMR',
+          source: 'PEPPOL',
+        },
+        duplicates: [
+          {
+            billId: 'b-on-file',
+            supplierBillNumber: 'R-4471',
+            issueDate: '2026-09-12',
+            total: 28.4,
+            currencyCode: 'OMR',
+            source: 'PEPPOL',
+          },
+        ],
+      }),
+    ]
+    renderAt('/expenditure/bills/scan?intake=r-1')
+    await screen.findByText('Receipt 1 of 1')
+    fireEvent.click(screen.getByRole('button', { name: 'Save and next' }))
+    await screen.findByText('This may be a bill you already have')
+    expect(screen.queryByRole('button', { name: /It's a different bill/ })).toBeNull()
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Why is this a different bill?' }), {
+      target: { value: 'Two visits' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit it for review' }))
+    await waitFor(() => expect(calls('POST', '/api/v1/bills/intake/r-1/confirm')).toHaveLength(2))
+    expect(bodyOf(calls('POST', '/api/v1/bills/intake/r-1/confirm')[1])).toMatchObject({
+      notDuplicateOfIds: ['b-on-file'],
+      overrideReason: 'Two visits',
+    })
+    expect(
+      await screen.findByText(
+        'Saved as a bill and held as a possible duplicate. It is waiting for an authorized invoice approver, other than the person who recorded it, to decide. It has not been approved or paid.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText('Saved as a bill.')).toBeNull()
+  })
+
   it.each([
     ['RECURRING', /from a recurring bill\.$/],
     ['SELF_BILLED', /self-billed\.$/],
