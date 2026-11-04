@@ -2107,11 +2107,11 @@
     },
     "transmission": {
       "accepted": "Accepted",
-      "acceptedHint": "Cleared and confirmed by the Oman Tax Authority.",
+      "acceptedHint": "Delivered to the buyer, and the buyer's Peppol provider confirms it arrived.",
       "acknowledged": "Accepted",
-      "acknowledgedHint": "Accepted, but the Tax Authority has not confirmed it yet.",
+      "acknowledgedHint": "Passed on to the buyer, but the buyer's Peppol provider cannot confirm it arrived.",
       "rejected": "Rejected",
-      "rejectedHint": "Refused by the Tax Authority. Correct the invoice and send it again."
+      "rejectedHint": "Rejected by the buyer's Peppol provider and not delivered. Correct the invoice and send it again."
     },
     "status": {
       "overdue": "Overdue",

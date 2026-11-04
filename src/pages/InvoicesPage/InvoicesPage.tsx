@@ -131,7 +131,7 @@ function documentPath(row: InvoiceListItem, edit: boolean): string {
  * A document sent by hand has no code, so it says so in a neutral pill; an undelivered one is blank.
  */
 const DELIVERY_STYLES: Record<PeppolResponse | 'sentManually', Chip> = {
-  AB: { bg: 'bg-primary-25', dot: 'bg-primary-700', text: 'text-primary-700' },
+  AB: { bg: 'bg-warning-100', dot: 'bg-[#6d5a39]', text: 'text-[#6d5a39]' },
   AP: { bg: 'bg-success-100', dot: 'bg-success-700', text: 'text-success-700' },
   RE: { bg: 'bg-danger-100', dot: 'bg-danger-700', text: 'text-danger-700' },
   sentManually: { bg: 'bg-neutral-25', dot: 'bg-text-muted', text: 'text-text-tertiary' },
