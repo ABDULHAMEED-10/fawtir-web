@@ -19,9 +19,12 @@ import warnIcon from '../../assets/bills/match-warn.svg'
  *
  * A reason is asked for one bill as for many (owner approval, batch 43 round 18, "Frontend
  * Option 1"): the reasonless single field is no longer sent. Only an invoice approver is offered
- * "It's a different bill"; anyone else sees it disabled with why, and can submit the same listing
- * for review: the server records it held for an approver when the bill on file is the same
- * supplier's copy, and refuses it by name (`BILL_INTAKE_OVERRIDE_APPROVER_REQUIRED`) otherwise.
+ * "It's a different bill"; anyone else sees it disabled with why. "Submit it for review" is offered
+ * to them only when the refusal said `heldForReviewIfListed` (owner approval, batch 43 round 19,
+ * "Non-approver matches - keep refusal"): the server then records the same listing held for an
+ * approver (a same-supplier Peppol copy, ACC-8). On a figures-only coincidence or a second copy
+ * on the same record it would refuse it (`BILL_INTAKE_OVERRIDE_APPROVER_REQUIRED`), so nothing is
+ * offered and the panel says an approver must record it; a refusal is never shown as a submission.
  */
 export function DuplicateReviewPanel({
   review,
@@ -45,6 +48,7 @@ export function DuplicateReviewPanel({
   const mode = reviewMode(review)
   const single = mode === 'single'
   const decidable = single || mode === 'many'
+  const submittable = !approver && review.heldForReview
 
   const different = () => {
     const override = overrideOf(review)
@@ -93,7 +97,7 @@ export function DuplicateReviewPanel({
           ))}
         </ul>
       )}
-      {decidable ? (
+      {decidable && (approver || submittable) ? (
         <label className="mt-4 block">
           <span className="text-sm font-semibold text-text-secondary">
             {t(single ? 'billIntake.duplicate.reasonLabelSingle' : 'billIntake.duplicate.reasonLabel')}
@@ -122,16 +126,20 @@ export function DuplicateReviewPanel({
           >
             {t(single ? 'billIntake.duplicate.different' : 'billIntake.duplicate.differentAll')}
           </button>
-          {approver ? null : (
+          {submittable ? (
             <button type="button" disabled={busy} onClick={different} className={buttonClassName}>
               {t('billIntake.duplicate.submitForReview')}
             </button>
-          )}
+          ) : null}
         </div>
       ) : null}
       {decidable && !approver ? (
         <p id="duplicate-approver-only" className="mt-2 text-sm font-medium text-text-secondary">
-          {t('billIntake.duplicate.approverOnly')}
+          {t(
+            submittable
+              ? 'billIntake.duplicate.approverOnly'
+              : 'billIntake.duplicate.approverMustRecord',
+          )}
         </p>
       ) : null}
     </section>

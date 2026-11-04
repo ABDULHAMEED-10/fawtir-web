@@ -155,6 +155,8 @@ const CONFLICT_REFUSALS: Record<string, string> = {
   BILL_DUPLICATE_ALREADY_RESOLVED: 'billDetail.duplicate.refused.alreadyResolved',
   BILL_NOT_HELD_AS_DUPLICATE: 'billDetail.duplicate.refused.notHeld',
   BILL_DUPLICATE_SAME_DOCUMENT_UUID: 'billDetail.duplicate.refused.sameDocumentUuid',
+  // Backend batch 43 round 19 maker-checker: the reviewer recorded one of the two documents.
+  BILL_DUPLICATE_DECIDER_IS_RECORDER: 'billDetail.duplicate.refused.deciderIsRecorder',
   BILL_HOLD_DUPLICATE_RELEASE_REFUSED: 'billDetail.duplicate.refused.releaseRefused',
   // Approving a copy that became a held duplicate after the screen was read.
   BILL_APPROVAL_HELD_AS_DUPLICATE: 'billDetail.duplicate.refused.approvalHeld',

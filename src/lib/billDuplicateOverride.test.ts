@@ -32,10 +32,11 @@ const bill = (id: string, number = 'INV-1') => ({
 const review = (count: number, reason = 'Reissued'): DuplicateReview => ({
   seen: Array.from({ length: count }, (_, index) => bill(`b-${index}`)),
   listed: true,
+  heldForReview: false,
   reason,
   problem: null,
 })
-const possible = (ids: string[], number = 'INV-1', listed = true) =>
+const possible = (ids: string[], number = 'INV-1', listed = true, heldForReviewIfListed?: unknown) =>
   new ApiError({
     status: 409,
     problemType: 'resource-conflict',
@@ -43,6 +44,7 @@ const possible = (ids: string[], number = 'INV-1', listed = true) =>
     problem: {
       duplicateOf: bill(ids[0], number),
       ...(listed ? { duplicates: ids.map((id) => bill(id, number)) } : {}),
+      ...(heldForReviewIfListed === undefined ? {} : { heldForReviewIfListed }),
     },
   })
 
@@ -121,6 +123,30 @@ describe('the duplicate override', () => {
     expect(
       overrideRefused(review(1), refused('BILL_INTAKE_OVERRIDE_REASON_REQUIRED'))?.key,
     ).toBe('billIntake.duplicate.reasonRequiredSingle')
+  })
+
+  it('round 19: takes held-for-review from the server, and only a literal true', () => {
+    expect(reviewAfterRefusal(null, possible(['b-0'], 'INV-1', true, true))?.heldForReview).toBe(true)
+    expect(reviewAfterRefusal(null, possible(['b-0'], 'INV-1', true, false))?.heldForReview).toBe(false)
+    expect(reviewAfterRefusal(null, possible(['b-0'], 'INV-1', true, 'true'))?.heldForReview).toBe(false)
+    // A server from before round 19 sends no flag: never presented as a submission.
+    expect(reviewAfterRefusal(null, possible(['b-0']))?.heldForReview).toBe(false)
+  })
+
+  it('round 19: the latest refusal decides held-for-review', () => {
+    const held = reviewAfterRefusal(null, possible(['b-0'], 'INV-1', true, true))
+    expect(reviewAfterRefusal(held, possible(['b-0', 'b-1'], 'INV-1', true, false))?.heldForReview).toBe(false)
+  })
+
+  it('round 19: after the approver refusal the listing is no longer offered as a submission', () => {
+    const refused = new ApiError({
+      status: 400,
+      problemType: 'expenditure-refused',
+      code: 'BILL_INTAKE_OVERRIDE_APPROVER_REQUIRED',
+    })
+    const after = overrideRefused({ ...review(1), heldForReview: true }, refused)
+    expect(after?.review?.heldForReview).toBe(false)
+    expect(after?.key).toBe('billIntake.duplicate.approverRequired')
   })
 
   it('round 18: offers the decision only to a session holding invoice.approve', () => {

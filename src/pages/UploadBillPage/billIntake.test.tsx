@@ -920,6 +920,21 @@ describe('a bill that may duplicate more than one bill on file', () => {
       duplicateOf: onFile(oldest),
       ...(listed ? { duplicates: listed.map(onFile) } : {}),
     })
+  /**
+   * Round 19: the refusal as the server sends it for each kind of match. Only a same-supplier
+   * Peppol copy says listing it is recorded held (`heldForReviewIfListed`).
+   */
+  const matchOf = (source: 'PEPPOL' | 'UPLOADED', heldForReviewIfListed: boolean) =>
+    json(409, {
+      type: 'https://api.fawtir.om/problems/resource-conflict',
+      error: 'BILL_INTAKE_POSSIBLE_DUPLICATE',
+      duplicateOf: { ...onFile(X), source },
+      duplicates: [{ ...onFile(X), source }],
+      heldForReviewIfListed,
+    })
+  const sameSupplierPeppolCopy = () => matchOf('PEPPOL', true)
+  const figuresOnlyCoincidence = () => matchOf('PEPPOL', false)
+  const sameRecordUpload = () => matchOf('UPLOADED', false)
   const refusedWith = (code: string) =>
     json(400, { type: 'https://api.fawtir.om/problems/expenditure-refused', error: code })
   const confirms = () => calls('POST', '/api/v1/bills/intake/i-xml/confirm')
@@ -964,7 +979,12 @@ describe('a bill that may duplicate more than one bill on file', () => {
     )
   })
 
-  describe('round 18: a person without invoice.approve', () => {
+  describe('round 18, round 19: a person without invoice.approve', () => {
+    const APPROVER_ONLY =
+      'Only an authorized invoice approver can confirm that this is a different bill. You can submit it for review.'
+    const APPROVER_MUST_RECORD =
+      'Only an authorized invoice approver can confirm that this is a different bill. Ask an invoice approver to record it.'
+
     const PAYER = {
       userId: 'u-payer',
       username: 'payer',
@@ -999,25 +1019,25 @@ describe('a bill that may duplicate more than one bill on file', () => {
       await screen.findByText('This may be one of 2 bills you already have')
       const all = within(warning()).getByRole('button', { name: ALL_DIFFERENT }) as HTMLButtonElement
       expect(all.disabled).toBe(true)
-      expect(
-        within(warning()).getByText(
-          'Only an authorized invoice approver can confirm that this is a different bill. You can submit it for review.',
-        ),
-      ).toBeTruthy()
+      // Round 19: a refusal that does not say held-for-review offers no submission.
+      expect(within(warning()).getByText(APPROVER_MUST_RECORD)).toBeTruthy()
+      expect(within(warning()).queryByRole('button', { name: 'Submit it for review' })).toBeNull()
       fireEvent.click(all)
       expect(confirms()).toHaveLength(1)
     })
 
-    it('submits the bill for review with the listed id and reason; the server holds it', async () => {
-      confirmAnswers.push(possible([X]))
+    it('round 19, same-supplier Peppol copy: submits the bill for review with the listed id and reason; the server holds it', async () => {
+      confirmAnswers.push(sameSupplierPeppolCopy())
       await openAndSaveAs(PAYER)
       await screen.findByText('This may be a bill you already have')
       expect(
         (within(warning()).getByRole('button', { name: ONE_DIFFERENT }) as HTMLButtonElement).disabled,
       ).toBe(true)
+      expect(within(warning()).getByText(APPROVER_ONLY)).toBeTruthy()
       giveReason('Copy of the Peppol bill for the approver')
       fireEvent.click(within(warning()).getByRole('button', { name: 'Submit it for review' }))
       expect(await screen.findByText('bill page')).toBeTruthy()
+      expect(confirms()).toHaveLength(2)
       expect(bodyOf(confirms()[1])).toMatchObject({
         notDuplicateOf: null,
         notDuplicateOfIds: [X],
@@ -1025,22 +1045,63 @@ describe('a bill that may duplicate more than one bill on file', () => {
       })
     })
 
-    it('words the approver refusal when the server will not hold the bill', async () => {
-      confirmAnswers.push(possible([X]), refusedWith('BILL_INTAKE_OVERRIDE_APPROVER_REQUIRED'))
+    it('round 19, figures-only coincidence: no submission is offered; an approver must record it', async () => {
+      confirmAnswers.push(figuresOnlyCoincidence())
+      await openAndSaveAs(PAYER)
+      await screen.findByText('This may be a bill you already have')
+      const one = within(warning()).getByRole('button', { name: ONE_DIFFERENT }) as HTMLButtonElement
+      expect(one.disabled).toBe(true)
+      expect(within(warning()).queryByRole('button', { name: 'Submit it for review' })).toBeNull()
+      expect(within(warning()).queryByRole('textbox')).toBeNull()
+      expect(within(warning()).getByText(APPROVER_MUST_RECORD)).toBeTruthy()
+      expect(within(warning()).queryByText(/submit it for review/i)).toBeNull()
+      fireEvent.click(one)
+      expect(confirms()).toHaveLength(1)
+    })
+
+    it('round 19, same-record upload: no submission is offered; an approver must record it', async () => {
+      confirmAnswers.push(sameRecordUpload())
+      await openAndSaveAs(PAYER)
+      await screen.findByText('This may be a bill you already have')
+      expect(
+        (within(warning()).getByRole('button', { name: ONE_DIFFERENT }) as HTMLButtonElement).disabled,
+      ).toBe(true)
+      expect(within(warning()).queryByRole('button', { name: 'Submit it for review' })).toBeNull()
+      expect(within(warning()).queryByRole('textbox')).toBeNull()
+      expect(within(warning()).getByText(APPROVER_MUST_RECORD)).toBeTruthy()
+      expect(within(warning()).queryByText(/submit it for review/i)).toBeNull()
+      expect(confirms()).toHaveLength(1)
+    })
+
+    it('round 19: when the server refuses a submission it is worded as a refusal and not offered again', async () => {
+      confirmAnswers.push(sameSupplierPeppolCopy(), refusedWith('BILL_INTAKE_OVERRIDE_APPROVER_REQUIRED'))
       await openAndSaveAs(PAYER)
       await screen.findByText('This may be a bill you already have')
       giveReason('Different delivery')
       fireEvent.click(within(warning()).getByRole('button', { name: 'Submit it for review' }))
       expect(
         await within(warning()).findByText(
-          'This action requires an authorized human invoice approver. Submit the bill for review instead.',
+          'This action requires an authorized human invoice approver. Ask an invoice approver to record this bill.',
         ),
       ).toBeTruthy()
+      expect(within(warning()).queryByRole('button', { name: 'Submit it for review' })).toBeNull()
+      expect(within(warning()).queryByText(/submit (it|the bill) for review/i)).toBeNull()
+      expect(screen.queryByText('bill page')).toBeNull()
       expect(screen.queryByText(/BILL_INTAKE_OVERRIDE_APPROVER_REQUIRED/)).toBeNull()
     })
 
     it('an approver is offered the decision and no review button', async () => {
       confirmAnswers.push(possible([X]))
+      await openAndSaveAs({ ...PAYER, permissions: [...PAYER.permissions, 'invoice.approve'] })
+      await screen.findByText('This may be a bill you already have')
+      expect(
+        (within(warning()).getByRole('button', { name: ONE_DIFFERENT }) as HTMLButtonElement).disabled,
+      ).toBe(false)
+      expect(within(warning()).queryByRole('button', { name: 'Submit it for review' })).toBeNull()
+    })
+
+    it('round 19: an approver is offered the decision, not a submission, even on a same-supplier Peppol copy', async () => {
+      confirmAnswers.push(sameSupplierPeppolCopy())
       await openAndSaveAs({ ...PAYER, permissions: [...PAYER.permissions, 'invoice.approve'] })
       await screen.findByText('This may be a bill you already have')
       expect(

@@ -21,6 +21,12 @@ export type DuplicateReview = {
   seen: PossibleDuplicateDto[]
   /** The latest refusal carried `duplicates`, so the server takes `notDuplicateOfIds`. */
   listed: boolean
+  /**
+   * The latest refusal's `heldForReviewIfListed` (round 19): the same listing is recorded held for
+   * an approver, so a person without invoice.approve may submit it. False on anything else,
+   * including after the server refused such a submission.
+   */
+  heldForReview: boolean
   reason: string
   /** The sentence (i18n key) of what stopped the last "It's a different bill". */
   problem: string | null
@@ -67,6 +73,7 @@ export function reviewAfterRefusal(
   return {
     seen,
     listed: found.listed,
+    heldForReview: found.heldForReview,
     reason: sameQuestion ? previous.reason : '',
     problem: null,
   }
@@ -128,7 +135,11 @@ export function overrideRefused(
       ? reasonRequiredKey(review)
       : OVERRIDE_REFUSALS[error.code]
   if (error.code === 'BILL_INTAKE_NOT_DUPLICATE_OF_UNKNOWN' || !review) return { review: null, key }
-  return { review: { ...review, problem: key }, key }
+  // The server has just said this listing is not recorded held, so it is never offered again as a
+  // submission for review (owner round 19: never present a refusal as a submission).
+  const heldForReview =
+    error.code === 'BILL_INTAKE_OVERRIDE_APPROVER_REQUIRED' ? false : review.heldForReview
+  return { review: { ...review, heldForReview, problem: key }, key }
 }
 
 /** The override as `toConfirmation` extras: no override is `notDuplicateOf: null`, as before. */

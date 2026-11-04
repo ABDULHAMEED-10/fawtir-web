@@ -284,16 +284,22 @@ const isDuplicateDto = (value: unknown): value is PossibleDuplicateDto =>
  * Every bill a 409 `BILL_INTAKE_POSSIBLE_DUPLICATE` named, or null for any other failure.
  * `listed` says the refusal carried `duplicates` (oldest first, at most five per answer), which
  * only a server that takes `notDuplicateOfIds` sends; an older one names `duplicateOf` alone.
+ *
+ * `heldForReview` is the server's `heldForReviewIfListed` (batch 43 round 19): listing the matches
+ * records the bill held for an approver. Only a literal `true` counts, so a server that does not
+ * send it never has a refusal presented as a submission.
  */
 export function possibleDuplicates(
   error: unknown,
-): { matches: PossibleDuplicateDto[]; listed: boolean } | null {
+): { matches: PossibleDuplicateDto[]; listed: boolean; heldForReview: boolean } | null {
   const single = possibleDuplicateOf(error)
   if (!single) return null
-  const duplicates = (error as ApiError).problem.duplicates
-  if (!Array.isArray(duplicates)) return { matches: [single], listed: false }
+  const problem = (error as ApiError).problem
+  const heldForReview = problem.heldForReviewIfListed === true
+  const duplicates = problem.duplicates
+  if (!Array.isArray(duplicates)) return { matches: [single], listed: false, heldForReview }
   const matches = duplicates.filter(isDuplicateDto)
-  return { matches: matches.length > 0 ? matches : [single], listed: true }
+  return { matches: matches.length > 0 ? matches : [single], listed: true, heldForReview }
 }
 
 /** `IntakePage`. `status=UNCONFIRMED` (the server's default) lists what was uploaded or scanned and never confirmed. */

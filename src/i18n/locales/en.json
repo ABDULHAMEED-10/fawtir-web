@@ -6666,6 +6666,7 @@
         "alreadyResolved": "Someone has already decided whether this is a duplicate. The bill has been refreshed.",
         "notHeld": "This bill is no longer held as a possible duplicate. The bill has been refreshed.",
         "sameDocumentUuid": "Both copies carry the same document UUID, so it cannot be marked as not a duplicate.",
+        "deciderIsRecorder": "You recorded one of these bills, so another invoice approver must decide whether it is a duplicate.",
         "releaseRefused": "This bill is held as a possible duplicate. Open it and decide whether it is one instead of releasing it.",
         "noteRequired": "Add a note saying why.",
         "noteTooLong": "That note is too long. Keep it to 500 characters or fewer.",
@@ -21778,7 +21779,8 @@
       "reasonLabelSingle": "Reason this is a different bill",
       "reasonRequiredSingle": "Enter a reason before confirming this is a different bill.",
       "approverOnly": "Only an authorized invoice approver can confirm that this is a different bill. You can submit it for review.",
-      "approverRequired": "This action requires an authorized human invoice approver. Submit the bill for review instead.",
+      "approverRequired": "This action requires an authorized human invoice approver. Ask an invoice approver to record this bill.",
+      "approverMustRecord": "Only an authorized invoice approver can confirm that this is a different bill. Ask an invoice approver to record it.",
       "submitForReview": "Submit it for review"
     },
     "discard": "Discard",
