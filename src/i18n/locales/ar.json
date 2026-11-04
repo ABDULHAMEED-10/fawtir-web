@@ -22838,7 +22838,37 @@
     "bankDetailsChanged": "تغيّرت البيانات البنكية لـ {{supplier}}. تحقّق منها قبل الدفع.",
     "paidOnRequired": "اختر تاريخ الدفع.",
     "stateNoteUndated": "سجّل الدفعة كمدفوعة بعد أن تدفع للمورّدين.",
-    "supplierTakenOut": "أُخرجت من الدفعة"
+    "supplierTakenOut": "أُخرجت من الدفعة",
+    "searchPlaceholder": "ابحث برقم الدفعة أو المرجع",
+    "noMatch": "لا توجد دفعة تطابق البحث.",
+    "rowMenuLabel": "إجراءات {{reference}}",
+    "openRun": "افتح الدفعة",
+    "sort": {
+      "newest": "الأحدث أولًا",
+      "oldest": "الأقدم أولًا",
+      "dateSoonest": "تاريخ الدفع، الأقرب",
+      "amountHigh": "المبلغ، الأعلى",
+      "amountLow": "المبلغ، الأدنى"
+    },
+    "kpi": {
+      "drafts": "المسودات",
+      "scheduled": "المجدولة",
+      "paidMonth": "مدفوع هذا الشهر",
+      "allRuns": "كل الدفعات",
+      "runs_zero": "لا دفعات",
+      "runs_one": "دفعة واحدة",
+      "runs_two": "دفعتان",
+      "runs_few": "{{count}} دفعات",
+      "runs_many": "{{count}} دفعة",
+      "runs_other": "{{count}} دفعة",
+      "next": "التالية في {{date}}",
+      "cancelled_zero": "لا دفعات ملغاة",
+      "cancelled_one": "دفعة ملغاة",
+      "cancelled_two": "دفعتان ملغاتان",
+      "cancelled_few": "{{count}} دفعات ملغاة",
+      "cancelled_many": "{{count}} دفعة ملغاة",
+      "cancelled_other": "{{count}} دفعة ملغاة"
+    }
   },
   "billIntake": {
     "supplier": "المورّد",
@@ -24500,6 +24530,16 @@
         "em": "تجمع كل شيء",
         "body": "الإيرادات والمصروفات والضريبة والتدفق النقدي شهريًا وربعيًا وسنويًا. وكل رسم بياني يُصدَّر إلى PDF.",
         "alt": "تقرير الإيرادات في فوتر: الفواتير بدون الضريبة، والضريبة المحتسبة، والفواتير المرسلة، ورسوم شهرية وربعية"
+      },
+      "strip": {
+        "lead": "يدير شركتك بالكامل",
+        "branches": "الفروع",
+        "roles": "الأدوار والصلاحيات",
+        "approvals": "الاعتمادات",
+        "profile": "ملف الشركة",
+        "languages": "العربية والإنجليزية",
+        "mobile": "تطبيق الجوّال",
+        "more": "اعرف كيف"
       }
     },
     "steps": {

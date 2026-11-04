@@ -21496,7 +21496,29 @@
     "bankDetailsChanged": "{{supplier}}'s bank details changed. Check before you pay.",
     "paidOnRequired": "Choose the date you paid.",
     "stateNoteUndated": "Mark the run paid once you have paid the suppliers.",
-    "supplierTakenOut": "Taken out"
+    "supplierTakenOut": "Taken out",
+    "searchPlaceholder": "Search run number or reference",
+    "noMatch": "No run matches that search.",
+    "rowMenuLabel": "Actions for {{reference}}",
+    "openRun": "Open the run",
+    "sort": {
+      "newest": "Newest first",
+      "oldest": "Oldest first",
+      "dateSoonest": "Payment date, soonest",
+      "amountHigh": "Amount, highest",
+      "amountLow": "Amount, lowest"
+    },
+    "kpi": {
+      "drafts": "Drafts",
+      "scheduled": "Scheduled",
+      "paidMonth": "Paid this month",
+      "allRuns": "All runs",
+      "runs_one": "{{count}} run",
+      "runs_other": "{{count}} runs",
+      "next": "next on {{date}}",
+      "cancelled_one": "{{count}} cancelled",
+      "cancelled_other": "{{count}} cancelled"
+    }
   },
   "billIntake": {
     "supplier": "Supplier",
@@ -23087,6 +23109,16 @@
         "em": "that add it up",
         "body": "Income, expenses, VAT and cash flow by month, quarter and year. Every chart exports to PDF.",
         "alt": "The Income report in Fawtir: invoiced net of VAT, VAT charged, invoices sent and monthly and quarterly charts"
+      },
+      "strip": {
+        "lead": "Runs your whole company",
+        "branches": "Branches",
+        "roles": "Roles and permissions",
+        "approvals": "Approvals",
+        "profile": "Company profile",
+        "languages": "Arabic and English",
+        "mobile": "Mobile app",
+        "more": "See how"
       }
     },
     "steps": {
