@@ -694,7 +694,7 @@ describe('a hold with potential coincidences beside it', () => {
     const coincidences = within(section).getByRole('region', { name: 'Potential coincidences' })
     expect(
       within(coincidences).getByText(
-        "Other suppliers' Peppol documents with the same number, date and total. Nothing shows they are from this supplier, so they are not confirmed duplicates. Review them before you decide.",
+        "Peppol documents filed under other suppliers that have, or had when this bill was held, the same number, type, date, total and currency. Nothing shows they are from this supplier, so they are not confirmed duplicates. Check each one's status and review them before you decide.",
       ),
     ).toBeTruthy()
     expect(within(coincidences).getAllByRole('listitem')).toHaveLength(4)
@@ -705,7 +705,7 @@ describe('a hold with potential coincidences beside it', () => {
     for (const [id, status] of [
       [STILL, 'Still matches'],
       [GONE_STALE, 'No longer matches'],
-      [SINCE, 'Found since the bill was held'],
+      [SINCE, 'Not attached when the bill was held'],
     ] as const) {
       const item = linkOf(id)!.closest('li') as HTMLElement
       expect(within(item).getByText(status)).toBeTruthy()
@@ -789,7 +789,7 @@ describe('a hold with potential coincidences beside it', () => {
     await decide('Confirm duplicate')
     expect(
       await screen.findByText(
-        'These potential coincidences changed since you opened the bill. Review them again before you decide.',
+        'The potential coincidences beside this hold changed since you opened the bill. Review them as they stand now before you decide.',
       ),
     ).toBeTruthy()
     expect(screen.queryByRole('dialog')).toBeNull()
@@ -810,7 +810,7 @@ describe('a hold with potential coincidences beside it', () => {
     await screen.findByRole('heading', { level: 2, name: 'فاتورة مكررة محتملة' })
     const coincidences = screen.getByRole('region', { name: 'تطابقات محتملة بالمصادفة' })
     expect(within(coincidences).getByText('لم تعد محفوظة')).toBeTruthy()
-    expect(within(coincidences).getByText('ظهرت منذ احتجاز الفاتورة')).toBeTruthy()
-    expect(within(coincidences).queryByText(/Still matches|No longer|Found since/)).toBeNull()
+    expect(within(coincidences).getByText('لم تكن مرفقة عند احتجاز الفاتورة')).toBeTruthy()
+    expect(within(coincidences).queryByText(/Still matches|No longer|Not attached/)).toBeNull()
   })
 })

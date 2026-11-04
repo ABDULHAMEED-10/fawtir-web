@@ -583,7 +583,7 @@ describe('a credit note held as a possible duplicate on upload', () => {
     const arrived = await saveAgainstTheBill()
     expect(arrived).toEqual({ saved: { key: 'supplierCreditNotes.upload.savedHeldAsDuplicate' } })
     expect(i18n.t(arrived.saved.key)).toBe(
-      'Saved. This note is held as a possible duplicate until an approver decides; its credit cannot be used before then.',
+      'Saved. This note is held as a possible duplicate. Its credit cannot be used unless an approver decides it is not a duplicate.',
     )
   })
 
