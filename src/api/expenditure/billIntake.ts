@@ -228,9 +228,10 @@ export type ConfirmedBillDto = {
    */
   creditApplied?: { billId: string; amount: number } | null
   /**
-   * Whether the server holds the bill now, read from its hold store (owner approval, batch 43
-   * round 25, W-1). Absent from an older server, which does not say: absent is unknown, never
-   * "not held".
+   * Whether the bill has an open possible-duplicate hold now, read from the server's hold store
+   * (owner approval, batch 43 round 25, W-1). A hold a person places afterwards does not set it
+   * (PRV43-EXP5 L-2), and a replay after the hold was decided answers false. Absent from an older
+   * server, which does not say: absent is unknown, never "not held".
    */
   held?: boolean
 }
