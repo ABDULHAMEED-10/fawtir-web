@@ -164,32 +164,55 @@ describe('the duplicate override', () => {
     expect(reviewAfterRefusal(held, possible(['b-0', 'b-1'], 'INV-1', true, false))?.heldForReview).toBe(false)
   })
 
+  const flagged = (figuresOnly: unknown, id = 'b-0') =>
+    new ApiError({
+      status: 409,
+      problemType: 'resource-conflict',
+      code: 'BILL_INTAKE_POSSIBLE_DUPLICATE',
+      problem: {
+        duplicateOf: bill(id),
+        duplicates: [bill(id)],
+        heldForReviewIfListed: false,
+        ...(figuresOnly === undefined ? {} : { figuresOnly }),
+      },
+    })
+  const keyOf = (review: DuplicateReview | null, id: string) =>
+    duplicateBodyKey(review!.seen.find((seen) => seen.billId === id)!)
+
   it('round 25 residual (1): takes figures-only from the server, and only a literal true', () => {
-    const flagged = (figuresOnly: unknown) =>
-      new ApiError({
-        status: 409,
-        problemType: 'resource-conflict',
-        code: 'BILL_INTAKE_POSSIBLE_DUPLICATE',
-        problem: {
-          duplicateOf: bill('b-0'),
-          duplicates: [bill('b-0')],
-          heldForReviewIfListed: false,
-          ...(figuresOnly === undefined ? {} : { figuresOnly }),
-        },
-      })
     const coincidence = reviewAfterRefusal(null, flagged(true))!
-    expect(coincidence.figuresOnly).toBe(true)
-    expect(duplicateBodyKey(coincidence)).toBe('billIntake.duplicate.bodyFiguresOnly')
+    expect(coincidence.seen[0].figuresOnly).toBe(true)
+    expect(duplicateBodyKey(coincidence.seen[0])).toBe('billIntake.duplicate.bodyFiguresOnly')
     for (const other of [false, 'true', 1, null, undefined]) {
       const review = reviewAfterRefusal(null, flagged(other))!
-      expect(review.figuresOnly).toBe(false)
-      expect(duplicateBodyKey(review)).toBe('billIntake.duplicate.body')
+      expect(review.seen[0].figuresOnly).toBe(false)
+      expect(duplicateBodyKey(review.seen[0])).toBe('billIntake.duplicate.body')
     }
-    // The latest refusal decides, in both directions.
-    expect(reviewAfterRefusal(coincidence, flagged(undefined))?.figuresOnly).toBe(false)
-    expect(reviewAfterRefusal(reviewAfterRefusal(null, flagged(false)), flagged(true))?.figuresOnly).toBe(true)
     // A review built before the field existed keeps the sentence it always had.
-    expect(duplicateBodyKey(review(1))).toBe('billIntake.duplicate.body')
+    expect(duplicateBodyKey(review(1).seen[0])).toBe('billIntake.duplicate.body')
+  })
+
+  it('PRV43-EXP5 M-1: a same-record copy named first, then a coincidence, each keeps its own sentence', () => {
+    const both = reviewAfterRefusal(reviewAfterRefusal(null, flagged(false, 'b-s')), flagged(true, 'b-c'))
+    expect(both?.seen.map((seen) => seen.billId)).toEqual(['b-s', 'b-c'])
+    expect(keyOf(both, 'b-s')).toBe('billIntake.duplicate.body')
+    expect(keyOf(both, 'b-c')).toBe('billIntake.duplicate.bodyFiguresOnly')
+  })
+
+  it('PRV43-EXP5 M-1: a coincidence named first, then a same-record copy, each keeps its own sentence', () => {
+    const both = reviewAfterRefusal(reviewAfterRefusal(null, flagged(true, 'b-c')), flagged(false, 'b-s'))
+    expect(both?.seen.map((seen) => seen.billId)).toEqual(['b-c', 'b-s'])
+    expect(keyOf(both, 'b-c')).toBe('billIntake.duplicate.bodyFiguresOnly')
+    expect(keyOf(both, 'b-s')).toBe('billIntake.duplicate.body')
+  })
+
+  it('PRV43-EXP5 M-1: a bill named again keeps the flag of the refusal that first named it', () => {
+    const coincidence = reviewAfterRefusal(null, flagged(true, 'b-c'))
+    expect(keyOf(reviewAfterRefusal(coincidence, flagged(false, 'b-c')), 'b-c')).toBe(
+      'billIntake.duplicate.bodyFiguresOnly',
+    )
+    const copy = reviewAfterRefusal(null, flagged(false, 'b-s'))
+    expect(keyOf(reviewAfterRefusal(copy, flagged(true, 'b-s')), 'b-s')).toBe('billIntake.duplicate.body')
   })
 
   it('round 19: after the approver refusal the listing is no longer offered as a submission', () => {

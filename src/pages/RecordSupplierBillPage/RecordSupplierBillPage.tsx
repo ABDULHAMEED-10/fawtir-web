@@ -385,7 +385,7 @@ function RecordBill({ id }: { id: string }) {
           onDifferent={(override) => void save(override)}
           busy={busy}
           sentence={(bill) =>
-            t(duplicateBodyKey(duplicate), {
+            t(duplicateBodyKey(bill), {
               number: bill.supplierBillNumber,
               date: day(bill.issueDate),
               total:

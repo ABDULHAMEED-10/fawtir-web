@@ -1318,6 +1318,39 @@ describe('a bill that may duplicate more than one bill on file', () => {
     })
   })
 
+  // PRV43-EXP5 M-1: each refusal's figuresOnly belongs to the bills it named, not to the review.
+  const namedAs = (id: string, figuresOnly: boolean) =>
+    json(409, {
+      type: 'https://api.fawtir.om/problems/resource-conflict',
+      error: 'BILL_INTAKE_POSSIBLE_DUPLICATE',
+      duplicateOf: onFile(id),
+      duplicates: [onFile(id)],
+      heldForReviewIfListed: false,
+      figuresOnly,
+    })
+  const rowOf = (id: string) =>
+    within(warning())
+      .getAllByRole('link', { name: 'Open that bill' })
+      .find((link) => link.getAttribute('href') === `/expenditure/bills/${id}`)!
+      .closest('li')!.textContent
+
+  it.each([
+    ['the same-record copy first, then the coincidence', [X, false], [Y, true]],
+    ['the coincidence first, then the same-record copy', [Y, true], [X, false]],
+  ] as const)('PRV43-EXP5 M-1: %s; each bill keeps its own sentence', async (_label, first, second) => {
+    confirmAnswers.push(namedAs(first[0], first[1]), namedAs(second[0], second[1]))
+    await openAndSave()
+    await screen.findByRole('alert', { name: '' })
+    giveReason('Two deliveries billed under one number')
+    fireEvent.click(within(warning()).getByRole('button', { name: ONE_DIFFERENT }))
+    expect(await screen.findByText('This may be one of 2 bills you already have')).toBeTruthy()
+
+    expect(rowOf(X)).toMatch(/A bill MR-INV-8821 from this supplier is already recorded/)
+    expect(rowOf(X)).not.toMatch(/It may be a coincidence/)
+    expect(rowOf(Y)).toMatch(/nothing shows it is from this supplier: .* It may be a coincidence\./)
+    expect(rowOf(Y)).not.toMatch(/from this supplier is already recorded/)
+  })
+
   it('round 18: offers nothing to a server that did not list the matches, since the reasonless field is gone', async () => {
     confirmAnswers.push(possible(null, X))
     await openAndSave()

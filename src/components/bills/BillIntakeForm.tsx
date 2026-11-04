@@ -895,7 +895,7 @@ export function BillIntakeForm({
               busy={busy !== null}
               sentence={(bill) =>
                 withRial(
-                  t(duplicateBodyKey(duplicate), {
+                  t(duplicateBodyKey(bill), {
                     number: bill.supplierBillNumber,
                     date: bill.issueDate ? formatDate(bill.issueDate, i18n.language) : '',
                     total:

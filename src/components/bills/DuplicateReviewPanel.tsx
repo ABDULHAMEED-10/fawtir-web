@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import type { PossibleDuplicateDto } from '../../api/expenditure/billIntake'
 import {
   MAX_OVERRIDE_REASON,
   mayDeclareDifferent,
@@ -10,6 +9,7 @@ import {
   reviewMode,
   type DuplicateOverride,
   type DuplicateReview,
+  type ReviewedDuplicate,
 } from '../../lib/billDuplicateOverride'
 import { useSession } from '../../lib/session/session'
 import warnIcon from '../../assets/bills/match-warn.svg'
@@ -44,7 +44,7 @@ export function DuplicateReviewPanel({
   onChange: (review: DuplicateReview) => void
   onDifferent: (override: DuplicateOverride) => void
   busy: boolean
-  sentence: (bill: PossibleDuplicateDto) => ReactNode
+  sentence: (bill: ReviewedDuplicate) => ReactNode
   linkClassName: string
   buttonClassName: string
 }) {

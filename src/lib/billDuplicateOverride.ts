@@ -11,6 +11,14 @@ export const MAX_OVERRIDE_REASON = 280
 export const OVERRIDE_PERMISSION = 'invoice.approve'
 
 /**
+ * A bill a refusal named, with that refusal's `figuresOnly` (round 25, residual (1)). Each
+ * refusal is homogeneous, but a review gathers several: a same-record copy named first and a
+ * figures-only coincidence named next are different evidence, so the flag travels with the bill
+ * and not with the review (PRV43-EXP5 M-1). Absent is false, as on an older server.
+ */
+export type ReviewedDuplicate = PossibleDuplicateDto & { figuresOnly?: boolean }
+
+/**
  * A confirm the server refused as a possible duplicate, and what the person has said about it.
  *
  * `seen` keeps every bill any refusal named since the supplier or number last changed, not only
@@ -18,7 +26,7 @@ export const OVERRIDE_PERMISSION = 'invoice.approve'
  * one. Only all of them together record the bill.
  */
 export type DuplicateReview = {
-  seen: PossibleDuplicateDto[]
+  seen: ReviewedDuplicate[]
   /** The latest refusal carried `duplicates`, so the server takes `notDuplicateOfIds`. */
   listed: boolean
   /**
@@ -27,11 +35,6 @@ export type DuplicateReview = {
    * including after the server refused such a submission.
    */
   heldForReview: boolean
-  /**
-   * The latest refusal's `figuresOnly` (round 25, residual (1)): its matches are potential
-   * coincidences, with nothing tying them to this supplier. Absent is false, as on an older server.
-   */
-  figuresOnly?: boolean
   reason: string
   /** The sentence (i18n key) of what stopped the last "It's a different bill". */
   problem: string | null
@@ -84,8 +87,11 @@ export function reviewAfterRefusal(
   const sameQuestion =
     previous !== null && previous.seen.every((bill) => number(bill) === number(found.matches[0]))
   const seen = sameQuestion ? [...previous.seen] : []
+  // A bill keeps the flag of the refusal that first named it: a later refusal is about the bills
+  // it adds, and re-reading an earlier one under it would reword evidence already shown.
   for (const match of found.matches)
-    if (!seen.some((bill) => bill.billId === match.billId)) seen.push(match)
+    if (!seen.some((bill) => bill.billId === match.billId))
+      seen.push({ ...match, figuresOnly: found.figuresOnly })
   return {
     seen,
     listed: found.listed,
@@ -93,18 +99,17 @@ export function reviewAfterRefusal(
     // an approver, so a review that has gathered more than one bill is never a submission, even
     // when an earlier answer named only the copy.
     heldForReview: found.heldForReview && seen.length === 1,
-    figuresOnly: found.figuresOnly,
     reason: sameQuestion ? previous.reason : '',
     problem: null,
   }
 }
 
 /**
- * The sentence each match is named in. "From this supplier" would answer the very question a
- * figures-only coincidence leaves open, so such a refusal says it may be a coincidence instead.
+ * The sentence a match is named in. "From this supplier" would answer the very question a
+ * figures-only coincidence leaves open, so such a match says it may be a coincidence instead.
  */
-export function duplicateBodyKey(review: DuplicateReview): string {
-  return review.figuresOnly === true
+export function duplicateBodyKey(bill: ReviewedDuplicate): string {
+  return bill.figuresOnly === true
     ? 'billIntake.duplicate.bodyFiguresOnly'
     : 'billIntake.duplicate.body'
 }
