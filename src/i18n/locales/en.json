@@ -23512,13 +23512,13 @@
         "lead": "Right invoice, without being",
         "em": "asked which",
         "body": "A walk-in gets a simplified receipt. A company gets a full B2B invoice over Peppol. A ministry gets the buyer reference it requires. Fawtir works out which and does it.",
-        "alt": "A business invoice with its lines, VAT and total",
+        "alt": "An invoice's lines in Fawtir, each with its unit, VAT and discount, and the totals",
         "items": {
           "a": "B2B, B2C and B2G handled automatically",
           "b": "Peppol where registered, email where not",
-          "c": "Customer price lists and discounts applied",
-          "d": "Quotations that convert in one tap",
-          "e": "A customer signature taken on the phone"
+          "c": "Goods or service on each line, with its VAT category",
+          "d": "Discounts on a line or on the whole invoice",
+          "e": "Credit and debit notes linked to the invoice"
         }
       },
       "filing": {
@@ -23548,29 +23548,29 @@
         }
       },
       "transactions": {
-        "lead": "Find any sale,",
-        "em": "from any day",
-        "body": "By number, by customer, by day, or point the camera at a customer's receipt and Fawtir finds it. Refunds start from here, not from a screen that has gone.",
-        "alt": "Today's sales, searchable by number, customer or receipt",
+        "lead": "Every invoice,",
+        "em": "easy to find",
+        "body": "Search by number or customer, and filter by date, document type, channel or source. Each row shows whether it is paid and what the buyer's Peppol provider replied.",
+        "alt": "The Invoices list in Fawtir: drafts, paid, partly paid, to be sent and overdue, each with its Peppol reply",
         "items": {
-          "a": "Scan a receipt QR to find the sale",
-          "b": "Full and partial refunds with credit notes",
-          "c": "Discounts carried into the refund correctly",
-          "d": "Every change kept in the record",
-          "e": "Export to PDF or spreadsheet any time"
+          "a": "Drafts, to send, awaiting, overdue and paid, one tab each",
+          "b": "Search by number, customer or document",
+          "c": "The Peppol reply on every row: AP, AB or RE",
+          "d": "Invoices waiting for approval in their own tab",
+          "e": "Bulk upload and export"
         }
       },
       "dashboard": {
-        "lead": "The numbers, and",
-        "em": "what they mean",
-        "body": "Ten reports, one period picker, and every figure compared against the period before. A flat total hides a group falling and a group rising.",
-        "alt": "A sales report compared against the month before",
+        "lead": "Your business,",
+        "em": "at a glance",
+        "body": "Today's sales, what customers owe you, what you owe suppliers, revenue month by month and how your buyers answered your invoices, on one screen.",
+        "alt": "The Fawtir dashboard: today's sales, receivables, payables, monthly revenue and delivery to buyers",
         "items": {
-          "a": "Sales by product, branch, person or hour",
-          "b": "VAT position for the quarter, running",
-          "c": "Who owes you, aged, with payment patterns",
-          "d": "Rejection root causes, not just counts",
-          "e": "One tap to export anything"
+          "a": "Today's sales and the cash received",
+          "b": "Receivables and payables, with what is overdue",
+          "c": "Revenue by day, week or month",
+          "d": "Delivery to buyers: accepted, rejected or no answer",
+          "e": "What needs your attention, one tap away"
         }
       },
       "parts": {
@@ -23889,6 +23889,10 @@
           "export": {
             "title": "Your data is yours",
             "body": "Export everything, any time."
+          },
+          "erp": {
+            "title": "Connect your ERP",
+            "body": "Invoices sent by API or file, checked and reported."
           }
         }
       },
@@ -23995,6 +23999,32 @@
           "e": "The head office marked, with every branch under it"
         },
         "alt": "Branches in Fawtir: each branch with its invoice numbering, invoices this month, people and tills"
+      },
+      "journey": {
+        "lead": "Every step,",
+        "em": "from sent to accepted",
+        "body": "Open any invoice to see where it went: the report to the Tax Authority through Fawtara, and the invoice itself to your customer over Peppol, each step with its time.",
+        "alt": "An invoice's journey in Fawtir: reported to the Tax Authority and accepted, then delivered to the customer over Peppol and accepted",
+        "items": {
+          "a": "Report built, sent to Fawtara and accepted",
+          "b": "Signed, sent over Peppol and taken by the buyer's provider",
+          "c": "The buyer's reply: AP, AB or RE",
+          "d": "The Fawtara reference, to check on the OTA portal",
+          "e": "Reported on the first attempt, or why not"
+        }
+      },
+      "team": {
+        "lead": "Invite your team,",
+        "em": "give each a role",
+        "body": "Invite people by email and choose what each one can do, from selling and invoicing to approving and paying. Change it any time.",
+        "alt": "Inviting someone in Fawtir: the roles to choose from, with what each one can reach",
+        "items": {
+          "a": "An invitation email with a code to join",
+          "b": "Ready-made roles, or make your own",
+          "c": "See what each role can reach before you choose",
+          "d": "Two-step sign-in for each person",
+          "e": "Who is active and who is still invited"
+        }
       }
     },
     "contact": {

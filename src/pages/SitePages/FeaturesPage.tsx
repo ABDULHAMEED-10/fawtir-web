@@ -1,36 +1,42 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ErpFlow } from '../HomePage/Audience'
 import { FeatureIcon } from './FeatureIcon'
 import { Steps } from '../HomePage/HomePage'
 import { QrSection } from '../HomePage/QrSection'
 import tillShot from '../../assets/site/feature-till.webp'
-import invoiceShot from '../../assets/site/feature-invoice.webp'
 import stockShot from '../../assets/site/feature-stock.webp'
-import findShot from '../../assets/site/feature-find.webp'
-import numbersShot from '../../assets/site/feature-numbers.webp'
-import billsShot from '../../assets/site/feature-bills.webp'
-import billsShotAr from '../../assets/site/feature-bills-ar.webp'
-import paymentsShot from '../../assets/site/feature-payments.webp'
-import paymentsShotAr from '../../assets/site/feature-payments-ar.webp'
-import tddShot from '../../assets/site/feature-tdd.webp'
-import tddShotAr from '../../assets/site/feature-tdd-ar.webp'
+import invoiceShot from '../../assets/site/feature-invoice.webp'
+import invoiceShotAr from '../../assets/site/feature-invoice-ar.webp'
+import invoicesShot from '../../assets/site/feature-invoices.webp'
+import invoicesShotAr from '../../assets/site/feature-invoices-ar.webp'
 import customersShot from '../../assets/site/feature-customers.webp'
 import customersShotAr from '../../assets/site/feature-customers-ar.webp'
 import periodicShot from '../../assets/site/feature-periodic.webp'
 import periodicShotAr from '../../assets/site/feature-periodic-ar.webp'
+import billsShot from '../../assets/site/feature-bills.webp'
+import billsShotAr from '../../assets/site/feature-bills-ar.webp'
+import paymentsShot from '../../assets/site/feature-payments.webp'
+import paymentsShotAr from '../../assets/site/feature-payments-ar.webp'
 import recurringShot from '../../assets/site/feature-recurring.webp'
 import recurringShotAr from '../../assets/site/feature-recurring-ar.webp'
 import supplierNotesShot from '../../assets/site/feature-supplier-notes.webp'
 import supplierNotesShotAr from '../../assets/site/feature-supplier-notes-ar.webp'
+import tddShot from '../../assets/site/feature-tdd.webp'
+import tddShotAr from '../../assets/site/feature-tdd-ar.webp'
+import journeyShot from '../../assets/site/feature-journey.webp'
+import journeyShotAr from '../../assets/site/feature-journey-ar.webp'
 import archiveShot from '../../assets/site/feature-archive.webp'
 import archiveShotAr from '../../assets/site/feature-archive-ar.webp'
+import dashboardShot from '../../assets/site/feature-dashboard.webp'
+import dashboardShotAr from '../../assets/site/feature-dashboard-ar.webp'
 import vatShot from '../../assets/site/feature-vat.webp'
 import vatShotAr from '../../assets/site/feature-vat-ar.webp'
 import cashShot from '../../assets/site/feature-cash.webp'
 import cashShotAr from '../../assets/site/feature-cash-ar.webp'
 import branchesShot from '../../assets/site/feature-branches.webp'
 import branchesShotAr from '../../assets/site/feature-branches-ar.webp'
+import teamShot from '../../assets/site/feature-team.webp'
+import teamShotAr from '../../assets/site/feature-team-ar.webp'
 import wave1 from '../../assets/site/wave-1.svg'
 import wave2 from '../../assets/site/wave-2.svg'
 import wave3 from '../../assets/site/wave-3.svg'
@@ -66,18 +72,20 @@ type RowKey =
   | 'recurring'
   | 'supplierNotes'
   | 'tdd'
+  | 'journey'
   | 'archive'
   | 'dashboard'
   | 'vatReport'
   | 'cashFlow'
-  | 'erp'
   | 'branches'
-type Row = { key: RowKey; shot?: string; shotAr?: string; wave?: string }
+  | 'team'
+type Row = { key: RowKey; shot: string; shotAr?: string; wave?: string }
+/** Every picture is a cropped live screen from the mock API, English and Arabic (owner, 4 Nov 2026). */
 const ROWS: Row[] = [
   { key: 'till', shot: tillShot, wave: wave1 },
   { key: 'stock', shot: stockShot },
-  { key: 'invoicing', shot: invoiceShot },
-  { key: 'transactions', shot: findShot, wave: wave3 },
+  { key: 'invoicing', shot: invoiceShot, shotAr: invoiceShotAr },
+  { key: 'transactions', shot: invoicesShot, shotAr: invoicesShotAr, wave: wave3 },
   { key: 'customers', shot: customersShot, shotAr: customersShotAr },
   { key: 'periodic', shot: periodicShot, shotAr: periodicShotAr, wave: wave1 },
   { key: 'bills', shot: billsShot, shotAr: billsShotAr, wave: wave2 },
@@ -85,12 +93,13 @@ const ROWS: Row[] = [
   { key: 'recurring', shot: recurringShot, shotAr: recurringShotAr, wave: wave3 },
   { key: 'supplierNotes', shot: supplierNotesShot, shotAr: supplierNotesShotAr },
   { key: 'tdd', shot: tddShot, shotAr: tddShotAr, wave: wave1 },
-  { key: 'archive', shot: archiveShot, shotAr: archiveShotAr },
-  { key: 'dashboard', shot: numbersShot },
+  { key: 'journey', shot: journeyShot, shotAr: journeyShotAr },
+  { key: 'archive', shot: archiveShot, shotAr: archiveShotAr, wave: wave2 },
+  { key: 'dashboard', shot: dashboardShot, shotAr: dashboardShotAr },
   { key: 'vatReport', shot: vatShot, shotAr: vatShotAr, wave: wave2 },
   { key: 'cashFlow', shot: cashShot, shotAr: cashShotAr },
-  { key: 'erp', wave: wave3 },
-  { key: 'branches', shot: branchesShot, shotAr: branchesShotAr },
+  { key: 'branches', shot: branchesShot, shotAr: branchesShotAr, wave: wave3 },
+  { key: 'team', shot: teamShot, shotAr: teamShotAr },
 ]
 
 type ModuleKey = 'pos' | 'invoicing' | 'expenses' | 'tax' | 'reports' | 'company'
@@ -140,7 +149,7 @@ const MODULES: { key: ModuleKey; rows: RowKey[]; tiles: Tile[] }[] = [
   },
   {
     key: 'tax',
-    rows: ['tdd', 'archive'],
+    rows: ['tdd', 'journey', 'archive'],
     tiles: [
       ['pintom', 'shield'],
       ['calllog', 'list'],
@@ -165,22 +174,21 @@ const MODULES: { key: ModuleKey; rows: RowKey[]; tiles: Tile[] }[] = [
   },
   {
     key: 'company',
-    rows: ['erp', 'branches'],
+    rows: ['branches', 'team'],
     tiles: [
-      ['roles', 'key'],
       ['approvals', 'approve'],
-      ['team', 'users'],
       ['log', 'log'],
       ['languages', 'globe'],
       ['mobile', 'phone'],
       ['export', 'download'],
+      ['erp', 'flow'],
     ],
   },
 ]
 /** The module a link lands on: its own key, or the key of a row inside it (old links). */
 function moduleFromHash(hash: string): ModuleKey {
   const id = hash.replace('#', '')
-  const old: Record<string, ModuleKey> = { filing: 'tax', qr: 'tax' }
+  const old: Record<string, ModuleKey> = { filing: 'tax', qr: 'tax', erp: 'company' }
   const found = MODULES.find((m) => m.key === id || (m.rows as string[]).includes(id))
   return found ? found.key : (old[id] ?? 'pos')
 }
@@ -335,20 +343,13 @@ function RowCopy({ rowKey }: { rowKey: RowKey }) {
 
 function Shot({ row }: { row: Row }) {
   const { t, i18n } = useTranslation()
-  if (row.key === 'erp') {
-    return (
-      <div className="relative w-full max-w-[660px] shrink-0 lg:w-[min(660px,40%)] [&>figure]:m-0 [&>figure]:p-0">
-        <ErpFlow />
-      </div>
-    )
-  }
   const ar = i18n.language.startsWith('ar')
   return (
     <img
       src={ar && row.shotAr ? row.shotAr : row.shot}
       alt={t(`site.features.${row.key}.alt`)}
       loading="lazy"
-      className="landing-sheet relative block h-auto w-full max-w-[660px] shrink-0 rounded-lg bg-white lg:w-[min(660px,40%)]"
+      className="landing-sheet relative block h-auto w-full max-w-[660px] shrink-0 rounded-lg bg-white lg:w-[min(660px,44%)]"
     />
   )
 }
