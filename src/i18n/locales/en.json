@@ -7491,6 +7491,8 @@
       "footerToFill_other": "{{count}} fields still to fill",
       "savedAppliedDebitNote": "Saved and set against the debit note.",
       "savedClosesRefusedDebitNote": "Saved. The credit closes refused debit note {{note}}; anything left over stays as credit.",
+      "savedHeldAsDuplicate": "Saved. This note is held as a possible duplicate until an approver decides; its credit cannot be used before then.",
+      "savedStatusUnknown": "Saved. Check this note's status to see whether it is waiting for a decision.",
       "refusedDebitNoteCloses": "This debit note was refused, so the credit closes it. Anything left over stays as credit.",
       "setNowNoteDebitNote": "The debit note is unpaid, so you simply pay OMR {{amount}} less.",
       "saveAndSetDebitNote": "Save and set against the debit note",
