@@ -277,11 +277,11 @@ const STRIP = [
 function CompanyStrip() {
   const { t } = useTranslation()
   return (
-    <div className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-lg border border-[#eaedf8] bg-[#f7f9ff] px-8 py-5 max-md:px-5">
+    <div className="flex items-center gap-x-6 gap-y-4 rounded-lg border border-[#eaedf8] bg-[#f7f9ff] px-8 py-5 max-xl:flex-col max-xl:items-start max-md:px-5">
       <p className="landing-cap text-lg font-semibold leading-[normal]">
         {t('landing.features.strip.lead')}
       </p>
-      <ul className="flex flex-1 flex-wrap items-center gap-x-5 gap-y-2">
+      <ul className="flex flex-1 flex-wrap items-center gap-x-5 gap-y-2 max-xl:grid max-xl:w-full max-xl:grid-cols-3 max-xl:gap-x-4 max-xl:gap-y-3 max-md:grid-cols-2">
         {STRIP.map(([key, icon]) => (
           <li key={key} className={`flex items-center gap-2 text-sm font-medium ${SOFT}`}>
             <FeatureIcon name={icon} />
