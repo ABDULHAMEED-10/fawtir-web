@@ -783,9 +783,9 @@
       "limits": "Agreed on a call"
     },
     "footer": {
-      "f1": "Change or cancel anytime",
+      "f1": "Change your plan anytime",
       "f2": "Upgrades through the Fawtir team, downgrades at renewal",
-      "f3": "No setup fees",
+      "f3": "Compliance features in every plan",
       "f2SelfService": "Upgrades apply as soon as paid, pro rata; downgrades at renewal"
     },
     "payNote": "Next you choose how you'll pay: start with the free trial, or pay with your application.",
@@ -876,8 +876,8 @@
       "a3": "Every document your company issues: invoices, including simplified invoices from the point of sale, credit notes, debit notes and self-billed invoices. A document still counts if you cancel it later, and sending it again is free. Supplier invoices, credit notes and debit notes you receive count too, once each when they arrive, unless your plan does not count received documents. Drafts are not counted.",
       "q4": "What happens when I pass my allowance?",
       "a4": "We email you as you get close to your allowance, and again when it runs out. When none is left, you cannot issue documents, and supplier invoices you receive are held: you see that they are waiting, but cannot open them until you buy extra documents. Extra documents are bought ahead: by card they are added at once, by bank transfer or cash once Fawtir confirms the payment. They are used after your plan's own documents and end with your subscription month, with no carry-over and no refund. Your allowance resets each month on your subscription date. To move to a bigger plan, contact the Fawtir team and they will change it for you.",
-      "q5": "Can I change or cancel my plan?",
-      "a5": "You can cancel any time, and your plan runs to the end of the period you paid for. To change your plan, contact the Fawtir team; a smaller plan starts from your next renewal. If you pay for a bigger plan during your free trial, the trial ends at once: your paid period starts on the day you pay, and unused trial days are not carried over. There are no setup fees and no minimum term. If a renewal is not paid, you keep a grace period before the account goes read-only, and your records stay readable and exportable for the 10 years the law requires.",
+      "q5": "Can I change my plan?",
+      "a5": "Yes. To change your plan, or for any question about your subscription, contact the Fawtir team; a smaller plan starts from your next renewal. If you pay for a bigger plan during your free trial, the trial ends at once: your paid period starts on the day you pay, and unused trial days are not carried over. If a renewal is not paid, you keep a grace period before the account goes read-only, and your records stay readable and exportable for the 10 years the law requires.",
       "q6": "Is point of sale extra?",
       "a6": "No. Point of sale and thermal receipts are on every plan with no terminal charge. A POS receipt counts as one document against your allowance.",
       "q7": "Do prices include VAT?",
@@ -24123,8 +24123,7 @@
               "c": "Each plan includes a monthly allowance of documents that resets on your subscription date. Every document you issue counts once, and so does every document you receive, unless your plan says otherwise. Unused documents do not carry over.",
               "d": "When the allowance is used up, you can buy extra documents in advance at your plan's rate. Until then you cannot issue new documents, but you can still save drafts, and documents your suppliers send are still received and reported.",
               "e": "You can pay by card, bank transfer or cash. Card payments are processed by our payment provider, Paymob, on its secure page. We never see or store your card details.",
-              "f": "An upgrade applies at once and is charged for the days left in the period. A downgrade applies at your next renewal.",
-              "g": "There are no setup fees and no minimum term."
+              "f": "An upgrade applies at once and is charged for the days left in the period. A downgrade applies at your next renewal."
             }
           },
           "s06": {
@@ -24134,18 +24133,11 @@
               "b": "While read-only you can still sign in, view, search, download and export your records and pay your bill, but you cannot issue or send new documents. Documents your suppliers send you are still received and kept."
             }
           },
-          "s07": {
-            "title": "Cancelling",
-            "body": {
-              "a": "You can cancel at any time. A monthly subscription stays active until the end of the month you have paid for. A yearly subscription stays active until the end of the year you have paid for, or, if we refund its remaining whole months, until the end of the last month not refunded. The account then becomes read-only.",
-              "b": "Refunds, where they apply, follow our Refund policy. Cancelling never deletes your records and does not disconnect you from the Fawtara platform."
-            }
-          },
           "s08": {
             "title": "Your data",
             "body": {
               "a": "You own the data you put into Fawtir. You give us the right to store and process it only to provide the service, to meet our legal obligations and to keep the service secure.",
-              "b": "Tax records must be kept for the period the law requires, so they are retained even after you cancel. You can read and export them at any time.",
+              "b": "Tax records must be kept for the period the law requires. You can read and export them at any time.",
               "c": "How we handle personal data is explained in our Privacy policy."
             }
           },
@@ -24162,10 +24154,9 @@
             }
           },
           "s10": {
-            "title": "Suspension and termination",
+            "title": "Suspension",
             "body": {
-              "a": "We may suspend or close an account that breaches these terms, that is used for fraud, or where the law requires it. Where we can, we will tell you first and give you a chance to put things right.",
-              "b": "If we close your account, any period you paid in advance that has not started is refunded, and on a yearly subscription a refund of the remaining whole months is reviewed, as set out in our Refund policy."
+              "a": "We may suspend an account that breaches these terms, that is used for fraud, or where the law requires it. Where we can, we will tell you first and give you a chance to put things right."
             }
           },
           "s11": {
@@ -24173,13 +24164,6 @@
             "body": {
               "a": "We work to keep Fawtir available and secure, and we may carry out maintenance from time to time.",
               "b": "Fawtir relies on systems we do not control, such as the Fawtara platform of the Oman Tax Authority, the Peppol network and payment providers. We are not responsible for their outages, but we will resend or report documents once they are available again."
-            }
-          },
-          "s12": {
-            "title": "Leaving Fawtir as your service provider",
-            "body": {
-              "a": "You can disconnect from Fawtir at any time on the Fawtara portal, or by connecting to another service provider. As the Oman Tax Authority requires, we then remove your company from the Oman SMP within one business day.",
-              "b": "Your subscription runs to the end of the period you have paid for and does not renew. A period paid in advance that has not started is refunded, and on a yearly subscription a refund of the remaining whole months is reviewed, as set out in our Refund policy. Your records stay available to read and export for the period the law requires."
             }
           },
           "s13": {
@@ -24278,7 +24262,7 @@
           "s07": {
             "title": "How long we keep it",
             "body": {
-              "a": "Tax records are kept for the period the law requires: ten years under the Oman VAT Law, and fifteen years for records relating to property. They cannot be deleted during that time, even after you cancel.",
+              "a": "Tax records are kept for the period the law requires: ten years under the Oman VAT Law, and fifteen years for records relating to property. They cannot be deleted during that time.",
               "b": "Other personal data is kept while your account is active and afterwards only as long as needed for the purposes above or as the law requires."
             }
           },
@@ -24333,20 +24317,7 @@
           "s01": {
             "title": "General rule",
             "body": {
-              "a": "Fawtir subscriptions are paid in advance. Payments for a period that has started, and for extra documents or add-ons that have been bought, are not refundable, except as set out below."
-            }
-          },
-          "s02": {
-            "title": "Monthly subscriptions",
-            "body": {
-              "a": "When you cancel a monthly subscription, it stays active until the end of the month you have paid for. The current month is not refunded.",
-              "b": "If you paid in advance for a month that has not yet started, that payment is refunded in full."
-            }
-          },
-          "s03": {
-            "title": "Yearly subscriptions",
-            "body": {
-              "a": "When you cancel a yearly subscription, we review a refund of the remaining whole months. If a refund is made, the subscription stays active until the end of the last month not refunded. Otherwise it stays active until the end of the year you have paid for."
+              "a": "Fawtir subscriptions are paid in advance. Payments for a period that has started, and for extra documents or add-ons that have been bought, are not refundable, except as set out below. For any other question about your subscription or a refund, please contact us."
             }
           },
           "s04": {
@@ -24365,12 +24336,6 @@
             "title": "Extra documents and add-ons",
             "body": {
               "a": "Extra documents, extra users, extra branches and other add-ons are not refundable once bought."
-            }
-          },
-          "s07": {
-            "title": "If we close your account",
-            "body": {
-              "a": "If we cancel your subscription, any period you paid in advance that has not started is refunded. On a yearly subscription, a refund of the remaining whole months is reviewed in the same way as when you cancel."
             }
           },
           "s08": {
