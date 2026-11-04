@@ -24120,9 +24120,11 @@
             "items": {
               "a": "Subscriptions are paid in advance, monthly or yearly, at the prices shown on our Pricing page in Omani rials. VAT is added where it applies.",
               "b": "Where a free trial is offered, it starts when your registration is approved. You are not charged before approval.",
-              "c": "Each plan includes a monthly allowance of documents that resets on your subscription date. Unused documents do not carry over. Extra documents can be bought in advance at your plan's rate.",
-              "d": "You can pay by card, bank transfer or cash. Card payments are processed by our payment provider, Paymob, on its secure page. We never see or store your card details.",
-              "e": "An upgrade applies at once and is charged for the days left in the period. A downgrade applies at your next renewal."
+              "c": "Each plan includes a monthly allowance of documents that resets on your subscription date. Every document you issue counts once, and so does every document you receive, unless your plan says otherwise. Unused documents do not carry over.",
+              "d": "When the allowance is used up, you can buy extra documents in advance at your plan's rate. Until then you cannot issue new documents, but you can still save drafts, and documents your suppliers send are still received and reported.",
+              "e": "You can pay by card, bank transfer or cash. Card payments are processed by our payment provider, Paymob, on its secure page. We never see or store your card details.",
+              "f": "An upgrade applies at once and is charged for the days left in the period. A downgrade applies at your next renewal.",
+              "g": "There are no setup fees and no minimum term."
             }
           },
           "s06": {
@@ -24135,7 +24137,7 @@
           "s07": {
             "title": "Cancelling",
             "body": {
-              "a": "You can cancel at any time. Your subscription stays active until the end of the period you have paid for, and then the account becomes read-only.",
+              "a": "You can cancel at any time. A monthly subscription stays active until the end of the month you have paid for. A yearly subscription stays active until the end of the year you have paid for, or, if we refund its remaining whole months, until the end of the last month not refunded. The account then becomes read-only.",
               "b": "Refunds, where they apply, follow our Refund policy. Cancelling never deletes your records and does not disconnect you from the Fawtara platform."
             }
           },
@@ -24163,7 +24165,7 @@
             "title": "Suspension and termination",
             "body": {
               "a": "We may suspend or close an account that breaches these terms, that is used for fraud, or where the law requires it. Where we can, we will tell you first and give you a chance to put things right.",
-              "b": "If we close an account without fault on your part, any period you paid in advance that has not started is refunded."
+              "b": "If we close your account, any period you paid in advance that has not started is refunded, and on a yearly subscription a refund of the remaining whole months is reviewed, as set out in our Refund policy."
             }
           },
           "s11": {
@@ -24176,7 +24178,8 @@
           "s12": {
             "title": "Leaving Fawtir as your service provider",
             "body": {
-              "a": "You can disconnect from Fawtir at any time on the Fawtara portal, or by connecting to another service provider. Your subscription then runs to the end of the period you have paid for and does not renew."
+              "a": "You can disconnect from Fawtir at any time on the Fawtara portal, or by connecting to another service provider. As the Oman Tax Authority requires, we then remove your company from the Oman SMP within one business day.",
+              "b": "Your subscription runs to the end of the period you have paid for and does not renew. A period paid in advance that has not started is refunded, and on a yearly subscription a refund of the remaining whole months is reviewed, as set out in our Refund policy. Your records stay available to read and export for the period the law requires."
             }
           },
           "s13": {
