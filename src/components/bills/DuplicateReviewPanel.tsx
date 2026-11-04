@@ -6,6 +6,7 @@ import {
   MAX_OVERRIDE_REASON,
   mayDeclareDifferent,
   overrideOf,
+  sessionKnown,
   reviewMode,
   type DuplicateOverride,
   type DuplicateReview,
@@ -25,6 +26,10 @@ import warnIcon from '../../assets/bills/match-warn.svg'
  * approver (a same-supplier Peppol copy, ACC-8). On a figures-only coincidence or a second copy
  * on the same record it would refuse it (`BILL_INTAKE_OVERRIDE_APPROVER_REQUIRED`), so nothing is
  * offered and the panel says an approver must record it; a refusal is never shown as a submission.
+ *
+ * Round 20 (PRV43-WEBEXP L-4) and round 21 (F-2): the decision is drawn only for an approver whose
+ * session has loaded, never disabled for anyone else, and the submission only when the review
+ * holds the one held-against copy.
  */
 export function DuplicateReviewPanel({
   review,
@@ -44,11 +49,17 @@ export function DuplicateReviewPanel({
   buttonClassName: string
 }) {
   const { t } = useTranslation()
-  const approver = mayDeclareDifferent(useSession())
+  const session = useSession()
+  const known = sessionKnown(session)
+  const approver = mayDeclareDifferent(session)
   const mode = reviewMode(review)
   const single = mode === 'single'
   const decidable = single || mode === 'many'
-  const submittable = !approver && review.heldForReview
+  const submittable = known && !approver && review.heldForReview && review.seen.length === 1
+  // L-1: the server's approver refusal already says an approver must record it; the standing
+  // explanation under it would say the same again.
+  const explained =
+    decidable && known && !approver && review.problem !== 'billIntake.duplicate.approverRequired'
 
   const different = () => {
     const override = overrideOf(review)
@@ -115,17 +126,13 @@ export function DuplicateReviewPanel({
       {standing ? (
         <p className="mt-2 text-sm font-medium text-warning-700">{t(standing)}</p>
       ) : null}
-      {decidable ? (
+      {decidable && (approver || submittable) ? (
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            disabled={busy || !approver}
-            onClick={different}
-            aria-describedby={approver ? undefined : 'duplicate-approver-only'}
-            className={buttonClassName}
-          >
-            {t(single ? 'billIntake.duplicate.different' : 'billIntake.duplicate.differentAll')}
-          </button>
+          {approver ? (
+            <button type="button" disabled={busy} onClick={different} className={buttonClassName}>
+              {t(single ? 'billIntake.duplicate.different' : 'billIntake.duplicate.differentAll')}
+            </button>
+          ) : null}
           {submittable ? (
             <button type="button" disabled={busy} onClick={different} className={buttonClassName}>
               {t('billIntake.duplicate.submitForReview')}
@@ -133,8 +140,8 @@ export function DuplicateReviewPanel({
           ) : null}
         </div>
       ) : null}
-      {decidable && !approver ? (
-        <p id="duplicate-approver-only" className="mt-2 text-sm font-medium text-text-secondary">
+      {explained ? (
+        <p className="mt-2 text-sm font-medium text-text-secondary">
           {t(
             submittable
               ? 'billIntake.duplicate.approverOnly'

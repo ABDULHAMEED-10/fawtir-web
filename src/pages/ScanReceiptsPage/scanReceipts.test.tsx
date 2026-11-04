@@ -23,6 +23,12 @@ const MANAGER: Entitlements = {
   featureFlags: {},
 }
 const VIEWER: Entitlements = { ...MANAGER, username: 'viewer', permissions: ['invoice.read'] }
+/** The duplicate override is drawn only for invoice.approve (round 18), which MANAGER lacks. */
+const APPROVER: Entitlements = {
+  ...MANAGER,
+  username: 'approver',
+  permissions: [...MANAGER.permissions, 'invoice.approve'],
+}
 
 function receipt(id: string, overrides: Partial<IntakeDto> = {}): IntakeDto {
   return {
@@ -356,6 +362,7 @@ describe('scan receipts: a possible duplicate', () => {
     })
 
   it('names the bill on file, and saves only when told it is a different bill', async () => {
+    who = APPROVER
     stored = { 'r-1': typed('r-1', 'Nizwa Hardware Store', 28.4) }
     confirmAnswers = [duplicateOf('SCANNED')]
     renderAt('/expenditure/bills/scan?intake=r-1')

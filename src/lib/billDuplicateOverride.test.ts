@@ -4,6 +4,7 @@ import type { Entitlements } from './identity/entitlements'
 import {
   mayDeclareDifferent,
   overrideExtras,
+  sessionKnown,
   overrideOf,
   overrideRefused,
   reviewAfterRefusal,
@@ -147,6 +148,20 @@ describe('the duplicate override', () => {
     const after = overrideRefused({ ...review(1), heldForReview: true }, refused)
     expect(after?.review?.heldForReview).toBe(false)
     expect(after?.key).toBe('billIntake.duplicate.approverRequired')
+  })
+
+  it('round 20 L-4: offers nothing while a required session is still loading', () => {
+    expect(mayDeclareDifferent(null)).toBe(false)
+    expect(sessionKnown(null)).toBe(false)
+    expect(sessionKnown(MANAGER as Entitlements)).toBe(true)
+  })
+
+  it('round 21 F-2: held-for-review only while the review holds the one held-against copy', () => {
+    expect(reviewAfterRefusal(null, possible(['b-0', 'b-1'], 'INV-1', true, true))?.heldForReview).toBe(false)
+    const held = reviewAfterRefusal(null, possible(['b-0'], 'INV-1', true, true))
+    expect(held?.heldForReview).toBe(true)
+    // The next answer names a second bill; the review now lists both, so it is no submission.
+    expect(reviewAfterRefusal(held, possible(['b-1'], 'INV-1', true, true))?.heldForReview).toBe(false)
   })
 
   it('round 18: offers the decision only to a session holding invoice.approve', () => {

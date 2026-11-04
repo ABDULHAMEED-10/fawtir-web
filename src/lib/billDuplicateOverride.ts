@@ -1,7 +1,7 @@
 import { ApiError } from '../api/errors'
 import { possibleDuplicates, type PossibleDuplicateDto } from '../api/expenditure/billIntake'
 import type { Entitlements } from './identity/entitlements'
-import { can } from './session/session'
+import { mayRequest, REQUIRE_SESSION } from './session/session'
 
 /** `BillIntakeService.MAX_DUPLICATE_OVERRIDES`: more ids than this are refused, not trimmed. */
 export const MAX_DUPLICATE_OVERRIDES = 20
@@ -50,9 +50,20 @@ export type DuplicateReviewMode = 'single' | 'many' | 'unsupported' | 'tooMany'
  * (`BILL_INTAKE_OVERRIDE_APPROVER_REQUIRED`). A loaded session is a person's: `/me/entitlements`
  * answers only for a signed-in user (`requireUserId`), never for an API key or another machine
  * credential, so holding the permission in it is holding it as a human.
+ *
+ * False while a required session is still loading (owner approval, batch 43 round 20, panel item
+ * 6; PRV43-WEBEXP L-4): `can` offers everything to a null session, which showed the override to
+ * whoever was there before their permissions arrived. Whether this person recorded one of the
+ * bills cannot be known here without a new API field, which round 20 does not add, so maker-checker
+ * stays the server's: the decision is refused `BILL_DUPLICATE_DECIDER_IS_RECORDER`.
  */
 export function mayDeclareDifferent(session: Entitlements | null): boolean {
-  return can(session, OVERRIDE_PERMISSION)
+  return mayRequest(session, OVERRIDE_PERMISSION)
+}
+
+/** Whether the panel knows who is there: a session has loaded, or none is required (dev only). */
+export function sessionKnown(session: Entitlements | null): boolean {
+  return session !== null || !REQUIRE_SESSION
 }
 
 /** The review after a refusal, or null when the refusal is not a possible duplicate. */
@@ -73,7 +84,10 @@ export function reviewAfterRefusal(
   return {
     seen,
     listed: found.listed,
-    heldForReview: found.heldForReview,
+    // Owner approval, batch 43 round 21, F-2: listing anything beyond the held-against copy needs
+    // an approver, so a review that has gathered more than one bill is never a submission, even
+    // when an earlier answer named only the copy.
+    heldForReview: found.heldForReview && seen.length === 1,
     reason: sameQuestion ? previous.reason : '',
     problem: null,
   }
