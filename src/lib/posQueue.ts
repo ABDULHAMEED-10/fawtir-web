@@ -33,9 +33,9 @@ import { forgetBuyer, openBuyer, sealBuyer } from './posVault'
  * Today screens (`PosQueuePanel`), and its number is kept. A refusal whose cause can clear is sent
  * again on its own, with the same key, so it can never be paid or filed twice. A refusal that the
  * same sale can never get past is not sent again until a person presses Try again; it stays on the
- * till, open, until it is filed. Later sales go past it where the server allows it
- * (`till.openNumbers`, naming the numbers they pass); an older server requires strict number
- * order, so there they wait behind it, in order, and are numbered and printed meanwhile.
+ * till, open, until it is filed. Later sales never go past it: this build keeps strict number
+ * order whatever the server says (`opensNumbers`, Q-27), so they wait behind it, in order, and are
+ * numbered and printed meanwhile.
  *
  * TODO(backend): a sale made offline prints its number but not its QR; the QR's signed payload
  * is made by the server once the sale is sent (INCOME.md row P.28).
@@ -68,8 +68,17 @@ export type QueuedSale = {
   /** A refusal nobody has reviewed: tried again no sooner than this, and later each time. */
   notBefore?: string
   attempts?: number
-  /** A manager set it aside on the server: not sent by itself, still open, still shown. */
+  /**
+   * An earlier build's record that a manager set it aside on a server with open numbers: not sent
+   * by itself, still open, still shown. This build never sets it (Q-27).
+   */
   setAside?: boolean
+  /**
+   * Try again or a correction cleared `setAside`. Kept only so the till can still say so, as a note
+   * from this device: it is never sent (only `body` goes to the server), decides nothing here, and
+   * is not evidence (DES43 §5.6 option (b), NF7R).
+   */
+  setAsideSeen?: true
   /**
    * The buyer was in plain text on a device that cannot seal, and went at the final refusal: the
    * sale cannot be sent from this device any more, since a full invoice has to name them.
@@ -439,8 +448,8 @@ export function numbersBefore(number: string, expected: string): string[] {
 const MAX_SKIPPED = 200
 
 /**
- * Sends one numbered sale. Where the server allows it, a sale whose earlier numbers are stuck names
- * them when it is told it would leave a gap; they stay open for their own sales to be filed later.
+ * Sends one numbered sale. The gap retry naming `skippedNumbers` runs only with `canSkip`, which
+ * this build never passes (`opensNumbers`, Q-27): a gap refusal is thrown and the sale waits.
  */
 async function sendNumbered(
   body: PosSaleRequest,
@@ -655,8 +664,7 @@ export async function submitSale(
     return { queued: entry }
   }
   await holdSlipPhotos(key, till.id, photos)
-  const canSkip = till.openNumbers === true
-  capable.set(till.id, canSkip)
+  const canSkip = opensNumbers()
   // The older sales go first: once they are in, this one is sent as an ordinary online sale and
   // its receipt says so (E2E 29 Oct 2026, F-5). Only while some still wait does it join them.
   const outcome: FlushOutcome =
@@ -677,8 +685,8 @@ export async function submitSale(
     }
   }
   if (outcome === 'offline' || outcome === 'busy') return enqueue()
-  // The server answered and every waiting sale is stuck on its own: this one need not wait. It goes
-  // as an ordinary online sale, and the server takes a number past those it has refused.
+  // Unreachable while `opensNumbers()` is false (Q-27): an unnumbered online sale past stuck entries
+  // would take the refused number a customer already holds (NF-1).
   if (outcome === 'done' && canSkip) {
     try {
       const sale = await createPosSale(body, key)
@@ -710,14 +718,24 @@ function whenIdle(): Promise<void> {
   return new Promise((wake) => idleWaiters.add(wake))
 }
 
-/** Whether the server takes `skippedNumbers`, as the till last said (`openNumbers`). */
-const capable = new Map<string, boolean>()
+/**
+ * Whether this build skips stuck numbers: never. A literal, not derived from the till, its cached
+ * copy, storage, the URL, env or config, so no server answer, forged flag or #831 backend can
+ * turn skipping on (owner P0-3, Q-27 hard-disable; DES43 rev 4.3.4 §5.6). Re-enabling it is a
+ * reviewed change to this function, never a setting.
+ */
+export function opensNumbers(): false {
+  return false
+}
+
 /** Whether the server takes `claimedMakerUnverified`, as the till last said (`takesMakerClaim`). */
 const takesClaim = new Map<string, boolean>()
 
-/** Tells the queue what this till's server allows; until then it keeps strict number order. */
+/**
+ * Tells the queue what this till's server allows. `openNumbers` stays in the type only so older
+ * callers still fit; it is not read (Q-27).
+ */
 export function noteTillServer(till: Pick<PosTillDto, 'id' | 'openNumbers' | 'takesMakerClaim'>) {
-  capable.set(till.id, till.openNumbers === true)
   takesClaim.set(till.id, till.takesMakerClaim === true)
 }
 
@@ -793,9 +811,9 @@ function refusedEntry(entry: QueuedSale, error: ApiError, verdict: RefusalVerdic
 
 /**
  * Sends the till's queued sales oldest number first. A sale the server would not take stays, with
- * its reason; later ones go past it only where the server allows that, and only when the refusal is
- * about that sale alone. Only the entries `sender` made go by themselves, and `explicitKey`; any
- * other entry is passed like one set aside, so in strict order it holds the later ones back.
+ * its reason, and later ones wait behind it: the `canSkip` branches below are dead while
+ * `opensNumbers()` is false (Q-27). Only the entries `sender` made go by themselves, and
+ * `explicitKey`; any other entry stops the run, so in strict order it holds the later ones back.
  */
 export async function flushQueue(
   tillId: string,
@@ -804,7 +822,7 @@ export async function flushQueue(
   if (flushing) return 'busy'
   flushing = true
   const generation = senderGeneration
-  const canSkip = capable.get(tillId) === true
+  const canSkip = opensNumbers()
   try {
     for (const entry of queuedFor(tillId)) {
       if (entry.key !== explicitKey && !sendsByItself(entry, sender)) {
@@ -963,8 +981,9 @@ export async function retryQueuedSale(
       const { final: _final, notBefore: _notBefore, setAside: _setAside, ...again } = entry
       void _final
       void _notBefore
-      void _setAside
-      return again
+      // The flag goes so the entry can be sent, in strict order; keeping it would leave a head
+      // no action could ever send (NF7R option (a), rejected). The marker keeps the note only.
+      return _setAside ? { ...again, setAsideSeen: true as const } : again
     }),
   )
   return flushQueue(tillId, { sender, explicitKey: key })
@@ -992,14 +1011,14 @@ export async function correctQueuedSale(
       const { final: _final, notBefore: _notBefore, setAside: _setAside, ...again } = entry
       void _final
       void _notBefore
-      void _setAside
+      const cleared = _setAside ? { ...again, setAsideSeen: true as const } : again
       // The old proof covers the old payments, and nobody here may sign as the cashier again: the
       // corrected sale goes unsigned, with no printed totals either since the two travel together,
       // and a binding-capable server holds it for a manager (WEB-4).
-      const { offlineProof: _proof, printed: _printed, ...unsigned } = again.body
+      const { offlineProof: _proof, printed: _printed, ...unsigned } = cleared.body
       void _proof
       void _printed
-      return { ...again, body: { ...unsigned, payments } }
+      return { ...cleared, body: { ...unsigned, payments } }
     }),
   )
   return flushQueue(tillId, { sender, explicitKey: key })
@@ -1055,7 +1074,6 @@ export function resetPosQueue() {
   flushing = false
   idleWaiters.forEach((wake) => wake())
   idleWaiters.clear()
-  capable.clear()
   takesClaim.clear()
   if (retryTimer) clearTimeout(retryTimer)
   retryTimer = null

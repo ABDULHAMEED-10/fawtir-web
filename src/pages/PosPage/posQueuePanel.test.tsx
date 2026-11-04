@@ -234,68 +234,81 @@ describe('the queue on the till and Today (H-1)', () => {
     expect(posts[posts.length - 1]).toBe('pos-sale-key-panel-7')
   })
 
-  it('a manager sets it aside on the server with a reason: it stays listed and is not sent by itself', async () => {
-    const server = { aside: null as string | null }
+  // Q-27 (owner P0-3; replaces the set-aside flow test). A till saying `openNumbers: true`, from a
+  // forged answer or an #831 backend, no longer opens the set-aside UI or asks for the server's list.
+  it('a till saying openNumbers offers no set aside and never asks for the open numbers (N-R8b)', async () => {
     const skipping = { ...TILL, openNumbers: true } as PosTillDto
-    const row = () => ({
-      tillId: 'till-1',
-      tillNumber: 1,
-      invoiceNumber: 'NZW-T01-INV-2026-000013',
-      refusalCode: 'SIMPLIFIED_INVOICE_LIMIT',
-      reason: 'x',
-      soldAt: null,
-      amount: 0.21,
-      firstRecordedAt: '2026-10-31T00:00:00Z',
-      passed: !!server.aside,
-      setAsideAt: server.aside ? '2026-10-31T00:01:00Z' : null,
-      setAsideBy: server.aside ? 'u-1' : null,
-      setAsideReason: server.aside,
-    })
+    const urls: string[] = []
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input)
-        const json = (body: unknown) =>
-          new Response(JSON.stringify(body), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          })
-        if (url === '/api/v1/pos/sales') {
-          posts.push(new Headers(init?.headers).get('Idempotency-Key') ?? '')
+        urls.push(url)
+        if (url === '/api/v1/pos/sales' && init?.method === 'POST') {
+          posts.push(new Headers(init.headers).get('Idempotency-Key') ?? '')
           return reply()
-        }
-        if (url.startsWith('/api/v1/pos/open-numbers?')) return json([row()])
-        if (url === '/api/v1/pos/open-numbers/set-aside') {
-          server.aside = JSON.parse(String(init?.body)).reason
-          return json(row())
         }
         return new Response('', { status: 404 })
       }),
     )
     await submitSale(skipping, BODY, 'pos-sale-key-panel-8')
+    await submitSale(skipping, BODY, 'pos-sale-key-panel-9')
     reply = () => problem(422, { code: 'SIMPLIFIED_INVOICE_LIMIT' })
     noteTillServer(skipping)
     await flushQueue('till-1')
-    const ready = { ...READY(true), till: skipping }
-    render(
-      <MemoryRouter>
-        <PosQueuePanel till={ready} />
-      </MemoryRouter>,
+    render(wrap(<PosQueuePanel till={{ ...READY(true), till: skipping }} />))
+
+    expect(screen.getByRole('alert')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Set aside' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy()
+    expect(screen.getByText(i18n.t('pos.queue.orderHint'))).toBeTruthy()
+    expect(urls.some((url) => url.includes('/pos/open-numbers'))).toBe(false)
+    // Strict order: the second sale was never sent past the refused first.
+    expect(posts.length).toBeGreaterThan(0)
+    expect(posts.every((key) => key === 'pos-sale-key-panel-8')).toBe(true)
+    expect(queuedFor('till-1').map((entry) => entry.key)).toEqual([
+      'pos-sale-key-panel-8',
+      'pos-sale-key-panel-9',
+    ])
+    expect(queuedFor('till-1').every((entry) => entry.setAside === undefined)).toBe(true)
+  })
+
+  // NF7R / A8-G6: an earlier build's set-aside flag is this device's word only. It reads as a device
+  // note, never as the server's "Set aside: <reason>", and the marker Try again leaves keeps it.
+  it('a legacy set-aside entry reads as a device note, and still does after Try again (N-R2h)', async () => {
+    const number = 'NZW-T01-INV-2026-000013'
+    window.localStorage.setItem(
+      'fawtir.pos.queue',
+      JSON.stringify([
+        {
+          key: 'pos-sale-key-panel-legacy',
+          tillId: 'till-1',
+          number,
+          body: { ...BODY, queuedOffline: true, invoiceNumber: number },
+          refusal: 'SIMPLIFIED_INVOICE_LIMIT',
+          final: true,
+          setAside: true,
+          madeBy: { userId: 'u-1', name: 'Maryam' },
+        },
+      ]),
     )
-    fireEvent.click(await screen.findByRole('button', { name: 'Set aside' }))
-    const confirm = screen.getByRole('button', { name: 'Set aside for now' }) as HTMLButtonElement
-    expect(confirm.disabled).toBe(true)
-    fireEvent.change(screen.getByLabelText('Why is it being set aside?'), {
-      target: { value: 'Waiting for details' },
-    })
-    fireEvent.click(confirm)
-    await screen.findByText(/Waiting for details/)
-    expect(server.aside).toBe('Waiting for details')
+    // The panel draws the queue as last synced; this read takes the stored copy.
     expect(queuedFor('till-1')).toHaveLength(1)
-    expect(queuedFor('till-1')[0].setAside).toBe(true)
-    const tries = posts.length
-    await flushQueue('till-1')
-    expect(posts.length).toBe(tries)
+    render(wrap(<PosQueuePanel till={READY(true)} />))
+
+    const note = i18n.t('pos.queue.setAsideSeenNote')
+    expect(screen.getByText(note)).toBeTruthy()
+    expect(screen.queryByText(/Still not filed/)).toBeNull()
+
+    reply = () => problem(409, { code: 'POS_TILL_NUMBER_REPEATED' })
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    await waitFor(() => expect(posts).toEqual(['pos-sale-key-panel-legacy']))
+    await waitFor(() => expect(queuedFor('till-1')[0].refusal).toBe('POS_TILL_NUMBER_REPEATED'))
+    const [entry] = queuedFor('till-1')
+    expect(entry.setAside).toBeUndefined()
+    expect(entry.setAsideSeen).toBe(true)
+    expect(await screen.findByText(note)).toBeTruthy()
+    expect(screen.queryByText(/Still not filed/)).toBeNull()
   })
 
   it('a refusal that carries figures shows them in its sentence', async () => {

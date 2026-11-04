@@ -689,7 +689,9 @@ describe('a refused sale never stops the till (E2E 30 Oct 2026, H-1)', () => {
     expect(server.next).toBe(49)
   })
 
-  it('on a server that allows it later sales go past a stuck one, naming it, and it can still be filed', async () => {
+  // Q-27 (owner P0-3): inverted. Even against a server that would skip (the #831 backend, which the
+  // fake models with `canSkip`) and a till saying `openNumbers: true`, this build keeps strict order.
+  it('a till saying openNumbers still keeps strict order: nothing goes past a stuck one, nothing names it', async () => {
     const server = fakeServer()
     server.canSkip = true
     server.refuseKeys.add('pos-sale-key-bad2')
@@ -697,32 +699,35 @@ describe('a refused sale never stops the till (E2E 30 Oct 2026, H-1)', () => {
     await submitSale(NEW_TILL, WALK_IN, 'pos-sale-key-next2')
     online = true
     // As the screen does: QueueSender tells the queue about the till.
-    const { noteTillServer } = await import('./posQueue')
     noteTillServer(NEW_TILL)
     await flushQueue('till-1')
 
-    expect(queuedFor('till-1').map((entry) => entry.key)).toEqual(['pos-sale-key-bad2'])
-    expect(server.filed.get('pos-sale-key-next2')).toBe('NZW-T01-INV-2026-000050')
-    const passing = server.posts.filter((post) => post.key === 'pos-sale-key-next2').pop()
-    expect(passing?.body.skippedNumbers).toEqual(['NZW-T01-INV-2026-000049'])
+    expect(queuedFor('till-1').map((entry) => entry.key)).toEqual([
+      'pos-sale-key-bad2',
+      'pos-sale-key-next2',
+    ])
+    expect(server.posts.some((post) => post.key === 'pos-sale-key-next2')).toBe(false)
+    expect(server.posts.every((post) => post.body.skippedNumbers === undefined)).toBe(true)
 
-    // A new sale is sold online, not queued, on its own number and flagged as online.
+    // A new sale is not sold online past the stuck one (NF-1): it is numbered and waits behind.
     const sold = await submitSale(NEW_TILL, WALK_IN, 'pos-sale-key-third2')
-    expect('sale' in sold && sold.sale.invoiceNumber).toBe('NZW-T01-INV-2026-000051')
-    const sent = server.posts.filter((post) => post.key === 'pos-sale-key-third2').pop()
-    expect(sent?.body).toMatchObject({ queuedOffline: false, invoiceNumber: null })
-    expect(sent?.body.skippedNumbers).toBeUndefined()
+    expect(sold).toMatchObject({ behind: true, queued: { number: 'NZW-T01-INV-2026-000051' } })
+    expect(server.posts.some((post) => post.key === 'pos-sale-key-third2')).toBe(false)
+    expect(server.next).toBe(49)
+    expect(calls.some((call) => call.url.includes('/pos/open-numbers'))).toBe(false)
 
     // Final: not sent again by itself.
     const tries = server.posts.filter((post) => post.key === 'pos-sale-key-bad2').length
     await flushQueue('till-1')
     expect(server.posts.filter((post) => post.key === 'pos-sale-key-bad2').length).toBe(tries)
 
-    // A person fixes the cause and presses Try again: the same key, filed once.
+    // A person fixes the cause and presses Try again: the same key, filed once, then the rest in order.
     server.refuseKeys.delete('pos-sale-key-bad2')
     await retryQueuedSale('till-1', 'pos-sale-key-bad2')
     expect(queuedFor('till-1')).toEqual([])
     expect(server.filed.get('pos-sale-key-bad2')).toBe('NZW-T01-INV-2026-000049')
+    expect(server.filed.get('pos-sale-key-next2')).toBe('NZW-T01-INV-2026-000050')
+    expect(server.filed.get('pos-sale-key-third2')).toBe('NZW-T01-INV-2026-000051')
     await retryQueuedSale('till-1', 'pos-sale-key-bad2')
     expect([...server.filed.values()].filter((v) => v.endsWith('000049'))).toHaveLength(1)
   })
@@ -1232,10 +1237,11 @@ describe('the maker sent as an untrusted claim (Round 13 L-2)', () => {
   })
 })
 
-// NOT RUN (batch 43, static only). PRV43-OFF2 N-7: the number-gap retry is a second POST, so it is
-// held to the same sender check as the first.
-describe('the number-gap retry after the sender changed', () => {
-  it('sends no retry once the till signed out during the refused first send; the entry waits unmarked', async () => {
+// NOT RUN (batch 43, static only). PRV43-OFF2 N-7 asked that the number-gap retry, a second POST, be
+// held to the sender check. Under Q-27 (owner P0-3) that retry never happens at all: a gap refusal
+// on a till saying `openNumbers` is one POST, kept as a held refusal, with nothing skipped.
+describe('the number-gap refusal on a till that says openNumbers (Q-27)', () => {
+  it('sends no skip retry, signed out or not; the entry stays, held on the gap', async () => {
     const number = 'NZW-T01-INV-2026-000050'
     window.localStorage.setItem(
       'fawtir.pos.queue',
@@ -1270,14 +1276,207 @@ describe('the number-gap retry after the sender changed', () => {
       )
     }
 
-    expect(await flushQueue('till-1')).toBe('done')
+    expect(await flushQueue('till-1')).toMatchObject({ verdict: 'held' })
 
     const posts = calls.filter(
       (call) => call.url === '/api/v1/pos/sales' && call.init?.method === 'POST',
     )
     expect(posts).toHaveLength(1)
+    expect(JSON.parse(String(posts[0].init?.body))).not.toHaveProperty('skippedNumbers')
+    expect(queuedFor('till-1')).toHaveLength(1)
     const [waiting] = queuedFor('till-1')
     expect(waiting.key).toBe('pos-sale-key-gap-50')
-    expect(waiting.refusal ?? null).toBeNull()
+    expect(waiting.refusal).toBe('POS_TILL_NUMBER_GAP')
+    expect(waiting.final).toBeUndefined()
+  })
+
+  // T-GAP: a forged gap answer naming any expected number moves nothing either.
+  it('a gap refusal naming a far-back expected number still sends once and skips nothing', async () => {
+    const number = 'NZW-T01-INV-2026-000060'
+    window.localStorage.setItem(
+      'fawtir.pos.queue',
+      JSON.stringify([
+        {
+          key: 'pos-sale-key-gap-60',
+          tillId: 'till-1',
+          number,
+          body: { ...BODY, customer: { kind: 'WALK_IN' }, queuedOffline: true, invoiceNumber: number },
+          refusal: null,
+          madeBy: { userId: 'u-1', name: 'Maryam' },
+        },
+      ]),
+    )
+    noteTillServer({ id: 'till-1', openNumbers: true, takesMakerClaim: false })
+    online = true
+    saleReply = () =>
+      new Response(
+        JSON.stringify({
+          type: 'https://api.fawtir.om/problems/pos-till-number-gap',
+          status: 409,
+          code: 'POS_TILL_NUMBER_GAP',
+          expectedNumber: 'NZW-T01-INV-2026-000001',
+        }),
+        { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+
+    await flushQueue('till-1')
+
+    const posts = calls.filter(
+      (call) => call.url === '/api/v1/pos/sales' && call.init?.method === 'POST',
+    )
+    expect(posts).toHaveLength(1)
+    expect(JSON.parse(String(posts[0].init?.body))).not.toHaveProperty('skippedNumbers')
+    expect(queuedFor('till-1').map((entry) => entry.key)).toEqual(['pos-sale-key-gap-60'])
+  })
+})
+
+// NOT RUN (RC5 W-Q27, static only). Owner P0-3 / Q-27 hard-disable and the NF7R device marker
+// (DES43 rev 4.3.4 §5.6 option (b); A8-G1, A8-G6). Appendix N: N-R2e, N-R2g, N-R2h, N-R2i.
+describe('Q-27: open-number skipping is off whatever the till or the device says', () => {
+  const WALK_IN: PosSaleRequest = { ...BODY, customer: { kind: 'WALK_IN' } }
+  const PROOF = { keyId: 'k-1', signature: 'A'.repeat(86) }
+  const PRINTED = { taxable: 5, vat: 0.25, total: 5.25 }
+  const stored = (value: number, extra: Record<string, unknown> = {}, body: object = {}) => {
+    const number = `NZW-T01-INV-2026-${String(value).padStart(6, '0')}`
+    return {
+      key: `pos-sale-key-q27-${value}`,
+      tillId: 'till-1',
+      number,
+      body: { ...WALK_IN, queuedOffline: true, invoiceNumber: number, ...body },
+      refusal: null,
+      madeBy: { userId: 'u-1', name: 'Maryam' },
+      ...extra,
+    }
+  }
+  const sales = () =>
+    calls.filter((call) => call.url === '/api/v1/pos/sales' && call.init?.method === 'POST')
+  const sentBody = (index: number) =>
+    JSON.parse(String(sales()[index].init?.body)) as PosSaleRequest & Record<string, unknown>
+  const sentKey = (index: number) => new Headers(sales()[index].init?.headers).get('Idempotency-Key')
+  const skipping = { ...TILL, openNumbers: true } as PosTillDto
+
+  it('a legacy set-aside head blocks strict order; Try again sends it once, signed, and leaves only the device marker', async () => {
+    window.localStorage.setItem(
+      'fawtir.pos.queue',
+      JSON.stringify([
+        stored(
+          49,
+          { refusal: 'SIMPLIFIED_INVOICE_LIMIT', final: true, setAside: true },
+          { offlineProof: PROOF, printed: PRINTED },
+        ),
+        // A8-2: a refusal that is not on the FINAL list comes back to life on load.
+        stored(50, { refusal: 'PERIOD_CLOSED', final: true }),
+        stored(51),
+      ]),
+    )
+    noteTillServer({ id: 'till-1', openNumbers: true, takesMakerClaim: false })
+    online = true
+
+    expect(queuedFor('till-1')[1].final).toBeUndefined()
+
+    await flushQueue('till-1')
+    expect(sales()).toHaveLength(0)
+
+    const sold = await submitSale(skipping, WALK_IN, 'pos-sale-key-q27-new')
+    expect(sold).toMatchObject({ behind: true, queued: { number: 'NZW-T01-INV-2026-000052' } })
+    expect(sales()).toHaveLength(0)
+
+    saleReply = () => refusal(409, 'POS_TILL_NUMBER_REPEATED')
+    await retryQueuedSale('till-1', 'pos-sale-key-q27-49', 'u-1')
+
+    expect(sales()).toHaveLength(1)
+    expect(sentKey(0)).toBe('pos-sale-key-q27-49')
+    const body = sentBody(0)
+    expect(body.offlineProof).toEqual(PROOF)
+    expect(body.printed).toEqual(PRINTED)
+    expect(body.invoiceNumber).toBe('NZW-T01-INV-2026-000049')
+    expect(body).not.toHaveProperty('setAside')
+    expect(body).not.toHaveProperty('setAsideSeen')
+    expect(body).not.toHaveProperty('skippedNumbers')
+
+    const entries = queuedFor('till-1')
+    expect(entries.map((entry) => entry.key)).toEqual([
+      'pos-sale-key-q27-49',
+      'pos-sale-key-q27-50',
+      'pos-sale-key-q27-51',
+      'pos-sale-key-q27-new',
+    ])
+    expect(entries[0]).toMatchObject({
+      refusal: 'POS_TILL_NUMBER_REPEATED',
+      final: true,
+      setAsideSeen: true,
+    })
+    expect(entries[0].setAside).toBeUndefined()
+  })
+
+  it('Try again on a set-aside entry behind a blocker sends nothing, keeps order, and leaves the marker', async () => {
+    window.localStorage.setItem(
+      'fawtir.pos.queue',
+      JSON.stringify([
+        stored(49, { refusal: 'SIMPLIFIED_INVOICE_LIMIT', final: true }),
+        stored(50, { refusal: 'SIMPLIFIED_INVOICE_LIMIT', final: true, setAside: true }),
+      ]),
+    )
+    online = true
+
+    await retryQueuedSale('till-1', 'pos-sale-key-q27-50', 'u-1')
+    expect(sales()).toHaveLength(0)
+    const [, second] = queuedFor('till-1')
+    expect(second.setAside).toBeUndefined()
+    expect(second.setAsideSeen).toBe(true)
+
+    await flushQueue('till-1')
+    expect(sales()).toHaveLength(0)
+    expect(queuedFor('till-1')).toHaveLength(2)
+  })
+
+  it('a correction of a set-aside entry goes unsigned with the new payments and keeps the marker', async () => {
+    window.localStorage.setItem(
+      'fawtir.pos.queue',
+      JSON.stringify([
+        stored(
+          49,
+          { refusal: 'POS_PAYMENTS_DO_NOT_MATCH_TOTAL', final: true, setAside: true },
+          { offlineProof: PROOF, printed: PRINTED },
+        ),
+      ]),
+    )
+    online = true
+    saleReply = () => refusal(422, 'POS_PAYMENTS_DO_NOT_MATCH_TOTAL')
+
+    await correctQueuedSale('till-1', 'pos-sale-key-q27-49', [{ method: 'CARD', amount: 6 }], 'u-1')
+
+    expect(sales()).toHaveLength(1)
+    const body = sentBody(0)
+    expect(body).not.toHaveProperty('offlineProof')
+    expect(body).not.toHaveProperty('printed')
+    expect(body).not.toHaveProperty('setAsideSeen')
+    expect(body.payments).toEqual([{ method: 'CARD', amount: 6 }])
+    const [entry] = queuedFor('till-1')
+    expect(entry.setAside).toBeUndefined()
+    expect(entry.setAsideSeen).toBe(true)
+  })
+
+  // N-R2e, N-R2g, N-R2i. The till's cached copy (`fawtir.pos.offline.<tenant>.<user>.tills.<branch>`)
+  // is this same DTO after a JSON round trip; the cache read itself is covered in the browser (N-R2-BR).
+  it.each([
+    ['openNumbers: true', { openNumbers: true }],
+    ['openNumbers as text', { openNumbers: 'true' }],
+    ['the legacy skipsStuckNumbers', { skipsStuckNumbers: true }],
+    ['both flags (#831 shapes)', { openNumbers: true, skipsStuckNumbers: true }],
+  ])('a till carrying %s, as cached on the device, still keeps strict order', async (_name, flags) => {
+    const cached = JSON.parse(JSON.stringify({ ...TILL, ...flags })) as PosTillDto
+    window.localStorage.setItem(
+      'fawtir.pos.queue',
+      JSON.stringify([stored(49, { refusal: 'SIMPLIFIED_INVOICE_LIMIT', final: true })]),
+    )
+    noteTillServer(cached)
+    online = true
+
+    const sold = await submitSale(cached, WALK_IN, 'pos-sale-key-q27-cached')
+
+    expect(sold).toMatchObject({ behind: true, queued: { number: 'NZW-T01-INV-2026-000050' } })
+    expect(sales()).toHaveLength(0)
+    expect(calls.some((call) => call.url.includes('/pos/open-numbers'))).toBe(false)
   })
 })
