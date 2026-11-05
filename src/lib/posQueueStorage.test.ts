@@ -445,6 +445,35 @@ describe('POS-MEMQ: an offline sale is numbered only once storage keeps it', () 
     expect(realGet.call(window.localStorage, COUNTER)).toBeNull()
   })
 
+  it('ST-10c a store wiped right after a removal that kept a sale is not taken for the removal landing (W2-M1)', async () => {
+    expect(await queuedOffline('pos-sale-key-st10c-1')).toBe(numbered(49))
+    expect(await queuedOffline('pos-sale-key-st10c-2')).toBe(numbered(50))
+    expect(offlineBlock('till-1')).toBeNull()
+
+    let next = 49
+    saleReply = () => filedAs(next++)
+    online = true
+    let wiped = false
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
+      this: Storage,
+      key: string,
+      value: string,
+    ) {
+      realSet.call(this, key, value)
+      // The first sale's removal keeps the second; the store is cleared before it is read back.
+      if (key === QUEUE && !wiped && (JSON.parse(value) as unknown[]).length === 1) {
+        wiped = true
+        realRemove.call(this, QUEUE)
+      }
+    })
+
+    await flushQueue('till-1')
+    vi.restoreAllMocks()
+
+    expect(wiped).toBe(true)
+    expect(offlineBlock('till-1')).toBe('mismatch')
+  })
+
   it('keeps strict number order (Q-27): opensNumbers stays false', () => {
     expect(opensNumbers()).toBe(false)
   })

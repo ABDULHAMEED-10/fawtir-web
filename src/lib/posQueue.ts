@@ -438,18 +438,24 @@ function update(
   change: (entries: QueuedSale[]) => QueuedSale[],
   landed?: (entries: QueuedSale[]) => boolean,
 ): StorageWrite {
-  const first = save(change(synced()))
+  let written = change(synced())
+  const first = save(written)
   const result =
     first !== 'conflict'
       ? first
       : (() => {
-          const second = save(change(synced()))
+          written = change(synced())
+          const second = save(written)
           // Still not what this tab read: the stored text cannot be read, and is never written over.
           return second === 'conflict' ? noteStorageFailure(queueReadFailure ?? 'unreadable') : second
         })()
   if (result !== 'mismatch') return result
   const now = synced()
-  if (landed && !queueReadFailure && landed(now)) return 'ok'
+  // A queue read back empty (or with its key gone, which reads the same) after a write that kept
+  // entries is a wiped store, not another tab's write: a removal check is vacuously true on [],
+  // and accepting it would let this tab number on from a counter that may be gone too (W2-M1).
+  const wiped = now.length === 0 && written.length > 0
+  if (landed && !queueReadFailure && !wiped && landed(now)) return 'ok'
   return noteStorageFailure('mismatch')
 }
 
