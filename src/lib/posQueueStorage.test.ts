@@ -265,6 +265,63 @@ describe('POS-MEMQ: an offline sale is numbered only once storage keeps it', () 
     expect(offlineBlock('till-1', 'online')).toBe('burnt')
   })
 
+  // D-2 (b), owner v2 K24: held in memory only, a reload cleared the block and an online sale could
+  // take the burnt value again. The marker in this device's storage keeps it across a reload.
+  const BURN_MARKER = 'fawtir.pos.burnt.till-1'
+
+  it('ST-4b a burnt number still stops all selling on the till after a reload', async () => {
+    await burnNumber49()
+    expect(JSON.parse(realGet.call(window.localStorage, BURN_MARKER) ?? 'null')).toEqual({
+      prefix: expect.any(String),
+      value: 49,
+    })
+
+    // A reload: this tab's memory is gone, the device's storage is not.
+    resetPosQueue()
+    expect(offlineBlock('till-1')).toBe('burnt')
+    expect(offlineBlock('till-1', 'online')).toBe('burnt')
+    expect(offlineBlock('till-2')).toBeNull()
+    // The online path is gated as well, so no online sale after the reload can take the burnt
+    // value (the gate itself refusing a sale is ST-4's, before the reload).
+    expect(checkStorageAgain()).toBeNull()
+    expect(offlineBlock('till-1', 'online')).toBe('burnt')
+  })
+
+  it('ST-4c a marker that does not read as a number still blocks the till (fail closed)', async () => {
+    window.localStorage.setItem(BURN_MARKER, '{not json')
+    resetPosQueue()
+    expect(offlineBlock('till-1')).toBe('burnt')
+    expect(offlineBlock('till-1', 'online')).toBe('burnt')
+    window.localStorage.setItem(BURN_MARKER, JSON.stringify({ prefix: 1, value: 'x' }))
+    resetPosQueue()
+    expect(offlineBlock('till-1', 'online')).toBe('burnt')
+  })
+
+  it('ST-4d storage that refuses the marker read blocks as a storage failure, not as open', async () => {
+    resetPosQueue()
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(function (this: Storage, key: string) {
+      if (key === BURN_MARKER) throw security()
+      return realGet.call(this, key)
+    })
+    expect(offlineBlock('till-1', 'online')).toBe('denied')
+    vi.restoreAllMocks()
+    expect(offlineBlock('till-1', 'online')).toBeNull()
+  })
+
+  it('ST-4e a marker that cannot be written leaves this tab blocked from memory', async () => {
+    failWrites((key) => key === QUEUE || key === BURN_MARKER, quota)
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(function (this: Storage, key: string) {
+      if (key === COUNTER) throw security()
+      realRemove.call(this, key)
+    })
+    expect((await refusedOffline('pos-sale-key-st4e')).reason).toBe('quota')
+    vi.restoreAllMocks()
+    expect(realGet.call(window.localStorage, BURN_MARKER)).toBeNull()
+    expect(offlineBlock('till-1', 'online')).not.toBeNull()
+    expect(checkStorageAgain()).toBeNull()
+    expect(offlineBlock('till-1', 'online')).toBe('burnt')
+  })
+
   // Reading (a) of the burn: enabled only once the backend acknowledges burnt numbers (DES43
   // backend). PENDING the backend fence: BURN_ACKNOWLEDGED_BY_SERVER stays false until then.
   it.skip('ST-4a [pending backend burn fence] under reading (a), offline stays blocked and an online sale filing the number heals it', async () => {

@@ -509,11 +509,54 @@ let reportStale = false
  * server acknowledges burns (`burnBlocks`, owner ruling on the burn). Owner decision OQ-W1
  * (2026-11-05): numbering fails closed and a lost number goes to a durable, auditable gap
  * reconciliation; it is never reused, released or silently skipped. That reconciliation is the
- * server's, and waits for the DES43 alignment and its review, so nothing durable is recorded here
- * and the burn is held in memory only. After a reload it is a held POS_TILL_NUMBER_GAP, recovered
- * through §10.1.
+ * server's, and waits for the DES43 alignment and its review.
+ *
+ * Until then a marker per till is kept in this device's storage as well (D-2 option (b), owner v2
+ * K24): held in memory only, a reload cleared the block, and an online sale could then take the
+ * burnt value, which K24 calls "reused". Best effort and fail closed: a marker that cannot be
+ * written leaves this tab blocked from memory (and stopped behind the storage failure anyway); a
+ * marker that cannot be read back, or reads as anything but a number, blocks the till; and storage
+ * that refuses the read is a storage failure, which blocks too. Only the heal of reading (a) removes
+ * it. It is not the server's fence: another device, or cleared site data, does not see it.
  */
 const burnt = new Map<string, { prefix: string; value: number }>()
+const burnKey = (tillId: string) => `fawtir.pos.burnt.${tillId}`
+
+function rememberBurn(tillId: string, burn: { prefix: string; value: number }) {
+  burnt.set(tillId, burn)
+  try {
+    window.localStorage.setItem(burnKey(tillId), JSON.stringify(burn))
+  } catch {
+    // Best effort: the memory above still blocks this tab, and the queue write that failed with it
+    // has already stopped selling here behind a storage failure.
+  }
+}
+
+/** The till's burn, from memory or this device's marker; a storage read refused is its failure. */
+function burnOf(tillId: string): { prefix: string; value: number } | StorageFailureReason | null {
+  const held = burnt.get(tillId)
+  if (held) return held
+  let text: string | null
+  try {
+    text = window.localStorage.getItem(burnKey(tillId))
+  } catch (error) {
+    return failureOf(error)
+  }
+  if (text === null) return null
+  let burn: { prefix: string; value: number }
+  try {
+    const parsed = JSON.parse(text) as { prefix?: unknown; value?: unknown }
+    burn =
+      typeof parsed?.prefix === 'string' && typeof parsed.value === 'number' && Number.isFinite(parsed.value)
+        ? { prefix: parsed.prefix, value: parsed.value }
+        : { prefix: '', value: Number.POSITIVE_INFINITY }
+  } catch {
+    // An unreadable marker still says a number was burnt: no sale can heal an infinite value.
+    burn = { prefix: '', value: Number.POSITIVE_INFINITY }
+  }
+  burnt.set(tillId, burn)
+  return burn
+}
 const blockListeners = new Set<() => void>()
 
 function noteStorageFailure(reason: StorageFailureReason): StorageFailureReason {
@@ -561,7 +604,11 @@ export function offlineBlock(tillId: string | null, path: SalePath = 'offline'):
   if (storageFailure) return storageFailure
   if (queueReadFailure) return queueReadFailure
   if (reportStale) return 'reportStale'
-  return tillId && burnt.has(tillId) && burnBlocks(path) ? 'burnt' : null
+  if (!tillId || !burnBlocks(path)) return null
+  const burn = burnOf(tillId)
+  // Returned, not recorded: the gate is read while rendering, where a listener must not fire.
+  if (typeof burn === 'string') return burn
+  return burn ? 'burnt' : null
 }
 
 /** Whether this tab may sell on `tillId` by `path` now, and if not, why. */
@@ -806,6 +853,11 @@ function noteFiledOnline(tillId: string, invoiceNumber: string) {
   const value = numberValue(invoiceNumber)
   if (burn && value != null && numberPrefix(invoiceNumber) === burn.prefix && value >= burn.value) {
     burnt.delete(tillId)
+    try {
+      window.localStorage.removeItem(burnKey(tillId))
+    } catch {
+      // Left behind, the marker blocks again after a reload: closed, never open.
+    }
     blockListeners.forEach((listener) => listener())
   }
 }
@@ -1276,7 +1328,7 @@ export async function submitSale(
     } finally {
       if (saved !== 'ok') {
         if (reservation.rollback() !== 'ok') {
-          burnt.set(till.id, { prefix: reservation.prefix, value: reservation.value })
+          rememberBurn(till.id, { prefix: reservation.prefix, value: reservation.value })
           blockListeners.forEach((listener) => listener())
         }
         if (entry?.sealed) void forgetBuyer(key)
