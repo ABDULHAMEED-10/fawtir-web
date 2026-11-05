@@ -956,7 +956,9 @@ export async function submitSale(
    * POS-TABLOCK (Q-25 R-TABS): all of it runs only while this tab holds the till's lock, and the
    * lock is kept until the entry is saved or refused, so a handover cannot overlap a sale being
    * numbered. Without the lock no number is taken at all. It guards this browser's tabs only; the
-   * server's GAP and REPEATED checks remain the guard across devices.
+   * server's GAP and REPEATED checks remain the guard across devices. It also leaves online sales
+   * out: another tab's online sale and this holder's offline sale can share a number, which the
+   * server catches as POS_TILL_NUMBER_REPEATED (IMPL2-T2).
    */
   const refuseTab = (reason: Exclude<TillLockState, 'held'>): never => {
     void dropSlipPhotos(key)

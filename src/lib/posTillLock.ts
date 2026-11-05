@@ -14,6 +14,12 @@ import { useEffect, useSyncExternalStore } from 'react'
  * server's numbering checks (POS_TILL_NUMBER_GAP, POS_TILL_NUMBER_REPEATED) stay the only
  * protection across devices and must never be relaxed on the strength of this lock.
  *
+ * Nor does it cover online sales: the lock guards offline numbering only. A tab without it may sell
+ * online (the server numbers that sale) while the holder numbers offline from a cached `nextValue`,
+ * so both can use the same number before the online sale raises this device's counter. That is
+ * R-PRE within one device, outside DES43's R-TABS definition; the server catches it at filing as
+ * POS_TILL_NUMBER_REPEATED (IMPL2-T2).
+ *
  * Fail closed (owner decision): no `navigator.locks` (an old browser, or a page that is not a
  * secure context), a request that throws or is rejected, or a lock another tab holds, all leave
  * this tab without the lock, and an offline sale is refused before any number exists. Selling
