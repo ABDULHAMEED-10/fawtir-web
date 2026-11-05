@@ -5,7 +5,7 @@ import i18n from '../../i18n'
 import { PosRefundPage } from './PosRefundPage'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import {
-  changeSplit,
+  chooseCash,
   moneyBackLines,
   refundLines,
   splitFromQuote,
@@ -225,26 +225,64 @@ describe('the refund page on a server with the quote', () => {
     expect(refundButton().textContent).toContain('14.024')
   })
 
-  it('lets the cashier send it all in cash: no approval field, no card line', async () => {
+  it('keeps the route the server gave: the card cannot be moved into cash (FIN-A5)', async () => {
     await open()
     await waitFor(() => expect(field('Card').value).toBe('10.000'))
+    expect(field('Card').readOnly).toBe(true)
+    expect(field('Cash').readOnly).toBe(true)
+    expect(field('Bank transfer').readOnly).toBe(true)
+    expect(screen.getByText(i18n.t('pos.refund.routeFixed'))).toBeTruthy()
     fireEvent.change(field('Cash'), { target: { value: '14.025' } })
     fireEvent.blur(field('Cash'))
-    expect(field('Card').value).toBe('0.000')
-    expect(screen.queryByLabelText(new RegExp(`^${i18n.t('pos.pay.approvalCode')}`))).toBeNull()
+    fireEvent.change(field('Card'), { target: { value: '6.000' } })
+    fireEvent.blur(field('Card'))
+    expect(field('Card').value).toBe('10.000')
+    expect(field('Cash').value).toBe('4.025')
     fireEvent.click(refundButton())
     await waitFor(() => expect(refunds).toHaveLength(1))
-    expect(refunds[0].moneyBack).toEqual([{ method: 'CASH', amount: 14.025 }])
+    expect(refunds[0].moneyBack).toEqual([
+      { method: 'CARD', amount: 10, reference: null },
+      { method: 'CASH', amount: 4.025 },
+    ])
   })
 
-  it('stops more than the card can take, on the screen', async () => {
+  it('stops a quote that sends more to the card than it can take', async () => {
+    quote = () => json({ ...QUOTE, cardLimit: 9 })
     await open()
     await waitFor(() => expect(field('Card').value).toBe('10.000'))
-    fireEvent.change(field('Card'), { target: { value: '12.000' } })
     expect(screen.getByRole('alert').textContent).toMatch(
-      /At most .*10\.000 can go back to the card/,
+      /At most .*9\.000 can go back to the card/,
     )
     expect(refundButton().disabled).toBe(true)
+  })
+
+  it('stops a route that does not add up when the server names nothing to choose', async () => {
+    quote = () => json({ ...QUOTE, suggested: [{ method: 'CARD', amount: 10 }] })
+    await open()
+    await waitFor(() => expect(field('Card').value).toBe('10.000'))
+    expect(screen.getByRole('alert').textContent).toMatch(
+      /does not add up to .*14\.025 the way the sale was paid/,
+    )
+    expect(field('Cash').readOnly).toBe(true)
+    expect(refundButton().disabled).toBe(true)
+  })
+
+  it('blocks a refund the route sends by bank transfer: no beneficiary check exists yet', async () => {
+    lookup = {
+      ...LOOKUP,
+      paid: { ...LOOKUP.paid, byMethod: [{ method: 'TRANSFER', amount: 14.025 }] },
+    } as typeof LOOKUP
+    quote = () =>
+      json({ ...QUOTE, suggested: [{ method: 'TRANSFER', amount: 14.025 }], cardLimit: 0 })
+    await open()
+    await waitFor(() => expect(field('Bank transfer').value).toBe('14.025'))
+    expect(screen.getByRole('alert').textContent).toContain(
+      i18n.t('pos.refund.transferUnverified'),
+    )
+    expect(screen.queryByLabelText(new RegExp(`^${i18n.t('pos.pay.transferReference')}`))).toBeNull()
+    expect(refundButton().disabled).toBe(true)
+    fireEvent.click(refundButton())
+    expect(refunds).toEqual([])
   })
 
   it('words the server refusal, and asks again for what is left now', async () => {
@@ -352,22 +390,32 @@ describe('the refund page without a quote (A-03: no one-method fallback)', () =>
 })
 
 describe('money the quote leaves to choose', () => {
-  it('is never put in cash: the split does not add up until the cashier routes it', async () => {
+  it('is never put in cash by itself: the refund waits until the cashier puts it under cash', async () => {
     quote = () =>
       json({ ...QUOTE, suggested: [{ method: 'CARD', amount: 10 }], toChoose: 4.025 })
     await open()
     await waitFor(() => expect(field('Card').value).toBe('10.000'))
     expect(field('Cash').value).toBe('0.000')
+    expect(field('Cash').readOnly).toBe(false)
     expect(document.body.textContent).toMatch(/4\.025 cannot go back the way the sale was paid/)
+    expect(screen.getByRole('alert').textContent).toMatch(/4\.025 still has to be put under cash/)
     expect(refundButton().disabled).toBe(true)
+    // Transfer is shown, not offered: typing there changes nothing.
     fireEvent.change(field('Bank transfer'), { target: { value: '4.025' } })
     fireEvent.blur(field('Bank transfer'))
+    expect(field('Bank transfer').value).toBe('0.000')
+    expect(refundButton().disabled).toBe(true)
+    // More than is left to choose is held at what is left; the card is untouched.
+    fireEvent.change(field('Cash'), { target: { value: '9.000' } })
+    fireEvent.blur(field('Cash'))
+    await waitFor(() => expect(field('Cash').value).toBe('4.025'))
+    expect(field('Card').value).toBe('10.000')
     await waitFor(() => expect(refundButton().disabled).toBe(false))
     fireEvent.click(refundButton())
     await waitFor(() => expect(refunds).toHaveLength(1))
     expect(refunds[0].moneyBack).toEqual([
       { method: 'CARD', amount: 10, reference: null },
-      { method: 'TRANSFER', amount: 4.025, reference: null },
+      { method: 'CASH', amount: 4.025 },
     ])
   })
 })
@@ -396,22 +444,31 @@ describe('a line with an unclear credit (DEC-30-01)', () => {
 describe('the split in baisa', () => {
   const split = splitFromQuote(QUOTE)
 
-  it('changing the card moves the difference to cash', () => {
-    expect(changeSplit(split, 14025, 10000, 'card', 6000)).toMatchObject({ card: 6000, cash: 8025 })
-  })
-
-  it('changing cash fills the card up to its limit, then transfer', () => {
-    expect(changeSplit(split, 14025, 10000, 'cash', 2000)).toMatchObject({
-      cash: 2000,
-      card: 10000,
-      transfer: 2025,
-    })
+  it('puts what is left to choose under cash, never more and never below the routed cash (FIN-A5)', () => {
+    const route = { card: 10000, cash: 0, transfer: 0, reduce: 0 }
+    expect(chooseCash(route, route, 4025, 2000)).toEqual({ ...route, cash: 2000 })
+    expect(chooseCash(route, route, 4025, 9000)).toEqual({ ...route, cash: 4025 })
+    expect(chooseCash(route, route, 4025, -5)).toEqual(route)
+    // Nothing to choose: the routed cash stays exactly as quoted, and the card never moves.
+    expect(chooseCash(split, split, 0, 14025)).toEqual(split)
+    expect(chooseCash(split, split, 0, 0)).toEqual(split)
   })
 
   it('says when it cannot go', () => {
-    expect(splitProblem({ ...split, card: 10001, cash: 4024 }, 14025, 10000)).toBe('overCard')
-    expect(splitProblem({ ...split, cash: 1 }, 14025, 10000)).toBe('doesNotAdd')
-    expect(splitProblem(split, 14025, 10000)).toBeNull()
+    expect(splitProblem(split, split, 0, 14025, 10000)).toBeNull()
+    expect(splitProblem(split, split, 0, 14025, 9000)).toBe('overCard')
+    expect(splitProblem({ ...split, card: 6000, cash: 8025 }, split, 0, 14025, 10000)).toBe(
+      'offRoute',
+    )
+    expect(splitProblem({ ...split, cash: 1 }, split, 0, 14025, 10000)).toBe('offRoute')
+    const cardOnly = { card: 10000, cash: 0, transfer: 0, reduce: 0 }
+    expect(splitProblem(cardOnly, cardOnly, 4025, 14025, 10000)).toBe('toChooseLeft')
+    expect(splitProblem({ ...cardOnly, cash: 4025 }, cardOnly, 4025, 14025, 10000)).toBeNull()
+    expect(splitProblem(cardOnly, cardOnly, 0, 14025, 10000)).toBe('notAsQuoted')
+    // A toChoose the route and the total do not leave room for is the server's to explain.
+    expect(splitProblem(cardOnly, cardOnly, 1000, 14025, 10000)).toBe('notAsQuoted')
+    const byTransfer = { card: 0, cash: 0, transfer: 14025, reduce: 0 }
+    expect(splitProblem(byTransfer, byTransfer, 0, 14025, 0)).toBe('transferUnverified')
   })
 
   it('leaves out a method given nothing and a blank reference', () => {

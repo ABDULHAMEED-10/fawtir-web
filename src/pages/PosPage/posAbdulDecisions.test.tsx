@@ -295,7 +295,7 @@ describe('a drawer below zero (decision 1)', () => {
     },
   )
 
-  it('warns on the cash part of a split, and stops when the cashier moves it to the card', async () => {
+  it('warns on the cash part of a split, which the cashier cannot move to the card (FIN-A5)', async () => {
     drawer = 2.5
     lookup = {
       ...LOOKUP,
@@ -320,12 +320,18 @@ describe('a drawer below zero (decision 1)', () => {
     refundPage()
     fireEvent.click(await screen.findByRole('checkbox'))
     await drawerWarning()
-    const card = screen.getByLabelText(new RegExp(i18n.t('pos.refund.method.CARD')))
+    // The quote's route is mandatory: the card field is shown, not typed into, so the cash stays.
+    const card = screen.getByLabelText(
+      new RegExp(i18n.t('pos.refund.method.CARD')),
+    ) as HTMLInputElement
+    expect(card.readOnly).toBe(true)
     fireEvent.change(card, { target: { value: '20' } })
-    await screen.findByRole('button', {
+    fireEvent.blur(card)
+    const go = (await screen.findByRole('button', {
       name: i18n.t('pos.refund.refundAmount', { amount: '21.000' }),
-    })
-    await waitFor(() => expect(warnings()).toEqual([]))
+    })) as HTMLButtonElement
+    expect(warnings()).not.toEqual([])
+    expect(go.disabled).toBe(true)
   })
 
   it('says nothing when the drawer covers it, or when nothing goes back in cash', async () => {

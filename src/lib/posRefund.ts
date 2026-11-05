@@ -158,8 +158,10 @@ export function waysPaid(sale: PosRefundLookupDto): string[] {
 }
 
 /**
- * The money back of a refund, in baisa (Abdul, 1 Nov 2026): filled from the server's quote, for the
- * cashier to change. What a company owes is not theirs to change: it goes back to the account.
+ * The money back of a refund, in baisa (Abdul, 1 Nov 2026), filled from the server's quote. The
+ * quote's route is mandatory (owner FIN-A5, 2026-11-05: "Payment-specific refund routes are
+ * mandatory, not cashier-overridable defaults"), so the cashier changes nothing the quote routed;
+ * what a company owes goes back to the account as before.
  */
 export type MoneySplit = { card: number; cash: number; transfer: number; reduce: number }
 
@@ -177,37 +179,60 @@ export function splitFromQuote(quote: PosRefundQuoteDto): MoneySplit {
 }
 
 /**
- * The cashier typed one figure; the others make up the rest. Card or transfer changed: cash takes
- * the difference. Cash changed: the card takes the rest up to its limit, then transfer. A figure
- * that cannot be made up is left for `splitProblem` to say so.
+ * The cashier puts the quote's `toChoose` (money no way the sale was paid can take back) under cash,
+ * on top of the cash the quote routed. Nothing else moves: cash used to absorb whatever the cashier
+ * took off the card or the transfer, which turned a card refund into drawer cash (FIN-A5). Cash is
+ * held between its routed amount and that plus `toChoose`. Transfer is not offered for `toChoose`:
+ * a transfer refund needs a beneficiary verification record that has no backend contract yet.
  */
-export function changeSplit(
+export function chooseCash(
   split: MoneySplit,
-  total: number,
-  cardLimit: number,
-  edited: 'card' | 'cash' | 'transfer',
+  route: MoneySplit,
+  toChoose: number,
   value: number,
 ): MoneySplit {
-  const payOut = total - split.reduce
-  const next = { ...split, [edited]: value }
-  if (edited === 'cash') {
-    const rest = Math.max(0, payOut - value)
-    next.card = Math.min(rest, cardLimit)
-    next.transfer = rest - next.card
-  } else {
-    next.cash = Math.max(0, payOut - next.card - next.transfer)
-  }
-  return next
+  return { ...split, cash: Math.min(Math.max(value, route.cash), route.cash + Math.max(0, toChoose)) }
 }
 
-/** Why this money back cannot go: over what the card can take, or not adding up to the note. */
+/**
+ * Why this money back cannot go, in the order a cashier can act on it:
+ * - `overCard`: more to the card than it can take back (the quote itself would be wrong);
+ * - `offRoute`: a routed amount differs from the quote's route;
+ * - `toChooseLeft`: some of `toChoose` is not yet put under cash;
+ * - `notAsQuoted`: the route does not add up to the refund and the server named nothing to choose,
+ *   so there is no remainder the cashier may route and the refund is blocked;
+ * - `transferUnverified`: money would go back by transfer, which needs the beneficiary verification
+ *   record (owner FIN-A5b: ownership verified, masked account, evidence, actor, time) that has no
+ *   backend contract yet. Blocked rather than sent with an unverified reference.
+ */
+export type SplitProblem =
+  | 'overCard'
+  | 'offRoute'
+  | 'toChooseLeft'
+  | 'notAsQuoted'
+  | 'transferUnverified'
+
 export function splitProblem(
   split: MoneySplit,
+  route: MoneySplit,
+  toChoose: number,
   total: number,
   cardLimit: number,
-): 'overCard' | 'doesNotAdd' | null {
+): SplitProblem | null {
   if (split.card > cardLimit) return 'overCard'
-  if (split.card + split.cash + split.transfer + split.reduce !== total) return 'doesNotAdd'
+  if (
+    split.card !== route.card ||
+    split.transfer !== route.transfer ||
+    split.reduce !== route.reduce ||
+    split.cash < route.cash
+  ) {
+    return 'offRoute'
+  }
+  const chosen = split.cash - route.cash
+  const routed = route.card + route.cash + route.transfer + route.reduce
+  if (toChoose > 0 && routed + toChoose === total && chosen < toChoose) return 'toChooseLeft'
+  if (split.card + split.cash + split.transfer + split.reduce !== total) return 'notAsQuoted'
+  if (split.transfer > 0) return 'transferUnverified'
   return null
 }
 

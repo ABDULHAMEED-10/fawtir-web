@@ -16,7 +16,7 @@ import { CheckIcon, DocumentIcon } from './posIcons'
 import { omr, omrSigned, tillTime, toBaisa } from '../../lib/pos'
 import {
   WHY_OPTIONS,
-  changeSplit,
+  chooseCash,
   creditFor,
   moneyBackLines,
   onlyGivenAway,
@@ -184,7 +184,6 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
   const [hsCodes, setHsCodes] = useState<Record<number, string>>({})
   const [split, setSplit] = useState<MoneySplit | null>(null)
   const [approval, setApproval] = useState('')
-  const [transferReference, setTransferReference] = useState('')
   /** Asks the server again after it refused the money: the sale may have moved on. */
   const [askAgain, setAskAgain] = useState(0)
 
@@ -253,7 +252,9 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
   const acceptedByOta = Boolean(filing?.acceptedAt)
   const back = quoted ? toBaisa(quoted.total) : (expected ?? credit.back)
   const cardLimit = quoted ? toBaisa(quoted.cardLimit) : 0
-  const moneyProblem = quoted && split ? splitProblem(split, back, cardLimit) : null
+  const route = useMemo(() => (quoted ? splitFromQuote(quoted) : null), [quoted])
+  const moneyProblem =
+    quoted && split && route ? splitProblem(split, route, toChoose, back, cardLimit) : null
   // FIN-5: RC2 refuses a card number in the refund's card reference (POS_REFUND_MONEY_INVALID).
   const approvalHoldsCard = containsCardNumber(approval)
   const approvalWrong = Boolean(
@@ -303,7 +304,8 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
       backOnShelf: stock === 'backInStock',
       hsCodes,
       noMoney: stockReturn,
-      moneyBack: split ? moneyBackLines(split, { approval, transfer: transferReference }) : [],
+      // No transfer reference: a transfer refund is blocked until its verification record exists.
+      moneyBack: split ? moneyBackLines(split, { approval, transfer: '' }) : [],
     })
     const fingerprint = JSON.stringify(body)
     if (!attempt.current || attempt.current.fingerprint !== fingerprint) {
@@ -628,9 +630,8 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
                     {t('pos.refund.method.CARD')}
                     <TillMoneyInput
                       baisa={split.card}
-                      onBaisa={(value) =>
-                        setSplit(changeSplit(split, back, cardLimit, 'card', value ?? 0))
-                      }
+                      onBaisa={() => undefined}
+                      readOnly
                       className={`${MONEY_FIELD} text-end`}
                     />
                     <span className="text-xs font-medium text-text-quaternary">
@@ -664,34 +665,25 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
                   <TillMoneyInput
                     baisa={split.cash}
                     onBaisa={(value) =>
-                      setSplit(changeSplit(split, back, cardLimit, 'cash', value ?? 0))
+                      route && setSplit(chooseCash(split, route, toChoose, value ?? 0))
                     }
+                    readOnly={toChoose <= 0}
                     className={`${MONEY_FIELD} text-end`}
                   />
                 </label>
+                {/* Shown, never typed into: no beneficiary verification contract exists yet. */}
                 <label className="flex flex-col gap-1.5 text-sm font-medium text-text-secondary">
                   {t('pos.refund.method.TRANSFER')}
                   <TillMoneyInput
                     baisa={split.transfer}
-                    onBaisa={(value) =>
-                      setSplit(changeSplit(split, back, cardLimit, 'transfer', value ?? 0))
-                    }
+                    onBaisa={() => undefined}
+                    readOnly
                     className={`${MONEY_FIELD} text-end`}
                   />
                 </label>
-                {split.transfer > 0 ? (
-                  <label className="flex flex-col gap-1.5 text-sm font-medium text-text-secondary">
-                    {t('pos.pay.transferReference')}
-                    <input
-                      value={transferReference}
-                      maxLength={200}
-                      dir="ltr"
-                      onChange={(event) => setTransferReference(event.target.value)}
-                      placeholder={t('pos.pay.optional')}
-                      className={MONEY_FIELD}
-                    />
-                  </label>
-                ) : null}
+                <p className="col-span-full text-xs font-medium leading-[1.5] text-text-quaternary">
+                  {t('pos.refund.routeFixed')}
+                </p>
                 {toChoose > 0 ? (
                   <p className="col-span-full text-xs font-medium leading-[1.5] text-text-quaternary">
                     {withRial(t('pos.refund.toChoose', { amount: `OMR ${omr(toChoose)}` }))}
@@ -702,7 +694,13 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
                     {withRial(
                       moneyProblem === 'overCard'
                         ? t('pos.refund.overCard', { amount: `OMR ${omr(cardLimit)}` })
-                        : t('pos.refund.doesNotAdd', { amount: `OMR ${omr(back)}` }),
+                        : moneyProblem === 'toChooseLeft' && route
+                          ? t('pos.refund.toChooseLeft', {
+                              amount: `OMR ${omr(toChoose - (split.cash - route.cash))}`,
+                            })
+                          : moneyProblem === 'transferUnverified'
+                            ? t('pos.refund.transferUnverified')
+                            : t('pos.refund.notAsQuoted', { amount: `OMR ${omr(back)}` }),
                     )}
                   </p>
                 ) : null}
