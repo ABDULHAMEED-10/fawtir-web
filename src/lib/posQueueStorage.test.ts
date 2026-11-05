@@ -14,6 +14,7 @@ import {
   queuedFor,
   resetPosQueue,
   submitSale,
+  useQueuedSales,
   useStorageFailure,
 } from './posQueue'
 import { memoryVault, setPosVault } from './posVault'
@@ -443,6 +444,26 @@ describe('POS-MEMQ: an offline sale is numbered only once storage keeps it', () 
     expect(offlineBlock('till-1')).toBe('mismatch')
     expect(storedQueue().map((entry) => entry.key)).toEqual(['pos-sale-key-st-60'])
     expect(realGet.call(window.localStorage, COUNTER)).toBeNull()
+  })
+
+  it('ST-10d an accepted read-back refreshes the screens that show the queue (W2-M2)', async () => {
+    const { result } = renderHook(() => useQueuedSales('till-1'))
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
+      this: Storage,
+      key: string,
+      value: string,
+    ) {
+      realSet.call(this, key, value)
+      if (key === QUEUE) otherTabWrites(QUEUE, JSON.stringify([...JSON.parse(value), stored(60)]))
+    })
+
+    await act(async () => {
+      expect(await queuedOffline('pos-sale-key-st10d')).toBe(numbered(49))
+    })
+    vi.restoreAllMocks()
+
+    expect(offlineBlock('till-1')).toBeNull()
+    expect(result.current.map((entry) => entry.key)).toEqual(['pos-sale-key-st10d', 'pos-sale-key-st-60'])
   })
 
   it('ST-10c a store wiped right after a removal that kept a sale is not taken for the removal landing (W2-M1)', async () => {

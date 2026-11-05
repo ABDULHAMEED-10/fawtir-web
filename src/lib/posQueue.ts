@@ -455,7 +455,12 @@ function update(
   // entries is a wiped store, not another tab's write: a removal check is vacuously true on [],
   // and accepting it would let this tab number on from a counter that may be gone too (W2-M1).
   const wiped = now.length === 0 && written.length > 0
-  if (landed && !queueReadFailure && !wiped && landed(now)) return 'ok'
+  if (landed && !queueReadFailure && !wiped && landed(now)) {
+    // `save` returned before telling anyone and `synced` tells no one, so the screens would show
+    // the list from before this write until some later change (W2-M2).
+    listeners.forEach((listener) => listener())
+    return 'ok'
+  }
   return noteStorageFailure('mismatch')
 }
 
