@@ -4,7 +4,6 @@ import { movementTime } from './catalogStock'
 import { amountNote, saleState, saleStateText } from './posToday'
 import { notEligiblePaths } from './customerEligibility'
 import { loadOrRecall } from './posOffline'
-import { ownBranches } from '../components/branch/useWorkingBranch'
 import { ApiError, NetworkError } from '../api'
 import * as entitlements from './identity/entitlements'
 import type { PosTodaySaleRow } from '../api/pos/pos'
@@ -120,36 +119,6 @@ describe('a sale on Today (E2E F-7)', () => {
       key: 'pos.today.plusTip',
       values: { amount: '0.588' },
     })
-  })
-})
-
-describe('the branch for a reader the branch list refuses (E2E F-3)', () => {
-  const refused = {
-    status: 'failed' as const,
-    error: new ApiError({ status: 403, problemType: 'forbidden' }),
-  }
-  const who = (branchIds: string[]) =>
-    ({
-      userId: 'u',
-      username: 'v',
-      tenantId: 't',
-      roles: [],
-      permissions: [],
-      scopes: [],
-      featureFlags: {},
-      branchIds,
-    }) as entitlements.Entitlements
-
-  it('falls back on their own branches from the entitlements', () => {
-    expect(ownBranches(refused, who(['b-1']))?.map((branch) => branch.id)).toEqual(['b-1'])
-  })
-
-  it('does not cover up any other failure, or a refusal with no branch to fall back on', () => {
-    expect(
-      ownBranches({ status: 'failed', error: new NetworkError('offline') }, who(['b-1'])),
-    ).toBe(null)
-    expect(ownBranches(refused, who([]))).toBe(null)
-    expect(ownBranches({ status: 'ready', data: [] }, who(['b-1']))).toBe(null)
   })
 })
 

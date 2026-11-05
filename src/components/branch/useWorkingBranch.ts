@@ -1,31 +1,37 @@
 import { useMemo } from 'react'
 import { useApiRead, type ApiRead } from '../../hooks'
-import { useEntitlements } from '../../hooks/useEntitlements'
-import { ApiError } from '../../api'
 import { BRANCHES_PATH, loadBranches, type BranchDto } from '../../api/invoices/drafts'
-import type { Entitlements } from '../../lib/identity/entitlements'
 import { useWorkingBranchId, workingBranch } from '../../lib/workingBranch'
 import { loadOrRecall } from '../../lib/posOffline'
 import { useBranchName } from './useBranchName'
 
 /**
- * The branches a person may work in when `GET /v1/branches` refuses them (`branch.read` is not in
- * every role: View only holds `stock.read` and `pos.read` without it, E2E 29 Oct 2026, F-3). Their
- * own branches are on the entitlements (`branchIds`, BA-1), by id only, so the screen reads its own
- * rows for that branch and simply does not name it. Null when there is nothing to fall back on.
+ * `GET /v1/branches` as every reader gets it (B5-C3, owner B-5 decision 4): readable with any of
+ * `branch.read`, `stock.read`, `pos.read` or `product.read`, narrowed to the caller's branches, and
+ * for a caller without `branch.read` only a minimal projection whose sure fields are `id` and
+ * `name`. So only those two are required; the rest are kept when present and never relied on.
+ * A row without a usable id or name is dropped rather than made into a branch nobody can name.
  *
- * TODO(backend): a caller who sees every branch (`allBranches`) without `branch.read` has no branch
- * id to fall back on; the entitlements list ids only when branch access is enforced.
+ * This replaces the fallback onto the entitlements' `branchIds` (E2E 29 Oct 2026, F-3), which
+ * guessed nameless branches for a refused reader and had none for a company-wide one.
  */
-export function ownBranches(
-  read: ApiRead<BranchDto[]>,
-  entitlements: Entitlements | null,
-): BranchDto[] | null {
-  if (read.status !== 'failed') return null
-  if (!(read.error instanceof ApiError) || read.error.status !== 403) return null
-  const ids = entitlements?.branchIds ?? []
-  if (!ids.length) return null
-  return ids.map((id) => ({ id, code: '', name: '', type: '', city: null }))
+export function branchRows(data: unknown): BranchDto[] {
+  if (!Array.isArray(data)) return []
+  const rows: BranchDto[] = []
+  for (const row of data as unknown[]) {
+    if (!row || typeof row !== 'object') continue
+    const { id, name, code, type, city, nameAr } = row as Record<string, unknown>
+    if (typeof id !== 'string' || !id || typeof name !== 'string' || !name.trim()) continue
+    rows.push({
+      id,
+      name,
+      code: typeof code === 'string' ? code : '',
+      type: typeof type === 'string' ? type : '',
+      city: typeof city === 'string' ? city : null,
+      ...(typeof nameAr === 'string' ? { nameAr } : {}),
+    })
+  }
+  return rows
 }
 
 /**
@@ -35,30 +41,19 @@ export function ownBranches(
  *
  * The list is kept on this device for the till's offline screens (`lib/posOffline`): a read that
  * cannot reach the server answers the last list instead of leaving the screen without a branch.
+ * A refusal is never answered that way (`loadOrRecall` recalls only on a network failure): a reader
+ * the server refuses has no working branch, never a guessed or remembered one (fail closed).
  */
 export function useWorkingBranch() {
   const branches = useApiRead<BranchDto[]>(BRANCHES_PATH, () =>
     loadOrRecall('branches', loadBranches),
   )
-  const { entitlements, ready } = useEntitlements()
   const chosen = useWorkingBranchId()
   const { label } = useBranchName()
-  const fallback = useMemo(
-    () => ownBranches(branches.read, entitlements),
-    [branches.read, entitlements],
-  )
-  const refusedAwaitingEntitlements =
-    !fallback &&
-    !ready &&
-    branches.read.status === 'failed' &&
-    branches.read.error instanceof ApiError &&
-    branches.read.error.status === 403
-  const read: ApiRead<BranchDto[]> = fallback
-    ? { status: 'ready', data: fallback }
-    : refusedAwaitingEntitlements
-      ? { status: 'loading' }
-      : branches.read
-  const list = read.status === 'ready' ? read.data : []
+  const read: ApiRead<BranchDto[]> = branches.read
+  // Normalised where it is read, not where it is loaded: the same path's read is shared with
+  // screens that load it as it comes, and a remembered offline copy predates the projection.
+  const list = useMemo(() => (read.status === 'ready' ? branchRows(read.data) : []), [read])
   const branch = workingBranch(list, chosen)
   /** The working branch's name as the reader sees it (Arabic in Arabic, when it has one). */
   const name = branch?.name ? label(branch) : null
