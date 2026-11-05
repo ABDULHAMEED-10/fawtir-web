@@ -1035,6 +1035,53 @@ describe('A carried limit (FR2-1)', () => {
     ])
   })
 
+  // Review WC-1(a): the untick saves an own denial, which also keeps the permission from any role
+  // given later. The row says so before the save, not only after it.
+  it('says on the row that unticking also blocks it from a later role', async () => {
+    renderAt('/settings/team/p-clerk')
+    await screen.findByText(carriedLine())
+    expect(sell().closest('label')?.textContent).toContain(
+      i18n.t('branchAccess.person.carriedTicked'),
+    )
+    fireEvent.click(sell())
+    expect(sell().closest('label')?.textContent).toContain(
+      i18n.t('branchAccess.person.carriedUnticked'),
+    )
+  })
+
+  // Without the role list the card counts what was not given to the person as theirs from a role,
+  // so a carried code is read as a role code there. Neither save may name it as a grant.
+  describe('when the role list has not loaded', () => {
+    beforeEach(() => {
+      answers['/api/v1/roles'] = () => json(500, { type: 'about:blank', status: 500 })
+    })
+
+    it('still keeps it out of the grants when another tick is saved', async () => {
+      renderAt('/settings/team/p-clerk')
+      await screen.findByText(carriedLine())
+      const settle = screen
+        .getAllByRole('checkbox')
+        .find((box) => box.closest('label')?.textContent?.includes('Settle')) as HTMLInputElement
+      fireEvent.click(settle)
+      fireEvent.click(screen.getByRole('button', { name: 'Save permissions' }))
+      await screen.findByText('Permissions saved. They apply from their next action.')
+      expect(sent('PUT', '/api/v1/users/p-clerk/permissions')).toEqual([
+        { grants: [{ code: 'invoice.approve' }, { code: 'bill.settle' }], denials: [] },
+      ])
+    })
+
+    it('still names it once, as a denial, when the reader unticks it', async () => {
+      renderAt('/settings/team/p-clerk')
+      await screen.findByText(carriedLine())
+      fireEvent.click(sell())
+      fireEvent.click(screen.getByRole('button', { name: 'Save permissions' }))
+      await screen.findByText('Permissions saved. They apply from their next action.')
+      expect(sent('PUT', '/api/v1/users/p-clerk/permissions')).toEqual([
+        { grants: [{ code: 'invoice.approve' }], denials: ['pos.sell'] },
+      ])
+    })
+  })
+
   it('reads a server before 37b2fedca, which sends no carriedLimits, as before', async () => {
     const { carriedLimits: _omitted, ...older } = CARRIED_VIEW
     answers['/api/v1/users/p-clerk/permissions'] = () => json(200, older)

@@ -763,7 +763,13 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
               <div className="grid gap-2 md:grid-cols-2">
                 {entries.map((row) => {
                   const has = current.has(row.code)
-                  const note = row.fromRole
+                  // Unticking a carried code saves an own denial (review WC-1(a)), which also keeps
+                  // the permission from any role given later; the note says so before the save.
+                  const note = carriedCodes.has(row.code)
+                    ? has
+                      ? t('branchAccess.person.carriedTicked')
+                      : t('branchAccess.person.carriedUnticked')
+                    : row.fromRole
                     ? has
                       ? t('branchAccess.person.fromRole')
                       : t('branchAccess.person.takenAway')
