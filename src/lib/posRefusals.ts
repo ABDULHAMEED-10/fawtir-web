@@ -296,6 +296,9 @@ const QUEUE_WORDED = new Set([
   'POS_QUEUED_SALE_GOODS_OR_SERVICE_REQUIRED',
   // Set by this device (posQueue BUYER_UNAVAILABLE), never by the server: nothing was sent.
   'POS_QUEUED_BUYER_UNAVAILABLE',
+  // Review QEW-3: a waiting entry's receipt is printed, so the online "nothing was recorded" would
+  // read as lost and could have it rung again.
+  'TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE',
 ])
 
 /**

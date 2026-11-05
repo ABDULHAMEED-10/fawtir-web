@@ -850,9 +850,10 @@ describe('a refused sale never stops the till (E2E 30 Oct 2026, H-1)', () => {
     expect(queuedFor('till-1')).toEqual([])
   })
 
-  // Backend 073d5261c exempts queued sales from the zone refusal; should one arrive anyway it can
-  // clear (an administrator sets the zone), so the entry is kept, held, and goes again on its key.
-  it('a queued sale refused for the company zone is kept and held, never final, and goes again', async () => {
+  // Backend 073d5261c exempts queued sales from the zone refusal; should one arrive anyway it is
+  // till-wide (review QEW-1): the entry is kept, never final, a new sale is refused to the cashier
+  // rather than printed and queued offline past the guard, and the entry goes once the zone is set.
+  it('a queued sale refused for the company zone stops new sales till-wide, and goes again', async () => {
     fakeServer()
     await submitSale(TILL, BODY, 'pos-sale-key-zone')
     online = true
@@ -866,10 +867,19 @@ describe('a refused sale never stops the till (E2E 30 Oct 2026, H-1)', () => {
         }),
         { status: 422, headers: { 'Content-Type': 'application/problem+json' } },
       )
-    expect(await flushQueue('till-1')).toMatchObject({ verdict: 'held' })
+    expect(await flushQueue('till-1')).toMatchObject({ verdict: 'till' })
     const [kept] = queuedFor('till-1')
     expect(kept).toMatchObject({ key: 'pos-sale-key-zone', refusal: 'TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE' })
     expect(kept.final).toBeUndefined()
+    // A new sale: thrown to the cashier, not numbered, not queued, never sent itself.
+    await expect(submitSale(TILL, BODY, 'pos-sale-key-zone-2')).rejects.toMatchObject({
+      status: 422,
+      code: 'TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE',
+    })
+    expect(queuedFor('till-1')).toHaveLength(1)
+    expect(
+      calls.some((call) => new Headers(call.init?.headers).get('Idempotency-Key') === 'pos-sale-key-zone-2'),
+    ).toBe(false)
     expect(
       isFinalRefusal(
         new ApiError({ status: 422, problemType: null, code: 'TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE' }),

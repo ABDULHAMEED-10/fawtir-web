@@ -18,6 +18,10 @@ describe('issue refused for a company zone that is not Oman time', () => {
     await i18n.changeLanguage('en')
     expect(i18n.t(refusal!.key)).toMatch(/Asia\/Muscat/)
     expect(i18n.t(refusal!.key)).not.toMatch(/TENANT_TIMEZONE/)
+    // QEW-2: no settings path or company administrator can change the zone on the web.
+    expect(i18n.t(refusal!.key)).toMatch(/Fawtir support/)
+    expect(i18n.t('invoiceIssue.refused.timezone')).toMatch(/Fawtir support/)
+    expect(i18n.t('invoiceIssue.refused.timezone')).not.toMatch(/settings/i)
     await i18n.changeLanguage('ar')
     expect(i18n.exists(refusal!.key, { lng: 'ar', fallbackLng: false })).toBe(true)
     expect(i18n.t(refusal!.key)).toMatch(/Asia\/Muscat/)

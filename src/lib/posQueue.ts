@@ -269,6 +269,12 @@ const TILL_WIDE = new Set([
   'POS_SOLD_AT_IN_FUTURE',
   'BRANCH_NOT_ACTIVE',
   'SELLER_PARTICIPANT_NOT_VERIFIED',
+  // Backend 073d5261c exempts a queued offline sale (its number is printed, QR-B2 ruling), so this
+  // should never reach the queue. If it does, it is the company's zone and answers every sale the same
+  // way (review QEW-1): held would queue each new sale offline, and an offline sale is exempt from the
+  // zone guard, so it would be filed outside Muscat time. Till-wide, a new sale is refused to the
+  // cashier before a receipt exists; the waiting entry stays and goes once the zone is set.
+  'TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE',
 ])
 const TILL_WIDE_SLUGS = new Set([
   'subscription-restricted',
@@ -288,10 +294,6 @@ const HELD = new Set([
   'INDUSTRIAL_CLASSIFICATION_REQUIRED',
   'CUSTOMER_NOT_FOUND',
   'CUSTOMER_NOT_INVOICE_ELIGIBLE',
-  // Backend 073d5261c exempts a queued offline sale (its number is printed, QR-B2 ruling), so this
-  // should never reach the queue. If it does, an administrator's zone change clears it: the entry
-  // stays and is sent again, never given up on.
-  'TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE',
 ])
 const HELD_SLUGS = new Set(['quota-exceeded'])
 

@@ -39,6 +39,18 @@ describe('TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE on an online sale', () => 
     expect(
       i18n.exists('pos.refusal.TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE', { lng: 'ar', fallbackLng: false }),
     ).toBe(true)
+    // QEW-2: no company administrator can set the zone on the web.
+    expect(sentence).toMatch(/Fawtir support/)
+    expect(sentence).not.toMatch(/administrator/)
+  })
+
+  // QEW-3: a waiting entry's receipt is printed, so it never reads "nothing was recorded".
+  it('words a waiting entry with its own queue sentence, in English and Arabic', async () => {
+    const key = queueRefusalKey('TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE', null)
+    expect(key).toBe('pos.queue.reason.TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE')
+    await i18n.changeLanguage('en')
+    expect(i18n.t(key)).not.toMatch(/nothing was recorded/i)
+    expect(i18n.exists(key, { lng: 'ar', fallbackLng: false })).toBe(true)
   })
 })
 

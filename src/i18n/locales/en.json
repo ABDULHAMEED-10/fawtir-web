@@ -4838,7 +4838,7 @@
           "notRecorded": "It is not there: unlock the details",
           "timedOut": "That press took too long, and the server recorded nothing from it. An earlier press may still be recorded, so the details stay locked. Press \"Record it again\": it is sent as the same paid-out and cannot be recorded twice."
         },
-        "receiptStorageUnavailable": "Not recorded: Fawtir can't store receipts right now. Try again later, or tick \"There is no receipt\" and give the reason."
+        "receiptStorageUnavailable": "Not recorded: the receipt could not be stored. To record the paid-out now, tick \"There is no receipt\" and give the reason. If this keeps happening, contact your administrator."
       },
       "record": "Record it",
       "howMany": "How many of {{note}}",
@@ -5113,7 +5113,7 @@
       "storageUnavailable": "Not sold: this device can't safely keep its sales right now, so nothing was sent and no number was printed.",
       "tenantZoneUnavailable": "Your company's time zone could not be verified. Selling is temporarily unavailable. Please contact your administrator or try again after the company settings are restored.",
       "storageUnavailableAfterSend": "No receipt: the connection dropped while sending, and this device couldn't keep the sale, so no number was printed. It may already have reached Fawtir: check today's sales before ringing it up again.",
-      "impersonation": "This can't be done while signed in as a company. End the impersonation and do it from your own sign-in.",
+      "impersonation": "This can't be done while signed in as a company. A support session can't use the till: ask someone in the company to do it.",
       "tabLockUnavailable": "Not sold: selling is unavailable in this tab, so nothing was sent and no number was printed.",
       "POS_OFFLINE_KEY_ALREADY_REVOKED": "This device key was already revoked.",
       "POS_OFFLINE_KEY_NOT_FOUND": "This device key was not found, or you may not revoke it.",
@@ -5264,7 +5264,7 @@
       "CREDIT_NOTE_NOTHING_CORRECTABLE": "There is no remaining amount available to credit on this sale. Review its existing credit notes. Nothing was refunded.",
       "CREDIT_NOTE_EXCEEDS_CORRECTABLE_AMOUNT": "This refund asks to credit more than the amount still available to credit on this sale. Give back less, or review the sale's existing credit notes. Nothing was refunded.",
       "tooLarge": "This sale is too large to send, so nothing was recorded. Contact Fawtir support.",
-      "TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE": "This company's time zone is not set to Oman time, so e-invoices can't be issued and nothing was recorded. Ask your administrator to set the company time zone to Asia/Muscat."
+      "TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE": "This company's time zone is not set to Oman time, so e-invoices can't be issued and nothing was recorded. Contact Fawtir support to set it to Asia/Muscat."
     },
     "warning": {
       "STOCK_BELOW_ZERO": "Line {{line}} took the stock below zero. Count it when you can.",
@@ -5341,7 +5341,8 @@
         "POS_QUEUED_SALE_GOODS_OR_SERVICE_REQUIRED": "Not issued yet: this full invoice has a line that does not say whether it is goods or a service, so Fawtir has not issued it and has not used its number.",
         "POS_QUEUED_BUYER_UNAVAILABLE": "Not sent yet: this device cannot open the buyer's details it kept for this full invoice. Reload the page and press Try again. If it still does not go, contact Fawtir support and do not clear this device's data.",
         "other": "Fawtir would not accept this sale as it stands.",
-        "tooLarge": "Too large to send."
+        "tooLarge": "Too large to send.",
+        "TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE": "This company's time zone is not set to Oman time. The sale goes once Fawtir support sets it to Asia/Muscat."
       },
       "askManager": "The till keeps selling. Ask a manager to deal with it.",
       "orderHint": "Later sales are still numbered and printed, but cannot be filed until this one is: Fawtir files a till's numbers strictly in order for now.",
@@ -21284,7 +21285,7 @@
       "debitNoteNotAccepted": "Accept the debit note before you pay it.",
       "receiptStockUnitMismatch": "Nothing was received. An item on this order is now counted in a different unit from the one it was ordered in. Check the item's unit, or order it again in the unit it is counted in now.",
       "receiptStockUnitRequired": "Nothing was received. A line on this order was saved before Fawtir recorded the unit its stock is counted in, so the receipt must say which unit the goods were counted in. State that unit, then book the goods in again.",
-      "paymentPaidFromTill": "This payment was paid out of a till drawer, so it can't be reversed here. Correcting a payment made from till cash isn't available yet."
+      "paymentPaidFromTill": "This payment was paid out of a till drawer, so it can't be reversed here. Correcting a payment made from till cash isn't available."
     },
     "selfBilling": {
       "generic": "The server refused this because of the self-billing agreement with this supplier. Check the agreement before trying again.",
@@ -21497,7 +21498,7 @@
       "tenantInactive": "Your account isn't active, so it can't issue invoices.",
       "notReady": "Your account can't issue invoices right now ({{reason}}).",
       "quota": "You've used this month's invoice allowance on your plan.",
-      "timezone": "Your company's time zone isn't set, so the issue date can't be checked. Set it in company settings.",
+      "timezone": "This company's time zone isn't set, so the issue date can't be checked. Contact Fawtir support to set it.",
       "sellerParticipant": "Your company's Peppol registration isn't verified yet, so it can't issue invoices.",
       "customerIncomplete": "This customer is missing details an invoice needs. Complete the customer, then issue.",
       "customerNotSelectable": "This customer can't be invoiced.",
@@ -21513,7 +21514,7 @@
       "goodsOrServiceRequired": "A line on this draft does not say whether it is goods or a service, so it was not issued and no number was used. Open the draft, give each goods line its HS code (Other if none fits) or mark the line as a service, save, then issue again.",
       "buyerAddressIncomplete": "This customer's address is incomplete for Peppol: add the street, additional street, city, postal code and address line 3, then issue again.",
       "buyerAddressAction": "Complete the customer",
-      "timezoneNotOman": "Your company's time zone is not set to Oman time, so e-invoices can't be issued. The draft is unchanged. Ask your administrator to set the company time zone to Asia/Muscat, then issue again."
+      "timezoneNotOman": "This company's time zone is not set to Oman time, so e-invoices can't be issued. The draft is unchanged. Contact Fawtir support to set it to Asia/Muscat, then issue again."
     },
     "creditNote": {
       "title": "Issue this credit note?",
