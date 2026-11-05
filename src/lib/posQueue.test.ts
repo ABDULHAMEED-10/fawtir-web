@@ -850,6 +850,38 @@ describe('a refused sale never stops the till (E2E 30 Oct 2026, H-1)', () => {
     expect(queuedFor('till-1')).toEqual([])
   })
 
+  // Backend 073d5261c exempts queued sales from the zone refusal; should one arrive anyway it can
+  // clear (an administrator sets the zone), so the entry is kept, held, and goes again on its key.
+  it('a queued sale refused for the company zone is kept and held, never final, and goes again', async () => {
+    fakeServer()
+    await submitSale(TILL, BODY, 'pos-sale-key-zone')
+    online = true
+    const reply = saleReply
+    saleReply = () =>
+      new Response(
+        JSON.stringify({
+          type: 'https://api.fawtir.om/problems/tenant-timezone-not-supported-for-e-invoice',
+          status: 422,
+          code: 'TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE',
+        }),
+        { status: 422, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+    expect(await flushQueue('till-1')).toMatchObject({ verdict: 'held' })
+    const [kept] = queuedFor('till-1')
+    expect(kept).toMatchObject({ key: 'pos-sale-key-zone', refusal: 'TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE' })
+    expect(kept.final).toBeUndefined()
+    expect(
+      isFinalRefusal(
+        new ApiError({ status: 422, problemType: null, code: 'TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE' }),
+      ),
+    ).toBe(false)
+    saleReply = reply
+    await retryQueuedSale('till-1', 'pos-sale-key-zone')
+    const last = calls.filter((call) => call.init?.method === 'POST').at(-1)!
+    expect(new Headers(last.init?.headers).get('Idempotency-Key')).toBe('pos-sale-key-zone')
+    expect(queuedFor('till-1')).toEqual([])
+  })
+
   // NOT RUN (static only). Backend 8f04050ab (HS Slice B): a full invoice with a line that states
   // neither goods nor services is held before issue. The server does not fill it on the resend and
   // this device must not choose it, so the sale stays queued, on its number and unchanged.

@@ -288,6 +288,10 @@ const HELD = new Set([
   'INDUSTRIAL_CLASSIFICATION_REQUIRED',
   'CUSTOMER_NOT_FOUND',
   'CUSTOMER_NOT_INVOICE_ELIGIBLE',
+  // Backend 073d5261c exempts a queued offline sale (its number is printed, QR-B2 ruling), so this
+  // should never reach the queue. If it does, an administrator's zone change clears it: the entry
+  // stays and is sent again, never given up on.
+  'TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE',
 ])
 const HELD_SLUGS = new Set(['quota-exceeded'])
 

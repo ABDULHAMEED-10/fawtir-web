@@ -5263,7 +5263,8 @@
       "POS_REFUND_NOTHING_TO_PAY_BACK": "What is going back is worth less than a baisa, so there is nothing to refund. Give back more of the line in one refund.",
       "CREDIT_NOTE_NOTHING_CORRECTABLE": "There is no remaining amount available to credit on this sale. Review its existing credit notes. Nothing was refunded.",
       "CREDIT_NOTE_EXCEEDS_CORRECTABLE_AMOUNT": "This refund asks to credit more than the amount still available to credit on this sale. Give back less, or review the sale's existing credit notes. Nothing was refunded.",
-      "tooLarge": "This sale is too large to send, so nothing was recorded. Contact Fawtir support."
+      "tooLarge": "This sale is too large to send, so nothing was recorded. Contact Fawtir support.",
+      "TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE": "This company's time zone is not set to Oman time, so e-invoices can't be issued and nothing was recorded. Ask your administrator to set the company time zone to Asia/Muscat."
     },
     "warning": {
       "STOCK_BELOW_ZERO": "Line {{line}} took the stock below zero. Count it when you can.",
@@ -21511,7 +21512,8 @@
       "hsCodeRequired": "A goods line on this draft has no HS code, so it was not issued. Open the draft, choose the line's HS code (Other if none fits), save, then issue again.",
       "goodsOrServiceRequired": "A line on this draft does not say whether it is goods or a service, so it was not issued and no number was used. Open the draft, give each goods line its HS code (Other if none fits) or mark the line as a service, save, then issue again.",
       "buyerAddressIncomplete": "This customer's address is incomplete for Peppol: add the street, additional street, city, postal code and address line 3, then issue again.",
-      "buyerAddressAction": "Complete the customer"
+      "buyerAddressAction": "Complete the customer",
+      "timezoneNotOman": "Your company's time zone is not set to Oman time, so e-invoices can't be issued. The draft is unchanged. Ask your administrator to set the company time zone to Asia/Muscat, then issue again."
     },
     "creditNote": {
       "title": "Issue this credit note?",

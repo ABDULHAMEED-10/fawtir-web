@@ -285,6 +285,28 @@ describe('the refund page on a server with the quote', () => {
     expect(refunds).toEqual([])
   })
 
+  // Backend 073d5261c (QR-E2): refused before the key lock, nothing refunded. One press, one POST.
+  it('words a refund refused 422 TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE, and sends it once', async () => {
+    refund = () =>
+      json(
+        {
+          type: 'https://fawtir.om/problems/tenant-timezone-not-supported-for-e-invoice',
+          status: 422,
+          code: 'TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE',
+        },
+        422,
+      )
+    await open()
+    await waitFor(() => expect(field('Card').value).toBe('10.000'))
+    fireEvent.click(refundButton())
+    expect(
+      await screen.findByText(i18n.t('pos.refusal.TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE')),
+    ).toBeTruthy()
+    expect(document.body.textContent).not.toContain('TENANT_TIMEZONE')
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(refunds).toHaveLength(1)
+  })
+
   it('words the server refusal, and asks again for what is left now', async () => {
     refund = () =>
       json(

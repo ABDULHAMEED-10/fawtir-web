@@ -7,6 +7,9 @@ import { PosTillLockUnavailable } from './posTillLock'
  * anything else reads as the general failure.
  */
 const WORDED = new Set([
+  // Backend 073d5261c (QR-E2): an online sale or refund, refused before a number is taken, because the
+  // company's zone does not keep Muscat time. Fixed by an administrator, not by trying again.
+  'TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE',
   'SIMPLIFIED_INVOICE_LIMIT',
   'BUYER_IDENTIFIER_REQUIRED',
   'POS_PAYMENTS_DO_NOT_MATCH_TOTAL',

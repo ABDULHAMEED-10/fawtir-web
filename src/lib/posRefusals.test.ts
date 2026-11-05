@@ -23,6 +23,25 @@ afterEach(async () => {
   await i18n.changeLanguage('en')
 })
 
+// Backend 073d5261c (QR-E2): an online sale refused 422 before a number is taken.
+describe('TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE on an online sale', () => {
+  it('is worded by its code, names Asia/Muscat, and shows no code', async () => {
+    const error = new ApiError({
+      status: 422,
+      problemType: 'tenant-timezone-not-supported-for-e-invoice',
+      code: 'TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE',
+    })
+    expect(posRefusalKey(error)).toBe('pos.refusal.TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE')
+    await i18n.changeLanguage('en')
+    const sentence = i18n.t(posRefusalKey(error))
+    expect(sentence).toMatch(/Asia\/Muscat/)
+    expect(sentence).not.toMatch(/TENANT_TIMEZONE/)
+    expect(
+      i18n.exists('pos.refusal.TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE', { lng: 'ar', fallbackLng: false }),
+    ).toBe(true)
+  })
+})
+
 describe('POS_REFUND_NOTHING_TO_PAY_BACK (backend fix/refund-edge-cases, probe zeroPieces)', () => {
   it('is worded by its code at 422', () => {
     const error = coded(422, 'POS_REFUND_NOTHING_TO_PAY_BACK', { lines: [1], expected: 0 })

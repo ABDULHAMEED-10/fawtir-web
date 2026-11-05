@@ -67,6 +67,8 @@ export const ISSUE_REFUSALS: Record<string, { field: IssueField | null; key: str
   TENANT_DISABLED: { field: null, key: 'invoiceIssue.refused.tenantInactive' },
   QUOTA_EXCEEDED: { field: null, key: 'invoiceIssue.refused.quota' },
   TENANT_TIMEZONE_UNAVAILABLE: { field: null, key: 'invoiceIssue.refused.timezone' },
+  // Backend 073d5261c (QR-E2), 422 before a number is taken: a zone that does not keep Muscat time.
+  TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE: { field: null, key: 'invoiceIssue.refused.timezoneNotOman' },
   SELLER_PARTICIPANT_NOT_VERIFIED: { field: null, key: 'invoiceIssue.refused.sellerParticipant' },
   SELLER_NOT_VERIFIED: { field: null, key: 'invoiceIssue.refused.companyPending' },
   SELLER_ADDRESS_INCOMPLETE: { field: null, key: 'invoiceIssue.refused.sellerAddressIncomplete' },
