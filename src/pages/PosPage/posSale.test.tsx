@@ -331,6 +331,48 @@ describe('taking the payment (P.12)', () => {
       })
     })
   })
+
+  it('offline with storage that cannot keep the sale: "Not sold", no receipt, and no number until Check again (POS-MEMQ S8)', async () => {
+    saleReply = () => {
+      throw new TypeError('Failed to fetch')
+    }
+    renderPayment()
+    fireEvent.click(await screen.findByRole('button', { name: /^Card/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Paid/ }))
+    const realSet = Storage.prototype.setItem
+    const full = vi
+      .spyOn(Storage.prototype, 'setItem')
+      .mockImplementation(function (this: Storage, key: string, value: string) {
+        if (key === 'fawtir.pos.queue') {
+          throw new DOMException('The quota has been exceeded.', 'QuotaExceededError')
+        }
+        realSet.call(this, key, value)
+      })
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+      expect(await screen.findByText(i18n.t('pos.refusal.storageUnavailable'))).toBeTruthy()
+      expect(await screen.findByText(i18n.t('pos.storage.blocked'))).toBeTruthy()
+      expect(screen.queryByText(/^done/)).toBeNull()
+      expect(screen.queryByText(/NZW-T01-INV-2026-000049/)).toBeNull()
+    } finally {
+      full.mockRestore()
+    }
+    expect(JSON.parse(window.localStorage.getItem('fawtir.pos.queue') ?? '[]')).toEqual([])
+
+    // Storage works again but nothing has proved it: trying the sale again is refused the same way.
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+    expect(await screen.findByText(i18n.t('pos.refusal.storageUnavailable'))).toBeTruthy()
+    expect(screen.queryByText(/^done/)).toBeNull()
+
+    // Check again proves storage; the next try takes the number that was never printed, once.
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('pos.storage.checkAgain') }))
+    await waitFor(() => expect(screen.queryByText(i18n.t('pos.storage.blocked'))).toBeNull())
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+    expect(await screen.findByText('done NZW-T01-INV-2026-000049')).toBeTruthy()
+    const queued = JSON.parse(window.localStorage.getItem('fawtir.pos.queue') ?? '[]')
+    expect(queued).toHaveLength(1)
+    expect(queued[0].body.invoiceNumber).toBe('NZW-T01-INV-2026-000049')
+  })
 })
 
 describe('POS follow-ups (Abdul, 28 Oct 2026)', () => {

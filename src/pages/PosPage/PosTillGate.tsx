@@ -7,6 +7,7 @@ import { posRefusalKey } from '../../lib/posRefusals'
 import { noteTillServer, usePosQueue } from '../../lib/posQueue'
 import { useOfflineSigningKey } from '../../lib/posSigning/useOfflineSigningKey'
 import { PosQueuePanel } from './PosQueuePanel'
+import { PosStorageNotice } from './PosStorageNotice'
 
 type Ready = Extract<TillState, { status: 'ready' }>
 
@@ -32,6 +33,7 @@ export function PosTillGate({
     <>
       <QueueSender till={state.till} userId={state.userId} />
       <OfflineSigningKey state={state} />
+      <PosStorageNotice tillId={state.till.id} />
       {showQueue ? <PosQueuePanel till={state} /> : null}
       {children(state)}
     </>

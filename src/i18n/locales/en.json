@@ -4900,6 +4900,11 @@
       "onFile": "Matches customer on file: {{name}}",
       "onFileWithId": "Matches customer on file: {{name}} ({{id}})"
     },
+    "storage": {
+      "blocked": "This browser isn't saving offline sales. Offline selling has stopped on this device. Online sales carry on.",
+      "burnt": "This block clears after the next online sale on this till.",
+      "checkAgain": "Check again"
+    },
     "offline": {
       "clockSkew": "This device's clock is more than 5 minutes off. Set the date and time correctly so sales made offline can be shown to be yours.",
       "pending": "Not yet attributed",
@@ -4996,6 +5001,7 @@
     },
     "refusal": {
       "offline": "The till could not reach Fawtir. Check the connection and try again.",
+      "storageUnavailable": "Not sold: this device could not save the sale, so no number was printed.",
       "POS_OFFLINE_KEY_ALREADY_REVOKED": "This device key was already revoked.",
       "POS_OFFLINE_KEY_NOT_FOUND": "This device key was not found, or you may not revoke it.",
       "POS_OFFLINE_KEY_HUMAN_ONLY": "Only a signed-in person can do this, not an API key or a support session.",

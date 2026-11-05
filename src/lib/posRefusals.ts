@@ -116,6 +116,12 @@ const percent = (value: number) => String(Math.round(value * 100) / 100)
 
 export function posRefusalKey(error: unknown): string {
   if (error instanceof NetworkError) return 'pos.refusal.offline'
+  // Matched by name, not instanceof: posQueue imports this module, so importing its class back
+  // would make the two a cycle. No number was printed for the sale (POS-MEMQ S8), so the
+  // general failure is not enough: the cashier must know no receipt number exists.
+  if (error instanceof Error && error.name === 'PosStorageUnavailable') {
+    return 'pos.refusal.storageUnavailable'
+  }
   if (error instanceof ApiError) {
     if (error.code && WORDED.has(error.code)) return `pos.refusal.${error.code}`
     const slug = error.problemType ? SLUGS[error.problemType] : undefined
