@@ -4837,7 +4837,8 @@
           "unreadableHint": "After a minute and a half, check whether it was recorded. If it is not among the cash moves, unlock the form and enter it again.",
           "notRecorded": "It is not there: unlock the details",
           "timedOut": "That press took too long, and the server recorded nothing from it. An earlier press may still be recorded, so the details stay locked. Press \"Record it again\": it is sent as the same paid-out and cannot be recorded twice."
-        }
+        },
+        "receiptStorageUnavailable": "Not recorded: Fawtir can't store receipts right now. Try again later, or tick \"There is no receipt\" and give the reason."
       },
       "record": "Record it",
       "howMany": "How many of {{note}}",
@@ -5111,8 +5112,8 @@
       "offline": "The till could not reach Fawtir. Check the connection and try again.",
       "storageUnavailable": "Not sold: this device can't safely keep its sales right now, so nothing was sent and no number was printed.",
       "tenantZoneUnavailable": "Your company's time zone could not be verified. Selling is temporarily unavailable. Please contact your administrator or try again after the company settings are restored.",
-      "storageUnavailableAfterSend": "No receipt: the connection dropped while sending, and this device couldn't keep the sale, so no number was printed. It may already have reached Fawtir: check today's sales before taking it again.",
-      "impersonation": "This can't be done while acting as someone else. End the impersonation and do it from your own sign-in.",
+      "storageUnavailableAfterSend": "No receipt: the connection dropped while sending, and this device couldn't keep the sale, so no number was printed. It may already have reached Fawtir: check today's sales before ringing it up again.",
+      "impersonation": "This can't be done while signed in as a company. End the impersonation and do it from your own sign-in.",
       "tabLockUnavailable": "Not sold: selling is unavailable in this tab, so nothing was sent and no number was printed.",
       "POS_OFFLINE_KEY_ALREADY_REVOKED": "This device key was already revoked.",
       "POS_OFFLINE_KEY_NOT_FOUND": "This device key was not found, or you may not revoke it.",
@@ -21281,7 +21282,8 @@
       "debitNotePartlyPaid": "This debit note is partly paid. Record a refund from the supplier for the paid part first.",
       "debitNoteNotAccepted": "Accept the debit note before you pay it.",
       "receiptStockUnitMismatch": "Nothing was received. An item on this order is now counted in a different unit from the one it was ordered in. Check the item's unit, or order it again in the unit it is counted in now.",
-      "receiptStockUnitRequired": "Nothing was received. A line on this order was saved before Fawtir recorded the unit its stock is counted in, so the receipt must say which unit the goods were counted in. State that unit, then book the goods in again."
+      "receiptStockUnitRequired": "Nothing was received. A line on this order was saved before Fawtir recorded the unit its stock is counted in, so the receipt must say which unit the goods were counted in. State that unit, then book the goods in again.",
+      "paymentPaidFromTill": "This payment was paid out of a till drawer, so it can't be reversed here. Correcting a payment made from till cash isn't available yet."
     },
     "selfBilling": {
       "generic": "The server refused this because of the self-billing agreement with this supplier. Check the agreement before trying again.",

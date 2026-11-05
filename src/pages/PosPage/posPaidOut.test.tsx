@@ -101,6 +101,7 @@ let uploads: number
 let previews: number
 let paidOuts: { key: string | null; body: Record<string, unknown> }[]
 let answer: () => Response | Promise<Response>
+let uploadAnswer: (() => Response) | null
 let previewAnswer: () => Response
 let billSearches: string[]
 let bills: Record<string, unknown>[]
@@ -120,6 +121,7 @@ beforeEach(async () => {
   bills = [BILL]
   permissions = ['pos.read', 'pos.sell', 'pos.close', 'pos.cash.pay_out']
   uploads = 0
+  uploadAnswer = null
   previews = 0
   paidOuts = []
   billSearches = []
@@ -146,6 +148,7 @@ beforeEach(async () => {
       }
       if (url.endsWith('/cash-movements/receipts') && init?.method === 'POST') {
         uploads += 1
+        if (uploadAnswer) return uploadAnswer()
         return json(
           {
             // A fresh id per upload, as the server gives, so a re-upload is visible in the body.
@@ -276,6 +279,32 @@ describe('a paid-out', () => {
     })
     await waitFor(() => expect(previews).toBe(2))
   })
+
+  // A-11 (FIN-M3-WEB-MINOR): attachment storage off. The code reaches the till as a 400 through the
+  // POS advice, though openapi documents 503: both are worded by the code, nothing is recorded, and the
+  // form stays as typed so the cashier can tick "no receipt" and give a reason.
+  for (const status of [400, 503]) {
+    it(`words a receipt refused ${status} INVOICE_ATTACHMENT_STORAGE_UNAVAILABLE and keeps the form`, async () => {
+      uploadAnswer = () => problem(status, 'INVOICE_ATTACHMENT_STORAGE_UNAVAILABLE')
+      await fillPettyCash()
+      chooseCurrency('OMR')
+      attachReceipt()
+      fireEvent.click(recordButton())
+      expect(await screen.findByText(form('receiptStorageUnavailable'))).toBeTruthy()
+      expect(uploads).toBe(1)
+      expect(paidOuts).toHaveLength(0)
+      expect(screen.getByDisplayValue('Milk')).toBeTruthy()
+      uploadAnswer = null
+      fireEvent.click(screen.getByRole('checkbox', { name: form('noReceipt') }))
+      fireEvent.change(screen.getByRole('textbox', { name: form('noReceiptReason') }), {
+        target: { value: 'Storage was down' },
+      })
+      fireEvent.click(recordButton())
+      await waitFor(() => expect(paidOuts).toHaveLength(1))
+      expect(paidOuts[0].body.receiptObjectId).toBeNull()
+      expect(paidOuts[0].body.missingReceiptReason).toBe('Storage was down')
+    })
+  }
 
   it('sends a reason in place of a receipt, and uploads nothing', async () => {
     await fillPettyCash()

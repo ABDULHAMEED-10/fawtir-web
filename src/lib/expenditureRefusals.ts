@@ -99,6 +99,9 @@ const REFUSALS: Record<string, string> = {
   BILL_PAYMENT_ALREADY_REVERSED: 'apiErrors.refused.paymentAlreadyReversed',
   // Reversing a payment of a bill in a run whose bank file is made (owner's sentence, 8 Oct 2026).
   BILL_PAYMENT_REVERSAL_IN_SENT_RUN: 'apiErrors.refused.paymentReversalInSentRun',
+  // 409 on reversing the bill side of a till paid-out (backend V536, FIN-M3 §4.3.6): its correction is
+  // open question OQ-F18, so the sentence offers no other route.
+  BILL_PAYMENT_PAID_FROM_TILL: 'apiErrors.refused.paymentPaidFromTill',
   APPROVAL_ALREADY_GIVEN: 'apiErrors.refused.approvalAlreadyGiven',
   APPROVAL_REJECTION_REASON_REQUIRED: 'apiErrors.refused.approvalReasonRequired',
   // Reopening a rejected bill (backend V523) with no reason.

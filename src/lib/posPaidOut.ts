@@ -329,6 +329,12 @@ export function paidOutRefusal(
   language: string,
 ): { key: string; values: Record<string, string> } {
   if (refusedAtTheEdge(error)) return { key: 'pos.close.paidOutForm.receiptTooBigForServer', values: {} }
+  // The receipt upload with attachment storage off or failing. Worded by code, never by status:
+  // openapi documents 503, but PosRestExceptionHandler (d5eb2baa6) lists only
+  // REFERENCE_CATALOGUE_NOT_AVAILABLE as unavailable, so this code reaches the till as a 400.
+  if (error instanceof ApiError && error.code === 'INVOICE_ATTACHMENT_STORAGE_UNAVAILABLE') {
+    return { key: 'pos.close.paidOutForm.receiptStorageUnavailable', values: {} }
+  }
   if (error instanceof ApiError && error.code && Object.hasOwn(BILL_REFUSALS, error.code)) {
     const problem = error.problem
     if (error.code === 'BILL_PAYMENT_EXCEEDS_OUTSTANDING') {
