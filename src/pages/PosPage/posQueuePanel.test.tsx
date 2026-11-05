@@ -523,3 +523,29 @@ describe("a sale someone else made on this till (owner round 5, P3b)", () => {
     expect(screen.getByText(/Sending it files it with you as the sender/)).toBeTruthy()
   })
 })
+
+describe('a queued sale too large to send (K30)', () => {
+  it('shows it kept on its number as too large, with the hint, and Try again only', async () => {
+    await submitSale(TILL, BODY, 'pos-sale-key-panel-large')
+    reply = () =>
+      new Response(
+        JSON.stringify({
+          type: 'https://api.fawtir.om/problems/payload-too-large',
+          title: 'Payload Too Large',
+          status: 413,
+        }),
+        { status: 413, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+    noteTillServer(TILL)
+    await flushQueue('till-1')
+
+    render(wrap(<PosQueuePanel till={READY(true)} />))
+    const text = screen.getByRole('alert').textContent ?? ''
+    expect(text).toContain('NZW-T01-INV-2026-000013')
+    expect(text).toContain(i18n.t('pos.queue.reason.tooLarge'))
+    expect(text).toContain(i18n.t('pos.queue.tooLargeHint'))
+    expect(text).not.toContain(i18n.t('pos.queue.finalHint'))
+    expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual(['Try again'])
+    expect(queuedFor('till-1')).toHaveLength(1)
+  })
+})

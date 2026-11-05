@@ -1678,3 +1678,83 @@ describe('Q-27: open-number skipping is off whatever the till or the device says
     expect(calls.some((call) => call.url.includes('/pos/open-numbers'))).toBe(false)
   })
 })
+
+// Owner v2 K30: the gateway's 413 (RequestSizeLimitFilter, problem type payload-too-large, no code).
+// The same body can never fit, so the sale stays on the device on its number with no retry loop.
+describe('a queued sale too large to send (K30)', () => {
+  const WALK_IN: PosSaleRequest = { ...BODY, customer: { kind: 'WALK_IN' } }
+  const tooLarge = () =>
+      new Response(
+        JSON.stringify({
+          type: 'https://api.fawtir.om/problems/payload-too-large',
+          title: 'Payload Too Large',
+          status: 413,
+        }),
+        { status: 413, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+  const posted = (key: string) =>
+    calls.filter(
+      (call) =>
+        call.init?.method === 'POST' && new Headers(call.init.headers).get('Idempotency-Key') === key,
+    ).length
+
+  it('is kept final on its number and body, is not sent again by itself, and Try again sends it once', async () => {
+    await submitSale(TILL, WALK_IN, 'pos-sale-key-large')
+    const [before] = queuedFor('till-1')
+    // The offline try counts as a call too; what matters is what goes once the server answers.
+    const offline = posted('pos-sale-key-large')
+    online = true
+    saleReply = tooLarge
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      await flushQueue('till-1')
+      const [kept] = queuedFor('till-1')
+      expect(kept).toMatchObject({
+        key: 'pos-sale-key-large',
+        number: before.number,
+        refusal: 'HTTP_413',
+        final: true,
+      })
+      expect(kept.body).toEqual(before.body)
+      expect(posted('pos-sale-key-large')).toBe(offline + 1)
+
+      for (let i = 0; i < 3; i++) {
+        vi.advanceTimersByTime(61_000)
+        await flushQueue('till-1')
+      }
+      expect(posted('pos-sale-key-large')).toBe(offline + 1)
+      expect(queuedFor('till-1')[0].final).toBe(true)
+
+      await retryQueuedSale('till-1', 'pos-sale-key-large')
+      expect(posted('pos-sale-key-large')).toBe(offline + 2)
+      expect(queuedFor('till-1')[0]).toMatchObject({ refusal: 'HTTP_413', final: true })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('stays final after a reload, where the kept refusal is re-read without its status', async () => {
+    window.localStorage.setItem(
+      'fawtir.pos.queue',
+      JSON.stringify([
+        {
+          key: 'pos-sale-key-large-kept',
+          tillId: 'till-1',
+          number: 'NZW-T01-INV-2026-000049',
+          body: { ...WALK_IN, queuedOffline: true, invoiceNumber: 'NZW-T01-INV-2026-000049' },
+          refusal: 'HTTP_413',
+          refusalType: 'payload-too-large',
+          final: true,
+        },
+      ]),
+    )
+    vi.resetModules()
+    const fresh = await import('./posQueue')
+    expect(fresh.queuedFor('till-1')[0]).toMatchObject({ refusal: 'HTTP_413', final: true })
+  })
+
+  it('an online sale refused as too large is final, so it is not queued for a retry', () => {
+    const error = new ApiError({ status: 413, problemType: 'payload-too-large', code: null })
+    expect(isFinalRefusal(error)).toBe(true)
+  })
+})

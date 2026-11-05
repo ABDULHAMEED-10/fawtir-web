@@ -12,7 +12,7 @@ import {
   useQueuedSales,
   type QueuedSale,
 } from '../../lib/posQueue'
-import { queueRefusalKey, refusalSentence } from '../../lib/posRefusals'
+import { isTooLarge, queueRefusalKey, refusalSentence } from '../../lib/posRefusals'
 import type { TillState } from '../../lib/posTill'
 import { posOpenNumbersPath, setAsideOpenNumber, type PosOpenNumberDto } from '../../api/pos/pos'
 import type { DraftLineRequest } from '../../api/invoices/drafts'
@@ -326,7 +326,9 @@ function Problem({
       <p className="mt-1 text-xs font-medium text-text-tertiary">
         {entry.buyerRemoved
           ? t('pos.queue.buyerRemovedHint')
-          : entry.final
+          : entry.final && isTooLarge(entry.refusal, entry.refusalType ?? null)
+            ? t('pos.queue.tooLargeHint')
+            : entry.final
             ? t('pos.queue.finalHint')
             : undeclared
               ? t(itemCures ? 'pos.queue.goodsOrServiceItemHint' : 'pos.queue.goodsOrServiceHint')

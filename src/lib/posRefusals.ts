@@ -154,6 +154,8 @@ const SLUGS: Record<string, string> = {
   // A support session acting as someone else (RefusalType.IMPERSONATION_NOT_ALLOWED, no code). Read
   // as 'forbidden' it suggested a missing permission, which no role grants back (review AW-1).
   'impersonation-not-allowed': 'pos.refusal.impersonation',
+  // K30, an online sale: not queued, not numbered, so nothing was recorded.
+  'payload-too-large': 'pos.refusal.tooLarge',
 }
 
 /** A server before the refusal had a code says the figures only in its sentence. */
@@ -291,6 +293,15 @@ const QUEUE_WORDED = new Set([
   'POS_QUEUED_BUYER_UNAVAILABLE',
 ])
 
+/**
+ * The gateway's 413 (RequestSizeLimitFilter: problem type payload-too-large, no code), kept on an
+ * entry as HTTP_413. Owner v2 K30: the sale stays on the device as "too large to send", with no
+ * retry loop; the same body can never fit, so nothing on this device sends it again by itself.
+ */
+export function isTooLarge(code: string | null, slug: string | null): boolean {
+  return code === 'HTTP_413' || slug === 'payload-too-large'
+}
+
 const QUEUE_SLUGS: Record<string, string> = {
   'subscription-restricted': 'pos.queue.reason.readOnly',
   'plan-feature-not-included': 'pos.queue.reason.planFeature',
@@ -303,6 +314,7 @@ export function queueRefusalKey(
   slug: string | null,
   values: Record<string, string> = {},
 ): string {
+  if (isTooLarge(code, slug)) return 'pos.queue.reason.tooLarge'
   if (code?.startsWith('SUBSCRIPTION_')) return 'pos.queue.reason.readOnly'
   if (code && QUEUE_WORDED.has(code)) return `pos.queue.reason.${code}`
   if (slug && QUEUE_SLUGS[slug]) return QUEUE_SLUGS[slug]

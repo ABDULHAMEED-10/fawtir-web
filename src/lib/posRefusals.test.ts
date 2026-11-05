@@ -5,7 +5,14 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import en from '../i18n/locales/en.json'
 import ar from '../i18n/locales/ar.json'
-import { NEEDS, posRefusalKey, queueRefusalKey, refusalMessage, refusalValues } from './posRefusals'
+import {
+  isTooLarge,
+  NEEDS,
+  posRefusalKey,
+  queueRefusalKey,
+  refusalMessage,
+  refusalValues,
+} from './posRefusals'
 
 const coded = (status: number, code: string, problem: Record<string, unknown> = {}) =>
   new ApiError({ status, problemType: null, code, problem: { code, ...problem } })
@@ -366,5 +373,27 @@ describe('no POS page words a refusal from its key alone', () => {
     const source = readFileSync(join(dir, name), 'utf8')
     expect(source).not.toMatch(/posRefusalKey\(/)
     expect(source).not.toMatch(/t\(queueRefusalKey\([^)]*\)\)/)
+  })
+})
+
+describe('a sale too large to send (K30)', () => {
+  it('is known by the stored HTTP_413 or by the gateway problem type, and nothing else', () => {
+    expect(isTooLarge('HTTP_413', null)).toBe(true)
+    expect(isTooLarge(null, 'payload-too-large')).toBe(true)
+    expect(isTooLarge('HTTP_409', null)).toBe(false)
+    expect(isTooLarge(null, null)).toBe(false)
+  })
+
+  it('words the queued entry and the online refusal in English and Arabic', () => {
+    expect(queueRefusalKey('HTTP_413', 'payload-too-large')).toBe('pos.queue.reason.tooLarge')
+    expect(queueRefusalKey('HTTP_413', null)).toBe('pos.queue.reason.tooLarge')
+    const online = new ApiError({ status: 413, problemType: 'payload-too-large', code: null })
+    expect(posRefusalKey(online)).toBe('pos.refusal.tooLarge')
+    for (const key of ['pos.queue.reason.tooLarge', 'pos.queue.tooLargeHint', 'pos.refusal.tooLarge']) {
+      for (const lng of ['en', 'ar']) expect(i18n.exists(key, { lng, fallbackLng: false })).toBe(true)
+    }
+    // Nothing was recorded online; the queued sale keeps its number and is not cleared by itself.
+    expect(i18n.t('pos.refusal.tooLarge', { lng: 'en' })).toMatch(/nothing was recorded/)
+    expect(i18n.t('pos.queue.tooLargeHint', { lng: 'en' })).toMatch(/not sent again by itself/)
   })
 })

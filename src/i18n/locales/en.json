@@ -5259,7 +5259,8 @@
       "GOODS_OR_SERVICE_REQUIRED": "Line {{line}} does not say whether it is goods or a service, so nothing was done. Someone who can edit items gives the item an HS code if it is goods, or makes it a service, then try again.",
       "POS_REFUND_NOTHING_TO_PAY_BACK": "What is going back is worth less than a baisa, so there is nothing to refund. Give back more of the line in one refund.",
       "CREDIT_NOTE_NOTHING_CORRECTABLE": "There is no remaining amount available to credit on this sale. Review its existing credit notes. Nothing was refunded.",
-      "CREDIT_NOTE_EXCEEDS_CORRECTABLE_AMOUNT": "This refund asks to credit more than the amount still available to credit on this sale. Give back less, or review the sale's existing credit notes. Nothing was refunded."
+      "CREDIT_NOTE_EXCEEDS_CORRECTABLE_AMOUNT": "This refund asks to credit more than the amount still available to credit on this sale. Give back less, or review the sale's existing credit notes. Nothing was refunded.",
+      "tooLarge": "This sale is too large to send, so nothing was recorded. Contact Fawtir support."
     },
     "warning": {
       "STOCK_BELOW_ZERO": "Line {{line}} took the stock below zero. Count it when you can.",
@@ -5335,7 +5336,8 @@
         "POS_QUEUED_SALE_HS_CODE_REQUIRED": "Not issued yet, waiting for an HS code: this full invoice has a goods line with no HS code, so Fawtir has not issued it and has not used its number.",
         "POS_QUEUED_SALE_GOODS_OR_SERVICE_REQUIRED": "Not issued yet: this full invoice has a line that does not say whether it is goods or a service, so Fawtir has not issued it and has not used its number.",
         "POS_QUEUED_BUYER_UNAVAILABLE": "Not sent yet: this device cannot open the buyer's details it kept for this full invoice. Reload the page and press Try again. If it still does not go, contact Fawtir support and do not clear this device's data.",
-        "other": "Fawtir would not accept this sale as it stands."
+        "other": "Fawtir would not accept this sale as it stands.",
+        "tooLarge": "Too large to send."
       },
       "askManager": "The till keeps selling. Ask a manager to deal with it.",
       "orderHint": "Later sales are still numbered and printed, but cannot be filed until this one is: Fawtir files a till's numbers strictly in order for now.",
@@ -5360,7 +5362,8 @@
       "waitingOffline_other": "{{count}} sales are waiting to be sent. They go by themselves as soon as the connection is back.",
       "waitingBehind_one": "1 later sale is waiting behind it. It goes by itself once the sale above is filed.",
       "waitingBehind_other": "{{count}} later sales are waiting behind it. They go by themselves once the sale above is filed.",
-      "buyerRemovedHint": "This sale cannot be filed from this device. This device cannot keep a buyer's ID safely, so the buyer was removed when the sale was refused, and a full invoice has to name them. The customer holds this invoice: contact Fawtir support."
+      "buyerRemovedHint": "This sale cannot be filed from this device. This device cannot keep a buyer's ID safely, so the buyer was removed when the sale was refused, and a full invoice has to name them. The customer holds this invoice: contact Fawtir support.",
+      "tooLargeHint": "This sale is kept on this device with its number and is not sent again by itself: the same sale can never fit. Do not clear this browser's data. Contact Fawtir support."
     },
     "pendingSync": {
       "closeTitle_one": "1 sale made offline is still on this device",

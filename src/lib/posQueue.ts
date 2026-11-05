@@ -16,7 +16,7 @@ import {
   sendSlipPhotos,
   type SlipPhoto,
 } from './posSlipOutbox'
-import { refusalValues } from './posRefusals'
+import { isTooLarge, refusalValues } from './posRefusals'
 import { BUSINESS_TIME_ZONE } from './format'
 import { forgetBuyer, openBuyer, sealBuyer } from './posVault'
 import {
@@ -320,6 +320,9 @@ const FINAL = new Set([
 const FINAL_SLUGS = new Set(['validation-failed'])
 
 function verdictOf(status: number, code: string | null, slug: string | null): RefusalVerdict {
+  // K30: final, so no backoff retries it; it stays queued on its printed number, and only a person's
+  // Try again sends it. Checked first, as revived() re-reads a kept entry with status 0.
+  if (status === 413 || isTooLarge(code, slug)) return 'final'
   if (status >= 500 || WAIT_STATUS.has(status)) return 'wait'
   if (/^HTTP_(5\d\d|401|408|425|429)$/.test(code ?? '')) return 'wait'
   if (code === 'POS_QUEUED_SALE_TOO_EARLY') return 'wait'
