@@ -1076,14 +1076,16 @@ describe('a paid-out or paid-in the shift currency refuses', () => {
 
 // Backend b2234c04d (W6-90S): the paid-out's transaction is bounded at 45 s and rolled back past it.
 describe('a paid-out the server timed out', () => {
-  it('503 POS_PAID_OUT_TIMED_OUT says nothing was recorded, keeps the form, and is not locked', async () => {
+  it('503 POS_PAID_OUT_TIMED_OUT says nothing was paid out, keeps the form unlocked, and keeps the key', async () => {
     answer = () => problem(503, 'POS_PAID_OUT_TIMED_OUT')
     await fillPettyCash()
     chooseCurrency('OMR')
     attachReceipt()
     fireEvent.click(recordButton())
     expect(
-      await screen.findByText('This paid-out took too long, so nothing was recorded. Try again.'),
+      await screen.findByText(
+        'This paid-out took too long, and nothing was paid out. Press Record it again: the same paid-out is sent again safely and can never be recorded twice.',
+      ),
     ).toBeTruthy()
     expect(
       (screen.getByRole('textbox', { name: i18n.t('pos.pay.amount') }) as HTMLInputElement).value,
@@ -1092,16 +1094,33 @@ describe('a paid-out the server timed out', () => {
       'OMR',
     )
     expect(screen.queryByText(form('pending.title'))).toBeNull()
-    expect(window.sessionStorage.getItem(HELD)).toBeNull()
-    // A coded answer is definite, so the attempt is closed: Try again is a new attempt under a new
-    // key, with the same body and the receipt already uploaded. The sentence therefore promises no
-    // deduplication of the retry.
+    // Coordinator ruling 2026-11-05 (inverts WB3's new key): the attempt and its key are kept, in the
+    // tab's storage too, so pressing again sends the same paid-out under the same key, and a replay is
+    // the one paid-out.
+    expect(window.sessionStorage.getItem(HELD)).toContain(paidOuts[0].key as string)
+    answer = () => json({ ...PAID_OUT, replayed: true }, 200)
+    fireEvent.click(recordButton())
+    await waitFor(() => expect(paidOuts).toHaveLength(2))
+    expect(paidOuts[1].key).toBe(paidOuts[0].key)
+    expect(paidOuts[1].body).toEqual(paidOuts[0].body)
+    expect(uploads).toBe(1)
+    await waitFor(() => expect(window.sessionStorage.getItem(HELD)).toBeNull())
+  })
+
+  it('after the 503, a changed detail is a new paid-out under a new key', async () => {
+    answer = () => problem(503, 'POS_PAID_OUT_TIMED_OUT')
+    await fillPettyCash()
+    chooseCurrency('OMR')
+    attachReceipt()
+    fireEvent.click(recordButton())
+    await screen.findByText(/nothing was paid out/)
+    fireEvent.change(screen.getByRole('textbox', { name: i18n.t('pos.pay.amount') }), {
+      target: { value: '3' },
+    })
     answer = () => json(PAID_OUT, 201)
     fireEvent.click(recordButton())
     await waitFor(() => expect(paidOuts).toHaveLength(2))
     expect(paidOuts[1].key).not.toBe(paidOuts[0].key)
-    expect(paidOuts[1].body).toEqual(paidOuts[0].body)
-    expect(uploads).toBe(1)
   })
 
   it('reads in Arabic with nothing left in English', async () => {

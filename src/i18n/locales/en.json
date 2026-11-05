@@ -5200,7 +5200,7 @@
       "POS_CASH_MOVEMENT_CURRENCY_INVALID": "Cash is not counted in that currency. Nothing was recorded.",
       "POS_CASH_MOVEMENT_CURRENCY_REQUIRED": "Choose the currency the cash was paid in. Nothing was recorded.",
       "POS_SHIFT_CURRENCY_UNKNOWN": "This shift's currency is not known yet. Nothing was recorded. A manager can help.",
-      "POS_PAID_OUT_TIMED_OUT": "This paid-out took too long, so nothing was recorded. Try again.",
+      "POS_PAID_OUT_TIMED_OUT": "This paid-out took too long, and nothing was paid out. Press Record it again: the same paid-out is sent again safely and can never be recorded twice.",
       "withoutFigures": {
         "POS_SHIFT_CURRENCY_MIXED": "This shift's cash is recorded in more than one currency, so it can't be totalled. Nothing was recorded. A manager needs to sort this out.",
         "POS_SHIFT_CURRENCY_UNRECORDED": "This shift has cash movements with no currency recorded, so its cash can't be totalled. Nothing was recorded. A manager needs to sort this out.",

@@ -55,6 +55,7 @@ import {
   paidOutGap,
   paidOutRefusal,
   retryRefusedForBillSettle,
+  keepsAttemptAfter,
   paidOutRequest,
   isLocked,
   mayUnlock,
@@ -1355,6 +1356,10 @@ function PaidOutForm({
       // The server may have recorded it: from here on only the same body under the same key may
       // go, until a definite answer or the cashier's check (review W4-1).
       store.unknown = true
+      save()
+    } else if (sent && keepsAttemptAfter(cause)) {
+      store.unknown = false
+      store.sentAt = null
       save()
     } else {
       // A definite refusal recorded nothing, so the next press is a fresh attempt whatever it says.
