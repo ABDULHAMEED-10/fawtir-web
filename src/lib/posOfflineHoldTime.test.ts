@@ -52,7 +52,10 @@ describe('offline hold times name their zone (W41-2)', () => {
 
   it('is the only way the holds page formats a time', () => {
     const page = readFileSync(join(process.cwd(), 'src/pages/PosPage/PosOfflineHoldsPage.tsx'), 'utf8')
-    expect(page).toContain("offlineHoldTime as when } from '../../lib/posOfflineHolds'")
+    // One import from the module, on one line or several (8ddbe07f split it over lines).
+    expect(page).toMatch(
+      /import {[^}]*\bofflineHoldTime as when\b[^}]*} from '\.\.\/\.\.\/lib\/posOfflineHolds'/,
+    )
     expect(page).not.toMatch(/toLocale(?:String|DateString|TimeString)\(|Intl\.DateTimeFormat/)
   })
 })

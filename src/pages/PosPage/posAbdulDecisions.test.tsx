@@ -415,6 +415,9 @@ const READY = {
   till: TILL_DTO,
   branchId: 'b-1',
   branchName: 'Nizwa',
+  // The person signed in, who queued the sales (noteQueueSender above): since round 5 P3b (d9a7fbc5)
+  // only their own entry offers Try again; anyone else's offers Send for.
+  userId: 'u-1',
   can: { sell: true, close: true, refund: true, manage: true, payOut: true, billSettle: false },
 } as unknown as Extract<TillState, { status: 'ready' }>
 

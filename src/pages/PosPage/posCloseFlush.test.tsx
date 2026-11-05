@@ -244,9 +244,11 @@ describe('closing the till with sales still on this device (OFF-4)', () => {
     renderClose()
     await screen.findByText(i18n.t('pos.pendingSync.closeTitle', { count: 2 }))
 
+    // The sales request gets no answer at all, so the flush comes back offline (ed97c219) and the
+    // warning is the offline one; closeLeft is for any other outcome that leaves sales.
     fireEvent.click(screen.getByRole('button', { name: i18n.t('pos.close.closeTill') }))
     expect(
-      await screen.findByText(i18n.t('pos.pendingSync.closeLeft', { count: 2 })),
+      await screen.findByText(i18n.t('pos.pendingSync.closeLeftOffline', { count: 2 })),
     ).toBeTruthy()
     expect(closes()).toEqual([])
     expect(queuedFor('till-1').map((sale) => sale.key)).toEqual(waiting.map((sale) => sale.key))
@@ -283,7 +285,7 @@ describe('closing the till with sales still on this device (OFF-4)', () => {
     renderClose()
     await screen.findByText(i18n.t('pos.pendingSync.closeTitle', { count: 1 }))
     fireEvent.click(screen.getByRole('button', { name: i18n.t('pos.close.closeTill') }))
-    await screen.findByText(i18n.t('pos.pendingSync.closeLeft', { count: 1 }))
+    await screen.findByText(i18n.t('pos.pendingSync.closeLeftOffline', { count: 1 }))
 
     salesAnswer = true
     fireEvent.click(screen.getByRole('button', { name: i18n.t('pos.pendingSync.sendAgain') }))
@@ -291,7 +293,7 @@ describe('closing the till with sales still on this device (OFF-4)', () => {
     expect(
       await screen.findByText(i18n.t('pos.pendingSync.sentRecount', { count: 1 })),
     ).toBeTruthy()
-    expect(screen.queryByText(i18n.t('pos.pendingSync.closeLeft', { count: 1 }))).toBeNull()
+    expect(screen.queryByText(i18n.t('pos.pendingSync.closeLeftOffline', { count: 1 }))).toBeNull()
     fireEvent.click(await screen.findByRole('button', { name: i18n.t('pos.close.closeTill') }))
     await waitFor(() => expect(closes()).toHaveLength(1))
     expect(sales().map((post) => post.key)).toEqual(['pos-sale-key-49'])

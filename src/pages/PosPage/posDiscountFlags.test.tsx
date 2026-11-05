@@ -164,7 +164,8 @@ describe('the discount-flag list (RC5 A2)', () => {
     expect(
       screen.getByText(i18n.t('pos.discountFlags.discount', { discount: '25', limit: '10' })),
     ).toBeTruthy()
-    expect(screen.getByText('12.500')).toBeTruthy()
+    // Both flags carry the fixture's total of 12.5, and each row shows its own.
+    expect(screen.getAllByText('12.500')).toHaveLength(2)
     expect(
       screen.getByText(i18n.t('pos.discountFlags.cashierUnnamed', { id: CASHIER.slice(0, 8) })),
     ).toBeTruthy()

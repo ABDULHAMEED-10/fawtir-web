@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { SAMPLE_SALE } from '../../lib/posTestSale'
@@ -161,6 +161,12 @@ const renderReceipt = () =>
     </MemoryRouter>,
   )
 
+/**
+ * The page under the app shell, whose sidebar names the workspace (AccountSwitcher) on every page:
+ * what the receipt prints is asked of the page, not of the sidebar.
+ */
+const receipt = () => screen.getByRole('main')
+
 describe('the receipt prints the seller frozen on the issued invoice', () => {
   it('a cashier who cannot read the company profile gets the frozen name, address and VAT number', async () => {
     finish(FROZEN)
@@ -168,7 +174,7 @@ describe('the receipt prints the seller frozen on the issued invoice', () => {
     expect(await screen.findByText('Al Noor Trading LLC')).toBeTruthy()
     expect(screen.getByText('OM1100012345')).toBeTruthy()
     expect(screen.getByText(/Way 2410, Al Khuwair, Building 7, Muscat/)).toBeTruthy()
-    expect(screen.queryByText('Workspace Display Name')).toBeNull()
+    expect(within(receipt()).queryByText('Workspace Display Name')).toBeNull()
   })
 
   it('a profile changed since the sale does not reach its receipt, even for a reader who may see it', async () => {
@@ -201,7 +207,7 @@ describe('the receipt prints the seller frozen on the issued invoice', () => {
     ).toBeTruthy()
     expect(screen.queryByText(LIVE_PROFILE.legalName)).toBeNull()
     expect(screen.queryByText(LIVE_PROFILE.taxNumber)).toBeNull()
-    expect(screen.queryByText('Workspace Display Name')).toBeNull()
+    expect(within(receipt()).queryByText('Workspace Display Name')).toBeNull()
   })
 
   it('an older server, which sends no seller at all, keeps the receipt as it was', async () => {
@@ -229,7 +235,7 @@ describe('a sale queued offline has no issued invoice yet', () => {
       finishedAt: '2026-10-29T10:00:00Z',
     })
     renderReceipt()
-    expect(await screen.findByText('Workspace Display Name')).toBeTruthy()
+    expect(await within(receipt()).findByText('Workspace Display Name')).toBeTruthy()
     expect(screen.queryByText(i18n.t('pos.done.sellerNameNotRecorded'))).toBeNull()
   })
 })
