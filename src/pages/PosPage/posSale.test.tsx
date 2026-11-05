@@ -190,6 +190,9 @@ describe('taking the payment (P.12)', () => {
     expect(
       i18n.t('pos.refusal.tenantZoneUnavailable').startsWith("Your company's time zone could not be verified."),
     ).toBe(true)
+    // W7A-2: the zone is not the company's to set on the web.
+    expect(i18n.t('pos.refusal.tenantZoneUnavailable')).toMatch(/Fawtir support/)
+    expect(i18n.t('pos.refusal.tenantZoneUnavailable')).not.toMatch(/administrator|settings/i)
     expect(screen.queryByText(i18n.t('pos.refusal.storageUnavailable'))).toBeNull()
     expect(screen.queryByText(i18n.t('pos.refusal.storageUnavailableAfterSend'))).toBeNull()
     expect(calls.filter((call) => call.url === '/api/v1/pos/sales')).toEqual([])

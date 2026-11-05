@@ -4838,7 +4838,7 @@
           "notRecorded": "It is not there: unlock the details",
           "timedOut": "That press took too long, and the server recorded nothing from it. An earlier press may still be recorded, so the details stay locked. Press \"Record it again\": it is sent as the same paid-out and cannot be recorded twice."
         },
-        "receiptStorageUnavailable": "Not recorded: the receipt could not be stored. To record the paid-out now, tick \"There is no receipt\" and give the reason. If this keeps happening, contact your administrator."
+        "receiptStorageUnavailable": "Not recorded: the receipt could not be stored. To record the paid-out now, tick \"There is no receipt\" and give the reason. If this keeps happening, contact Fawtir support."
       },
       "record": "Record it",
       "howMany": "How many of {{note}}",
@@ -5111,7 +5111,7 @@
     "refusal": {
       "offline": "The till could not reach Fawtir. Check the connection and try again.",
       "storageUnavailable": "Not sold: this device can't safely keep its sales right now, so nothing was sent and no number was printed.",
-      "tenantZoneUnavailable": "Your company's time zone could not be verified. Selling is temporarily unavailable. Please contact your administrator or try again after the company settings are restored.",
+      "tenantZoneUnavailable": "Your company's time zone could not be verified. Selling is unavailable for now. Contact Fawtir support.",
       "storageUnavailableAfterSend": "No receipt: the connection dropped while sending, and this device couldn't keep the sale, so no number was printed. It may already have reached Fawtir: check today's sales before ringing it up again.",
       "impersonation": "This can't be done while signed in as a company. A support session can't use the till: ask someone in the company to do it.",
       "tabLockUnavailable": "Not sold: selling is unavailable in this tab, so nothing was sent and no number was printed.",
@@ -9186,7 +9186,7 @@
         "unclassified": "Not classed (before RC5)"
       },
       "currencyNotRecorded": "currency not recorded (before RC5)",
-      "timeZoneUnavailable": "The cash flow report needs the company's time zone. Set it in company settings first, then open the report again.",
+      "timeZoneUnavailable": "The cash flow report needs the company's time zone, which isn't set. Contact Fawtir support to set it, then open the report again.",
       "unrecorded": "Till paid-outs from before RC5 carry no currency ({{label}}): {{amount}} in this report. They are kept apart and never added to any currency."
     },
     "vat": {

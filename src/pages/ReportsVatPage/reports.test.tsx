@@ -645,7 +645,7 @@ describe('the cash flow page', () => {
     renderAt('/reports/cash-flow', <ReportsCashFlowPage />)
     expect(
       await screen.findByText(
-        "The cash flow report needs the company's time zone. Set it in company settings first, then open the report again.",
+        "The cash flow report needs the company's time zone, which isn't set. Contact Fawtir support to set it, then open the report again.",
       ),
     ).toBeTruthy()
     expect(screen.queryByRole('button', { name: i18n.t('appAccess.retry') })).toBeNull()

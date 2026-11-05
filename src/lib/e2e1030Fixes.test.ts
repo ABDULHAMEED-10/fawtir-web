@@ -14,6 +14,12 @@ const refused = (code: string, status = 400, extra: Record<string, unknown> = {}
     problem: { detail: 'server words', ...extra },
   })
 
+/**
+ * The figures a refusal must carry for its own sentence. Since 26bc4974 (review WB3-2) a refusal that
+ * lacks one reads pos.refusal.withoutFigures.<CODE>, so no raw "{{line}}" reaches a cashier.
+ */
+const FIGURES: Record<string, Record<string, unknown>> = { POS_ZERO_PRICE: { line: 2 } }
+
 /** The full-guide E2E of 30 Oct: what the till and the catalogue say. */
 describe('till refusals in words', () => {
   it.each([
@@ -28,12 +34,24 @@ describe('till refusals in words', () => {
     'POS_SHIFT_NOT_OPEN',
     'POS_TILL_LIMIT',
   ])('%s has its own sentence in both languages', (code) => {
-    const key = posRefusalKey(refused(code))
+    const key = posRefusalKey(refused(code, 400, FIGURES[code]))
     expect(key).toBe(`pos.refusal.${code}`)
     expect(i18n.exists(key, { lng: 'en' })).toBe(true)
     const ar = i18n.getResource('ar', 'translation', key)
     expect(ar).toEqual(expect.any(String))
     expect(ar).not.toBe(i18n.getResource('en', 'translation', key))
+  })
+
+  // WB3-2 (26bc4974): the same refusal with no line names none, in both languages.
+  it('words an unpriced sale with no line by its figure-free sentence', () => {
+    const key = posRefusalKey(refused('POS_ZERO_PRICE'))
+    expect(key).toBe('pos.refusal.withoutFigures.POS_ZERO_PRICE')
+    const en = i18n.getResource('en', 'translation', key)
+    const ar = i18n.getResource('ar', 'translation', key)
+    expect(en).toEqual(expect.any(String))
+    expect(ar).toEqual(expect.any(String))
+    expect(ar).not.toBe(en)
+    expect(`${en}${ar}`).not.toContain('{{')
   })
 
   it('names the line of an unpriced sale', () => {

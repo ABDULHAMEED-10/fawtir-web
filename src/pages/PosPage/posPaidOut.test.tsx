@@ -291,6 +291,9 @@ describe('a paid-out', () => {
       attachReceipt()
       fireEvent.click(recordButton())
       expect(await screen.findByText(form('receiptStorageUnavailable'))).toBeTruthy()
+      // W7A-1: no company administrator can switch storage on; Fawtir support can.
+      expect(form('receiptStorageUnavailable')).toMatch(/Fawtir support/)
+      expect(form('receiptStorageUnavailable')).not.toMatch(/administrator/)
       expect(uploads).toBe(1)
       expect(paidOuts).toHaveLength(0)
       expect(screen.getByDisplayValue('Milk')).toBeTruthy()
