@@ -618,6 +618,27 @@ export class PosStorageUnavailable extends Error {
   }
 }
 
+/**
+ * Thrown before anything is sent or numbered when the till's company time zone (`series.timeZone`)
+ * cannot be read by this browser, so the sale's business year, its number and the XT-2 report cannot
+ * be known (owner decision XT2-ZONE-UNREADABLE, OWNER-APPROVALS-b43 2026-11-05 item 4, Option A).
+ * It is not a storage fault: no till-wide block is set and Check again plays no part. Every sale
+ * asks the till it is given, so selling resumes once the till is read again with a zone this browser
+ * can verify; until then each sale is refused here, the same way, with nothing kept.
+ */
+export class PosTenantZoneUnavailable extends Error {
+  constructor() {
+    super('The company time zone could not be verified')
+    this.name = 'PosTenantZoneUnavailable'
+  }
+}
+
+/** The till's series names a zone this browser cannot read: no business year, so no sale. */
+export function tillZoneUnreadable(till: PosTillDto, soldAt?: string): boolean {
+  const series = till.series?.INVOICE
+  return series !== undefined && businessYear(soldAt, series.timeZone) === null
+}
+
 const PROBE_KEY = 'fawtir.pos.storageProbe'
 
 /**
@@ -1186,9 +1207,15 @@ export async function submitSale(
       }
     })
   }
+  const refuseZone = (): never => {
+    void dropSlipPhotos(key)
+    throw new PosTenantZoneUnavailable()
+  }
   const enqueue = () => span('offline', () => numberAndKeep())
   const sendOnline = () =>
     span('online', async () => {
+      // Checked before the report, whose unreadable year would otherwise read as a storage fault.
+      if (tillZoneUnreadable(till, body.soldAt)) return refuseZone()
       // What this device has printed must be read before the server numbers the sale (D.9 (4)).
       // The report is computed and deliberately not sent: today's backend rejects unknown fields,
       // so `deviceNumbering` on the wire would refuse every online sale (R47-1).
@@ -1211,6 +1238,7 @@ export async function submitSale(
   const numberAndKeep = async (): Promise<SubmitResult> => {
     const blocked = offlineBlock(till.id)
     if (blocked) return refuseOffline(blocked)
+    if (tillZoneUnreadable(till, body.soldAt)) return refuseZone()
     const numbering = tillNumber(till, body.soldAt)
     if ('blocked' in numbering) return refuseOffline(numbering.blocked)
     const number = numbering.number
@@ -1262,6 +1290,9 @@ export async function submitSale(
   if (lock !== 'held') return refuseTab(lock)
   const blocked = sellingBlock(till.id, 'online')
   if (blocked) return refuse(blocked)
+  // Before the waiting sales' flush, like the gate above: this sale sends nothing. The flush on its
+  // own (the background sender, Try again) is untouched and still files what is queued.
+  if (tillZoneUnreadable(till, body.soldAt)) return refuseZone()
   await holdSlipPhotos(key, till.id, photos)
   const canSkip = opensNumbers()
   // The older sales go first: once they are in, this one is sent as an ordinary online sale and

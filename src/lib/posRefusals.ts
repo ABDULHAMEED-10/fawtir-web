@@ -166,6 +166,11 @@ export function posRefusalKey(error: unknown): string {
       ? 'pos.refusal.storageUnavailableAfterSend'
       : 'pos.refusal.storageUnavailable'
   }
+  // Same name match as above. Not storage wording: the company's zone, not this device, is at fault
+  // (XT2-ZONE-UNREADABLE).
+  if (error instanceof Error && error.name === 'PosTenantZoneUnavailable') {
+    return 'pos.refusal.tenantZoneUnavailable'
+  }
   // POS-TABLOCK refused the offline sale before it had a number: the cashier must know no receipt
   // number exists. posTillLock imports nothing of ours, so unlike posQueue it can be imported here.
   if (error instanceof PosTillLockUnavailable) {

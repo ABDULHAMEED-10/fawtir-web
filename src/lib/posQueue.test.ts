@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError, NetworkError, resetSharedRequests } from '../api'
 import type { PosSaleRequest, PosTillDto } from '../api/pos/pos'
 import {
+  checkStorageAgain,
   correctQueuedSale,
   flushQueue,
   isFinalRefusal,
@@ -10,6 +11,9 @@ import {
   queuedFor,
   noteQueueSender,
   noteTillServer,
+  offlineBlock,
+  PosStorageUnavailable,
+  PosTenantZoneUnavailable,
   resetPosQueue,
   retryQueuedSale,
   stopQueueSendsForSignOut,
@@ -17,6 +21,7 @@ import {
   submitSale,
 } from './posQueue'
 import { heldSlipPhotos } from './posSlipOutbox'
+import { posRefusalKey } from './posRefusals'
 import { memoryVault, setPosVault, type PosVault } from './posVault'
 
 const TILL = {
@@ -1090,10 +1095,47 @@ describe('offline numbering in the tenant zone (B37 OFF-6)', () => {
     expect('queued' in result && result.queued.number).toBe('NZW-T01-INV-2026-000049')
   })
 
+  const salePosts = () =>
+    calls.filter((call) => call.url === '/api/v1/pos/sales' && call.init?.method === 'POST')
+
+  // Owner decision XT2-ZONE-UNREADABLE (2026-11-05 item 4, Option A): fail closed with its own refusal.
   it('prints nothing for a zone this browser cannot read', async () => {
     await expect(
       submitSale(tillIn(2026, 49, 'Not/AZone'), BODY, 'pos-sale-key-tz04'),
-    ).rejects.toBeInstanceOf(NetworkError)
+    ).rejects.toBeInstanceOf(PosTenantZoneUnavailable)
+    expect(queuedFor('till-1')).toEqual([])
+    expect(salePosts()).toEqual([])
+  })
+
+  it('a zone failure is not a storage failure: no block, no Check again loop, and it sells once the zone is valid', async () => {
+    const unreadable = tillIn(2026, 49, 'Not/AZone')
+    online = true
+    const first = await submitSale(unreadable, BODY, 'pos-sale-key-tz05').then(
+      () => null,
+      (thrown: unknown) => thrown,
+    )
+    expect(first).toBeInstanceOf(PosTenantZoneUnavailable)
+    expect(first).not.toBeInstanceOf(PosStorageUnavailable)
+    expect(posRefusalKey(first)).toBe('pos.refusal.tenantZoneUnavailable')
+    expect(posRefusalKey(new PosStorageUnavailable('denied'))).toBe('pos.refusal.storageUnavailable')
+    // No till-wide storage block was set, so Check again has nothing to lift or set again.
+    expect(offlineBlock('till-1')).toBeNull()
+    expect(offlineBlock('till-1', 'online')).toBeNull()
+    expect(checkStorageAgain()).toBeNull()
+    expect(offlineBlock('till-1', 'online')).toBeNull()
+    // Asked again with the same till, it is refused the same way: nothing was stored to flip.
+    await expect(submitSale(unreadable, BODY, 'pos-sale-key-tz05')).rejects.toBeInstanceOf(
+      PosTenantZoneUnavailable,
+    )
+    expect(salePosts()).toEqual([])
+    expect(queuedFor('till-1')).toEqual([])
+
+    // The till read again with a zone this browser verifies: the sale goes.
+    saleReply = () =>
+      json({ saleId: 's-tz', invoiceNumber: 'NZW-T01-INV-2026-000049', warnings: [] }, 201)
+    const sold = await submitSale(tillIn(2026, 49, 'Asia/Muscat'), BODY, 'pos-sale-key-tz05')
+    expect('sale' in sold).toBe(true)
+    expect(salePosts()).toHaveLength(1)
   })
 })
 

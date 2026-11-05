@@ -32,7 +32,7 @@ import {
   type TipChoice,
 } from '../../lib/posPayment'
 import { posSaleBody, type TillBuyer } from '../../lib/posInvoice'
-import { submitSale, useSellingBlock } from '../../lib/posQueue'
+import { PosTenantZoneUnavailable, submitSale, useSellingBlock } from '../../lib/posQueue'
 import { posRefusalKey, refusalCode, refusalValues } from '../../lib/posRefusals'
 import { shrinkSlip, slipReading, type SlipReading } from '../../lib/posSlip'
 import { useReferenceData } from '../../lib/reference/referenceData'
@@ -306,6 +306,9 @@ function Payment({ till }: { till: Ready }) {
       navigate('/pos/done')
     } catch (error) {
       setRefusal(error)
+      // The till's zone came from the till as last read: read it again, so a zone restored in the
+      // company settings is verified on the next press (XT2-ZONE-UNREADABLE).
+      if (error instanceof PosTenantZoneUnavailable) till.retry()
       const code = refusalCode(error)
       if (code === 'SIMPLIFIED_INVOICE_LIMIT' || code === 'BUYER_IDENTIFIER_REQUIRED') {
         setBuyerAsked(true)

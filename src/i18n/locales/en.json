@@ -5096,6 +5096,7 @@
     "refusal": {
       "offline": "The till could not reach Fawtir. Check the connection and try again.",
       "storageUnavailable": "Not sold: this device can't safely keep its sales right now, so nothing was sent and no number was printed.",
+      "tenantZoneUnavailable": "Your company's time zone could not be verified. Selling is temporarily unavailable. Please contact your administrator or try again after the company settings are restored.",
       "storageUnavailableAfterSend": "No receipt: the connection dropped while sending, and this device couldn't keep the sale, so no number was printed. It may already have reached Fawtir: check today's sales before taking it again.",
       "impersonation": "This can't be done while acting as someone else. End the impersonation and do it from your own sign-in.",
       "tabLockUnavailable": "Not sold: selling is unavailable in this tab, so nothing was sent and no number was printed.",
