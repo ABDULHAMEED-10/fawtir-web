@@ -674,6 +674,67 @@ describe('the supplier bill link', () => {
     expect(screen.queryByText(/without the bill/)).toBeNull()
   })
 
+  // Review WB4-2. The code's name is PROPOSED (Agent 6's backend commit has not landed).
+  it('an unlinked supplier payment refused for bill.settle says so, not "against the bill"', async () => {
+    permissions = [...permissions, 'bill.settle']
+    answer = () => problem(403, 'POS_SUPPLIER_PAYMENT_REQUIRES_BILL_SETTLE')
+    await supplierPayment()
+    fireEvent.change(screen.getByRole('combobox', { name: form('class') }), {
+      target: { value: 'EXPENSE' },
+    })
+    fireEvent.change(screen.getByRole('textbox', { name: i18n.t('pos.pay.amount') }), {
+      target: { value: '2.5' },
+    })
+    fireEvent.change(screen.getByRole('textbox', { name: i18n.t('pos.close.whatFor') }), {
+      target: { value: 'Milk' },
+    })
+    chooseCurrency('OMR')
+    fireEvent.click(screen.getByRole('checkbox', { name: form('noReceipt') }))
+    fireEvent.change(screen.getByRole('textbox', { name: form('noReceiptReason') }), {
+      target: { value: 'Paid by phone' },
+    })
+    fireEvent.click(recordButton())
+    expect(
+      await screen.findByText(
+        'Only someone who can settle supplier bills can pay a supplier from the till. Nothing was recorded.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText(/against the bill/)).toBeNull()
+    expect(i18n.exists('pos.refusal.POS_SUPPLIER_PAYMENT_REQUIRES_BILL_SETTLE', { lng: 'ar', fallbackLng: false })).toBe(true)
+  })
+
+  it('a kept supplier payment comes back without its category for a user without bill.settle (review WB4-3)', async () => {
+    const body = {
+      type: 'PAID_OUT',
+      amount: 2.5,
+      note: 'Milk',
+      category: 'SUPPLIER_PAYMENT',
+      accountingClass: 'EXPENSE',
+      currency: 'OMR',
+      billId: null,
+      receiptObjectId: 'rcpt-9',
+      missingReceiptReason: null,
+    }
+    window.sessionStorage.setItem(
+      HELD,
+      JSON.stringify({
+        attempt: { key: 'pos-paidout-stored-key-0003', fingerprint: JSON.stringify(body) },
+        receipt: { file: 'receipt.jpg|3|1', receiptObjectId: 'rcpt-9' },
+        unknown: true,
+      }),
+    )
+    renderClose()
+    expect(await screen.findByText(form('pending.title'))).toBeTruthy()
+    await afterTheWait()
+    fireEvent.click(unlockButton())
+    const category = (await screen.findByRole('combobox', { name: form('category') })) as HTMLSelectElement
+    expect(category.value).toBe('')
+    expect(screen.queryByRole('combobox', { name: form('class') })).toBeNull()
+    expect((screen.getByRole('textbox', { name: i18n.t('pos.pay.amount') }) as HTMLInputElement).value).toBe(
+      '2.500',
+    )
+  })
+
   it('a failed bill search never steers the cashier to record it without the bill', async () => {
     permissions = [...permissions, 'bill.settle']
     await supplierPayment()

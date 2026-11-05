@@ -77,6 +77,9 @@ const WORDED = new Set([
   // A coded 503 is a definite answer (outcomeUnknown): the server rolled the paid-out back.
   'POS_PAID_OUT_TIMED_OUT',
   'POS_PAID_OUT_BILL_FORBIDDEN',
+  // K10, an unlinked supplier payment without bill.settle (review WB4-2). PROPOSED name: Agent 6's
+  // backend commit has not landed; confirm before shipping.
+  'POS_SUPPLIER_PAYMENT_REQUIRES_BILL_SETTLE',
   'POS_PAID_OUT_BILL_LINK_INVALID',
   'POS_PAID_OUT_REFUND_REFERENCE',
   'POS_CASH_MOVEMENT_FIELDS_INVALID',

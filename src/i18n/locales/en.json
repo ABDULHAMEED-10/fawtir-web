@@ -5228,6 +5228,7 @@
         "GOODS_OR_SERVICE_REQUIRED": "A line does not say whether it is goods or a service, so nothing was done. Someone who can edit items gives the item an HS code if it is goods, or makes it a service, then try again."
       },
       "POS_PAID_OUT_BILL_FORBIDDEN": "Ask someone who can settle bills to record this payment against the bill.",
+      "POS_SUPPLIER_PAYMENT_REQUIRES_BILL_SETTLE": "Only someone who can settle supplier bills can pay a supplier from the till. Nothing was recorded.",
       "POS_PAID_OUT_BILL_LINK_INVALID": "Only a payment to a supplier can pay a bill.",
       "POS_PAID_OUT_REFUND_REFERENCE": "A paid-out is never a refund. Refund the sale from the refund page.",
       "POS_CASH_MOVEMENT_FIELDS_INVALID": "Cash paid in takes only an amount and a note.",

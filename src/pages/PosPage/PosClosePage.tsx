@@ -1419,11 +1419,14 @@ function PaidOutForm({
     // receipt id stays held, so a paid-out that was in fact recorded is refused as ALREADY_USED.
     setAmount(body.amount.toFixed(3))
     setNote(body.note)
-    setCategory(body.category)
+    // K10: a supplier payment is not a category this user may choose (review WB4-3); a body kept from
+    // before bill.settle was withdrawn, or from another user of the tab, comes back without it.
+    const category = body.category === 'SUPPLIER_PAYMENT' && !canLinkBill ? null : body.category
+    setCategory(category)
     const chosen = body.accountingClass
     setChosenClass(
       // The bill row is not kept, so the form comes back unlinked and a bill settlement unchosen.
-      chosen && choosableClasses(body.category, false).includes(chosen) ? chosen : null,
+      category && chosen && choosableClasses(category, false).includes(chosen) ? chosen : null,
     )
     setCurrency(body.currency)
     setNoReceipt(Boolean(body.missingReceiptReason))
