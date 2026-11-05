@@ -15,6 +15,8 @@ import {
   acquireTillLock,
   beginNumbering,
   checkTillLockAgain,
+  ensureTillLock,
+  LOCK_WAIT_MS,
   PosTillLockUnavailable,
   tillLockState,
   useTillLock,
@@ -313,6 +315,28 @@ describe('POS-TABLOCK: one tab per till numbers offline sales on this device', (
       await settled()
     })
     expect(result.current).toBe('otherTab')
+  })
+
+  it('a lock request that is never answered is given up after LOCK_WAIT_MS, as not held (R47-9)', async () => {
+    installLocks({
+      request: () => new Promise(() => {}),
+      query: async () => ({ held: [], pending: [] }),
+    } as unknown as LockManager)
+    vi.useFakeTimers()
+    try {
+      const answer = ensureTillLock('till-1')
+      let settled: string | null = null
+      void answer.then((state) => {
+        settled = state
+      })
+      await vi.advanceTimersByTimeAsync(LOCK_WAIT_MS - 1)
+      expect(settled).toBeNull()
+      await vi.advanceTimersByTimeAsync(1)
+      expect(await answer).toBe('pending')
+      expect(beginNumbering('till-1')).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('keeps strict number order (Q-27): opensNumbers stays false', () => {

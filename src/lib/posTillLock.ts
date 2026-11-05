@@ -1,29 +1,27 @@
 import { useEffect, useSyncExternalStore } from 'react'
 
-/**
- * One tab per till numbers offline sales on this device (DES43 Q-25 option (iv), FR-2, R-TABS).
+/*
+ * One tab per till sells on this device, online and offline (DES43 Q-25 option (iv), FR-2, R-TABS;
+ * XT-2, rev 4.7 D.3, owner OA:2673).
  *
  * Two tabs of one till each read the counter and the queue and could print the same number: the
  * counter is reserved before the awaits (R-TABS) and the queue is saved by compare-and-set
- * (POS-MEMQ), but neither stops two tabs numbering at the same moment. A tab therefore numbers a
- * sale offline only while it holds the till's exclusive Web Lock (`navigator.locks`), which the
- * browser grants to one holder at a time across the tabs and windows of this origin.
+ * (POS-MEMQ), but neither stops two tabs numbering at the same moment. Nor does either stop one tab
+ * printing k offline while another tab's online sale is being issued k by the server. A tab
+ * therefore sells at all, online or offline, only while it holds the till's exclusive Web Lock
+ * (`navigator.locks`), which the browser grants to one holder at a time across the tabs and windows
+ * of this origin. Inside the holder, posQueue's in-tab section keeps its own online and offline
+ * sales from overlapping.
  *
  * What this is not: Web Locks are per browser profile and origin, so this does nothing for a second
  * device, another browser or profile on the same device, or storage that fails (POS-MEMQ). The
  * server's numbering checks (POS_TILL_NUMBER_GAP, POS_TILL_NUMBER_REPEATED) stay the only
  * protection across devices and must never be relaxed on the strength of this lock.
  *
- * Nor does it cover online sales: the lock guards offline numbering only. A tab without it may sell
- * online (the server numbers that sale) while the holder numbers offline from a cached `nextValue`,
- * so both can use the same number before the online sale raises this device's counter. That is
- * R-PRE within one device, outside DES43's R-TABS definition; the server catches it at filing as
- * POS_TILL_NUMBER_REPEATED (IMPL2-T2).
- *
- * Fail closed (owner decision): no `navigator.locks` (an old browser, or a page that is not a
- * secure context), a request that throws or is rejected, or a lock another tab holds, all leave
- * this tab without the lock, and an offline sale is refused before any number exists. Selling
- * online is unchanged: the server numbers those.
+ * Fail closed (OQ-XT2-LOCKSTATES, OA:2771): no `navigator.locks` (an old browser, or a page that is
+ * not a secure context), a request that throws or is rejected, a lock taken away after the grant, a
+ * lock another tab holds, or an answer that does not come in time, all leave this tab without the
+ * lock, and a sale, online or offline, is refused before any request is sent or number taken.
  *
  * The request is always `ifAvailable`, never `steal`: taking the lock from a tab that may be halfway
  * through numbering a sale is exactly the overlap this prevents, so there is no "use this tab"
@@ -32,11 +30,18 @@ import { useEffect, useSyncExternalStore } from 'react'
  */
 /**
  * `finishing`: this same tab let the lock go (a till screen remounted, a till change and back) while
- * an offline sale was still being numbered under it, so the browser still holds it for that sale.
- * It is asked for again as soon as that sale ends. Fail closed meanwhile, but not "another tab",
- * which would be untrue (IMPL2-T1).
+ * a sale was still being numbered under it, so the browser still holds it for that sale. It is
+ * asked for again as soon as that sale ends. Fail closed meanwhile, but not "another tab", which
+ * would be untrue (IMPL2-T1).
  */
 export type TillLockState = 'pending' | 'held' | 'otherTab' | 'unsupported' | 'released' | 'finishing'
+
+/**
+ * How long a sale waits for a lock request to be answered. An `ifAvailable` request is answered at
+ * once by a working browser, so this only ends a wait that would otherwise never end; it then
+ * counts as not held, and the sale is refused (R47-9).
+ */
+export const LOCK_WAIT_MS = 5_000
 
 /**
  * Till ids are server UUIDs, unique across tenants, so the till id alone names one till; nothing
@@ -50,7 +55,7 @@ type Holding = {
   refs: number
   /** Taken by an offline sale with no till screen mounted; held until a release. */
   sticky: boolean
-  /** Offline sales between `beginNumbering` and their end: the lock is not let go under them. */
+  /** Sales between `beginNumbering` and their end: the lock is not let go under them. */
   inFlight: number
   /** The pending request's answer, shared by everyone who asks meanwhile. */
   answer: Promise<TillLockState> | null
@@ -195,8 +200,10 @@ export function acquireTillLock(tillId: string): () => void {
 }
 
 /**
- * Whether this tab holds the till's lock, asking for it if it does not. An offline sale asks before
- * numbering; asking again after another tab let go is how this tab takes over, never by force.
+ * Whether this tab holds the till's lock, asking for it if it does not. A sale, online or offline,
+ * asks before anything is sent or numbered; asking again after another tab let go is how this tab
+ * takes over, never by force. An answer that has not come within `LOCK_WAIT_MS` reads `pending`,
+ * which is not `held`, so the sale is refused; the request itself is left to settle the state.
  */
 export function ensureTillLock(tillId: string): Promise<TillLockState> {
   let holding = holdings.get(tillId)
@@ -206,7 +213,14 @@ export function ensureTillLock(tillId: string): Promise<TillLockState> {
   }
   holding.sticky = holding.sticky || holding.refs <= 0
   if (holding.state === 'held') return Promise.resolve('held')
-  return holding.answer ?? request(tillId, holding)
+  const answer = holding.answer ?? request(tillId, holding)
+  return new Promise((settle) => {
+    const timer = setTimeout(() => settle('pending'), LOCK_WAIT_MS)
+    void answer.then((state) => {
+      clearTimeout(timer)
+      settle(state)
+    })
+  })
 }
 
 /** "Check again" on the till screen: asks once more, without taking the lock from anyone. */
@@ -215,9 +229,10 @@ export function checkTillLockAgain(tillId: string): Promise<TillLockState> {
 }
 
 /**
- * Marks an offline sale as numbering under the lock, synchronously, right before its number is
- * taken. Null when this tab does not hold the lock now. Until the returned end runs, a release keeps
- * the lock, so a handover can never let another tab number while this sale is still being kept.
+ * Marks a sale as numbering under the lock, synchronously, right before its number is taken
+ * offline or its request is sent online. Null when this tab does not hold the lock now. Until the
+ * returned end runs, a release keeps the lock, so a handover can never let another tab number
+ * while this sale is still being kept or filed.
  */
 export function beginNumbering(tillId: string): (() => void) | null {
   const holding = holdings.get(tillId)
@@ -241,15 +256,19 @@ export function releaseTillLocks() {
   for (const tillId of [...holdings.keys()]) letGoOf(tillId)
 }
 
+/** For a store that answers from the lock state too (posQueue's selling gate). */
+export function subscribeTillLocks(listener: () => void): () => void {
+  lockListeners.add(listener)
+  return () => {
+    lockListeners.delete(listener)
+  }
+}
+
 /** The till screens hold the lock while mounted on `tillId`, and let it go on a till change. */
 export function useTillLock(tillId: string | null): TillLockState {
   useEffect(() => (tillId ? acquireTillLock(tillId) : undefined), [tillId])
-  return useSyncExternalStore(
-    (listener) => {
-      lockListeners.add(listener)
-      return () => lockListeners.delete(listener)
-    },
-    () => (tillId ? tillLockState(tillId) : 'released'),
+  return useSyncExternalStore(subscribeTillLocks, () =>
+    tillId ? tillLockState(tillId) : 'released',
   )
 }
 
@@ -261,12 +280,12 @@ if (typeof window !== 'undefined') {
   })
 }
 
-/** Thrown before any number exists when this tab may not number a sale offline on the till. */
+/** Thrown before any request or number when this tab may not sell on the till. */
 export class PosTillLockUnavailable extends Error {
   readonly reason: Exclude<TillLockState, 'held'>
 
   constructor(reason: Exclude<TillLockState, 'held'>) {
-    super(`This tab may not number an offline sale on this till (${reason})`)
+    super(`This tab may not sell on this till (${reason})`)
     this.name = 'PosTillLockUnavailable'
     this.reason = reason
   }
