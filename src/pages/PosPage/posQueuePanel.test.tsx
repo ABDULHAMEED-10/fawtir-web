@@ -384,6 +384,8 @@ describe('the queue on the till and Today (H-1)', () => {
       )
       expect(text).toContain(i18n.t('pos.queue.goodsOrServiceItemHint'))
       expect(text).toMatch(/goods or a service in the catalogue/)
+      // HS-W1: an item marked as goods with no HS code would meet the HS-code hold next.
+      expect(text).toMatch(/item marked as goods its HS code/)
       expect(text).toMatch(/then press Try again/)
       expect(text).not.toContain(i18n.t('pos.queue.goodsOrServiceHint'))
       expect(text).toContain(i18n.t('pos.queue.goodsOrServiceLines', { lines: '1, 2' }))
