@@ -1,4 +1,5 @@
 import { ApiError, NetworkError } from '../api'
+import { PosTillLockUnavailable } from './posTillLock'
 
 /**
  * The till's refusals in our own words (handbook 3.3: never the server's `detail`). Every code
@@ -121,6 +122,11 @@ export function posRefusalKey(error: unknown): string {
   // general failure is not enough: the cashier must know no receipt number exists.
   if (error instanceof Error && error.name === 'PosStorageUnavailable') {
     return 'pos.refusal.storageUnavailable'
+  }
+  // POS-TABLOCK refused the offline sale before it had a number: the cashier must know no receipt
+  // number exists. posTillLock imports nothing of ours, so unlike posQueue it can be imported here.
+  if (error instanceof PosTillLockUnavailable) {
+    return 'pos.refusal.tabLockUnavailable'
   }
   if (error instanceof ApiError) {
     if (error.code && WORDED.has(error.code)) return `pos.refusal.${error.code}`

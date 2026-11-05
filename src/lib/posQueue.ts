@@ -19,6 +19,13 @@ import {
 import { refusalValues } from './posRefusals'
 import { BUSINESS_TIME_ZONE } from './format'
 import { forgetBuyer, openBuyer, sealBuyer } from './posVault'
+import {
+  beginNumbering,
+  ensureTillLock,
+  PosTillLockUnavailable,
+  releaseTillLocks,
+  type TillLockState,
+} from './posTillLock'
 
 /**
  * The till keeps selling when the connection drops (guide section 9, "Offline"). A sale that
@@ -129,6 +136,8 @@ export function noteQueueSender(userId: string | null) {
  */
 export function stopQueueSendsForSignOut() {
   senderGeneration += 1
+  // The next person may open the till in another tab; this one stops numbering offline for it.
+  releaseTillLocks()
 }
 
 function sendsByItself(entry: QueuedSale, sender: string | null | undefined): boolean {
@@ -921,8 +930,29 @@ export async function submitSale(
    * the sale being rung again, and because taking the number before the awaits keeps the R-TABS
    * window as it was. If the entry cannot be kept the counter is rolled back; if even that cannot be
    * confirmed the number is burnt: never printed, never reused, a gap the server holds.
+   *
+   * POS-TABLOCK (Q-25 R-TABS): all of it runs only while this tab holds the till's lock, and the
+   * lock is kept until the entry is saved or refused, so a handover cannot overlap a sale being
+   * numbered. Without the lock no number is taken at all. It guards this browser's tabs only; the
+   * server's GAP and REPEATED checks remain the guard across devices.
    */
+  const refuseTab = (reason: Exclude<TillLockState, 'held'>): never => {
+    void dropSlipPhotos(key)
+    throw new PosTillLockUnavailable(reason)
+  }
   const enqueue = async (): Promise<SubmitResult> => {
+    const lock = await ensureTillLock(till.id)
+    if (lock !== 'held') return refuseTab(lock)
+    // Synchronous from here to the counter's reservation: the lock cannot be handed over between.
+    const end = beginNumbering(till.id)
+    if (!end) return refuseTab('released')
+    try {
+      return await numberAndKeep()
+    } finally {
+      end()
+    }
+  }
+  const numberAndKeep = async (): Promise<SubmitResult> => {
     const blocked = offlineBlock(till.id)
     if (blocked) return refuseOffline(blocked)
     const numbering = tillNumber(till, body.soldAt)
@@ -1400,6 +1430,7 @@ export function resetPosQueue() {
   retryTimer = null
   storageFailure = null
   burnt.clear()
+  releaseTillLocks()
   queueReadFailure = null
   // A test starts from whatever storage holds now, and empties it.
   queue = []

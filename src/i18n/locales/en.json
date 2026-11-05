@@ -4905,6 +4905,11 @@
       "burnt": "This block clears after the next online sale on this till.",
       "checkAgain": "Check again"
     },
+    "tabLock": {
+      "otherTab": "This till is open in another tab or window on this device. Offline sales are stopped here. Use the other tab, or close it and check again.",
+      "unsupported": "This browser can't make sure only one tab sells offline on this till, so offline sales are stopped here. Online sales carry on.",
+      "checkAgain": "Check again"
+    },
     "offline": {
       "clockSkew": "This device's clock is more than 5 minutes off. Set the date and time correctly so sales made offline can be shown to be yours.",
       "pending": "Not yet attributed",
@@ -5002,6 +5007,7 @@
     "refusal": {
       "offline": "The till could not reach Fawtir. Check the connection and try again.",
       "storageUnavailable": "Not sold: this device could not save the sale, so no number was printed.",
+      "tabLockUnavailable": "Not sold: offline sales are stopped in this tab, so no number was printed.",
       "POS_OFFLINE_KEY_ALREADY_REVOKED": "This device key was already revoked.",
       "POS_OFFLINE_KEY_NOT_FOUND": "This device key was not found, or you may not revoke it.",
       "POS_OFFLINE_KEY_HUMAN_ONLY": "Only a signed-in person can do this, not an API key or a support session.",
