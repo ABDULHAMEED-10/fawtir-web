@@ -183,10 +183,10 @@ afterEach(() => {
 const unlockButton = () =>
   screen.getByRole('button', { name: form('pending.notRecorded') }) as HTMLButtonElement
 
-/** Moves the clock past the gateway's timeout and re-reads the cash moves (review W5-2). */
+/** Moves the clock past the 90 s wait and re-reads the cash moves (reviews W5-2, W6-1). */
 async function afterTheWait() {
   const now = Date.now()
-  vi.spyOn(Date, 'now').mockReturnValue(now + 61_000)
+  vi.spyOn(Date, 'now').mockReturnValue(now + 91_000)
   fireEvent.click(screen.getByRole('button', { name: form('pending.check') }))
   await waitFor(() => expect(unlockButton().disabled).toBe(false))
 }
@@ -346,6 +346,29 @@ describe('a paid-out', () => {
     expect(paidOuts[1].key).not.toBe(paidOuts[0].key)
     expect(uploads).toBe(1)
     expect(paidOuts[1].body.receiptObjectId).toBe('rcpt-1')
+  })
+
+  it('a re-read from inside the wait does not count: unlocking needs a fresh one after it (review W6-1)', async () => {
+    answer = () => Promise.reject(new TypeError('Failed to fetch'))
+    await fillPettyCash()
+    chooseCurrency('OMR')
+    attachReceipt()
+    const sent = Date.now()
+    fireEvent.click(recordButton())
+    await screen.findByText(form('pending.title'))
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(sent + 10_000)
+    fireEvent.click(screen.getByRole('button', { name: form('pending.check') }))
+    expect(await screen.findByText(form('pending.movesNone'))).toBeTruthy()
+    expect(unlockButton().disabled).toBe(true)
+    // The wait is over, but the only re-read is from 10 s in.
+    clock.mockReturnValue(sent + 91_000)
+    await waitFor(() => expect(screen.getByText(form('pending.recheck'))).toBeTruthy())
+    expect(unlockButton().disabled).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: form('pending.check') }))
+    await waitFor(() => expect(unlockButton().disabled).toBe(false))
+    expect(screen.queryByText(form('pending.recheck'))).toBeNull()
+    fireEvent.click(unlockButton())
+    expect(screen.getByRole('textbox', { name: i18n.t('pos.pay.amount') })).toBeTruthy()
   })
 
   it('comes back locked after a reload, from the tab’s storage, and sends the stored body', async () => {

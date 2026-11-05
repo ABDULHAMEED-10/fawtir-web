@@ -55,6 +55,7 @@ import {
   paidOutRefusal,
   paidOutRequest,
   isLocked,
+  mayUnlock,
   pendingBody,
   receiptProblem,
   savePaidOutStore,
@@ -1201,7 +1202,7 @@ function PaidOutForm({
   const [error, setError] = useState<unknown>(null)
   const [check, setCheck] = useState<
     | { status: 'loading' }
-    | { status: 'ready'; moves: PosCashMovementDto[] }
+    | { status: 'ready'; moves: PosCashMovementDto[]; checkedAt: number }
     | { status: 'failed'; error: unknown }
     | null
   >(null)
@@ -1294,10 +1295,16 @@ function PaidOutForm({
 
   /** The cashier's way out of the lock: read the shift's cash moves again before saying it is not there. */
   const readMoves = async () => {
+    // Taken when the read is sent, not when it answers: the server's state is what it was then.
+    const checkedAt = Date.now()
     setCheck({ status: 'loading' })
     try {
       const preview = await apiRequest<PosClosePreviewDto>(closePreviewPath(shiftId))
-      setCheck({ status: 'ready', moves: preview.movements.filter((move) => move.type === 'PAID_OUT') })
+      setCheck({
+        status: 'ready',
+        moves: preview.movements.filter((move) => move.type === 'PAID_OUT'),
+        checkedAt,
+      })
     } catch (cause) {
       setCheck({ status: 'failed', error: cause })
     }
@@ -1378,6 +1385,7 @@ function PaidOutForm({
   if (locked && store.attempt) {
     const key = store.attempt.key
     const waitSeconds = Math.ceil(unlockWaitMs(store, Date.now()) / 1000)
+    const unlockable = check?.status === 'ready' && mayUnlock(store, check.checkedAt)
     return (
       <div className="flex flex-col gap-3">
         <p role="status" className="rounded-sm bg-pending-100 px-3 py-3 text-sm font-medium text-pending-700">
@@ -1461,11 +1469,15 @@ function PaidOutForm({
               <p className="text-xs font-medium text-text-quaternary">
                 {t('pos.close.paidOutForm.pending.wait', { seconds: waitSeconds })}
               </p>
+            ) : !unlockable ? (
+              <p className="text-xs font-medium text-text-quaternary">
+                {t('pos.close.paidOutForm.pending.recheck')}
+              </p>
             ) : null}
             <div>
               <button
                 type="button"
-                disabled={busy || waitSeconds > 0}
+                disabled={busy || !unlockable}
                 onClick={() => notRecorded(pending)}
                 className="inline-flex h-10 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-50"
               >

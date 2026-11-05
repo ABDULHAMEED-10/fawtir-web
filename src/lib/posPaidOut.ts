@@ -1,4 +1,4 @@
-import { ApiError, NetworkError } from '../api'
+import { ApiError, NetworkError, serverCode } from '../api'
 import {
   PAID_OUT_RECEIPT_MAX_BYTES,
   PAID_OUT_RECEIPT_TYPES,
@@ -166,11 +166,14 @@ export function pendingBody(store: PaidOutStore): PosPaidOutRequest | null {
 }
 
 /**
- * How long a sent press may still be in flight: the gateway's 60 s timeout. "It is not there" is
- * offered only after it, since a re-read inside it can miss a paid-out the server is still writing
- * (review W5-2).
+ * How long a sent press may still be in flight. The paid-out route runs under the gateway's general
+ * upstream read timeout, 60 s (gateway-service application.yml `fawtir.gateway.upstream.read-timeout`,
+ * nginx `proxy_read_timeout 60s`, backend bab1802b1). When the gateway gives up, core can still be
+ * finishing the write, and this device's clock is not the server's: the extra 30 s is margin for
+ * both. A re-read inside the wait can miss a paid-out the server is still writing (review W5-2,
+ * raised from 60 s in W6).
  */
-export const UNLOCK_AFTER_MS = 60_000
+export const UNLOCK_AFTER_MS = 90_000
 
 /** Milliseconds left before the cashier may unlock; the full wait when no send time is known. */
 export function unlockWaitMs(store: PaidOutStore, now: number): number {
@@ -179,13 +182,12 @@ export function unlockWaitMs(store: PaidOutStore, now: number): number {
 }
 
 /**
- * The server's own refusal code, or null. `ApiError.code` also takes a problem's `error` member
- * (the Expenditure handlers put their code there), so a Spring or gateway body such as
- * `{"error": "Internal Server Error"}` arrives as a "code" that is only a reason phrase. A code is
- * the server's upper-case identifier; anything else is no code (review W5-1).
+ * "It is not there" counts only from a re-read that started after the wait was over: one started
+ * inside it may have missed the paid-out, however long the cashier then waited (review W6-1).
+ * `checkedAt` is when that re-read was sent; null when none ran on this screen.
  */
-export function serverCode(error: ApiError): string | null {
-  return error.code !== null && /^[A-Z][A-Z0-9_]+$/.test(error.code) ? error.code : null
+export function mayUnlock(store: PaidOutStore, checkedAt: number | null): boolean {
+  return checkedAt !== null && store.sentAt !== null && unlockWaitMs(store, checkedAt) === 0
 }
 
 /**

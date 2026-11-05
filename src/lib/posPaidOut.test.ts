@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import i18n from '../i18n'
-import { ApiError, NetworkError } from '../api'
+import { ApiError, NetworkError, serverCode } from '../api'
 import { toApiError } from '../api/errors'
 import {
   choosableClasses,
@@ -11,6 +11,7 @@ import {
   isLocked,
   keyForAttempt,
   loadPaidOutStore,
+  mayUnlock,
   outcomeUnknown,
   paidOutGap,
   paidOutRefusal,
@@ -18,7 +19,6 @@ import {
   pendingBody,
   receiptProblem,
   savePaidOutStore,
-  serverCode,
   unlockWaitMs,
 } from './posPaidOut'
 import { posRefusalKey } from './posRefusals'
@@ -221,6 +221,19 @@ describe('the wait before unlocking (review W5-2)', () => {
 
   it('never runs short when the send time is not known', () => {
     expect(unlockWaitMs({ attempt, receipt: null, unknown: true, sentAt: null }, sent)).toBe(UNLOCK_AFTER_MS)
+  })
+
+  it('is the gateway read timeout plus a margin (review W6 NIT)', () => {
+    expect(UNLOCK_AFTER_MS).toBe(90_000)
+  })
+
+  it('counts only a re-read sent after the wait (review W6-1)', () => {
+    const store = { attempt, receipt: null, unknown: true, sentAt: sent }
+    expect(mayUnlock(store, null)).toBe(false)
+    expect(mayUnlock(store, sent + 10_000)).toBe(false)
+    expect(mayUnlock(store, sent + UNLOCK_AFTER_MS - 1)).toBe(false)
+    expect(mayUnlock(store, sent + UNLOCK_AFTER_MS)).toBe(true)
+    expect(mayUnlock({ ...store, sentAt: null }, sent + 10 * UNLOCK_AFTER_MS)).toBe(false)
   })
 })
 

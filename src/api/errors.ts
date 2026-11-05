@@ -56,6 +56,17 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * The server's own refusal code, or null. `ApiError.code` also takes a problem's `error` member
+ * (the Expenditure handlers put their code there), so a Spring or gateway body such as
+ * `{"error": "Internal Server Error"}` arrives as a "code" that is only a reason phrase. A code is
+ * the server's upper-case identifier; anything else is no code (review W5-1). `toApiError` keeps
+ * its fallback on purpose: every caller reads `code`, and only those that act on "no code" use this.
+ */
+export function serverCode(error: ApiError): string | null {
+  return error.code !== null && /^[A-Z][A-Z0-9_]+$/.test(error.code) ? error.code : null
+}
+
 export type NetworkFailureReason = 'offline' | 'timeout'
 
 /**

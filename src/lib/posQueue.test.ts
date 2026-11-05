@@ -13,6 +13,7 @@ import {
   resetPosQueue,
   retryQueuedSale,
   stopQueueSendsForSignOut,
+  storedRefusal,
   submitSale,
 } from './posQueue'
 import { heldSlipPhotos } from './posSlipOutbox'
@@ -963,6 +964,34 @@ describe('a refused sale never stops the till (E2E 30 Oct 2026, H-1)', () => {
       'NZW-T01-INV-2026-000050',
     ])
     expect(numbersBefore('NZW-T01-INV-2026-000049', 'NZW-T01-INV-2026-000049')).toEqual([])
+  })
+})
+
+describe('the refusal an entry keeps (review W5-SHARED)', () => {
+  const phrase = (status: number, reason: string) =>
+    new Response(JSON.stringify({ timestamp: '2026-11-05T08:00:00Z', status, error: reason, path: '/x' }), {
+      status,
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+  it('keeps HTTP_500 for a 5xx whose only "code" is the reason phrase, and a real code as it is', () => {
+    const gateway = new ApiError({ status: 500, problemType: null, code: 'Internal Server Error' })
+    expect(storedRefusal(gateway)).toBe('HTTP_500')
+    const coded = new ApiError({ status: 503, problemType: null, code: 'BILL_PAYMENT_ON_HOLD' })
+    expect(storedRefusal(coded)).toBe('BILL_PAYMENT_ON_HOLD')
+    expect(storedRefusal(new ApiError({ status: 502, problemType: null }))).toBe('HTTP_502')
+  })
+
+  it('a phrase-bearing 5xx only waits, and a phrase-bearing refusal is kept as HTTP_<status>', async () => {
+    await submitSale(TILL, { ...BODY, customer: { kind: 'WALK_IN' } }, 'pos-sale-key-phrase')
+    online = true
+    // A 5xx never reaches the stored refusal: the verdict (unchanged) is 'wait'.
+    saleReply = () => phrase(500, 'Internal Server Error')
+    await flushQueue('till-1')
+    expect(queuedFor('till-1')[0].refusal ?? null).toBeNull()
+    saleReply = () => phrase(409, 'Conflict')
+    await flushQueue('till-1')
+    expect(queuedFor('till-1')[0].refusal).toBe('HTTP_409')
   })
 })
 

@@ -1,5 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react'
-import { ApiError, NetworkError } from '../api'
+import { ApiError, NetworkError, serverCode } from '../api'
 import {
   createPosSale,
   type PosPerson,
@@ -1363,12 +1363,21 @@ function buyerUnavailable(entry: QueuedSale): QueuedSale {
   }
 }
 
+/**
+ * What a refused entry keeps as its refusal: the server's code, else `HTTP_<status>`. A reason
+ * phrase in `error` (a gateway's "Internal Server Error") is no code; kept, it would be read back
+ * by `revived` and the panel as one (review W5-SHARED). The verdict still reads `error.code`.
+ */
+export function storedRefusal(error: ApiError): string {
+  return serverCode(error) ?? `HTTP_${error.status}`
+}
+
 function refusedEntry(entry: QueuedSale, error: ApiError, verdict: RefusalVerdict): QueuedSale {
   const final = verdict === 'final'
   const attempts = verdict === 'unknown' ? (entry.attempts ?? 0) + 1 : 0
   const refused: QueuedSale = {
     ...entry,
-    refusal: error.code ?? `HTTP_${error.status}`,
+    refusal: storedRefusal(error),
     refusalType: error.problemType,
     refusalValues: refusalValues(error),
     refusedAt: new Date().toISOString(),
