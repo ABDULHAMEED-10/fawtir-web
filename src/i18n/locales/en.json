@@ -4912,6 +4912,7 @@
       "checkAgain": "Check again"
     },
     "tabLock": {
+      "finishing": "Finishing the last offline sale in this tab. Offline sales start again in a moment.",
       "otherTab": "This till is open in another tab or window on this device. Offline sales are stopped here. Use the other tab, or close it and check again.",
       "unsupported": "This browser can't make sure only one tab sells offline on this till, so offline sales are stopped here. Online sales carry on.",
       "checkAgain": "Check again"

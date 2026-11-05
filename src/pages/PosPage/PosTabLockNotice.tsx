@@ -13,6 +13,18 @@ import { checkTillLockAgain, useTillLock } from '../../lib/posTillLock'
 export function PosTabLockNotice({ tillId }: { tillId: string }) {
   const { t } = useTranslation()
   const lock = useTillLock(tillId)
+  // This tab's own last offline sale still holds the lock (IMPL2-T1): said neutrally, since nothing
+  // is wrong and the lock is taken again by itself once that sale is kept. Offline sales still wait.
+  if (lock === 'finishing') {
+    return (
+      <p
+        role="status"
+        className="mx-auto mb-3 w-full max-w-[1144px] rounded-md bg-surface-card px-4 py-3 text-sm text-text-secondary"
+      >
+        {t('pos.tabLock.finishing')}
+      </p>
+    )
+  }
   if (lock !== 'otherTab' && lock !== 'unsupported') return null
   return (
     <section

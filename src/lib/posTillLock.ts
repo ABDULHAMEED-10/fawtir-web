@@ -24,7 +24,13 @@ import { useEffect, useSyncExternalStore } from 'react'
  * takeover. A tab gets the lock only once the holder has let go of it (closed, moved to another
  * till, signed out), and the holder lets go only after its sales in flight are numbered and saved.
  */
-export type TillLockState = 'pending' | 'held' | 'otherTab' | 'unsupported' | 'released'
+/**
+ * `finishing`: this same tab let the lock go (a till screen remounted, a till change and back) while
+ * an offline sale was still being numbered under it, so the browser still holds it for that sale.
+ * It is asked for again as soon as that sale ends. Fail closed meanwhile, but not "another tab",
+ * which would be untrue (IMPL2-T1).
+ */
+export type TillLockState = 'pending' | 'held' | 'otherTab' | 'unsupported' | 'released' | 'finishing'
 
 /**
  * Till ids are server UUIDs, unique across tenants, so the till id alone names one till; nothing
@@ -44,9 +50,13 @@ type Holding = {
   answer: Promise<TillLockState> | null
   /** Ends the lock callback, which hands the lock back to the browser. */
   letGo: (() => void) | null
+  /** Settles once the browser has the lock back from this holding's request. */
+  released: Promise<void> | null
 }
 
 const holdings = new Map<string, Holding>()
+/** Holdings this tab let go of while a sale was in flight: the browser lock is still theirs. */
+const draining = new Map<string, Holding>()
 const lockListeners = new Set<() => void>()
 
 function setState(holding: Holding, state: TillLockState) {
@@ -85,10 +95,22 @@ function request(tillId: string, holding: Holding): Promise<TillLockState> {
       }
     }
     try {
-      locks
+      holding.released = locks
         .request(lockName(tillId), { mode: 'exclusive', ifAvailable: true }, (lock) => {
           if (!lock) {
-            answerWith('otherTab')
+            const earlier = draining.get(tillId)
+            if (!earlier) {
+              answerWith('otherTab')
+              return undefined
+            }
+            answerWith('finishing')
+            void earlier.released?.then(() => {
+              // Once only, however many asked while finishing: a second request would find the lock
+              // taken by the first and wrongly answer "another tab".
+              const wanted = holding.refs > 0 || holding.sticky
+              const asking = holding.state === 'held' || (holding.answer && holding.state === 'pending')
+              if (holdings.get(tillId) === holding && wanted && !asking) void request(tillId, holding)
+            })
             return undefined
           }
           // Released while the request was pending (the screen went, a sign-out): handed back at once.
@@ -107,6 +129,7 @@ function request(tillId: string, holding: Holding): Promise<TillLockState> {
           holding.letGo = null
           answerWith(answered ? 'otherTab' : 'unsupported')
         })
+        .then(() => undefined)
     } catch {
       answerWith('unsupported')
     }
@@ -119,7 +142,15 @@ function request(tillId: string, holding: Holding): Promise<TillLockState> {
 }
 
 function newHolding(): Holding {
-  return { state: 'pending', refs: 0, sticky: false, inFlight: 0, answer: null, letGo: null }
+  return {
+    state: 'pending',
+    refs: 0,
+    sticky: false,
+    inFlight: 0,
+    answer: null,
+    letGo: null,
+    released: null,
+  }
 }
 
 function letGoOf(tillId: string) {
@@ -129,6 +160,12 @@ function letGoOf(tillId: string) {
   holding.refs = 0
   holding.sticky = false
   setState(holding, 'released')
+  if (holding.inFlight > 0 && holding.letGo) {
+    draining.set(tillId, holding)
+    void holding.released?.then(() => {
+      if (draining.get(tillId) === holding) draining.delete(tillId)
+    })
+  }
   handBack(holding)
 }
 

@@ -238,6 +238,25 @@ describe('POS-TABLOCK: one tab per till numbers offline sales on this device', (
     expect(otherTabHolds().granted).toBe(true)
   })
 
+  it('a same-tab remount while a sale is in flight says finishing, not another tab, and takes the lock once it ends (IMPL2-T1)', async () => {
+    const release = acquireTillLock('till-1')
+    const end = beginNumbering('till-1')
+    release()
+    acquireTillLock('till-1')
+    await settled()
+
+    expect(tillLockState('till-1')).toBe('finishing')
+    // Still fail closed: no offline number while the earlier sale holds the lock.
+    expect((await refused('pos-sale-key-lock-t1')).reason).toBe('finishing')
+    expect(window.localStorage.getItem(COUNTER)).toBeNull()
+
+    end?.()
+    await settled()
+    await settled()
+    expect(tillLockState('till-1')).toBe('held')
+    expect(locks.held.has(LOCK)).toBe(true)
+  })
+
   it('a tab without the lock still sends the queued sales: their numbers exist and the server files each key once', async () => {
     const number = numbered(49)
     window.localStorage.setItem(
