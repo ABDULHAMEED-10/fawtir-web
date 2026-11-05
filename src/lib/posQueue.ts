@@ -149,12 +149,86 @@ function read<T>(key: string, fallback: T): T {
   }
 }
 
-function write(key: string, value: unknown) {
+/**
+ * Why this device's storage could not be trusted with an offline sale (POS-MEMQ):
+ * - `quota`: the write was refused for space;
+ * - `denied`: storage threw anything else, private browsing and blocked site data included;
+ * - `mismatch`: the write was accepted but reading it back gave something else;
+ * - `unreadable`: what is stored cannot be read as what was written there.
+ */
+export type StorageFailureReason = 'quota' | 'denied' | 'mismatch' | 'unreadable'
+export type StorageWrite = 'ok' | StorageFailureReason
+
+function failureOf(error: unknown): StorageFailureReason {
+  const { name, code } = (error ?? {}) as { name?: unknown; code?: unknown }
+  if (name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED') return 'quota'
+  if (code === 22 || code === 1014) return 'quota'
+  return 'denied'
+}
+
+/**
+ * A write counts only once it reads back: a browser can accept `setItem` and keep nothing, and a
+ * sale whose number is printed must not rest on a write nobody saw land (DES43 R-MEMQ).
+ */
+function writeText(key: string, text: string): StorageWrite {
   try {
-    window.localStorage.setItem(key, JSON.stringify(value))
-  } catch {
-    // A till without storage still sells online.
+    window.localStorage.setItem(key, text)
+  } catch (error) {
+    return failureOf(error)
   }
+  try {
+    return window.localStorage.getItem(key) === text ? 'ok' : 'mismatch'
+  } catch (error) {
+    return failureOf(error)
+  }
+}
+
+/** Non-essential copies (the notes for the next sale) ignore the answer; a till still sells online. */
+function write(key: string, value: unknown): StorageWrite {
+  return writeText(key, JSON.stringify(value))
+}
+
+/** A read that says when it failed, instead of answering the fallback as if nothing were stored. */
+function readStrict<T>(
+  key: string,
+  fallback: T,
+): { ok: true; value: T } | { ok: false; reason: StorageFailureReason } {
+  let text: string | null
+  try {
+    text = window.localStorage.getItem(key)
+  } catch (error) {
+    return { ok: false, reason: failureOf(error) }
+  }
+  if (text === null) return { ok: true, value: fallback }
+  try {
+    return { ok: true, value: JSON.parse(text) as T }
+  } catch {
+    return { ok: false, reason: 'unreadable' }
+  }
+}
+
+/** A stored counter, or the reason it cannot be read; anything but a whole number is unreadable. */
+function readCounter(key: string): { ok: true; value: number | null } | { ok: false; reason: StorageFailureReason } {
+  const stored = readStrict<unknown>(key, null)
+  if (!stored.ok) return stored
+  if (stored.value === null) return { ok: true, value: null }
+  return Number.isSafeInteger(stored.value)
+    ? { ok: true, value: stored.value as number }
+    : { ok: false, reason: 'unreadable' }
+}
+
+/**
+ * Raises a counter to at least `atLeast`, never lowers it. Another tab of the till may raise the same
+ * key between the write and its read-back, so the check is "covers it", not "is what I wrote".
+ */
+function raiseCounter(key: string, atLeast: number): StorageWrite {
+  const current = readCounter(key)
+  if (!current.ok) return current.reason
+  if ((current.value ?? 0) >= atLeast) return 'ok'
+  const written = write(key, atLeast)
+  if (written !== 'mismatch') return written
+  const after = readCounter(key)
+  return after.ok && (after.value ?? 0) >= atLeast ? 'ok' : 'mismatch'
 }
 
 /**
@@ -270,8 +344,8 @@ const listeners = new Set<() => void>()
 
 /** The queue text this tab last read or wrote; undefined until it has. */
 let seenText: string | null | undefined
-/** False once a write failed: this tab's memory then holds sales storage does not, and stays in charge. */
-let storageHoldsQueue = true
+/** Why the last read of the queue failed; null when it was read. */
+let queueReadFailure: StorageFailureReason | null = null
 
 /**
  * The queue as storage holds it now. Another tab of the till (or a second window) writes the same key,
@@ -280,35 +354,154 @@ let storageHoldsQueue = true
  * is made to this fresh copy, in the same task as its write.
  */
 function synced(): QueuedSale[] {
-  if (typeof window === 'undefined' || !storageHoldsQueue) return queue
+  if (typeof window === 'undefined') return queue
   let text: string | null
   try {
     text = window.localStorage.getItem(QUEUE_KEY)
-  } catch {
+  } catch (error) {
+    queueReadFailure = failureOf(error)
     return queue
   }
-  if (text === seenText) return queue
+  if (text === seenText) {
+    queueReadFailure = null
+    return queue
+  }
   try {
-    queue = text ? (JSON.parse(text) as QueuedSale[]).map(revived) : []
+    const parsed = text ? (JSON.parse(text) as QueuedSale[]).map(revived) : []
+    queue = parsed
     seenText = text
+    queueReadFailure = null
   } catch {
-    // Unreadable text is never taken for an empty queue: this tab keeps what it has.
+    // Unreadable text is never taken for an empty queue: this tab keeps what it has, and `save`
+    // will not write over it.
+    queueReadFailure = 'unreadable'
   }
   return queue
 }
 
-function save(next: QueuedSale[]) {
-  queue = next
-  const text = JSON.stringify(next)
-  try {
-    window.localStorage.setItem(QUEUE_KEY, text)
-    seenText = text
-    storageHoldsQueue = true
-  } catch {
-    // A till without storage still sells online; the queue lives in memory for this tab.
-    storageHoldsQueue = false
+type SaveResult = StorageWrite | 'conflict'
+
+/**
+ * Writes the queue only on top of the copy this tab last read (`seenText`), and keeps it in memory
+ * only once it reads back. The queue used to fall back to this tab's memory when a write failed:
+ * printed, paid sales then lived nowhere a reload or a closed tab would keep, the counter beside them
+ * was lost with them, and the same numbers were printed again; and when storage came back the whole
+ * memory copy was written over whatever another tab had queued meanwhile (POS-MEMQ, A8-G2). Now a
+ * failed write changes nothing here: memory stays what storage last confirmed.
+ */
+function save(next: QueuedSale[]): SaveResult {
+  if (typeof window === 'undefined') {
+    queue = next
+    listeners.forEach((listener) => listener())
+    return 'ok'
   }
+  let current: string | null
+  try {
+    current = window.localStorage.getItem(QUEUE_KEY)
+  } catch (error) {
+    return noteStorageFailure(failureOf(error))
+  }
+  if (current !== seenText) return 'conflict'
+  const text = JSON.stringify(next)
+  const written = writeText(QUEUE_KEY, text)
+  if (written !== 'ok') return noteStorageFailure(written)
+  queue = next
+  seenText = text
+  queueReadFailure = null
   listeners.forEach((listener) => listener())
+  return 'ok'
+}
+
+/**
+ * Every change to the queue: made to the copy storage holds now, and made again once from a fresh
+ * read if another tab wrote in between. Rebuilding from storage, never from this tab's memory, is
+ * what keeps a sale another tab queued, and keeps out one another tab has filed and removed.
+ */
+function update(change: (entries: QueuedSale[]) => QueuedSale[]): StorageWrite {
+  const first = save(change(synced()))
+  if (first !== 'conflict') return first
+  const second = save(change(synced()))
+  // Still not what this tab read: the stored text cannot be read, and is never written over.
+  return second === 'conflict' ? noteStorageFailure(queueReadFailure ?? 'unreadable') : second
+}
+
+/**
+ * Offline numbering is off for this tab once storage has failed (POS-MEMQ: "block numbered offline
+ * sales when storage is unreadable or unwritable"). Selling online is unchanged. It comes back only
+ * through `checkStorageAgain`, or a reload.
+ */
+let storageFailure: StorageFailureReason | null = null
+
+/**
+ * A number this tab advanced the till's counter past and then could not queue or roll back: no
+ * receipt carries it, and the server will refuse the next number as a gap until it is used. Only
+ * an online sale on this till filing it (or a later number) clears it. Held in memory only: a
+ * durable record of it is owner question OQ-W1, not decided. After a reload it is a held
+ * POS_TILL_NUMBER_GAP, recovered through §10.1; it is never reused, released or skipped.
+ */
+const burnt = new Map<string, { prefix: string; value: number }>()
+const blockListeners = new Set<() => void>()
+
+function noteStorageFailure(reason: StorageFailureReason): StorageFailureReason {
+  if (storageFailure !== reason) {
+    storageFailure = reason
+    blockListeners.forEach((listener) => listener())
+  }
+  return reason
+}
+
+/** What stops this tab numbering a sale offline on `tillId`, if anything. */
+export type OfflineBlock = StorageFailureReason | 'burnt'
+
+export function offlineBlock(tillId: string | null): OfflineBlock | null {
+  if (storageFailure) return storageFailure
+  return tillId && burnt.has(tillId) ? 'burnt' : null
+}
+
+/** For the till screens: whether offline selling is blocked on this till, and why. */
+export function useStorageFailure(tillId: string | null = null): OfflineBlock | null {
+  return useSyncExternalStore(
+    (listener) => {
+      blockListeners.add(listener)
+      return () => blockListeners.delete(listener)
+    },
+    () => offlineBlock(tillId),
+  )
+}
+
+/** Thrown before any number is printed when this device cannot keep an offline sale. */
+export class PosStorageUnavailable extends Error {
+  readonly reason: OfflineBlock
+
+  constructor(reason: OfflineBlock) {
+    super(`This device cannot keep an offline sale (${reason})`)
+    this.name = 'PosStorageUnavailable'
+    this.reason = reason
+  }
+}
+
+const PROBE_KEY = 'fawtir.pos.storageProbe'
+
+/**
+ * "Check again": a probe write that reads back, then the queue saved again on top of what storage
+ * holds. Both must land before offline numbering is allowed again. Returns what still blocks it
+ * (a burnt number on a till is cleared only by an online sale, not here).
+ */
+export function checkStorageAgain(): StorageFailureReason | null {
+  const probe = writeText(PROBE_KEY, `${Date.now()}`)
+  if (probe !== 'ok') return noteStorageFailure(probe)
+  try {
+    window.localStorage.removeItem(PROBE_KEY)
+  } catch {
+    // The probe itself proved the write; a leftover probe key holds nothing.
+  }
+  const resaved = update((entries) => entries)
+  if (resaved !== 'ok') return noteStorageFailure(resaved)
+  if (storageFailure !== null) {
+    storageFailure = null
+    blockListeners.forEach((listener) => listener())
+  }
+  return null
 }
 
 if (typeof window !== 'undefined') {
@@ -370,11 +563,40 @@ function removeStored(key: string) {
  * has already used this year; it can only be wrong for a device left unused across both the update
  * and a new year, and then it prints too high (a gap the server refuses), never a repeat.
  */
-function adoptLegacyCounter(tillId: string, prefix: string) {
-  const legacy = read<number | null>(legacyNextKey(tillId), null)
-  if (typeof legacy !== 'number') return
-  if (legacy > read<number>(nextKey(tillId, prefix), 0)) write(nextKey(tillId, prefix), legacy)
-  removeStored(legacyNextKey(tillId))
+function adoptLegacyCounter(tillId: string, prefix: string): StorageWrite {
+  const legacy = readCounter(legacyNextKey(tillId))
+  // Storage that cannot be read blocks numbering; a value that is not a counter was ignored before
+  // and still is, so a stray key cannot stop the till for good.
+  if (!legacy.ok) return legacy.reason === 'unreadable' ? 'ok' : legacy.reason
+  if (legacy.value === null) return 'ok'
+  const raised = raiseCounter(nextKey(tillId, prefix), legacy.value)
+  // Dropped only once the per-year counter is confirmed to cover it, or the number is lost.
+  if (raised === 'ok') removeStored(legacyNextKey(tillId))
+  return raised
+}
+
+/** What numbering offline on this till comes to: a number, none (no year to number in), or a block. */
+type Numbering = { number: string | null } | { blocked: StorageFailureReason }
+
+function tillNumber(till: PosTillDto, soldAt?: string): Numbering {
+  const series = till.series?.INVOICE
+  if (!series) return { number: null }
+  const year = businessYear(soldAt, series.timeZone)
+  if (year == null || series.year !== year) return { number: null }
+  const prefix = `${series.series}-${year}`
+  const adopted = adoptLegacyCounter(till.id, prefix)
+  if (adopted !== 'ok') return { blocked: adopted }
+  // A counter or queue that cannot be read is never taken for zero or empty: either could hold
+  // numbers already printed (POS-MEMQ, fail closed).
+  const local = readCounter(nextKey(till.id, prefix))
+  if (!local.ok) return { blocked: local.reason }
+  const entries = synced()
+  if (queueReadFailure) return { blocked: queueReadFailure }
+  const queued = entries
+    .filter((entry) => entry.tillId === till.id && numberPrefix(entry.number) === prefix)
+    .map((entry) => (numberValue(entry.number) ?? 0) + 1)
+  const value = Math.max(series.nextValue, local.value ?? 0, ...queued)
+  return { number: formatTillNumber(series.series, year, value) }
 }
 
 /**
@@ -388,29 +610,78 @@ function adoptLegacyCounter(tillId: string, prefix: string) {
  * server already gave: no number, so no receipt, until the till is read again online (B36 OFF-1).
  * Before, the old year was printed on a new-year sale and refused for good, and once the year was
  * read again the old year's counter carried over and left a gap every later sale waited behind.
+ * Null too when the counter or the queue cannot be read (POS-MEMQ).
  */
 export function nextTillNumber(till: PosTillDto, soldAt?: string): string | null {
-  const series = till.series?.INVOICE
-  if (!series) return null
-  const year = businessYear(soldAt, series.timeZone)
-  if (year == null || series.year !== year) return null
-  const prefix = `${series.series}-${year}`
-  adoptLegacyCounter(till.id, prefix)
-  const local = read<number>(nextKey(till.id, prefix), 0)
-  const queued = synced()
-    .filter((entry) => entry.tillId === till.id && numberPrefix(entry.number) === prefix)
-    .map((entry) => (numberValue(entry.number) ?? 0) + 1)
-  const value = Math.max(series.nextValue, local, ...queued)
-  return formatTillNumber(series.series, year, value)
+  const numbering = tillNumber(till, soldAt)
+  return 'number' in numbering ? numbering.number : null
 }
 
-/** After a sale is numbered, offline numbering continues from the one after it, in its own year. */
-export function noteNumberUsed(tillId: string, invoiceNumber: string) {
+/**
+ * After a sale is numbered, offline numbering continues from the one after it, in its own year.
+ * `ok` only once storage is confirmed to cover it: the counter is what stops this device printing
+ * the number again after the sale has left the queue (POS-MEMQ).
+ */
+export function noteNumberUsed(tillId: string, invoiceNumber: string): StorageWrite {
   const value = numberValue(invoiceNumber)
   const prefix = numberPrefix(invoiceNumber)
-  if (value == null || prefix == null) return
-  adoptLegacyCounter(tillId, prefix)
-  if (value + 1 > read<number>(nextKey(tillId, prefix), 0)) write(nextKey(tillId, prefix), value + 1)
+  if (value == null || prefix == null) return 'ok'
+  const adopted = adoptLegacyCounter(tillId, prefix)
+  if (adopted !== 'ok') return adopted
+  return raiseCounter(nextKey(tillId, prefix), value + 1)
+}
+
+/**
+ * A sale filed online took `invoiceNumber`. The counter is raised past it; if that cannot be kept,
+ * offline numbering stops for this tab, since a stale counter could print the number again. A
+ * number burnt on this till is healed once the server has filed it or a later one.
+ */
+function noteFiledOnline(tillId: string, invoiceNumber: string) {
+  const noted = noteNumberUsed(tillId, invoiceNumber)
+  if (noted !== 'ok') noteStorageFailure(noted)
+  const burn = burnt.get(tillId)
+  const value = numberValue(invoiceNumber)
+  if (burn && value != null && numberPrefix(invoiceNumber) === burn.prefix && value >= burn.value) {
+    burnt.delete(tillId)
+    blockListeners.forEach((listener) => listener())
+  }
+}
+
+/**
+ * Takes `number` on the till's counter before anything is awaited, so neither this tab nor another
+ * can print it again meanwhile (the R-TABS window stays as narrow as before). The rollback undoes it
+ * only while the counter still says exactly what this took: another tab that moved it on has
+ * numbered past it, and lowering it under that tab could reprint its numbers.
+ */
+function reserveNumber(
+  tillId: string,
+  number: string,
+):
+  | { ok: true; rollback: () => StorageWrite; prefix: string; value: number }
+  | { ok: false; reason: StorageFailureReason } {
+  const value = numberValue(number)
+  const prefix = numberPrefix(number)
+  if (value == null || prefix == null) return { ok: false, reason: 'unreadable' }
+  const key = nextKey(tillId, prefix)
+  const before = readCounter(key)
+  if (!before.ok) return { ok: false, reason: before.reason }
+  const previous = before.value
+  const reserved = noteNumberUsed(tillId, number)
+  if (reserved !== 'ok') return { ok: false, reason: reserved }
+  const rollback = (): StorageWrite => {
+    if (previous !== null && previous >= value + 1) return 'ok'
+    const now = readCounter(key)
+    if (!now.ok) return now.reason
+    if (now.value !== value + 1) return 'mismatch'
+    if (previous !== null) return writeText(key, JSON.stringify(previous))
+    try {
+      window.localStorage.removeItem(key)
+      return window.localStorage.getItem(key) === null ? 'ok' : 'mismatch'
+    } catch (error) {
+      return failureOf(error)
+    }
+  }
+  return { ok: true, rollback, prefix, value }
 }
 
 export function queuedFor(tillId: string): QueuedSale[] {
@@ -637,30 +908,67 @@ export async function submitSale(
   printed?: PosPrintedTotals,
   maker: PosPerson | null = null,
 ): Promise<SubmitResult> {
+  // No number, so no receipt: the sale is the cashier's to take again once online.
+  const refuseOffline = (reason: OfflineBlock): never => {
+    void dropSlipPhotos(key)
+    if (reason !== 'burnt') noteStorageFailure(reason)
+    throw new PosStorageUnavailable(reason)
+  }
+  /*
+   * POS-MEMQ order (Gate A W-MEMQ S5): counter, then sign and seal, then the entry. A receipt prints
+   * only from the result returned at the end, so only once both the counter and the whole entry read
+   * back from storage. The counter goes first because an entry kept without a receipt would invite
+   * the sale being rung again, and because taking the number before the awaits keeps the R-TABS
+   * window as it was. If the entry cannot be kept the counter is rolled back; if even that cannot be
+   * confirmed the number is burnt: never printed, never reused, a gap the server holds.
+   */
   const enqueue = async (): Promise<SubmitResult> => {
-    const number = nextTillNumber(till, body.soldAt)
+    const blocked = offlineBlock(till.id)
+    if (blocked) return refuseOffline(blocked)
+    const numbering = tillNumber(till, body.soldAt)
+    if ('blocked' in numbering) return refuseOffline(numbering.blocked)
+    const number = numbering.number
     if (!number) throw new NetworkError('offline')
-    // Taken now, before the awaits below: a second sale must not print the same number.
-    noteNumberUsed(till.id, number)
-    // Signed before the buyer is sealed, so the signed body is the body `bodyToSend` rebuilds (WEB-3).
-    const entry = await sealed({
-      key,
-      tillId: till.id,
-      number,
-      body: await signedIfPossible(
-        till,
-        { ...body, queuedOffline: true, invoiceNumber: number },
+    const reservation = reserveNumber(till.id, number)
+    if (!reservation.ok) return refuseOffline(reservation.reason)
+    let saved = 'denied' as StorageWrite
+    let entry: QueuedSale | null = null
+    try {
+      // Signed before the buyer is sealed, so the signed body is the body `bodyToSend` rebuilds (WEB-3).
+      entry = await sealed({
         key,
-        printed,
-      ),
-      refusal: null,
-      ...(maker
-        ? { madeBy: maker }
-        : deviceSender
-          ? { madeBy: { userId: deviceSender, name: null } }
-          : {}),
-    })
-    save([...synced(), entry])
+        tillId: till.id,
+        number,
+        body: await signedIfPossible(
+          till,
+          { ...body, queuedOffline: true, invoiceNumber: number },
+          key,
+          printed,
+        ),
+        refusal: null,
+        ...(maker
+          ? { madeBy: maker }
+          : deviceSender
+            ? { madeBy: { userId: deviceSender, name: null } }
+            : {}),
+      })
+      const kept = entry
+      saved = update((entries) => [...entries, kept])
+      // Read back as other text: another tab may have written in between. Kept only if storage, read
+      // again, holds this very entry.
+      if (saved === 'mismatch' && synced().some((other) => other.key === key) && !queueReadFailure) {
+        saved = 'ok'
+      }
+    } finally {
+      if (saved !== 'ok') {
+        if (reservation.rollback() !== 'ok') {
+          burnt.set(till.id, { prefix: reservation.prefix, value: reservation.value })
+          blockListeners.forEach((listener) => listener())
+        }
+        if (entry?.sealed) void forgetBuyer(key)
+      }
+    }
+    if (saved !== 'ok' || !entry) return refuseOffline(saved === 'ok' ? 'denied' : saved)
     return { queued: entry }
   }
   await holdSlipPhotos(key, till.id, photos)
@@ -675,7 +983,7 @@ export async function submitSale(
   if (waiting.length === 0) {
     try {
       const sale = await createPosSale(body, key)
-      noteNumberUsed(till.id, sale.invoiceNumber)
+      noteFiledOnline(till.id, sale.invoiceNumber)
       void sendSlipPhotos(key, sale.saleId, till.id)
       return { sale: withNumberNotes(till.id, sale) }
     } catch (error) {
@@ -690,7 +998,7 @@ export async function submitSale(
   if (outcome === 'done' && canSkip) {
     try {
       const sale = await createPosSale(body, key)
-      noteNumberUsed(till.id, sale.invoiceNumber)
+      noteFiledOnline(till.id, sale.invoiceNumber)
       void sendSlipPhotos(key, sale.saleId, till.id)
       return { sale: withNumberNotes(till.id, sale) }
     } catch (error) {
@@ -836,7 +1144,9 @@ export async function flushQueue(
       }
       const body = await bodyToSend(entry)
       if (!body) {
-        save(synced().map((other) => (other.key === entry.key ? buyerUnavailable(other) : other)))
+        update((entries) =>
+          entries.map((other) => (other.key === entry.key ? buyerUnavailable(other) : other)),
+        )
         if (canSkip) continue
         return 'done'
       }
@@ -846,14 +1156,23 @@ export async function flushQueue(
       try {
         const sale = await sendNumbered(body, entry.key, canSkip, generation)
         noteForNextSale(entry, sale)
-        save(synced().filter((other) => other.key !== entry.key))
-        await forget(entry)
+        // The entry is this device's record that its number was used; it goes only once the counter
+        // is confirmed past both the printed and the filed number, or a later offline sale could
+        // print one of them again (POS-MEMQ S6). Kept, it is sent again and answered as the same
+        // sale under its key, so its sealed buyer stays until it really leaves.
+        const printedNoted = noteNumberUsed(tillId, entry.number)
+        const filedNoted = noteNumberUsed(tillId, sale.invoiceNumber)
+        const covered = printedNoted === 'ok' ? filedNoted : printedNoted
+        if (covered !== 'ok') noteStorageFailure(covered)
+        else if (update((entries) => entries.filter((other) => other.key !== entry.key)) === 'ok') {
+          await forget(entry)
+        }
         void sendSlipPhotos(entry.key, sale.saleId, tillId)
       } catch (error) {
         if (error instanceof SenderChanged) return 'done'
         const refusalOver = () =>
-          save(
-            synced().map((other) =>
+          update((entries) =>
+            entries.map((other) =>
               other.key === entry.key
                 ? { ...other, refusal: null, refusalType: null, refusalValues: {} }
                 : other,
@@ -873,8 +1192,8 @@ export async function flushQueue(
         }
         const final = verdict === 'final'
         // Refused is not filed: the sealed buyer and any slip photo stay for Try again.
-        save(
-          synced().map((other) =>
+        update((entries) =>
+          entries.map((other) =>
             other.key === entry.key ? refusedEntry(other, error, verdict) : other,
           ),
         )
@@ -975,8 +1294,8 @@ export async function retryQueuedSale(
   key: string,
   sender?: string | null,
 ): Promise<FlushOutcome> {
-  save(
-    synced().map((entry) => {
+  update((entries) =>
+    entries.map((entry) => {
       if (entry.key !== key) return entry
       const { final: _final, notBefore: _notBefore, setAside: _setAside, ...again } = entry
       void _final
@@ -991,7 +1310,9 @@ export async function retryQueuedSale(
 
 /** The server has it set aside: this device stops sending it by itself, and keeps it. */
 export function markQueuedSaleSetAside(key: string) {
-  save(synced().map((entry) => (entry.key === key ? { ...entry, setAside: true } : entry)))
+  update((entries) =>
+    entries.map((entry) => (entry.key === key ? { ...entry, setAside: true } : entry)),
+  )
 }
 
 /**
@@ -1005,8 +1326,8 @@ export async function correctQueuedSale(
   payments: PosSaleRequest['payments'],
   sender?: string | null,
 ): Promise<FlushOutcome> {
-  save(
-    synced().map((entry) => {
+  update((entries) =>
+    entries.map((entry) => {
       if (entry.key !== key) return entry
       const { final: _final, notBefore: _notBefore, setAside: _setAside, ...again } = entry
       void _final
@@ -1077,5 +1398,15 @@ export function resetPosQueue() {
   takesClaim.clear()
   if (retryTimer) clearTimeout(retryTimer)
   retryTimer = null
+  storageFailure = null
+  burnt.clear()
+  queueReadFailure = null
+  // A test starts from whatever storage holds now, and empties it.
+  queue = []
+  try {
+    seenText = window.localStorage.getItem(QUEUE_KEY)
+  } catch {
+    seenText = undefined
+  }
   save([])
 }
