@@ -290,6 +290,7 @@ describe('acknowledging a flag', () => {
     [409, 'POS_DISCOUNT_FLAG_SELF', 1],
     [409, 'POS_DISCOUNT_FLAG_ALREADY_ACKNOWLEDGED', 2],
     [409, 'POS_DISCOUNT_FLAG_HOLD_OPEN', 2],
+    [409, 'POS_DISCOUNT_FLAG_SUPERSEDED', 2],
   ] as const) {
     it(`words ${code} and withdraws the form, since sending again cannot succeed`, async () => {
       acknowledge = () => problem(status, code)
@@ -406,6 +407,7 @@ describe('the discount-flag sentences', () => {
       'pos.refusal.POS_DISCOUNT_FLAG_RANGE_INVALID',
       'pos.refusal.impersonation',
       'pos.refusal.POS_DISCOUNT_FLAG_HOLD_OPEN',
+      'pos.refusal.POS_DISCOUNT_FLAG_SUPERSEDED',
       'pos.refusal.POS_NOTE_CARD_NUMBER',
     ]
     for (const lng of ['en', 'ar']) {

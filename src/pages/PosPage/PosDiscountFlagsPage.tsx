@@ -52,6 +52,9 @@ const FINAL = new Set([
   // resolution may judge the discount again against another cashier. Resending before then cannot
   // pass; the form comes back when the page is opened again after the hold is decided.
   'POS_DISCOUNT_FLAG_HOLD_OPEN',
+  // Backend e19a99881 (review FB1-1, FB1-2): the hold resolved by attributing the sale, which judged
+  // the discount again; the filing flag has nothing left to acknowledge.
+  'POS_DISCOUNT_FLAG_SUPERSEDED',
   'POS_ATTRIBUTION_REVIEWER_ONLY',
 ])
 
@@ -68,13 +71,15 @@ function isFinal(error: unknown): boolean {
 
 /**
  * The refusals that mean the row on screen may be out of date: another manager's acknowledgement, a
- * sale no longer listed for this reader, or a hold that may since have been decided and the sale
- * judged again. The list is read again so the row shows what the server holds (review AW-2, FB-1).
+ * sale no longer listed for this reader, a hold that may since have been decided, or a filing flag
+ * the list no longer carries once the hold attributed the sale. The list is read again so the row
+ * shows what the server holds (review AW-2, FB-1, FB1-2).
  */
 const STALE = new Set([
   'POS_DISCOUNT_FLAG_ALREADY_ACKNOWLEDGED',
   'POS_DISCOUNT_FLAG_NOT_FOUND',
   'POS_DISCOUNT_FLAG_HOLD_OPEN',
+  'POS_DISCOUNT_FLAG_SUPERSEDED',
 ])
 
 function Flags({ till }: { till: Ready }) {
