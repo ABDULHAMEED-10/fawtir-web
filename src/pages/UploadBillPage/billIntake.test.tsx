@@ -1484,6 +1484,8 @@ describe('a bill that may duplicate more than one bill on file', () => {
 
   it('says it in Arabic', async () => {
     await i18n.changeLanguage('ar')
+    // The decision is drawn only for a loaded approver (1f36779a, PRV43-WEBEXP L-1), as openAndSave sets.
+    who = APPROVER
     confirmAnswers.push(possible([X, Y]))
     uploads.push(XML_INTAKE)
     renderAt('/expenditure/bills/upload')
