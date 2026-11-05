@@ -50,6 +50,24 @@ const FINAL = new Set([
   'POS_ATTRIBUTION_REVIEWER_ONLY',
 ])
 
+/**
+ * A support session is refused by problem type, not by code (`requireNotImpersonating`,
+ * RefusalType.IMPERSONATION_NOT_ALLOWED at 598fd6715), and no retry from that session can pass
+ * (review AW-1).
+ */
+function isFinal(error: unknown): boolean {
+  if (!(error instanceof ApiError)) return false
+  if (error.code !== null && FINAL.has(error.code)) return true
+  return error.problemType === 'impersonation-not-allowed'
+}
+
+/**
+ * The refusals that mean the row on screen is out of date: another manager's acknowledgement, or a
+ * sale no longer listed for this reader. The list is read again so the row shows what the server
+ * holds (review AW-2).
+ */
+const STALE = new Set(['POS_DISCOUNT_FLAG_ALREADY_ACKNOWLEDGED', 'POS_DISCOUNT_FLAG_NOT_FOUND'])
+
 function Flags({ till }: { till: Ready }) {
   const { t } = useTranslation()
   const [range] = useState(() => {
@@ -59,6 +77,9 @@ function Flags({ till }: { till: Ready }) {
   const list = useApiRead<DiscountFlag[]>(
     till.can.close ? discountFlagsPath(till.branchId, range.from, range.to) : null,
   )
+  // Kept here, not in the row: reading the list again remounts every row, and the refusal must
+  // outlive that reload to keep the form from coming back.
+  const [refused, setRefused] = useState<Record<string, unknown>>({})
   if (!till.can.close) {
     return (
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
@@ -90,7 +111,18 @@ function Flags({ till }: { till: Ready }) {
           <ul className="flex flex-col gap-2">
             {list.read.data.map((flag) => (
               <li key={flag.saleId} className={card}>
-                <FlagRow flag={flag} userId={till.userId} onAcknowledged={list.retry} />
+                <FlagRow
+                  flag={flag}
+                  userId={till.userId}
+                  refusal={refused[flag.saleId]}
+                  onAcknowledged={list.retry}
+                  onRefused={(error) => {
+                    setRefused((now) => ({ ...now, [flag.saleId]: error }))
+                    if (error instanceof ApiError && error.code !== null && STALE.has(error.code)) {
+                      list.retry()
+                    }
+                  }}
+                />
               </li>
             ))}
           </ul>
@@ -103,11 +135,15 @@ function Flags({ till }: { till: Ready }) {
 function FlagRow({
   flag,
   userId,
+  refusal,
   onAcknowledged,
+  onRefused,
 }: {
   flag: DiscountFlag
   userId: string | null
+  refusal: unknown
   onAcknowledged: () => void
+  onRefused: (error: unknown) => void
 }) {
   const { t } = useTranslation()
   const discount = String(flag.discountPercentMax)
@@ -148,25 +184,37 @@ function FlagRow({
         // Four-eyes: the server refuses it anyway (409 POS_DISCOUNT_FLAG_SELF, and a database
         // CHECK); this only spares the cashier a form that cannot succeed.
         <p className="text-sm text-text-tertiary">{t('pos.refusal.POS_DISCOUNT_FLAG_SELF')}</p>
-      ) : (
-        <Acknowledge saleId={flag.saleId} onAcknowledged={onAcknowledged} />
+      ) : refusal ? null : (
+        <Acknowledge saleId={flag.saleId} onAcknowledged={onAcknowledged} onRefused={onRefused} />
       )}
+      {refusal ? (
+        <p role="alert" className="text-sm text-error-600">
+          {t(posRefusalKey(refusal))}
+        </p>
+      ) : null}
     </div>
   )
 }
 
-function Acknowledge({ saleId, onAcknowledged }: { saleId: string; onAcknowledged: () => void }) {
+function Acknowledge({
+  saleId,
+  onAcknowledged,
+  onRefused,
+}: {
+  saleId: string
+  onAcknowledged: () => void
+  onRefused: (error: unknown) => void
+}) {
   const { t } = useTranslation()
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<unknown>(null)
-  const final = error instanceof ApiError && error.code !== null && FINAL.has(error.code)
   return (
     <form
       className="flex flex-col gap-3 border-t border-border-subtle pt-4"
       onSubmit={async (event) => {
         event.preventDefault()
-        if (busy || final) return
+        if (busy) return
         setBusy(true)
         setError(null)
         try {
@@ -174,36 +222,31 @@ function Acknowledge({ saleId, onAcknowledged }: { saleId: string; onAcknowledge
           await acknowledgeDiscountFlag(saleId, note)
           onAcknowledged()
         } catch (cause) {
-          setError(cause)
+          if (isFinal(cause)) onRefused(cause)
+          else setError(cause)
         } finally {
           setBusy(false)
         }
       }}
     >
-      {final ? null : (
-        <>
-          <label className="flex flex-col gap-1 text-sm">
-            {t('pos.discountFlags.note')}
-            <textarea
-              maxLength={DISCOUNT_FLAG_NOTE_MAX}
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-              className="min-h-20 rounded-sm border border-border-subtle p-2"
-            />
-          </label>
-          <p className="text-sm text-text-tertiary">{t('pos.discountFlags.final')}</p>
-        </>
-      )}
+      <label className="flex flex-col gap-1 text-sm">
+        {t('pos.discountFlags.note')}
+        <textarea
+          maxLength={DISCOUNT_FLAG_NOTE_MAX}
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+          className="min-h-20 rounded-sm border border-border-subtle p-2"
+        />
+      </label>
+      <p className="text-sm text-text-tertiary">{t('pos.discountFlags.final')}</p>
       {error ? (
         <p role="alert" className="text-sm text-error-600">
           {t(posRefusalKey(error))}
         </p>
       ) : null}
-      {final ? null : (
-        <button type="submit" disabled={busy} className={button}>
-          {t('pos.discountFlags.submit')}
-        </button>
-      )}
+      <button type="submit" disabled={busy} className={button}>
+        {t('pos.discountFlags.submit')}
+      </button>
     </form>
   )
 }

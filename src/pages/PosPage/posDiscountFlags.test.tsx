@@ -283,21 +283,69 @@ describe('acknowledging a flag', () => {
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
-  for (const [status, code] of [
-    [403, 'POS_DISCOUNT_FLAG_HUMAN_ONLY'],
-    [404, 'POS_DISCOUNT_FLAG_NOT_FOUND'],
-    [409, 'POS_DISCOUNT_FLAG_SELF'],
-    [409, 'POS_DISCOUNT_FLAG_ALREADY_ACKNOWLEDGED'],
+  // The list is read again only where the refusal says the row itself is out of date (review AW-2).
+  for (const [status, code, reads] of [
+    [403, 'POS_DISCOUNT_FLAG_HUMAN_ONLY', 1],
+    [404, 'POS_DISCOUNT_FLAG_NOT_FOUND', 2],
+    [409, 'POS_DISCOUNT_FLAG_SELF', 1],
+    [409, 'POS_DISCOUNT_FLAG_ALREADY_ACKNOWLEDGED', 2],
   ] as const) {
     it(`words ${code} and withdraws the form, since sending again cannot succeed`, async () => {
       acknowledge = () => problem(status, code)
       await open()
       fireEvent.click(await submit())
+      await waitFor(() => expect(listCalls()).toHaveLength(reads))
+      // After a reload the row is drawn afresh: the sentence must survive it, and the form must not
+      // come back (the mocked list still shows the row unacknowledged).
       expect((await screen.findByRole('alert')).textContent).toBe(i18n.t(`pos.refusal.${code}`))
       expect(screen.queryByRole('button', { name: i18n.t('pos.discountFlags.submit') })).toBeNull()
-      expect(listCalls()).toHaveLength(1)
     })
   }
+
+  it('shows the recorded acknowledgement after ALREADY_ACKNOWLEDGED', async () => {
+    acknowledge = () => problem(409, 'POS_DISCOUNT_FLAG_ALREADY_ACKNOWLEDGED')
+    let refused = false
+    flags = () =>
+      json([
+        refused
+          ? flag({ acknowledgedBy: OTHER_MANAGER, acknowledgedAt: '2026-11-05T08:59:00Z' })
+          : flag(),
+      ])
+    await open()
+    const button = await submit()
+    refused = true
+    fireEvent.click(button)
+    expect(
+      await screen.findByText((text) =>
+        text.startsWith(
+          i18n.t('pos.discountFlags.acknowledgedByOther', { id: OTHER_MANAGER.slice(0, 8), at: '' }),
+        ),
+      ),
+    ).toBeTruthy()
+    expect(screen.getByRole('alert').textContent).toBe(
+      i18n.t('pos.refusal.POS_DISCOUNT_FLAG_ALREADY_ACKNOWLEDGED'),
+    )
+  })
+
+  // RefusalType.IMPERSONATION_NOT_ALLOWED at 598fd6715 (GlobalExceptionHandler l.434 builds the type URI);
+  // it carries no `code` (review AW-1).
+  it('words a support session’s refusal as its own and withdraws the form', async () => {
+    acknowledge = () =>
+      json(
+        { type: 'https://api.fawtir.om/problems/impersonation-not-allowed', title: 'Access denied', status: 403 },
+        403,
+      )
+    await open()
+    fireEvent.click(await submit())
+    expect((await screen.findByRole('alert')).textContent).toBe(i18n.t('pos.refusal.impersonation'))
+    expect(screen.queryByRole('button', { name: i18n.t('pos.discountFlags.submit') })).toBeNull()
+    expect(listCalls()).toHaveLength(1)
+  })
+
+  it('does not tell an API key it might be a support session', () => {
+    expect(i18n.t('pos.refusal.POS_DISCOUNT_FLAG_HUMAN_ONLY', { lng: 'en' })).not.toMatch(/support/i)
+    expect(i18n.t('pos.refusal.POS_DISCOUNT_FLAG_HUMAN_ONLY', { lng: 'ar' })).not.toContain('جلسة دعم')
+  })
 
   it('keeps the form after a failure that may pass on a second try', async () => {
     acknowledge = () => json({ type: 'about:blank', status: 503 }, 503)
@@ -331,6 +379,7 @@ describe('the discount-flag sentences', () => {
       'pos.refusal.POS_DISCOUNT_FLAG_SELF',
       'pos.refusal.POS_DISCOUNT_FLAG_ALREADY_ACKNOWLEDGED',
       'pos.refusal.POS_DISCOUNT_FLAG_RANGE_INVALID',
+      'pos.refusal.impersonation',
     ]
     for (const lng of ['en', 'ar']) {
       for (const key of keys) expect(i18n.exists(key, { lng }), `${lng} ${key}`).toBe(true)

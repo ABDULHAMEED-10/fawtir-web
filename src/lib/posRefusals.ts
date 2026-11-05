@@ -106,6 +106,9 @@ const SLUGS: Record<string, string> = {
   'branch-not-in-scope': 'pos.refusal.branch',
   'upload-infected': 'pos.refusal.infected',
   'upload-scan-unavailable': 'pos.refusal.scanUnavailable',
+  // A support session acting as someone else (RefusalType.IMPERSONATION_NOT_ALLOWED, no code). Read
+  // as 'forbidden' it suggested a missing permission, which no role grants back (review AW-1).
+  'impersonation-not-allowed': 'pos.refusal.impersonation',
 }
 
 /** A server before the refusal had a code says the figures only in its sentence. */
