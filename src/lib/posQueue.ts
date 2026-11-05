@@ -330,8 +330,9 @@ function verdictOf(status: number, code: string | null, slug: string | null): Re
   // it at once.
   if (code === 'POS_QUEUED_SALE_HS_CODE_REQUIRED') return 'unknown'
   // The same hold for a line that states neither goods nor services (backend 8f04050ab, IBR-078-OM).
-  // Unlike the HS code, the server does not fill this from the product on the resend, and nothing on
-  // this device may choose it for the cashier, so it does not clear by itself. Kept as 'unknown', never
+  // Nothing on this device may choose it for the cashier. Since backend dbcd51ae9 a line citing an
+  // item and stating nothing itself takes the item's stored flag on the resend, so classifying the
+  // item clears it; any other line does not clear by itself. Kept as 'unknown', never
   // 'final': a final entry would read as given up on, and the sale must stay queued, unnumbered and
   // listed until someone deals with it.
   if (code === 'POS_QUEUED_SALE_GOODS_OR_SERVICE_REQUIRED') return 'unknown'

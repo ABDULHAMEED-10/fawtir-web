@@ -15,6 +15,7 @@ import {
 import { posRefusalKey, queueRefusalKey } from '../../lib/posRefusals'
 import type { TillState } from '../../lib/posTill'
 import { posOpenNumbersPath, setAsideOpenNumber, type PosOpenNumberDto } from '../../api/pos/pos'
+import type { DraftLineRequest } from '../../api/invoices/drafts'
 
 type Ready = Extract<TillState, { status: 'ready' }>
 
@@ -295,10 +296,11 @@ function Problem({
   // lets it through, not a correction of the payments.
   const pendingValidation = entry.refusal === 'POS_QUEUED_SALE_HS_CODE_REQUIRED'
   // Held the same way for a line that states neither goods nor services (backend 8f04050ab). The
-  // item's HS code does not clear this one: the lines this device kept cannot be changed here, so
-  // its hint does not send the cashier to the item for this sale.
+  // lines this device kept cannot be changed here; only where the item can cure it does the hint
+  // send someone to the item.
   const undeclared = entry.refusal === 'POS_QUEUED_SALE_GOODS_OR_SERVICE_REQUIRED'
   const heldLines = pendingValidation || undeclared ? entry.refusalValues?.lines : undefined
+  const itemCures = undeclared && curedByItem(entry, heldLines)
 
   return (
     <li className="rounded-sm bg-surface-card px-4 py-3 text-text-primary">
@@ -324,7 +326,7 @@ function Problem({
           : entry.final
             ? t('pos.queue.finalHint')
             : undeclared
-              ? t('pos.queue.goodsOrServiceHint')
+              ? t(itemCures ? 'pos.queue.goodsOrServiceItemHint' : 'pos.queue.goodsOrServiceHint')
               : pendingValidation
               ? t('pos.queue.hsCodeHint')
               : sender && entry.madeBy?.userId === sender
@@ -405,6 +407,28 @@ function Problem({
       )}
     </li>
   )
+}
+
+/**
+ * Whether every held line can be cured by classifying its catalogue item (backend dbcd51ae9,
+ * HS-B-TILL-STALL): on a queued sale's resend, a line that cites a product and states no
+ * classification of its own (no goods/services, HS code or service type) takes the active item's
+ * stored flag. A typed line with no product, or one that states anything itself, never does, and
+ * nor does a line the answer names that this device cannot find: those keep the old hint. Whether
+ * the item is active, flagged and consistent with its kind only the server knows, so the hint says
+ * what to do, not that it will clear.
+ */
+function curedByItem(entry: QueuedSale, held: string | undefined): boolean {
+  if (!held) return false
+  const numbers = held.split(',').map((part) => Number(part.trim()))
+  if (numbers.some((number) => !Number.isInteger(number))) return false
+  const lines = (entry.body.draft as { lines?: DraftLineRequest[] }).lines ?? []
+  return numbers.every((number) => {
+    const line = lines.find((candidate) => candidate.lineNumber === number)
+    if (!line?.productId) return false
+    const own = line.classification
+    return !own || (own.goodsOrService == null && own.hsCode == null && own.serviceTypeCode == null)
+  })
 }
 
 /** On the server's list and not in this device's queue: another device holds the sale. */

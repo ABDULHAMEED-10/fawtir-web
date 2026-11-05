@@ -345,6 +345,86 @@ describe('the queue on the till and Today (H-1)', () => {
     expect(queuedFor('till-1')).toHaveLength(1)
   })
 
+  // Backend dbcd51ae9 (HS-B-TILL-STALL): a held line that cites an item and states nothing itself is
+  // cured by classifying the item; any other held line keeps the old hint.
+  describe('which hint a held undeclared line gets (HS-STALL-WEB-HINT)', () => {
+    const line = (lineNumber: number, extra: Record<string, unknown> = {}) => ({
+      lineNumber,
+      description: `Line ${lineNumber}`,
+      unitCode: 'C62',
+      quantity: 1,
+      unitPrice: 0.1,
+      ...extra,
+    })
+    async function heldWith(lines: object[], key: string) {
+      await submitSale(TILL, { ...BODY, draft: { lines } as never }, key)
+      reply = () =>
+        problem(422, {
+          code: 'POS_QUEUED_SALE_GOODS_OR_SERVICE_REQUIRED',
+          lines: [1, 2],
+          invoiceNumber: 'NZW-T01-INV-2026-000013',
+          state: 'PENDING_VALIDATION',
+        })
+      await flushQueue('till-1')
+      render(wrap(<PosQueuePanel till={READY(true)} />))
+      return screen.getByRole('alert').textContent ?? ''
+    }
+
+    it('lines citing an item and stating nothing say to classify the item, then Try again', async () => {
+      const text = await heldWith(
+        [
+          line(1, { productId: 'p-1', productCode: 'P-1' }),
+          line(2, {
+            productId: 'p-2',
+            productCode: 'P-2',
+            classification: { goodsOrService: null, hsCode: null, serviceTypeCode: null },
+          }),
+        ],
+        'pos-sale-key-panel-gs-item',
+      )
+      expect(text).toContain(i18n.t('pos.queue.goodsOrServiceItemHint'))
+      expect(text).toMatch(/goods or a service in the catalogue/)
+      expect(text).toMatch(/then press Try again/)
+      expect(text).not.toContain(i18n.t('pos.queue.goodsOrServiceHint'))
+      expect(text).toContain(i18n.t('pos.queue.goodsOrServiceLines', { lines: '1, 2' }))
+      expect(queuedFor('till-1')).toHaveLength(1)
+    })
+
+    it('a typed line with no item keeps the old hint', async () => {
+      const text = await heldWith(
+        [line(1, { productId: 'p-1', productCode: 'P-1' }), line(2)],
+        'pos-sale-key-panel-gs-typed',
+      )
+      expect(text).toContain(i18n.t('pos.queue.goodsOrServiceHint'))
+      expect(text).not.toContain(i18n.t('pos.queue.goodsOrServiceItemHint'))
+    })
+
+    it('a line stating something of its own keeps the old hint', async () => {
+      const text = await heldWith(
+        [
+          line(1, { productId: 'p-1', productCode: 'P-1' }),
+          line(2, { productId: 'p-2', productCode: 'P-2', classification: { serviceTypeCode: 'X' } }),
+        ],
+        'pos-sale-key-panel-gs-own',
+      )
+      expect(text).toContain(i18n.t('pos.queue.goodsOrServiceHint'))
+      expect(text).not.toContain(i18n.t('pos.queue.goodsOrServiceItemHint'))
+    })
+
+    it('a held line this device does not have keeps the old hint', async () => {
+      const text = await heldWith(
+        [line(1, { productId: 'p-1', productCode: 'P-1' })],
+        'pos-sale-key-panel-gs-missing',
+      )
+      expect(text).toContain(i18n.t('pos.queue.goodsOrServiceHint'))
+      expect(text).not.toContain(i18n.t('pos.queue.goodsOrServiceItemHint'))
+    })
+
+    it('has the item hint in Arabic too', () => {
+      expect(i18n.exists('pos.queue.goodsOrServiceItemHint', { lng: 'ar', fallbackLng: false })).toBe(true)
+    })
+  })
+
   it('says it in Arabic too, with the number left to right', async () => {
     await submitSale(TILL, BODY, 'pos-sale-key-panel-3')
     reply = READ_ONLY

@@ -5233,6 +5233,7 @@
       "ZR_MEDICAL_NOT_LISTED": "Line {{line}} is zero-rated as medical, but its HS code is not on Oman's zero-rated medicines or medical equipment lists. Check its VAT category or HS code.",
       "POS_DISCOUNT_ABOVE_LIMIT_ACCEPTED": "Sold offline with a discount above the cashier's limit. It is filed and recorded for the manager.",
       "POS_PRINTED_NUMBER_DIFFERS": "A customer's receipt says {{printed}}, but that sale is filed as {{filed}}. Use {{filed}} to find it.",
+      "POS_GOODS_OR_SERVICE_FROM_PRODUCT": "Line {{line}} did not say whether it is goods or a service, so it was filed as its item is marked in the catalogue.",
       "POS_GOODS_FLAG_CLEARED": "Line {{line}} has no HS code, so it was filed without being marked as goods. Someone who can edit items adds the code on the item (Other if none fits) for next time.",
       "POS_REFUND_PIECE_CARRIED": "Line {{line}} did not come back: on its own in this refund it is worth less than a baisa. It stays on the sale; give it back together with more of the line."
     },
@@ -5265,6 +5266,7 @@
       "hsCodeHint": "The customer has the printed receipt; the invoice is not issued yet. Someone who can edit items adds the HS code on the item (Other if none fits), then press Try again. It goes again as the same sale on the same number, so nothing is charged or filed twice. The till keeps selling meanwhile.",
       "hsCodeLines": "Lines without an HS code: {{lines}}.",
       "goodsOrServiceLines": "Lines that do not say goods or service: {{lines}}.",
+      "goodsOrServiceItemHint": "The customer has the printed receipt; the invoice is not issued yet. Someone who can edit items marks each listed item as goods or a service in the catalogue (the item must still be active), then press Try again. It goes again as the same sale on the same number, so nothing is charged or filed twice. Later sales wait behind it. The till keeps selling meanwhile.",
       "goodsOrServiceHint": "The customer has the printed receipt; the invoice is not issued yet. The lines this device kept for it cannot be changed here, so Try again will not clear it by itself, and later sales wait behind it. Ask a manager to contact Fawtir support, and do not clear this device's data. To stop it happening again, give goods items an HS code. The till keeps selling meanwhile.",
       "finalHint": "The customer holds this invoice and it stays open here until it is filed. Sending it again as it stands will not work. Correct it if you can, or contact Fawtir support. The till keeps selling meanwhile.",
       "retry": "Try again",
