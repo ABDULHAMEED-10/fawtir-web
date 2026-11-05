@@ -1120,7 +1120,7 @@ describe('a paid-out the server timed out', () => {
     fireEvent.click(recordButton())
     expect(
       await screen.findByText(
-        'This paid-out took too long, and nothing was paid out. Press Record it again: the same paid-out is sent again safely and can never be recorded twice.',
+        'This paid-out took too long, and nothing was paid out. Press "Record it" again with the same details: it is sent again safely and cannot be recorded twice.',
       ),
     ).toBeTruthy()
     expect(
