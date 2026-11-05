@@ -1083,7 +1083,8 @@ describe('A carried limit (FR2-1)', () => {
   })
 
   it('reads a server before 37b2fedca, which sends no carriedLimits, as before', async () => {
-    const { carriedLimits: _omitted, ...older } = CARRIED_VIEW
+    // Undefined is left out of the JSON body, so the answer carries no carriedLimits at all.
+    const older = { ...CARRIED_VIEW, carriedLimits: undefined }
     answers['/api/v1/users/p-clerk/permissions'] = () => json(200, older)
     renderAt('/settings/team/p-clerk')
     await screen.findAllByText('Given to them')

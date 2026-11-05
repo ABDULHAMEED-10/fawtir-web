@@ -29,7 +29,7 @@ describe('offline hold times name their zone (W41-2)', () => {
       const real = Date.prototype.toLocaleString
       return vi.spyOn(Date.prototype, 'toLocaleString').mockImplementation(function (
         this: Date,
-        locales?: string | string[],
+        locales?: Intl.LocalesArgument,
         options?: Intl.DateTimeFormatOptions,
       ) {
         if (options?.timeZoneName === 'shortOffset') {

@@ -3924,7 +3924,9 @@ describe('a bill recorded over possible duplicates, in its activity', () => {
         200,
         detail({
           activity: [{ at: '2026-10-30T09:15:00Z', kind: 'BRAND_NEW', detail: null, actor: null }],
-        } as Parameters<typeof detail>[0]),
+          // A kind this build does not know, as a newer server may send: deliberately outside the
+          // typed union, which is the point of the test, so it goes through unknown.
+        } as unknown as Parameters<typeof detail>[0]),
       )
     renderBill()
     expect(await screen.findByText(new RegExp(i18n.t('invoiceDetails.event.other')))).toBeTruthy()

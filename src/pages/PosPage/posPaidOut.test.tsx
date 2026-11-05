@@ -444,7 +444,7 @@ describe('a paid-out', () => {
     attachReceipt()
     fireEvent.click(recordButton())
     await waitFor(() => expect(paidOuts).toHaveLength(1))
-    await waitFor(() => expect(recordButton().disabled).toBe(false))
+    await waitFor(() => expect((recordButton() as HTMLButtonElement).disabled).toBe(false))
     expect(screen.queryByText(form('pending.title'))).toBeNull()
     expect(screen.getByRole('textbox', { name: i18n.t('pos.pay.amount') })).toBeTruthy()
     expect(window.sessionStorage.getItem(HELD)).toBeNull()

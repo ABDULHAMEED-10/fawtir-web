@@ -98,7 +98,7 @@ export function heldForText(heldFor: OfflineHeldFor): {
   causes: HeldForText[]
   lines: HeldForText[]
 } {
-  const causes = heldFor.causes.map((cause) =>
+  const causes = heldFor.causes.map((cause): HeldForText =>
     KNOWN_CAUSES.has(cause)
       ? { key: `cause.${cause}`, values: {} }
       : { key: 'unknownCause', values: { cause } },
