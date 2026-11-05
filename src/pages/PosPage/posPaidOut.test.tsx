@@ -779,6 +779,102 @@ describe('drawer figures the server withholds', () => {
   })
 })
 
+/** Opens the paid-in form and returns its amount field. */
+async function openPaidIn() {
+  renderClose()
+  fireEvent.click(await screen.findByRole('button', { name: i18n.t('pos.close.move.PAID_IN') }))
+  return screen.getAllByPlaceholderText('0.000').at(-1) as HTMLInputElement
+}
+
+const paidInCurrency = () =>
+  screen.getByRole('combobox', { name: i18n.t('pos.close.paidInCurrency') }) as HTMLSelectElement
+
+function choosePaidInCurrency(code: string) {
+  fireEvent.change(paidInCurrency(), { target: { value: code } })
+}
+
+// FIN-PAIDIN-CUR: since backend a2c9fcf0c a paid-in states its currency. The paid-out's pattern
+// (FIN-M3-CURRENCY-SRC, owner item 6.3): the cashier's explicit choice, never a default.
+describe('the currency of a paid-in', () => {
+  it('assumes none: nothing is chosen, and every currency of the paid-out list is offered', async () => {
+    await openPaidIn()
+    expect(paidInCurrency().value).toBe('')
+    const offered = Array.from(paidInCurrency().options).map((option) => option.value)
+    expect(offered).toEqual(['', 'OMR', 'USD', 'EUR', 'AED', 'SAR'])
+    expect(screen.getByText(i18n.t('pos.close.paidInCurrencyNote'))).toBeTruthy()
+  })
+
+  it('Record it waits until a currency is chosen, and sends nothing before', async () => {
+    const amount = await openPaidIn()
+    fireEvent.change(amount, { target: { value: '4' } })
+    expect((recordButton() as HTMLButtonElement).disabled).toBe(true)
+    fireEvent.click(recordButton())
+    expect(paidOuts).toHaveLength(0)
+    choosePaidInCurrency('OMR')
+    expect((recordButton() as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('sends the chosen currency with the paid-in', async () => {
+    answer = () => json({ ...PAID_OUT, type: 'PAID_IN', amount: 4, currency: 'USD' }, 201)
+    const amount = await openPaidIn()
+    fireEvent.change(amount, { target: { value: '4' } })
+    choosePaidInCurrency('USD')
+    fireEvent.click(recordButton())
+    await waitFor(() => expect(paidOuts).toHaveLength(1))
+    expect(paidOuts[0].body).toEqual({ type: 'PAID_IN', amount: 4, note: null, currency: 'USD' })
+    // Recorded: the drawer figures reload and the next paid-in again starts with no currency.
+    await waitFor(() => expect(previews).toBe(2))
+    fireEvent.click(await screen.findByRole('button', { name: i18n.t('pos.close.move.PAID_IN') }))
+    expect(paidInCurrency().value).toBe('')
+  })
+
+  it('422 POS_CASH_MOVEMENT_CURRENCY_MISMATCH names both currencies and leaves the form as it was', async () => {
+    answer = () =>
+      problem(422, 'POS_CASH_MOVEMENT_CURRENCY_MISMATCH', { shiftCurrency: 'OMR', sentCurrency: 'AED' })
+    const amount = await openPaidIn()
+    fireEvent.change(amount, { target: { value: '4' } })
+    fireEvent.change(screen.getByPlaceholderText(i18n.t('pos.pay.optional')), {
+      target: { value: 'Change from the bank' },
+    })
+    choosePaidInCurrency('AED')
+    fireEvent.click(recordButton())
+    expect(
+      await screen.findByText(
+        i18n.t('pos.refusal.POS_CASH_MOVEMENT_CURRENCY_MISMATCH', {
+          shiftCurrency: 'OMR',
+          sentCurrency: 'AED',
+        }),
+      ),
+    ).toBeTruthy()
+    expect(amount.value).toBe('4')
+    expect((screen.getByPlaceholderText(i18n.t('pos.pay.optional')) as HTMLInputElement).value).toBe(
+      'Change from the bank',
+    )
+    expect(paidInCurrency().value).toBe('AED')
+    expect(previews).toBe(1)
+  })
+
+  it('400 POS_CASH_MOVEMENT_CURRENCY_INVALID is worded and leaves the form as it was', async () => {
+    answer = () => problem(400, 'POS_CASH_MOVEMENT_CURRENCY_INVALID')
+    const amount = await openPaidIn()
+    fireEvent.change(amount, { target: { value: '4' } })
+    choosePaidInCurrency('SAR')
+    fireEvent.click(recordButton())
+    expect(
+      await screen.findByText(i18n.t('pos.refusal.POS_CASH_MOVEMENT_CURRENCY_INVALID')),
+    ).toBeTruthy()
+    expect(amount.value).toBe('4')
+    expect(paidInCurrency().value).toBe('SAR')
+  })
+
+  it.each(['pos.close.paidInCurrency', 'pos.close.paidInCurrencyNote'])('%s is in Arabic', async (key) => {
+    await i18n.changeLanguage('ar')
+    expect(i18n.exists(key, { lng: 'ar', fallbackLng: false })).toBe(true)
+    expect(i18n.t(key)).not.toMatch(/[A-Za-z]{4,}/)
+    await i18n.changeLanguage('en')
+  })
+})
+
 describe('a paid-out or paid-in the shift currency refuses', () => {
   it('422 POS_PAID_OUT_CURRENCY_MISMATCH names both currencies and leaves the form as it was', async () => {
     answer = () =>
@@ -827,22 +923,19 @@ describe('a paid-out or paid-in the shift currency refuses', () => {
     },
   )
 
-  // BLOCKED on owner D-CUR-1: nothing records a till's currency, so the paid-in sends none and the
-  // server refuses it 400. This pins the refusal's wording and that the amount survives it; it does
-  // not choose a currency.
+  // FIN-PAIDIN-CUR: the paid-in now sends the currency the cashier chose; a server that still finds
+  // none is worded, and the amount survives it.
   it('a paid-in refused 400 POS_CASH_MOVEMENT_CURRENCY_REQUIRED is worded and keeps the amount', async () => {
     answer = () => problem(400, 'POS_CASH_MOVEMENT_CURRENCY_REQUIRED')
-    renderClose()
-    fireEvent.click(await screen.findByRole('button', { name: i18n.t('pos.close.move.PAID_IN') }))
-    const amount = screen.getAllByPlaceholderText('0.000').at(-1) as HTMLInputElement
+    const amount = await openPaidIn()
     fireEvent.change(amount, { target: { value: '4' } })
+    choosePaidInCurrency('OMR')
     fireEvent.click(recordButton())
     expect(
       await screen.findByText(i18n.t('pos.refusal.POS_CASH_MOVEMENT_CURRENCY_REQUIRED')),
     ).toBeTruthy()
     expect(paidOuts).toHaveLength(1)
-    expect(paidOuts[0].body).toMatchObject({ type: 'PAID_IN', amount: 4 })
-    expect(paidOuts[0].body).not.toHaveProperty('currency')
+    expect(paidOuts[0].body).toMatchObject({ type: 'PAID_IN', amount: 4, currency: 'OMR' })
     expect(amount.value).toBe('4')
   })
 

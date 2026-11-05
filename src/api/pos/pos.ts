@@ -604,7 +604,7 @@ export function setShiftFloat(shiftId: string, amount: number): Promise<PosShift
  */
 export function addCashMovement(
   shiftId: string,
-  body: { type: 'PAID_IN'; amount: number; note: string | null },
+  body: { type: 'PAID_IN'; amount: number; note: string | null; currency: string },
 ): Promise<PosCashMovementDto> {
   return apiRequest<PosCashMovementDto>(`${POS_SHIFTS_PATH}/${id(shiftId)}/cash-movements`, {
     method: 'POST',

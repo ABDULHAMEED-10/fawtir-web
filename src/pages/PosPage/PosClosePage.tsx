@@ -1103,10 +1103,15 @@ function CashMovements({
   const type = chosen && kinds.includes(chosen) ? chosen : (kinds[0] ?? null)
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
+  // FIN-PAIDIN-CUR: the paid-out's pattern (FIN-M3-CURRENCY-SRC, owner item 6.3). Nothing records a
+  // till's currency, so the cashier chooses it each time; none is assumed or prefilled, and the server
+  // checks the choice against the shift's own records (since a2c9fcf0c it refuses a paid-in without one).
+  const [currency, setCurrency] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<unknown>(null)
 
   if (type === null) return null
+  const needsCurrency = type === 'PAID_IN' && currency === ''
 
   const record = async () => {
     setBusy(true)
@@ -1114,9 +1119,17 @@ function CashMovements({
     try {
       const value = parseBaisa(amount) / 1000
       if (type === 'FLOAT') await setShiftFloat(shiftId, value)
-      else await addCashMovement(shiftId, { type: 'PAID_IN', amount: value, note: note.trim() || null })
+      else {
+        await addCashMovement(shiftId, {
+          type: 'PAID_IN',
+          amount: value,
+          note: note.trim() || null,
+          currency,
+        })
+      }
       setAmount('')
       setNote('')
+      setCurrency('')
       onRecorded()
     } catch (cause) {
       setError(cause)
@@ -1183,6 +1196,26 @@ function CashMovements({
                   className={`${FIELD} text-end`}
                 />
               </label>
+              {type === 'PAID_IN' ? (
+                <label className="flex min-w-0 flex-1 basis-[140px] flex-col gap-1.5">
+                  <span className="text-xs font-medium text-text-tertiary">
+                    {t('pos.close.paidInCurrency')}
+                  </span>
+                  <select
+                    value={currency}
+                    aria-label={t('pos.close.paidInCurrency')}
+                    onChange={(event) => setCurrency(event.target.value)}
+                    className={FIELD}
+                  >
+                    <option value="">{t('pos.close.paidOutForm.choose')}</option>
+                    {CURRENCIES.map((code) => (
+                      <option key={code} value={code}>
+                        {code}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
               {type !== 'FLOAT' ? (
                 <label className="flex min-w-0 flex-[2] basis-[200px] flex-col gap-1.5">
                   <span className="text-xs font-medium text-text-tertiary">
@@ -1198,6 +1231,11 @@ function CashMovements({
                 </label>
               ) : null}
             </div>
+            {type === 'PAID_IN' ? (
+              <p className="text-xs font-medium text-text-quaternary">
+                {t('pos.close.paidInCurrencyNote')}
+              </p>
+            ) : null}
             {error ? (
               <p role="alert" className="text-xs font-medium text-danger-700">
                 {t(posRefusalKey(error), refusalValues(error))}
@@ -1206,7 +1244,7 @@ function CashMovements({
             <div>
               <button
                 type="button"
-                disabled={busy || parseBaisa(amount) <= 0}
+                disabled={busy || parseBaisa(amount) <= 0 || needsCurrency}
                 onClick={() => void record()}
                 className="inline-flex h-10 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-50"
               >
