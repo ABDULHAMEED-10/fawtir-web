@@ -5434,6 +5434,28 @@
       "expected": "Expected",
       "counted": "Counted",
       "overShort": "Over or short"
+    },
+    "heldSales": {
+      "link": "Held sales",
+      "title": "Held sales",
+      "intro": "Sales from the tills that the server is holding for a check, and the numbers a till is waiting for before it can send later sales. A sale leaves this list once it is filed.",
+      "notAllowed": "Seeing held sales needs permission to view the till.",
+      "truncated": "More held sales exist than shown.",
+      "none": "No sale is held.",
+      "row": "Till {{till}} · number {{number}}",
+      "overdue": "Overdue: first seen more than 24 hours ago",
+      "waitingFor": "Waiting for number {{number}}; the server has no record of that sale.",
+      "reason": {
+        "goodsOrService": "Held: a line does not say whether it is goods or a service.",
+        "hsCode": "Held: a goods line has no HS code.",
+        "other": "Held by the server for a check before it is filed."
+      },
+      "lines": "Lines: {{lines}}.",
+      "heldTimes": "Held first {{first}}, last {{last}}.",
+      "reHeld": "Held again since: {{times}}.",
+      "blockedTimes": "Later sales refused behind it: first {{first}}, last {{last}}.",
+      "queueWaits": "The till waits for number {{number}}.",
+      "timeUnknown": "not recorded"
     }
   },
   "orderDetail": {

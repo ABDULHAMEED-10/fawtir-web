@@ -118,6 +118,7 @@ import {
   PosRefundPage,
   PosOfflineHoldsPage,
   PosDiscountFlagsPage,
+  PosHeldSalesPage,
   PosCurrencyExceptionsPage,
 } from './pages/PosPage'
 import { QuotationsPage } from './pages/QuotationsPage'
@@ -399,6 +400,7 @@ function App() {
           <Route path="/pos/refund" element={<PosRefundPage />} />
           <Route path="/pos/offline-holds" element={<PosOfflineHoldsPage />} />
           <Route path="/pos/discount-flags" element={<PosDiscountFlagsPage />} />
+          <Route path="/pos/held-sales" element={<PosHeldSalesPage />} />
           <Route path="/pos/currency-exceptions" element={<PosCurrencyExceptionsPage />} />
           <Route path="/income/debit-notes" element={<DebitNotesPage />} />
           <Route

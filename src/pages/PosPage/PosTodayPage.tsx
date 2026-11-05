@@ -180,6 +180,9 @@ function Today({ till }: { till: Ready }) {
           <Link to="/pos/currency-exceptions" className="inline-flex h-11 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25">
             {t('pos.currencyExceptions.link')}
           </Link>
+          <Link to="/pos/held-sales" className="inline-flex h-11 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25">
+            {t('pos.heldSales.link')}
+          </Link>
         </div>
       </div>
 
