@@ -54,7 +54,7 @@ import {
   outcomeUnknown,
   paidOutGap,
   paidOutRefusal,
-  retryRefusedForBillSettle,
+  refusedOnRetry,
   keepsAttemptAfter,
   paidOutRequest,
   isLocked,
@@ -1352,7 +1352,7 @@ function PaidOutForm({
   }
 
   const failed = (cause: unknown, sent: boolean, retried: boolean) => {
-    if (sent && (outcomeUnknown(cause) || (retried && retryRefusedForBillSettle(cause)))) {
+    if (sent && (outcomeUnknown(cause) || (retried && refusedOnRetry(cause)))) {
       // The server may have recorded it: from here on only the same body under the same key may
       // go, until a definite answer or the cashier's check (review W4-1).
       store.unknown = true
@@ -1488,10 +1488,11 @@ function PaidOutForm({
     }
   }
 
-  // Only a retry under a kept key leaves this refusal locked (B8R-1), so locked means that case.
+  // Only a retry under a kept key leaves a 403 locked (B8R-1, WB5-2), so locked means that case.
+  const mayBeRecorded = locked && error !== null && refusedOnRetry(error)
   const refusal = !error
     ? null
-    : locked && retryRefusedForBillSettle(error)
+    : mayBeRecorded
       ? { key: 'pos.close.paidOutForm.pending.mayBeRecorded', values: {} }
       : paidOutRefusal(error, i18n.language)
   const pending = pendingBody(store)

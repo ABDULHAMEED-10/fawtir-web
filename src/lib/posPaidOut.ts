@@ -193,7 +193,8 @@ export function mayUnlock(store: PaidOutStore, checkedAt: number | null): boolea
 /**
  * The press was sent and nothing definite came back: no answer at all, or a gateway or server fault
  * without the server's own code. Any coded refusal is definite: nothing was recorded. That includes
- * 503 POS_PAID_OUT_TIMED_OUT, whose attempt and key are nevertheless kept (keepsAttemptAfter, WB5-1).
+ * 503 POS_PAID_OUT_TIMED_OUT, whose attempt and key are nevertheless kept (keepsAttemptAfter, WB5-1),
+ * and excludes a 403 on a retry under a kept key (refusedOnRetry, WB5-2).
  */
 export function outcomeUnknown(error: unknown): boolean {
   if (error instanceof NetworkError) return true
@@ -305,13 +306,16 @@ export function keepsAttemptAfter(error: unknown): boolean {
 }
 
 /**
- * B8R-1 (Agent 10, on WB4-2): a supplier payment recorded before K10 and sent again under its kept
- * key by someone without bill.settle is answered 403 POS_SUPPLIER_PAYMENT_REQUIRES_BILL_SETTLE, not
- * replayed. On such a retry the 403 says nothing about the first press, which may have paid the cash
- * out, so it is not a definite "nothing was recorded": the attempt stays held for a manager's check.
+ * B8R-1, widened by WB5-2 (Agent 10): a permission or scope check answers before the idempotent
+ * replay, so a retry under a kept key can be refused 403 (POS_SUPPLIER_PAYMENT_REQUIRES_BILL_SETTLE
+ * after K10, POS_PAID_OUT_FORBIDDEN or POS_PAID_OUT_BILL_FORBIDDEN after a permission was withdrawn,
+ * POS_SHIFT_NOT_OWN, branch-not-in-scope) instead of replaying the first press. That 403 says
+ * nothing about the first press, which may have paid the cash out, so on a retry it is never a
+ * definite "nothing was recorded": the attempt stays held for a manager's check. Any 403, so a code
+ * added later cannot slip through as "nothing was recorded".
  */
-export function retryRefusedForBillSettle(error: unknown): boolean {
-  return error instanceof ApiError && serverCode(error) === 'POS_SUPPLIER_PAYMENT_REQUIRES_BILL_SETTLE'
+export function refusedOnRetry(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 403
 }
 
 /** The edge refused the body for size before the server's coded answer (the gateway's limit). */

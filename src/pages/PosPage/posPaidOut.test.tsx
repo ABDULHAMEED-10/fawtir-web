@@ -773,6 +773,39 @@ describe('the supplier bill link', () => {
     expect(i18n.exists('pos.close.paidOutForm.pending.mayBeRecorded', { lng: 'ar', fallbackLng: false })).toBe(true)
   })
 
+  // WB5-2: any 403 on a retry under a kept key, here pos.cash.pay_out withdrawn since the first press.
+  it('a retry refused POS_PAID_OUT_FORBIDDEN may have been recorded, and stays held', async () => {
+    window.sessionStorage.setItem(
+      HELD,
+      JSON.stringify({
+        attempt: {
+          key: 'pos-paidout-stored-key-0005',
+          fingerprint: JSON.stringify({
+            type: 'PAID_OUT',
+            amount: 2.5,
+            note: 'Milk',
+            category: 'PETTY_CASH_EXPENSE',
+            accountingClass: 'EXPENSE',
+            currency: 'OMR',
+            billId: null,
+            receiptObjectId: null,
+            missingReceiptReason: 'Lost',
+          }),
+        },
+        receipt: null,
+        unknown: true,
+      }),
+    )
+    answer = () => problem(403, 'POS_PAID_OUT_FORBIDDEN')
+    renderClose()
+    fireEvent.click(await screen.findByRole('button', { name: form('pending.again') }))
+    expect(await screen.findByText(form('pending.mayBeRecorded'))).toBeTruthy()
+    expect(paidOuts[0].key).toBe('pos-paidout-stored-key-0005')
+    expect(screen.queryByText(/Nothing was recorded/i)).toBeNull()
+    expect(screen.getByText(form('pending.title'))).toBeTruthy()
+    expect(window.sessionStorage.getItem(HELD)).toContain('pos-paidout-stored-key-0005')
+  })
+
   it('a failed bill search never steers the cashier to record it without the bill', async () => {
     permissions = [...permissions, 'bill.settle']
     await supplierPayment()
