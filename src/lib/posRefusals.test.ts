@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import i18n from '../i18n'
 import { ApiError } from '../api'
+import { toApiError } from '../api/errors'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import en from '../i18n/locales/en.json'
@@ -8,6 +9,7 @@ import ar from '../i18n/locales/ar.json'
 import {
   isTooLarge,
   NEEDS,
+  quoteUnavailable,
   posRefusalKey,
   queueRefusalKey,
   refusalMessage,
@@ -395,5 +397,17 @@ describe('a sale too large to send (K30)', () => {
     // Nothing was recorded online; the queued sale keeps its number and is not cleared by itself.
     expect(i18n.t('pos.refusal.tooLarge', { lng: 'en' })).toMatch(/nothing was recorded/)
     expect(i18n.t('pos.queue.tooLargeHint', { lng: 'en' })).toMatch(/not sent again by itself/)
+  })
+})
+
+// W5-SHARED audit: a server without the route answers with a Spring default body, whose reason
+// phrase used to be read as a code and hid the missing route.
+describe('a quote route that is not there', () => {
+  it('is unavailable whether the 404 carries a reason phrase or nothing', () => {
+    const phrase = toApiError(new Response(null, { status: 404 }), { status: 404, error: 'Not Found', path: '/x' })
+    expect(quoteUnavailable(phrase)).toBe(true)
+    expect(quoteUnavailable(toApiError(new Response(null, { status: 405 }), undefined))).toBe(true)
+    const coded = toApiError(new Response(null, { status: 404 }), { code: 'POS_SALE_NOT_FOUND' })
+    expect(quoteUnavailable(coded)).toBe(false)
   })
 })

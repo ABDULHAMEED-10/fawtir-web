@@ -185,8 +185,8 @@ describe('an outcome nobody knows (review W4-1)', () => {
     expect(outcomeUnknown(coded(422, 'POS_PAID_OUT_EXCEEDS_CASH'))).toBe(false)
   })
 
-  // Review W5-1: toApiError takes `error` when there is no `code`, and a Spring or gateway body's
-  // `error` is the reason phrase. That is no code, so the outcome stays unknown.
+  // Review W5-1: a Spring or gateway body's `error` is the reason phrase. That is no code, so the
+  // outcome stays unknown. Since the W5-SHARED audit toApiError itself leaves it out of `code`.
   it('takes a reason phrase in `error` for no code', () => {
     const gateway = toApiError(new Response(null, { status: 500 }), {
       timestamp: '2026-11-05T14:00:00Z',
@@ -194,7 +194,7 @@ describe('an outcome nobody knows (review W4-1)', () => {
       error: 'Internal Server Error',
       path: '/api/v1/pos/shifts/sh-1/cash-movements',
     })
-    expect(gateway.code).toBe('Internal Server Error')
+    expect(gateway.code).toBeNull()
     expect(serverCode(gateway)).toBeNull()
     expect(outcomeUnknown(gateway)).toBe(true)
     const badGateway = toApiError(new Response(null, { status: 502 }), { error: 'Bad Gateway' })

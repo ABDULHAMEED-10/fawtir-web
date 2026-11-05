@@ -56,15 +56,16 @@ export class ApiError extends Error {
   }
 }
 
+/** The server's refusal codes are upper-case identifiers; a reason phrase is not one. */
+const SERVER_CODE = /^[A-Z][A-Z0-9_]+$/
+
 /**
- * The server's own refusal code, or null. `ApiError.code` also takes a problem's `error` member
- * (the Expenditure handlers put their code there), so a Spring or gateway body such as
- * `{"error": "Internal Server Error"}` arrives as a "code" that is only a reason phrase. A code is
- * the server's upper-case identifier; anything else is no code (review W5-1). `toApiError` keeps
- * its fallback on purpose: every caller reads `code`, and only those that act on "no code" use this.
+ * The server's own refusal code, or null (review W5-1). Since the W5-SHARED audit `toApiError`
+ * no longer takes a reason phrase from `error`, so this differs from `code` only for a `code`
+ * member that is not an identifier; the callers that act on "no code" keep using it.
  */
 export function serverCode(error: ApiError): string | null {
-  return error.code !== null && /^[A-Z][A-Z0-9_]+$/.test(error.code) ? error.code : null
+  return error.code !== null && SERVER_CODE.test(error.code) ? error.code : null
 }
 
 export type NetworkFailureReason = 'offline' | 'timeout'
@@ -100,6 +101,11 @@ function fieldErrorsOf(errors: unknown): ProblemFieldError[] {
   })
 }
 
+function codeOf(value: unknown): string | null {
+  const text = stringOf(value)
+  return text !== null && SERVER_CODE.test(text) ? text : null
+}
+
 function stringOf(value: unknown): string | null {
   return typeof value === 'string' && value !== '' ? value : null
 }
@@ -116,7 +122,11 @@ export function toApiError(response: Response, body: unknown): ApiError {
     problemType: problemTypeOf(problem.type),
     fieldErrors: fieldErrorsOf(problem.errors),
     retryAfterSeconds: retryAfterOf(response.headers),
-    code: stringOf(problem.code) ?? stringOf(problem.error),
+    // The Expenditure handlers put their code in `error`, but so does every Spring or gateway
+    // default body, as a reason phrase ("Payload Too Large", "Not Found"). A phrase there is no
+    // code: taken as one, it defeated each caller's "no code" branch, such as the bill upload's
+    // 413 and the till's missing-route check (W5-SHARED audit). `code` itself is kept as sent.
+    code: stringOf(problem.code) ?? codeOf(problem.error),
     correlationId: stringOf(problem.correlationId) ?? stringOf(problem.trace_id),
     problem,
   })
