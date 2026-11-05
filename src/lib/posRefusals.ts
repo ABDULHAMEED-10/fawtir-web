@@ -79,6 +79,9 @@ const WORDED = new Set([
   'POS_SLIP_INVALID',
   'DISCOUNT_ABOVE_LIMIT',
   'HS_CODE_REQUIRED',
+  // Backend 8f04050ab (IBR-078-OM): an online full invoice with a line stating neither goods nor
+  // services is refused before its number is taken; `line` names it.
+  'GOODS_OR_SERVICE_REQUIRED',
   // V530 offline binding (BINDING-DESIGN §13.1): the manager's hold review and key revocation.
   'POS_OFFLINE_KEY_ALREADY_REVOKED',
   'POS_OFFLINE_KEY_NOT_FOUND',
@@ -162,6 +165,8 @@ const QUEUE_WORDED = new Set([
   'SELLER_PARTICIPANT_NOT_VERIFIED',
   'INDUSTRIAL_CLASSIFICATION_REQUIRED',
   'POS_QUEUED_SALE_HS_CODE_REQUIRED',
+  // Backend 8f04050ab (HS Slice B): a line stating neither goods nor services, held the same way.
+  'POS_QUEUED_SALE_GOODS_OR_SERVICE_REQUIRED',
   // Set by this device (posQueue BUYER_UNAVAILABLE), never by the server: nothing was sent.
   'POS_QUEUED_BUYER_UNAVAILABLE',
 ])
@@ -244,7 +249,8 @@ export function refusalValues(error: unknown): Record<string, string> {
     const value = error.problem[name]
     if (value != null) values[name] = String(value)
   }
-  // POS_QUEUED_SALE_HS_CODE_REQUIRED names every goods line it holds the sale for, not one `line`.
+  // POS_QUEUED_SALE_HS_CODE_REQUIRED and POS_QUEUED_SALE_GOODS_OR_SERVICE_REQUIRED name every line they
+  // hold the sale for, not one `line`.
   const lines = error.problem.lines
   if (Array.isArray(lines) && lines.length > 0) values.lines = lines.map(String).join(', ')
   return values

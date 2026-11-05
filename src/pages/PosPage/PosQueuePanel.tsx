@@ -294,7 +294,11 @@ function Problem({
   // Held before issue for a goods line with no HS code: not issued, so the item's code is what
   // lets it through, not a correction of the payments.
   const pendingValidation = entry.refusal === 'POS_QUEUED_SALE_HS_CODE_REQUIRED'
-  const heldLines = pendingValidation ? entry.refusalValues?.lines : undefined
+  // Held the same way for a line that states neither goods nor services (backend 8f04050ab). The
+  // item's HS code does not clear this one: the lines this device kept cannot be changed here, so
+  // its hint does not send the cashier to the item for this sale.
+  const undeclared = entry.refusal === 'POS_QUEUED_SALE_GOODS_OR_SERVICE_REQUIRED'
+  const heldLines = pendingValidation || undeclared ? entry.refusalValues?.lines : undefined
 
   return (
     <li className="rounded-sm bg-surface-card px-4 py-3 text-text-primary">
@@ -310,14 +314,18 @@ function Problem({
       </p>
       <p className="mt-1 text-sm font-medium text-danger-700">
         {t(queueRefusalKey(entry.refusal, entry.refusalType ?? null), entry.refusalValues ?? {})}
-        {heldLines ? ` ${t('pos.queue.hsCodeLines', { lines: heldLines })}` : null}
+        {heldLines
+          ? ` ${t(undeclared ? 'pos.queue.goodsOrServiceLines' : 'pos.queue.hsCodeLines', { lines: heldLines })}`
+          : null}
       </p>
       <p className="mt-1 text-xs font-medium text-text-tertiary">
         {entry.buyerRemoved
           ? t('pos.queue.buyerRemovedHint')
           : entry.final
             ? t('pos.queue.finalHint')
-            : pendingValidation
+            : undeclared
+              ? t('pos.queue.goodsOrServiceHint')
+              : pendingValidation
               ? t('pos.queue.hsCodeHint')
               : sender && entry.madeBy?.userId === sender
                 ? t('pos.queue.heldHint')

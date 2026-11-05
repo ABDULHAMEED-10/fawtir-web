@@ -844,6 +844,53 @@ describe('a refused sale never stops the till (E2E 30 Oct 2026, H-1)', () => {
     expect(queuedFor('till-1')).toEqual([])
   })
 
+  // NOT RUN (static only). Backend 8f04050ab (HS Slice B): a full invoice with a line that states
+  // neither goods nor services is held before issue. The server does not fill it on the resend and
+  // this device must not choose it, so the sale stays queued, on its number and unchanged.
+  it('a full invoice held for an undeclared line stays queued, numbered as printed and unchanged', async () => {
+    fakeServer()
+    await submitSale(TILL, BODY, 'pos-sale-key-gs')
+    online = true
+    saleReply = () =>
+      new Response(
+        JSON.stringify({
+          type: 'https://api.fawtir.om/problems/x',
+          status: 422,
+          code: 'POS_QUEUED_SALE_GOODS_OR_SERVICE_REQUIRED',
+          lines: [2],
+          invoiceNumber: 'NZW-T01-INV-2026-000049',
+          state: 'PENDING_VALIDATION',
+        }),
+        { status: 422, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+    await flushQueue('till-1')
+    const [held] = queuedFor('till-1')
+    expect(held).toMatchObject({
+      refusal: 'POS_QUEUED_SALE_GOODS_OR_SERVICE_REQUIRED',
+      number: 'NZW-T01-INV-2026-000049',
+      refusalValues: { lines: '2' },
+    })
+    expect(held.final).toBeUndefined()
+    expect(held.attempts).toBe(1)
+    expect(
+      isFinalRefusal(
+        new ApiError({
+          status: 422,
+          problemType: null,
+          code: 'POS_QUEUED_SALE_GOODS_OR_SERVICE_REQUIRED',
+        }),
+      ),
+    ).toBe(false)
+
+    await retryQueuedSale('till-1', 'pos-sale-key-gs')
+    const posts = calls.filter((call) => call.init?.method === 'POST')
+    const last = posts.at(-1)!
+    expect(new Headers(last.init?.headers).get('Idempotency-Key')).toBe('pos-sale-key-gs')
+    // Nothing on this device picked goods or services for the lines.
+    expect(JSON.parse(String(last.init?.body)).draft.lines).toEqual(held.body.draft.lines)
+    expect(queuedFor('till-1')).toHaveLength(1)
+  })
+
   it('on the current server an unreviewed refusal holds later numbers only as far as number order forces', async () => {
     const server = fakeServer()
     await submitSale(TILL, WALK_IN, 'pos-sale-key-u1')

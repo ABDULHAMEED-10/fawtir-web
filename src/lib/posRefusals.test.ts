@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import i18n from '../i18n'
 import { ApiError } from '../api'
-import { posRefusalKey } from './posRefusals'
+import { posRefusalKey, queueRefusalKey } from './posRefusals'
 
 const coded = (status: number, code: string, problem: Record<string, unknown> = {}) =>
   new ApiError({ status, problemType: null, code, problem: { code, ...problem } })
@@ -63,5 +63,34 @@ describe('the sale document ceiling on a till refund (PRV43-CMP F3-1, owner roun
     await i18n.changeLanguage('ar')
     expect(i18n.exists(key, { lng: 'ar', fallbackLng: false })).toBe(true)
     expect(i18n.t(key)).not.toMatch(/[A-Za-z]{4,}/)
+  })
+})
+
+// NOT RUN (static only). Backend 8f04050ab (HS Slice B, IBR-078-OM).
+describe('a line that states neither goods nor services', () => {
+  it('online, is worded by its code with the line it names', () => {
+    const error = coded(400, 'GOODS_OR_SERVICE_REQUIRED', {
+      line: 2,
+      field: 'classification.goodsOrServiceCode',
+    })
+    expect(posRefusalKey(error)).toBe('pos.refusal.GOODS_OR_SERVICE_REQUIRED')
+    expect(i18n.t(posRefusalKey(error), { line: '2' })).toContain('2')
+  })
+
+  it('queued, has its own sentence, never the HS code one', () => {
+    expect(queueRefusalKey('POS_QUEUED_SALE_GOODS_OR_SERVICE_REQUIRED', null)).toBe(
+      'pos.queue.reason.POS_QUEUED_SALE_GOODS_OR_SERVICE_REQUIRED',
+    )
+  })
+
+  it.each([
+    'pos.refusal.GOODS_OR_SERVICE_REQUIRED',
+    'pos.queue.reason.POS_QUEUED_SALE_GOODS_OR_SERVICE_REQUIRED',
+    'pos.queue.goodsOrServiceLines',
+    'pos.queue.goodsOrServiceHint',
+  ])('%s is in Arabic', async (key) => {
+    await i18n.changeLanguage('ar')
+    expect(i18n.exists(key, { lng: 'ar', fallbackLng: false })).toBe(true)
+    expect(i18n.t(key, { line: 1, lines: '1' })).not.toMatch(/[A-Za-z]{4,}/)
   })
 })

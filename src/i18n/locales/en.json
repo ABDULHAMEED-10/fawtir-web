@@ -5128,6 +5128,7 @@
       "POS_REFUND_LINE_CREDIT_UNCLEAR": "Line {{line}} already has a credit note that does not say whether goods came back, so it cannot be refunded at the till. Refund it from the invoice. Nothing was refunded.",
       "POS_SALE_CANCELLED": "This sale's invoice was cancelled, so there is nothing to refund.",
       "HS_CODE_REQUIRED": "Line {{line}} is goods and has no HS code, so nothing was done. Someone who can edit items adds the code on the item (Other if none fits), then try again.",
+      "GOODS_OR_SERVICE_REQUIRED": "Line {{line}} does not say whether it is goods or a service, so nothing was done. Someone who can edit items gives the item an HS code if it is goods, or makes it a service, then try again.",
       "POS_REFUND_NOTHING_TO_PAY_BACK": "What is going back is worth less than a baisa, so there is nothing to refund. Give back more of the line in one refund.",
       "CREDIT_NOTE_NOTHING_CORRECTABLE": "There is no remaining amount available to credit on this sale. Review its existing credit notes. Nothing was refunded.",
       "CREDIT_NOTE_EXCEEDS_CORRECTABLE_AMOUNT": "This refund asks to credit more than the amount still available to credit on this sale. Give back less, or review the sale's existing credit notes. Nothing was refunded."
@@ -5184,6 +5185,8 @@
       "heldHint": "The customer holds this invoice. The till tries again by itself and keeps selling meanwhile. Nothing is charged or filed twice.",
       "hsCodeHint": "The customer has the printed receipt; the invoice is not issued yet. Someone who can edit items adds the HS code on the item (Other if none fits), then press Try again. It goes again as the same sale on the same number, so nothing is charged or filed twice. The till keeps selling meanwhile.",
       "hsCodeLines": "Lines without an HS code: {{lines}}.",
+      "goodsOrServiceLines": "Lines that do not say goods or service: {{lines}}.",
+      "goodsOrServiceHint": "The customer has the printed receipt; the invoice is not issued yet. The lines this device kept for it cannot be changed here, so Try again will not clear it by itself, and later sales wait behind it. Ask a manager to contact Fawtir support, and do not clear this device's data. To stop it happening again, give goods items an HS code. The till keeps selling meanwhile.",
       "finalHint": "The customer holds this invoice and it stays open here until it is filed. Sending it again as it stands will not work. Correct it if you can, or contact Fawtir support. The till keeps selling meanwhile.",
       "retry": "Try again",
       "sendFor": "Send for {{cashier}}",
@@ -5200,6 +5203,7 @@
         "SELLER_PARTICIPANT_NOT_VERIFIED": "The company's Participant ID is not verified yet. The sale goes once it is.",
         "INDUSTRIAL_CLASSIFICATION_REQUIRED": "The company's business activity code is missing. Add it in Settings and the sale goes.",
         "POS_QUEUED_SALE_HS_CODE_REQUIRED": "Not issued yet, waiting for an HS code: this full invoice has a goods line with no HS code, so Fawtir has not issued it and has not used its number.",
+        "POS_QUEUED_SALE_GOODS_OR_SERVICE_REQUIRED": "Not issued yet: this full invoice has a line that does not say whether it is goods or a service, so Fawtir has not issued it and has not used its number.",
         "POS_QUEUED_BUYER_UNAVAILABLE": "Not sent yet: this device cannot open the buyer's details it kept for this full invoice. Reload the page and press Try again. If it still does not go, contact Fawtir support and do not clear this device's data.",
         "other": "Fawtir would not accept this sale as it stands."
       },

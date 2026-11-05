@@ -323,6 +323,28 @@ describe('the queue on the till and Today (H-1)', () => {
     expect(text).not.toContain('{{')
   })
 
+  // NOT RUN (static only). Backend 8f04050ab (HS Slice B): a full invoice held for lines that state
+  // neither goods nor services. It stays listed and says what it is held for, and never points the
+  // cashier at the item's HS code for this sale, which would not clear it.
+  it('a sale held for undeclared lines stays listed, names the lines and says it will not clear by itself', async () => {
+    await submitSale(TILL, BODY, 'pos-sale-key-panel-gs')
+    reply = () =>
+      problem(422, {
+        code: 'POS_QUEUED_SALE_GOODS_OR_SERVICE_REQUIRED',
+        lines: [1, 2],
+        invoiceNumber: 'NZW-T01-INV-2026-000013',
+        state: 'PENDING_VALIDATION',
+      })
+    await flushQueue('till-1')
+    render(wrap(<PosQueuePanel till={READY(true)} />))
+    const text = screen.getByRole('alert').textContent ?? ''
+    expect(text).toContain(i18n.t('pos.queue.reason.POS_QUEUED_SALE_GOODS_OR_SERVICE_REQUIRED'))
+    expect(text).toContain(i18n.t('pos.queue.goodsOrServiceLines', { lines: '1, 2' }))
+    expect(text).toContain(i18n.t('pos.queue.goodsOrServiceHint'))
+    expect(text).not.toContain(i18n.t('pos.queue.hsCodeHint'))
+    expect(queuedFor('till-1')).toHaveLength(1)
+  })
+
   it('says it in Arabic too, with the number left to right', async () => {
     await submitSale(TILL, BODY, 'pos-sale-key-panel-3')
     reply = READ_ONLY
