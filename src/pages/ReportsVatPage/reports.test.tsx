@@ -450,6 +450,20 @@ describe('the catalogue href', () => {
 })
 
 describe('the VAT page', () => {
+  it('says, in the owner\'s words, that it is not a filed return (VAT-LABEL, K22)', async () => {
+    renderAt('/reports/vat-tax', <ReportsVatPage />)
+    expect(
+      await screen.findByText(
+        'Calculated from your records to help you prepare your return. It is not a filed return.',
+      ),
+    ).toBeTruthy()
+  })
+
+  it('says it in Arabic too', async () => {
+    expect(i18n.exists('reports.vat.notAReturn', { lng: 'ar', fallbackLng: false })).toBe(true)
+    expect(i18n.t('reports.vat.notAReturn', { lng: 'ar' })).not.toMatch(/[A-Za-z]{4,}/)
+  })
+
   it('shows the position and asks the server for both buckets the frame draws', async () => {
     renderAt('/reports/vat-tax', <ReportsVatPage />)
     // Output and net less the 25 on the tenant's own self-billed invoice (a purchase).

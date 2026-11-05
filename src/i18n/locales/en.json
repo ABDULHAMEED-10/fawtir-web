@@ -9097,6 +9097,7 @@
     "vat": {
       "title": "VAT & Tax",
       "subtitle": "What you collected on sales, what you paid on purchases, and what the Tax Authority is owed.",
+      "notAReturn": "Calculated from your records to help you prepare your return. It is not a filed return.",
       "kpi": {
         "collected": "VAT collected on sales",
         "collectedNote": "output VAT",
