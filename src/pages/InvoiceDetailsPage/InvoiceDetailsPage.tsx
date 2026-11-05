@@ -71,6 +71,9 @@ import { IssueInvoiceModal } from '../../components/invoice/IssueInvoiceModal'
 import { DraftApprovalCard, useSalesApproval } from '../../components/invoice/DraftApprovalCard'
 import { editWaitsOnApproval, issueWaitsOnApproval } from '../../lib/salesApproval'
 import { SendInvoiceModal } from '../../components/invoice/SendInvoiceModal'
+import { HeldHsCodesModal } from '../../components/invoice/HeldHsCodesModal'
+import { isHeldForHsCode, missingHsLines } from '../../lib/heldHsCodes'
+import type { HeldHsCodeAmendmentDto } from '../../api/invoices/detail'
 import {
   RELEASE_REFUSALS,
   buyerDeliveryNote,
@@ -371,6 +374,7 @@ function InvoiceScreen() {
         : Promise.resolve(),
   )
   const [sending, setSending] = useState(false)
+  const [addingHsCodes, setAddingHsCodes] = useState(false)
   // The credit and debit notes that correct this invoice (I-10/I-11), listed on the invoice so a
   // reader sees why its balance moved and can open each note.
   const notesPath =
@@ -578,6 +582,18 @@ function InvoiceScreen() {
     }
   }
 
+  const hsCodesAdded = (result: HeldHsCodeAmendmentDto) => {
+    setAddingHsCodes(false)
+    setNotice({
+      key: result.dispatch === 'RELEASED' ? 'heldHs.done.released' : 'heldHs.done.stillOwed',
+    })
+    invoice.retry()
+    history.retry()
+    // The release changes the dispatch; the line under the title is read again rather than guessed.
+    adoptDispatch(null)
+    dispatchRead.retry()
+  }
+
   const releaseHeldEmail = async () => {
     setNotice(null)
     try {
@@ -733,6 +749,23 @@ function InvoiceScreen() {
       labelKey: 'invoiceDispatch.release.action',
       icon: sendIcon,
       onSelect: () => void releaseHeldEmail(),
+    })
+  }
+  // Owner v2 A1/K5: the user adds the HS code (or Other) to an invoice held for one and releases it
+  // under the same number. Offered only for that hold, which is the only one the route releases, and
+  // with invoice.issue, the permission the route asks.
+  if (
+    data.authoringState === 'ISSUED' &&
+    isHeldForHsCode(dispatch) &&
+    missingHsLines(data).length > 0 &&
+    mayIssue &&
+    can(session, 'invoice.issue')
+  ) {
+    moreActions.push({
+      id: 'addHsCodes',
+      labelKey: 'heldHs.action',
+      icon: sendIcon,
+      onSelect: () => setAddingHsCodes(true),
     })
   }
   const cancelBlock = cancelBlockOf(receivable.read, notesPath ? notes.read : null)
@@ -1934,6 +1967,14 @@ function InvoiceScreen() {
             receivable.retry()
             history.retry()
           }}
+        />
+      ) : null}
+
+      {addingHsCodes ? (
+        <HeldHsCodesModal
+          invoice={data}
+          onClose={() => setAddingHsCodes(false)}
+          onDone={hsCodesAdded}
         />
       ) : null}
 

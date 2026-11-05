@@ -2225,7 +2225,7 @@
       "sellerContact": "Your company telephone number was missing when this invoice was issued, so it cannot be sent: cancel it and issue a new one after adding the number.",
       "buyerAddress": "The customer's address on this invoice is incomplete. It was fixed at issue, so this invoice cannot be sent: cancel it and issue a new one after completing the customer's address.",
       "lineClassification": "A line on this invoice is missing its goods/services classification or business activity, so it cannot be sent: cancel it and issue a corrected invoice.",
-      "lineHsCode": "This invoice was issued with a goods line that has no HS code, so it cannot be sent. Issued invoices cannot be changed, and adding an HS code to the item now does not release this invoice. How to correct it has not been decided yet.",
+      "lineHsCode": "This invoice was issued with a goods line that has no HS code, so it is held and not sent. Someone who can issue invoices adds the missing code (or Other) to release it under the same number.",
       "lineTaxReason": "A zero-rated or exempt line on this invoice has no reason code, so it cannot be sent: cancel it and issue a corrected invoice.",
       "unsupportedShape": "This kind of self-billed invoice cannot be sent electronically.",
       "correctionReason": "This note has no correction reason, so it cannot be sent: cancel it and issue a corrected note.",
@@ -25936,5 +25936,55 @@
     },
     "itemCount_one": "{{count}} item",
     "itemCount_other": "{{count}} items"
+  },
+  "heldHs": {
+    "action": "Add missing HS codes",
+    "title": "Add HS codes to {{number}}",
+    "subtitle": "This invoice is held, not sent, because a goods line has no HS code.",
+    "lineLabel": "Line {{line}}: {{description}}",
+    "useOther": "Use Other (000000000000)",
+    "useOtherFor": "Use Other for line {{line}}",
+    "reason": "Why the codes are being added",
+    "sameNumber": "The invoice keeps its number and amounts. Once saved, it goes back in the queue to be sent.",
+    "submit": "Add HS codes",
+    "saving": "Saving…",
+    "noLines": "No goods line on this invoice is missing an HS code. Ask support.",
+    "done": {
+      "released": "HS codes added. The invoice is back in the queue to be sent, under the same number.",
+      "stillOwed": "HS codes added. The invoice is still waiting to be sent."
+    },
+    "refused": {
+      "stale": "This invoice was changed since you opened it, so nothing was changed. Reload the page and try again.",
+      "notHeld": "This invoice is not held for an HS code, so nothing was changed.",
+      "tillReceipt": "This invoice was made at a till and its receipt was handed to the buyer, so it is not changed. Correct it with a credit note and a new invoice.",
+      "delivered": "This invoice has reached its buyer, so it is not changed. Correct it with a credit note and a new invoice.",
+      "alreadySent": "This invoice has been submitted, so it is not changed. Correct it with a credit note and a new invoice.",
+      "stateUnavailable": "Whether this invoice was sent could not be checked, so nothing was changed. Try again shortly.",
+      "inProgress": "This invoice is being sent right now, so nothing was changed. Reload the page shortly.",
+      "otherHold": "Sending this invoice stopped for a reason an HS code does not fix, so nothing was changed. Ask support.",
+      "legalHold": "This invoice is under a legal hold, so it is not changed until the hold is released.",
+      "reasonRequired": "Say why the HS codes are being added.",
+      "empty": "Add a code to at least one line.",
+      "invalid": {
+        "line": "Line {{line}}: that is not an HS code on the Oman list, so nothing was changed. Use Other (000000000000) when no closer code applies.",
+        "any": "One of the codes is not an HS code on the Oman list, so nothing was changed. Use Other (000000000000) when no closer code applies."
+      },
+      "lineUnknown": {
+        "line": "Line {{line}} is not a line of this invoice. Reload the page.",
+        "any": "A line named is not on this invoice. Reload the page."
+      },
+      "notGoods": {
+        "line": "Line {{line}} was not issued as goods, so it takes no HS code.",
+        "any": "A line named was not issued as goods, so it takes no HS code."
+      },
+      "alreadySet": {
+        "line": "Line {{line}} already has an HS code. Only a missing code can be added.",
+        "any": "A line named already has an HS code. Only a missing code can be added."
+      },
+      "repeated": {
+        "line": "Line {{line}} is named more than once.",
+        "any": "A line is named more than once."
+      }
+    }
   }
 }

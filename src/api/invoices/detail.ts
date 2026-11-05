@@ -481,6 +481,27 @@ export function releaseBuyerEmail(invoiceId: string): Promise<InvoiceDispatchDto
   return apiRequest<InvoiceDispatchDto>(`${path(invoiceId)}/buyer-email/release`, { method: 'POST' })
 }
 
+export type HeldHsCodeAmendmentDto = {
+  invoice: InvoiceDetailDto
+  /** RELEASED: queued to be sent again. STILL_OWED: it was not held, and is still waiting to be sent. */
+  dispatch: 'RELEASED' | 'STILL_OWED'
+}
+
+/**
+ * Adds the missing HS codes to an issued invoice held at dispatch for them, and releases it under the
+ * same number (`POST /authored-invoices/{id}/held-hs-codes`, owner v2 A1 and K5). Lines are named
+ * by number; the version guards against a change made since the page was read.
+ */
+export function amendHeldHsCodes(
+  invoiceId: string,
+  body: { expectedVersion: number; lines: { lineNumber: number; hsCode: string }[]; reason: string },
+): Promise<HeldHsCodeAmendmentDto> {
+  return apiRequest<HeldHsCodeAmendmentDto>(`${path(invoiceId)}/held-hs-codes`, {
+    method: 'POST',
+    body,
+  })
+}
+
 /** 16–128 characters of `[A-Za-z0-9._:-]`, as the API requires. */
 export function newSendKey(): string {
   return `send-${crypto.randomUUID()}`

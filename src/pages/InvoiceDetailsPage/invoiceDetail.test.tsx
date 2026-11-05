@@ -2791,3 +2791,137 @@ describe('why nothing was sent, from the server\'s deliveryBlocker (IMPL2-D1)', 
     ).toBeTruthy()
   })
 })
+
+// Owner v2 A1 / K5 (HS-A-UI): an invoice held at dispatch for a goods line with no HS code is given
+// the code here and released under the same number, through POST held-hs-codes.
+describe('adding the missing HS code to a held invoice', () => {
+  const HELD: InvoiceDispatchDto = {
+    ...NOT_SENT,
+    state: 'DEAD_LETTERED',
+    reasonCode: 'LINE_HS_CODE_MISSING',
+    attempts: 1,
+    sendable: false,
+  }
+  const GOODS_NO_CODE = () =>
+    invoice({
+      lines: [
+        { ...invoice().lines[0], classification: { goodsOrService: 'G', hsCode: null } },
+        {
+          ...invoice().lines[0],
+          lineNumber: 2,
+          description: 'Delivery',
+          classification: { goodsOrService: 'S', hsCode: null, serviceTypeCode: null },
+        },
+      ],
+    })
+  let posts: { url: string; body: unknown }[]
+  let amendResponse: () => Response
+
+  beforeEach(() => {
+    who = SENDER
+    posts = []
+    invoiceResponse = () => json(200, GOODS_NO_CODE())
+    dispatchResponse = () => json(200, HELD)
+    amendResponse = () => json(200, { invoice: invoice({ version: 5 }), dispatch: 'RELEASED' })
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === `${URL_BASE}/held-hs-codes` && init?.method === 'POST') {
+        posts.push({ url, body: JSON.parse(String(init.body)) })
+        return amendResponse()
+      }
+      return base(url, init)
+    })
+  })
+
+  async function openMenu() {
+    renderInvoice()
+    await screen.findByRole('heading', { name: i18n.t('invoiceDetails.title', { id: 'INV-2026-0042' }) })
+    await waitFor(() => expect(calls()).toContain(`GET ${URL_BASE}/dispatch`))
+    await waitFor(() =>
+      expect(calls().some((call) => call.startsWith('GET /api/v1/authored-invoices?'))).toBe(true),
+    )
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('invoiceDetails.actions.more') }))
+  }
+
+  it('offers the action, asks only for the goods line, and sends its code, the version and the reason', async () => {
+    await openMenu()
+    fireEvent.click(await screen.findByRole('menuitem', { name: i18n.t('heldHs.action') }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('Line 1: Green beans')).toBeTruthy()
+    expect(within(dialog).queryByText(/Delivery/)).toBeNull()
+    const submit = within(dialog).getByRole('button', { name: i18n.t('heldHs.submit') }) as HTMLButtonElement
+    expect(submit.disabled).toBe(true)
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('heldHs.useOtherFor', { line: 1 }) }))
+    expect(submit.disabled).toBe(true)
+    fireEvent.change(within(dialog).getByRole('textbox', { name: /Why the codes are being added/ }), {
+      target: { value: 'Buyer confirmed the goods' },
+    })
+    expect(submit.disabled).toBe(false)
+    fireEvent.click(submit)
+    await waitFor(() => expect(posts).toHaveLength(1))
+    expect(posts[0].body).toEqual({
+      expectedVersion: 4,
+      lines: [{ lineNumber: 1, hsCode: '000000000000' }],
+      reason: 'Buyer confirmed the goods',
+    })
+    expect(await screen.findByText(i18n.t('heldHs.done.released'))).toBeTruthy()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
+  it('words a code the Oman list does not have, naming the line, and keeps the dialog open', async () => {
+    amendResponse = () =>
+      new Response(
+        JSON.stringify({ status: 422, code: 'HS_CODE_INVALID', line: 1, field: 'hsCode' }),
+        { status: 422, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+    await openMenu()
+    fireEvent.click(await screen.findByRole('menuitem', { name: i18n.t('heldHs.action') }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Line 1: Green beans' }), {
+      target: { value: '123' },
+    })
+    fireEvent.change(within(dialog).getByRole('textbox', { name: /Why the codes are being added/ }), {
+      target: { value: 'Found the code' },
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('heldHs.submit') }))
+    expect(
+      await within(dialog).findByText(i18n.t('heldHs.refused.invalid.line', { line: '1' })),
+    ).toBeTruthy()
+    expect((within(dialog).getByRole('textbox', { name: 'Line 1: Green beans' }) as HTMLInputElement).value).toBe(
+      '123',
+    )
+  })
+
+  it('is not offered for a hold an HS code does not release', async () => {
+    dispatchResponse = () => json(200, { ...HELD, reasonCode: 'SELLER_ADDRESS_INCOMPLETE' })
+    await openMenu()
+    expect(screen.queryByRole('menuitem', { name: i18n.t('heldHs.action') })).toBeNull()
+  })
+
+  it('is not offered without invoice.issue', async () => {
+    who = ADMIN
+    await openMenu()
+    expect(screen.queryByRole('menuitem', { name: i18n.t('heldHs.action') })).toBeNull()
+  })
+
+  it('says the hold can now be released, not that the fix is undecided', () => {
+    expect(i18n.t('invoiceDispatch.reason.lineHsCode')).not.toMatch(/not been decided/)
+    expect(i18n.t('invoiceDispatch.reason.lineHsCode')).toMatch(/same number/)
+  })
+
+  it('every new sentence is in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    for (const key of [
+      'heldHs.action',
+      'heldHs.title',
+      'heldHs.done.released',
+      'heldHs.refused.invalid.line',
+      'heldHs.refused.invalid.any',
+      'heldHs.refused.stale',
+    ]) {
+      expect(i18n.exists(key, { lng: 'ar', fallbackLng: false })).toBe(true)
+      expect(i18n.t(key, { number: 'INV-1', line: 1 })).not.toMatch(/[A-Za-z]{5,}/)
+    }
+    await i18n.changeLanguage('en')
+  })
+})
