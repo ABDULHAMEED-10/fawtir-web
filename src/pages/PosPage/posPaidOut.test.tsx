@@ -769,6 +769,8 @@ describe('the supplier bill link', () => {
     expect(screen.getByText(form('pending.title'))).toBeTruthy()
     expect(screen.queryByRole('button', { name: i18n.t('pos.close.record') })).toBeNull()
     expect(screen.getByRole('button', { name: form('pending.check') })).toBeTruthy()
+    // WB5-3: sending it again could only be refused the same way.
+    expect(screen.queryByRole('button', { name: form('pending.again') })).toBeNull()
     expect(window.sessionStorage.getItem(HELD)).toContain('pos-paidout-stored-key-0004')
     expect(i18n.exists('pos.close.paidOutForm.pending.mayBeRecorded', { lng: 'ar', fallbackLng: false })).toBe(true)
   })
@@ -803,6 +805,7 @@ describe('the supplier bill link', () => {
     expect(paidOuts[0].key).toBe('pos-paidout-stored-key-0005')
     expect(screen.queryByText(/Nothing was recorded/i)).toBeNull()
     expect(screen.getByText(form('pending.title'))).toBeTruthy()
+    expect(screen.queryByRole('button', { name: form('pending.again') })).toBeNull()
     expect(window.sessionStorage.getItem(HELD)).toContain('pos-paidout-stored-key-0005')
   })
 

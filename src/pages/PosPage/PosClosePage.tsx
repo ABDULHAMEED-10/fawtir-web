@@ -1536,7 +1536,8 @@ function PaidOutForm({
           </p>
         ) : null}
         <div className="flex flex-wrap gap-2">
-          {pending ? (
+          {/* WB5-3: the same press would only be refused again; the way on is a manager's check. */}
+          {pending && !mayBeRecorded ? (
             <button
               type="button"
               disabled={busy}
