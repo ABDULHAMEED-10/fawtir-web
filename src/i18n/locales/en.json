@@ -4835,7 +4835,8 @@
           "recheck": "That reading was taken while the press could still be on its way. Read the cash moves again before unlocking.",
           "unreadable": "The details of that press could not be read back on this device, so it cannot be sent again from here.",
           "unreadableHint": "After a minute and a half, check whether it was recorded. If it is not among the cash moves, unlock the form and enter it again.",
-          "notRecorded": "It is not there: unlock the details"
+          "notRecorded": "It is not there: unlock the details",
+          "timedOut": "That press took too long, and the server recorded nothing from it. An earlier press may still be recorded, so the details stay locked. Press \"Record it again\": it is sent under the same key and cannot be recorded twice."
         }
       },
       "record": "Record it",

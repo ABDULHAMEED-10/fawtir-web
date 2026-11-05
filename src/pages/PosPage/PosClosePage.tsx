@@ -1360,8 +1360,10 @@ function PaidOutForm({
     } else if (sent && keepsAttemptAfter(cause)) {
       // WB5-1: nothing was paid out, but the attempt, its key and the receipt stay (and are saved,
       // so they outlive a reload): the same body sent again goes under the same key.
-      store.unknown = false
-      store.sentAt = null
+      // W7R-3: only this press timed out. Sent from the locked view, an earlier press may still be
+      // recorded, so the lock and its wait stay: unlocking here would leave the fields empty, and a
+      // detail retyped differently would go under a new key as a second paid-out.
+      if (!store.unknown) store.sentAt = null
       save()
     } else {
       // A definite refusal recorded nothing, so the next press is a fresh attempt whatever it says.
@@ -1494,7 +1496,11 @@ function PaidOutForm({
     ? null
     : mayBeRecorded
       ? { key: 'pos.close.paidOutForm.pending.mayBeRecorded', values: {} }
-      : paidOutRefusal(error, i18n.language)
+      : locked && keepsAttemptAfter(error)
+        ? // The unlocked form's sentence says nothing was paid out and names Record it; here an
+          // earlier press may still be recorded and the button is Record it again (W7R-3).
+          { key: 'pos.close.paidOutForm.pending.timedOut', values: {} }
+        : paidOutRefusal(error, i18n.language)
   const pending = pendingBody(store)
 
   if (locked && store.attempt) {

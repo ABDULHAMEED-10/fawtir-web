@@ -809,6 +809,50 @@ describe('the supplier bill link', () => {
     expect(window.sessionStorage.getItem(HELD)).toContain('pos-paidout-stored-key-0005')
   })
 
+  // W7R-3: a TIMED_OUT answers only the resend. The first press may still be recorded, so the lock
+  // stays; unlocking would show empty fields, and a detail retyped differently would be a new key.
+  it('a resend from the locked view that times out stays locked under the same key', async () => {
+    window.sessionStorage.setItem(
+      HELD,
+      JSON.stringify({
+        attempt: {
+          key: 'pos-paidout-stored-key-0006',
+          fingerprint: JSON.stringify({
+            type: 'PAID_OUT',
+            amount: 2.5,
+            note: 'Milk',
+            category: 'PETTY_CASH_EXPENSE',
+            accountingClass: 'EXPENSE',
+            currency: 'OMR',
+            billId: null,
+            receiptObjectId: null,
+            missingReceiptReason: 'Lost',
+          }),
+        },
+        receipt: null,
+        unknown: true,
+      }),
+    )
+    answer = () => problem(503, 'POS_PAID_OUT_TIMED_OUT')
+    renderClose()
+    fireEvent.click(await screen.findByRole('button', { name: form('pending.again') }))
+    expect(await screen.findByText(form('pending.timedOut'))).toBeTruthy()
+    expect(paidOuts[0].key).toBe('pos-paidout-stored-key-0006')
+    // Still locked: the stored details, no form, and the same press offered again.
+    expect(screen.getByText(form('pending.title'))).toBeTruthy()
+    expect(screen.getByText('Milk')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: i18n.t('pos.close.record') })).toBeNull()
+    expect(screen.queryByText(/Press "Record it" again with the same details/)).toBeNull()
+    const held = JSON.parse(window.sessionStorage.getItem(HELD) ?? '{}')
+    expect(held.unknown).toBe(true)
+    expect(held.attempt.key).toBe('pos-paidout-stored-key-0006')
+    answer = () => json(PAID_OUT, 201)
+    fireEvent.click(screen.getByRole('button', { name: form('pending.again') }))
+    await waitFor(() => expect(paidOuts).toHaveLength(2))
+    expect(paidOuts[1].key).toBe('pos-paidout-stored-key-0006')
+    expect(i18n.exists('pos.close.paidOutForm.pending.timedOut', { lng: 'ar', fallbackLng: false })).toBe(true)
+  })
+
   it('a failed bill search never steers the cashier to record it without the bill', async () => {
     permissions = [...permissions, 'bill.settle']
     await supplierPayment()
