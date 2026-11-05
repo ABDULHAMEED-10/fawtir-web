@@ -598,9 +598,21 @@ describe('the supplier bill link', () => {
     })
   }
 
-  it('is not offered without bill.settle, and the class must then be chosen', async () => {
-    await supplierPayment()
+  // Owner v2 K10 ("Only staff who can settle supplier bills") replaces the earlier rule that let a
+  // cashier without bill.settle pay a supplier unlinked: the category itself is not offered.
+  it('is not offered without bill.settle: a payment to a supplier is not a category to choose', async () => {
+    renderClose()
+    const category = (await screen.findByRole('combobox', { name: form('category') })) as HTMLSelectElement
+    const offered = Array.from(category.options).map((option) => option.value)
+    expect(offered).not.toContain('SUPPLIER_PAYMENT')
+    expect(offered).toEqual(['', 'PETTY_CASH_EXPENSE', 'CASH_TRANSFER', 'FLOAT_ADJUSTMENT', 'OTHER'])
     expect(screen.queryByRole('textbox', { name: form('billSearch') })).toBeNull()
+  })
+
+  it('with bill.settle, a payment to a supplier is offered, and unlinked its class must be chosen', async () => {
+    permissions = [...permissions, 'bill.settle']
+    await supplierPayment()
+    expect(screen.getByRole('textbox', { name: form('billSearch') })).toBeTruthy()
     expect(screen.getByRole('combobox', { name: form('class') })).toBeTruthy()
   })
 

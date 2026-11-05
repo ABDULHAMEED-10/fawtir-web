@@ -1650,7 +1650,9 @@ function PaidOutForm({
             className={FIELD}
           >
             <option value="">{t('pos.close.paidOutForm.choose')}</option>
-            {PAID_OUT_CATEGORIES.map((code) => (
+            {/* Owner v2 K10: only staff who can settle supplier bills pay a supplier, linked or not.
+                Hidden here; the server is the check (K10-SUPPLIER backend). */}
+            {PAID_OUT_CATEGORIES.filter((code) => code !== 'SUPPLIER_PAYMENT' || canLinkBill).map((code) => (
               <option key={code} value={code}>
                 {t(`pos.close.paidOutForm.categories.${code}`)}
               </option>
