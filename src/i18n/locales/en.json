@@ -24920,6 +24920,9 @@
       "sellLimitPlaceholderNone": "No limit",
       "sellLimitRequired": "No role gives them till selling, so this limit cannot be left blank. Type a percentage, or untick selling to take the right away.",
       "sellLimitOwnOnly": "Set for them: discounts up to {{percent}}%. No role gives them till selling, so this is their only limit: change it here, or untick selling to take the right away.",
+      "carriedLimit": "Carried from a removed role, and kept whatever role they hold now or later: {{permission}}, max discount {{percent}}%.",
+      "carriedLimitOther": "Carried from a removed role, and kept whatever role they hold now or later: {{permission}}.",
+      "sellLimitCarried": "Carried from a removed role: discounts up to {{percent}}%, whatever role they hold now or later. Type a limit to replace it, or untick selling to take the right away.",
       "sellLimitNoRole": "No role gives them till selling: blank means no discount limit. Type a number to set one."
     },
     "handover": {

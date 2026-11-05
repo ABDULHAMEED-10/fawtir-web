@@ -11,6 +11,7 @@ import { PersonPage } from './PersonPage'
 import { BranchRoster } from './BranchRoster'
 import { AddBranchPage } from './AddBranchPage'
 import { branchAccessOn } from '../../lib/identity/branchAccessSwitch'
+import { permissionWords } from '../../lib/permissionLabels'
 
 /** Branch access screens (Business Rules BA-1, BA-2, OW-1, OW-4, RL-1, RL-2, RL-3, LG-3). */
 
@@ -931,5 +932,114 @@ describe('Who works there', () => {
         'Someone you unticked works in no other branch. Give them another branch first.',
       ),
     ).toBeTruthy()
+  })
+})
+
+// NOT RUN (static only). Backend 37b2fedca (review FR2-1): a 0% limit a role collapse carried is
+// listed apart as read-only carriedLimits. Full replacement keeps it only while the save does not
+// name its code, so the form must never send it back as a grant (that would lift the 0% to no limit
+// at all), and must name it, as a denial, only when the reader unticks it.
+describe('A carried limit (FR2-1)', () => {
+  const CARRIED_VIEW = {
+    userId: 'p-clerk',
+    role: 'ACCOUNTANT',
+    roleCodes: ['ACCOUNTANT'],
+    grants: [{ code: 'invoice.approve', qualifier: null, value: null }],
+    denials: [],
+    effective: ['bill.read', 'invoice.approve', 'invoice.read', 'pos.sell'],
+    carriedLimits: [{ code: 'pos.sell', qualifier: 'MAX_PERCENT', value: 0 }],
+  }
+
+  beforeEach(() => {
+    answers['/api/v1/users/p-clerk/permissions'] = () => json(200, CARRIED_VIEW)
+    answers['PUT /api/v1/users/p-clerk/permissions'] = () => json(200, CARRIED_VIEW)
+    answers['/api/v1/permissions'] = () =>
+      json(
+        200,
+        ['invoice.read', 'invoice.approve', 'bill.read', 'bill.settle', 'pos.sell'].map((code) => ({
+          code,
+          module: 'X',
+          description: code,
+          assignable: true,
+        })),
+      )
+  })
+
+  const sell = () => {
+    const words = permissionWords('pos.sell', i18n.t, i18n)
+    return screen
+      .getAllByRole('checkbox')
+      .find(
+        (box) =>
+          box.closest('fieldset')?.querySelector('legend')?.textContent === words.group &&
+          box.closest('label')?.textContent?.startsWith(words.action),
+      ) as HTMLInputElement
+  }
+  const carriedLine = () => {
+    const words = permissionWords('pos.sell', i18n.t, i18n)
+    return i18n.t('branchAccess.person.carriedLimit', {
+      permission: `${words.group}: ${words.action}`,
+      percent: 0,
+    })
+  }
+
+  it('shows it read-only, and the till limit as the carried 0%', async () => {
+    renderAt('/settings/team/p-clerk')
+    expect(await screen.findByText(carriedLine())).toBeTruthy()
+    expect(sell().checked).toBe(true)
+    expect(document.body.textContent).toContain(
+      i18n.t('branchAccess.person.sellLimitCarried', { percent: 0 }),
+    )
+  })
+
+  it('never sends it back as a grant when another tick is saved', async () => {
+    renderAt('/settings/team/p-clerk')
+    await screen.findByText(carriedLine())
+    const settle = screen
+      .getAllByRole('checkbox')
+      .find((box) => box.closest('label')?.textContent?.includes('Settle')) as HTMLInputElement
+    fireEvent.click(settle)
+    fireEvent.click(screen.getByRole('button', { name: 'Save permissions' }))
+    await screen.findByText('Permissions saved. They apply from their next action.')
+    expect(sent('PUT', '/api/v1/users/p-clerk/permissions')).toEqual([
+      { grants: [{ code: 'invoice.approve' }, { code: 'bill.settle' }], denials: [] },
+    ])
+  })
+
+  it('names it as a denial when the reader unticks it, or the server would keep it', async () => {
+    renderAt('/settings/team/p-clerk')
+    await screen.findByText(carriedLine())
+    fireEvent.click(sell())
+    fireEvent.click(screen.getByRole('button', { name: 'Save permissions' }))
+    await screen.findByText('Permissions saved. They apply from their next action.')
+    expect(sent('PUT', '/api/v1/users/p-clerk/permissions')).toEqual([
+      { grants: [{ code: 'invoice.approve' }], denials: ['pos.sell'] },
+    ])
+  })
+
+  it('replaces it only with a limit the reader types', async () => {
+    renderAt('/settings/team/p-clerk')
+    await screen.findByText(carriedLine())
+    const limit = document.querySelector('input[name="posSellLimit"]') as HTMLInputElement
+    fireEvent.change(limit, { target: { value: '5' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save permissions' }))
+    await screen.findByText('Permissions saved. They apply from their next action.')
+    expect(sent('PUT', '/api/v1/users/p-clerk/permissions')).toEqual([
+      {
+        grants: [
+          { code: 'invoice.approve' },
+          { code: 'pos.sell', qualifier: 'MAX_PERCENT', value: 5 },
+        ],
+        denials: [],
+      },
+    ])
+  })
+
+  it('reads a server before 37b2fedca, which sends no carriedLimits, as before', async () => {
+    const { carriedLimits: _omitted, ...older } = CARRIED_VIEW
+    answers['/api/v1/users/p-clerk/permissions'] = () => json(200, older)
+    renderAt('/settings/team/p-clerk')
+    await screen.findAllByText('Given to them')
+    expect(screen.queryByText(carriedLine())).toBeNull()
   })
 })

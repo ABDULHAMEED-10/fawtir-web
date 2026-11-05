@@ -574,6 +574,11 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
 
   const view = permissions.read.data
   const grantCodes = new Set(view.grants.map((grant) => grant.code))
+  const carried = view.carriedLimits ?? []
+  const carriedCodes = new Set(carried.map((limit) => limit.code))
+  const carriedSell = carried.find(
+    (limit) => limit.code === POS_SELL && limit.qualifier === 'MAX_PERCENT',
+  )
   const roleCodes = (() => {
     // Every role the person holds, not only the job role: someone from before one role per person
     // (RL-1) may also hold Approver or Viewer, whose codes are theirs from that role, never their
@@ -658,11 +663,20 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
       .filter((code) => !roleCodes.has(code) || previous.has(code))
       // A reserved code is never given to a person (RL-5); one they already hold stays as it was.
       .filter((code) => !isReservedPermission(code) || previous.has(code))
+      // A carried limit (FR2-1) is not in `grants`, so a ticked carried code would otherwise go out
+      // as a plain grant: naming it replaces the 0% with no limit at all. Left unnamed, the server
+      // keeps it. A typed till limit below still names pos.sell, deliberately.
+      .filter((code) => !carriedCodes.has(code))
       .map((code) => previous.get(code) ?? { code, qualifier: null, value: null })
     const grants = limitChanged
       ? withSellLimit(kept, typedLimit, sellFromRole)
       : kept
-    const denials = [...roleCodes].filter((code) => !current.has(code))
+    const denials = [
+      ...[...roleCodes].filter((code) => !current.has(code)),
+      // Unticking a carried code must name it, or the server keeps it and the permission stays. A
+      // denial names it without granting anything.
+      ...[...carriedCodes].filter((code) => !current.has(code) && !roleCodes.has(code)),
+    ]
     try {
       await savePersonPermissions(person.id, grants, denials)
       setWanted(null)
@@ -725,6 +739,24 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
             </p>
           ) : null}
           <InlineFailure text={failure} />
+          {carried.length ? (
+            <ul className="flex flex-col gap-2">
+              {carried.map((limit) => {
+                const words = permissionWords(limit.code, t, i18n)
+                const permission = `${words.group}: ${words.action}`
+                return (
+                  <li
+                    key={limit.code}
+                    className="rounded-sm bg-surface-background px-4 py-3 text-sm font-medium text-text-tertiary"
+                  >
+                    {limit.qualifier === 'MAX_PERCENT'
+                      ? t('branchAccess.person.carriedLimit', { permission, percent: limit.value })
+                      : t('branchAccess.person.carriedLimitOther', { permission })}
+                  </li>
+                )
+              })}
+            </ul>
+          ) : null}
           {[...groups.entries()].map(([group, entries]) => (
             <fieldset key={group} className="flex flex-col gap-2">
               <legend className="mb-1 text-sm font-semibold text-text-primary">{group}</legend>
@@ -794,7 +826,11 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
                           : undefined
                     }
                     hint={
-                      !sellFromRole
+                      // The carried 0% is what the till applies, whatever the role says, until a
+                      // typed limit replaces it.
+                      carriedSell && limitText === null
+                        ? t('branchAccess.person.sellLimitCarried', { percent: carriedSell.value })
+                        : !sellFromRole
                         ? typeof ownLimit === 'number'
                           ? t('branchAccess.person.sellLimitOwnOnly', { percent: ownLimit })
                           : t('branchAccess.person.sellLimitNoRole')
