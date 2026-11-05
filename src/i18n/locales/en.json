@@ -5020,6 +5020,7 @@
       "setAsideReason": "Why is it being set aside?",
       "setAsideWarning": "This lets later sales go on. It does not file this sale: the customer still holds the invoice, and it stays listed until it is filed.",
       "setAsideNote": "Set aside: {{reason}}. Still not filed.",
+      "setAsideSeenNote": "Set aside on this device earlier. Not confirmed by the server.",
       "elsewhere": "Held on till {{till}}'s device.",
       "method": {
         "CASH": "Cash",

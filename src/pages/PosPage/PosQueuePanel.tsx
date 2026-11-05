@@ -6,6 +6,7 @@ import { omr, tillTime, toBaisa } from '../../lib/pos'
 import {
   correctQueuedSale,
   markQueuedSaleSetAside,
+  opensNumbers,
   retryQueuedSale,
   useQueuedSales,
   type QueuedSale,
@@ -36,15 +37,15 @@ const PAYMENTS_CAN_BE_CORRECTED = new Set([
  * A sale made offline has a number on a receipt the customer holds, so one the server has not taken
  * is never left silent (E2E 30 Oct 2026, H-1; Abdul, 31 Oct 2026). Whoever manages tills
  * (`pos.till.manage`) sees the reason and resolves it: correct and send again on the printed number,
- * try again, or set it aside on the server so the queue moves on. Setting aside closes nothing: the
- * number stays listed until it is filed. Anyone else on the till is told to ask a manager. Set aside
- * and the server's list need `openNumbers`; on a server without it later sales must wait for
- * the number, and the panel says so. Sales only waiting for the connection are one quiet line.
+ * or try again. Anyone else on the till is told to ask a manager. Later sales wait for the number,
+ * and the panel says so: set aside and the server's open-number list are off in this build whatever
+ * the till says (`opensNumbers`, Q-27), so their UI below is unreachable. Sales only waiting for the
+ * connection are one quiet line.
  */
 export function PosQueuePanel({ till }: { till: Ready }) {
   const { t } = useTranslation()
   const entries = useQueuedSales(till.till.id)
-  const canSkip = till.till.openNumbers === true
+  const canSkip = opensNumbers()
   const open = useApiRead<PosOpenNumberDto[]>(canSkip ? posOpenNumbersPath(till.branchId) : null)
   const online = useSyncExternalStore(onlineChanges, () => navigator.onLine)
   const onServer = open.read.status === 'ready' ? open.read.data : []
@@ -253,8 +254,14 @@ function Problem({
             ? t('pos.queue.finalHint')
             : t('pos.queue.heldHint')}
       </p>
-      {entry.setAside || onServer?.setAsideAt ? (
-        <SetAsideNote reason={onServer?.setAsideReason ?? null} />
+      {/* Only the server's own record names a reason. An earlier build's local flag, or the marker
+          Try again leaves, is this device's word alone and says so (Q-27 NF7R; A8-G6). */}
+      {onServer?.setAsideAt ? (
+        <SetAsideNote reason={onServer.setAsideReason} />
+      ) : entry.setAside || entry.setAsideSeen ? (
+        <p className="mt-1 text-xs font-medium text-pending-700">
+          {t('pos.queue.setAsideSeenNote')}
+        </p>
       ) : null}
       {mode === 'correct' ? (
         <div className="mt-3 flex flex-col gap-2">
