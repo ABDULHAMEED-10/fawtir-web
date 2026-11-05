@@ -6,7 +6,7 @@ API does not provide yet, and what to add.
 | Area | Guide |
 |---|---|
 | Income and Customers (invoices, notes, periodic, reminders, self-billing up to 6 Oct 2026, customers, PINT-OM line classification, the sign-up answers invoices depend on) | [INCOME.md](INCOME.md) |
-| POS support: till states only support clears by hand (a burnt number), and the release notes for them | [POS_SUPPORT_RUNBOOK.md](POS_SUPPORT_RUNBOOK.md) |
+| POS support: the burnt-number block (no release in RC5; see §10.1), and its release note | [POS_SUPPORT_RUNBOOK.md](POS_SUPPORT_RUNBOOK.md) |
 | Expenditure and Suppliers (bills, payments, recurring bills, bill reminders, supplier notes, suppliers, self-billing since 6 Oct 2026) | [EXPENDITURE.md](EXPENDITURE.md) |
 | Documents (the archive) | [DOCUMENTS.md](DOCUMENTS.md) |
 | Trade documents (quotations, order forms, delivery notes, purchase receipts, converting them to invoices) | [TRADE_DOCUMENTS.md](TRADE_DOCUMENTS.md) |
