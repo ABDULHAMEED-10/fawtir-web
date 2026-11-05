@@ -8,9 +8,11 @@ import { useBranchName } from './useBranchName'
 /**
  * `GET /v1/branches` as every reader gets it (B5-C3, owner B-5 decision 4): readable with any of
  * `branch.read`, `stock.read`, `pos.read` or `product.read`, narrowed to the caller's branches, and
- * for a caller without `branch.read` only a minimal projection whose sure fields are `id` and
- * `name`. So only those two are required; the rest are kept when present and never relied on.
- * A row without a usable id or name is dropped rather than made into a branch nobody can name.
+ * for a caller without `branch.read` only `{id, code, name, nameAr}` (backend C3 65fc3ad41). Only
+ * `id` and `name` are required; the rest are kept when present and never invented, so a missing
+ * `type` is not mistaken for a known one: without it the working branch falls back to the first
+ * row, not the head office. A row without a usable id or name is dropped rather than made into a
+ * branch nobody can name.
  *
  * This replaces the fallback onto the entitlements' `branchIds` (E2E 29 Oct 2026, F-3), which
  * guessed nameless branches for a refused reader and had none for a company-wide one.
@@ -26,8 +28,8 @@ export function branchRows(data: unknown): BranchDto[] {
       id,
       name,
       code: typeof code === 'string' ? code : '',
-      type: typeof type === 'string' ? type : '',
-      city: typeof city === 'string' ? city : null,
+      ...(typeof type === 'string' ? { type } : {}),
+      ...(typeof city === 'string' ? { city } : {}),
       ...(typeof nameAr === 'string' ? { nameAr } : {}),
     })
   }
