@@ -17,6 +17,7 @@ import {
 } from '../../components/reports'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { useApiRead, type ApiRead } from '../../hooks'
+import { ApiError } from '../../api/errors'
 import {
   cashFlowPath,
   expenditurePath,
@@ -106,7 +107,16 @@ export function ReportsCashFlowPage() {
     >
       {report.read.status === 'loading' ? <LoadingNotice /> : null}
       {report.read.status === 'failed' ? (
-        <ApiReadFailure error={report.read.error} retry={report.retry} />
+        // Backend 9ce2bdcf4: till paid-outs are dated in the company's zone, and with none set the
+        // report refuses rather than guess one. A retry cannot help; the setting can.
+        report.read.error instanceof ApiError &&
+        report.read.error.code === 'TENANT_TIMEZONE_UNAVAILABLE' ? (
+          <p className="rounded-md bg-pending-100 p-3 text-sm font-medium text-pending-700">
+            {t('reports.cashFlow.timeZoneUnavailable')}
+          </p>
+        ) : (
+          <ApiReadFailure error={report.read.error} retry={report.retry} />
+        )
       ) : null}
 
       {report.read.status === 'ready' ? (

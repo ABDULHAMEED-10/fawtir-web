@@ -3,6 +3,7 @@ import i18n from '../i18n'
 import { ApiError } from '../api'
 import {
   choosableClasses,
+  dropsHeldReceipt,
   fixedClass,
   keyForAttempt,
   paidOutGap,
@@ -145,6 +146,22 @@ describe('a receipt the server would refuse', () => {
   })
 })
 
+describe('a refusal that spends the held receipt (backend 9ce2bdcf4)', () => {
+  it.each([
+    ['POS_PAID_OUT_RECEIPT_NOT_FOUND', 422, true],
+    ['POS_PAID_OUT_RECEIPT_OTHER_TILL', 422, true],
+    ['POS_PAID_OUT_RECEIPT_ALREADY_USED', 409, true],
+    ['POS_PAID_OUT_CURRENCY_INVALID', 400, false],
+    ['POS_PAID_OUT_IDEMPOTENCY_KEY_REUSED', 409, false],
+  ] as const)('%s (%s) drops it: %s', (code, status, drops) => {
+    expect(dropsHeldReceipt(coded(status, code))).toBe(drops)
+  })
+
+  it('a dropped connection keeps it, so the retry replays', () => {
+    expect(dropsHeldReceipt(new TypeError('Failed to fetch'))).toBe(false)
+  })
+})
+
 describe('the refusals', () => {
   it.each([
     'POS_PAID_OUT_FORBIDDEN',
@@ -163,6 +180,9 @@ describe('the refusals', () => {
     'POS_PAID_OUT_REFUND_REFERENCE',
     'POS_CASH_MOVEMENT_FIELDS_INVALID',
     'POS_CASH_RECEIPT_INVALID',
+    'POS_PAID_OUT_RECEIPT_OTHER_TILL',
+    'POS_PAID_OUT_RECEIPT_ALREADY_USED',
+    'POS_PAID_OUT_CURRENCY_INVALID',
   ])('%s has its own sentence in both languages', (code) => {
     const key = posRefusalKey(coded(400, code))
     expect(key).toBe(`pos.refusal.${code}`)

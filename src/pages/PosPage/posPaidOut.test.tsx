@@ -140,7 +140,8 @@ beforeEach(async () => {
         uploads += 1
         return json(
           {
-            receiptObjectId: 'rcpt-1',
+            // A fresh id per upload, as the server gives, so a re-upload is visible in the body.
+            receiptObjectId: `rcpt-${uploads}`,
             contentType: 'image/jpeg',
             byteSize: 3,
             sha256: 'x',
@@ -317,6 +318,80 @@ describe('a paid-out', () => {
     fireEvent.change(screen.getByLabelText(form('receipt')), { target: { files: [gif] } })
     expect(screen.getByText(form('receiptProblem.type'))).toBeTruthy()
     expect(uploads).toBe(0)
+  })
+})
+
+// Backend 9ce2bdcf4 (review F4): the receipt is bound to its till and backs one paid-out; the
+// currency must be one cash is counted in.
+describe('a refused receipt or currency', () => {
+  it.each([
+    [422, 'POS_PAID_OUT_RECEIPT_OTHER_TILL'],
+    [422, 'POS_PAID_OUT_RECEIPT_NOT_FOUND'],
+  ])('%s %s drops the held receipt: the next press uploads again, under a new key', async (status, code) => {
+    answer = () => problem(status, code)
+    await fillPettyCash()
+    chooseCurrency('OMR')
+    attachReceipt()
+    fireEvent.click(recordButton())
+    expect(await screen.findByText(i18n.t(`pos.refusal.${code}`))).toBeTruthy()
+    answer = () => json(PAID_OUT, 201)
+    fireEvent.click(recordButton())
+    await waitFor(() => expect(paidOuts).toHaveLength(2))
+    expect(uploads).toBe(2)
+    expect(paidOuts[0].body.receiptObjectId).toBe('rcpt-1')
+    expect(paidOuts[1].body.receiptObjectId).toBe('rcpt-2')
+    // The body changed with the receipt, so the key did too; nothing else did.
+    expect(paidOuts[1].key).not.toBe(paidOuts[0].key)
+    expect({ ...paidOuts[1].body, receiptObjectId: null }).toEqual({
+      ...paidOuts[0].body,
+      receiptObjectId: null,
+    })
+  })
+
+  it('409 POS_PAID_OUT_RECEIPT_ALREADY_USED asks for the receipt afresh rather than copying it', async () => {
+    answer = () => problem(409, 'POS_PAID_OUT_RECEIPT_ALREADY_USED')
+    await fillPettyCash()
+    chooseCurrency('OMR')
+    attachReceipt()
+    fireEvent.click(recordButton())
+    expect(
+      await screen.findByText(i18n.t('pos.refusal.POS_PAID_OUT_RECEIPT_ALREADY_USED')),
+    ).toBeTruthy()
+    expect((recordButton() as HTMLButtonElement).disabled).toBe(true)
+    attachReceipt()
+    answer = () => json(PAID_OUT, 201)
+    fireEvent.click(recordButton())
+    await waitFor(() => expect(paidOuts).toHaveLength(2))
+    expect(uploads).toBe(2)
+    expect(paidOuts[1].body.receiptObjectId).toBe('rcpt-2')
+  })
+
+  it('400 POS_PAID_OUT_CURRENCY_INVALID is worded and leaves the form as it was', async () => {
+    answer = () => problem(400, 'POS_PAID_OUT_CURRENCY_INVALID')
+    await fillPettyCash()
+    chooseCurrency('OMR')
+    attachReceipt()
+    fireEvent.click(recordButton())
+    expect(
+      await screen.findByText(
+        'Cash is not counted in that currency. Choose the currency the cash was paid out in.',
+      ),
+    ).toBeTruthy()
+    expect(
+      (screen.getByRole('textbox', { name: i18n.t('pos.pay.amount') }) as HTMLInputElement).value,
+    ).toBe('2.5')
+    expect(
+      (screen.getByRole('combobox', { name: form('category') }) as HTMLSelectElement).value,
+    ).toBe('PETTY_CASH_EXPENSE')
+    expect((screen.getByRole('combobox', { name: form('currency') }) as HTMLSelectElement).value).toBe(
+      'OMR',
+    )
+    expect(previews).toBe(1)
+    // The receipt stands: the same body again keeps its key and its upload.
+    fireEvent.click(recordButton())
+    await waitFor(() => expect(paidOuts).toHaveLength(2))
+    expect(uploads).toBe(1)
+    expect(paidOuts[1].key).toBe(paidOuts[0].key)
   })
 })
 

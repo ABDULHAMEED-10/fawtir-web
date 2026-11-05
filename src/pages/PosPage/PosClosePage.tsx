@@ -44,6 +44,7 @@ import type { TillState } from '../../lib/posTill'
 import {
   PAID_OUT_CATEGORIES,
   choosableClasses,
+  dropsHeldReceipt,
   fixedClass,
   keyForAttempt,
   paidOutGap,
@@ -1188,6 +1189,8 @@ function PaidOutForm({
   // server refuses a paid-out without one rather than default it.
   const [currency, setCurrency] = useState('')
   const [file, setFile] = useState<File | null>(null)
+  // Bumped to empty the file picker, which React cannot clear by value.
+  const [picker, setPicker] = useState(0)
   const [fileProblem, setFileProblem] = useState<'type' | 'size' | null>(null)
   const [noReceipt, setNoReceipt] = useState(false)
   const [reason, setReason] = useState('')
@@ -1259,6 +1262,13 @@ function PaidOutForm({
       // cashier has looked at what was recorded.
       if (cause instanceof ApiError && cause.code === 'POS_PAID_OUT_IDEMPOTENCY_KEY_REUSED') {
         store.attempt = null
+      }
+      if (dropsHeldReceipt(cause)) store.receipt = null
+      // Uploading the same file again would only make a second copy of a receipt that already backs a
+      // paid-out, which is what the server refused; the cashier picks the receipt again on purpose.
+      if (cause instanceof ApiError && cause.code === 'POS_PAID_OUT_RECEIPT_ALREADY_USED') {
+        setFile(null)
+        setPicker((value) => value + 1)
       }
       setError(cause)
     } finally {
@@ -1392,6 +1402,7 @@ function PaidOutForm({
           />
         ) : (
           <input
+            key={picker}
             type="file"
             accept="image/jpeg,image/png,application/pdf"
             aria-label={t('pos.close.paidOutForm.receipt')}

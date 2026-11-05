@@ -115,6 +115,22 @@ export function keyForAttempt(
   return { attempt: next, key: next.key }
 }
 
+/**
+ * Refusals that make the held receipt id useless (backend 9ce2bdcf4): gone, uploaded at another
+ * till, or already backing a paid-out. The id is dropped so the next press uploads a file again
+ * (the form asks for the file afresh after ALREADY_USED); the new id changes the body, so it is a new
+ * attempt with a new key, as any changed body is.
+ */
+const RECEIPT_REFUSALS = new Set([
+  'POS_PAID_OUT_RECEIPT_NOT_FOUND',
+  'POS_PAID_OUT_RECEIPT_OTHER_TILL',
+  'POS_PAID_OUT_RECEIPT_ALREADY_USED',
+])
+
+export function dropsHeldReceipt(error: unknown): boolean {
+  return error instanceof ApiError && error.code !== null && RECEIPT_REFUSALS.has(error.code)
+}
+
 /** What the server would refuse, said before the upload is spent. */
 export function receiptProblem(file: { type: string; size: number }): 'type' | 'size' | null {
   if (!(PAID_OUT_RECEIPT_TYPES as readonly string[]).includes(file.type)) return 'type'

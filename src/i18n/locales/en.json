@@ -5160,6 +5160,9 @@
       "POS_PAID_OUT_CURRENCY_REQUIRED": "Choose the currency the cash was paid out in.",
       "POS_PAID_OUT_RECEIPT_REQUIRED": "Attach the receipt, or say why there is none.",
       "POS_PAID_OUT_RECEIPT_NOT_FOUND": "The receipt was not found. Attach it again.",
+      "POS_PAID_OUT_RECEIPT_OTHER_TILL": "That receipt was attached at another till. Press Record it again to attach it here.",
+      "POS_PAID_OUT_RECEIPT_ALREADY_USED": "That receipt already backs another paid-out. Check the cash moves on this page; if this is a different payment, attach its own receipt.",
+      "POS_PAID_OUT_CURRENCY_INVALID": "Cash is not counted in that currency. Choose the currency the cash was paid out in.",
       "POS_PAID_OUT_BILL_FORBIDDEN": "Paying a supplier's bill from the till also needs the permission to settle bills. Record the payment without the bill.",
       "POS_PAID_OUT_BILL_LINK_INVALID": "Only a payment to a supplier can pay a bill.",
       "POS_PAID_OUT_REFUND_REFERENCE": "A paid-out is never a refund. Refund the sale from the refund page.",
@@ -9052,6 +9055,7 @@
         "unclassified": "Not classed (before RC5)"
       },
       "currencyNotRecorded": "currency not recorded (before RC5)",
+      "timeZoneUnavailable": "The cash flow report needs the company's time zone. Set it in company settings first, then open the report again.",
       "unrecorded": "Till paid-outs from before RC5 carry no currency ({{label}}): {{amount}} in this report. They are kept apart and never added to any currency."
     },
     "vat": {

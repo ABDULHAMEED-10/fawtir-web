@@ -59,6 +59,11 @@ const WORDED = new Set([
   'POS_PAID_OUT_CURRENCY_REQUIRED',
   'POS_PAID_OUT_RECEIPT_REQUIRED',
   'POS_PAID_OUT_RECEIPT_NOT_FOUND',
+  // Backend 9ce2bdcf4 (review F4): a receipt backs one paid-out, on the till it was uploaded at, and
+  // the currency must be one cash is counted in.
+  'POS_PAID_OUT_RECEIPT_OTHER_TILL',
+  'POS_PAID_OUT_RECEIPT_ALREADY_USED',
+  'POS_PAID_OUT_CURRENCY_INVALID',
   'POS_PAID_OUT_BILL_FORBIDDEN',
   'POS_PAID_OUT_BILL_LINK_INVALID',
   'POS_PAID_OUT_REFUND_REFERENCE',

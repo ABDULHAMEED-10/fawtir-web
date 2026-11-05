@@ -612,6 +612,31 @@ describe('the cash flow page', () => {
     expect(await screen.findByText('No payments were recorded in this range.')).toBeTruthy()
   })
 
+  // NOT RUN (static only). Backend 9ce2bdcf4: no business time zone, with till paid-outs to date.
+  it('sends the reader to the company settings when the time zone is not set, without a retry', async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/me/entitlements')) return json(200, READER)
+      if (url.includes('/reports/cash-flow'))
+        return new Response(
+          JSON.stringify({
+            type: 'https://fawtir.om/problems/conflict',
+            status: 409,
+            code: 'TENANT_TIMEZONE_UNAVAILABLE',
+          }),
+          { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+        )
+      return json(404)
+    })
+    renderAt('/reports/cash-flow', <ReportsCashFlowPage />)
+    expect(
+      await screen.findByText(
+        "The cash flow report needs the company's time zone. Set it in company settings first, then open the report again.",
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByRole('button', { name: i18n.t('appAccess.retry') })).toBeNull()
+  })
+
   // NOT RUN (static only). Backend cb9898ac3 (FIN-M3): the four drawer columns and the bucket of
   // till paid-outs from before RC5, which carry no currency.
   it('shows the till paid-outs by class and keeps the currency-less bucket apart', async () => {
