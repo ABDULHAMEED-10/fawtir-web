@@ -413,6 +413,9 @@ function save(next: QueuedSale[]): SaveResult {
   if (current !== seenText) return 'conflict'
   const text = JSON.stringify(next)
   const written = writeText(QUEUE_KEY, text)
+  // A read-back that differs is judged by `update`, which knows what this write was for: another
+  // tab may have written between the two, and that is not a storage fault (IMPL2-M1).
+  if (written === 'mismatch') return written
   if (written !== 'ok') return noteStorageFailure(written)
   queue = next
   seenText = text
@@ -425,13 +428,29 @@ function save(next: QueuedSale[]): SaveResult {
  * Every change to the queue: made to the copy storage holds now, and made again once from a fresh
  * read if another tab wrote in between. Rebuilding from storage, never from this tab's memory, is
  * what keeps a sale another tab queued, and keeps out one another tab has filed and removed.
+ *
+ * `landed` says whether storage, read again, holds this change's own effect (its entry there, or
+ * gone). A read-back that differs only because another tab wrote right after this write is then
+ * accepted; without `landed`, or when the effect is not there, it blocks offline numbering as any
+ * storage failure does (IMPL2-M1: verify this write, never weaken fail-closed).
  */
-function update(change: (entries: QueuedSale[]) => QueuedSale[]): StorageWrite {
+function update(
+  change: (entries: QueuedSale[]) => QueuedSale[],
+  landed?: (entries: QueuedSale[]) => boolean,
+): StorageWrite {
   const first = save(change(synced()))
-  if (first !== 'conflict') return first
-  const second = save(change(synced()))
-  // Still not what this tab read: the stored text cannot be read, and is never written over.
-  return second === 'conflict' ? noteStorageFailure(queueReadFailure ?? 'unreadable') : second
+  const result =
+    first !== 'conflict'
+      ? first
+      : (() => {
+          const second = save(change(synced()))
+          // Still not what this tab read: the stored text cannot be read, and is never written over.
+          return second === 'conflict' ? noteStorageFailure(queueReadFailure ?? 'unreadable') : second
+        })()
+  if (result !== 'mismatch') return result
+  const now = synced()
+  if (landed && !queueReadFailure && landed(now)) return 'ok'
+  return noteStorageFailure('mismatch')
 }
 
 /**
@@ -986,12 +1005,11 @@ export async function submitSale(
             : {}),
       })
       const kept = entry
-      saved = update((entries) => [...entries, kept])
-      // Read back as other text: another tab may have written in between. Kept only if storage, read
-      // again, holds this very entry.
-      if (saved === 'mismatch' && synced().some((other) => other.key === key) && !queueReadFailure) {
-        saved = 'ok'
-      }
+      // Kept only once storage, read again, holds this very entry.
+      saved = update(
+        (entries) => [...entries, kept],
+        (entries) => entries.some((other) => other.key === key),
+      )
     } finally {
       if (saved !== 'ok') {
         if (reservation.rollback() !== 'ok') {
@@ -1197,7 +1215,12 @@ export async function flushQueue(
         const filedNoted = noteNumberUsed(tillId, sale.invoiceNumber)
         const covered = printedNoted === 'ok' ? filedNoted : printedNoted
         if (covered !== 'ok') noteStorageFailure(covered)
-        else if (update((entries) => entries.filter((other) => other.key !== entry.key)) === 'ok') {
+        else if (
+          update(
+            (entries) => entries.filter((other) => other.key !== entry.key),
+            (entries) => entries.every((other) => other.key !== entry.key),
+          ) === 'ok'
+        ) {
           await forget(entry)
         }
         void sendSlipPhotos(entry.key, sale.saleId, tillId)

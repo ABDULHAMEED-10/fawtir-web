@@ -408,6 +408,43 @@ describe('POS-MEMQ: an offline sale is numbered only once storage keeps it', () 
     expect(await queuedOffline('pos-sale-key-st9-b')).toBe(numbered(49))
   })
 
+  it('ST-10 another tab writing between this write and its read-back does not block, when the entry landed (IMPL2-M1)', async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
+      this: Storage,
+      key: string,
+      value: string,
+    ) {
+      realSet.call(this, key, value)
+      // The other tab queues its own sale on top of what this tab just wrote.
+      if (key === QUEUE) otherTabWrites(QUEUE, JSON.stringify([...JSON.parse(value), stored(60)]))
+    })
+
+    expect(await queuedOffline('pos-sale-key-st10')).toBe(numbered(49))
+    vi.restoreAllMocks()
+
+    expect(offlineBlock('till-1')).toBeNull()
+    expect(storedQueue().map((entry) => entry.key)).toEqual(['pos-sale-key-st10', 'pos-sale-key-st-60'])
+    expect(realGet.call(window.localStorage, COUNTER)).toBe('50')
+  })
+
+  it("ST-10b a read-back without this write's entry still blocks and gives no receipt (IMPL2-M1)", async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
+      this: Storage,
+      key: string,
+      value: string,
+    ) {
+      realSet.call(this, key, value)
+      if (key === QUEUE) otherTabWrites(QUEUE, JSON.stringify([stored(60)]))
+    })
+
+    expect((await refusedOffline('pos-sale-key-st10b')).reason).toBe('mismatch')
+    vi.restoreAllMocks()
+
+    expect(offlineBlock('till-1')).toBe('mismatch')
+    expect(storedQueue().map((entry) => entry.key)).toEqual(['pos-sale-key-st-60'])
+    expect(realGet.call(window.localStorage, COUNTER)).toBeNull()
+  })
+
   it('keeps strict number order (Q-27): opensNumbers stays false', () => {
     expect(opensNumbers()).toBe(false)
   })
