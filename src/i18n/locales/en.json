@@ -2932,6 +2932,7 @@
       "endBeforeStart": "The end can't be before the first draft.",
       "occurrences": "Give a whole number of runs, or leave it empty.",
       "intervalRequired": "Choose how often it runs.",
+      "goodsOrServiceRequired": "A line of this schedule does not say whether it is goods or a service, so it was not saved. Choose goods or a service for each line, then save again.",
       "notFound": "This schedule no longer exists.",
       "linesRequired": "Add at least one line with a description.",
       "alreadyRaised": "This schedule changed since you opened it: its latest draft has already been raised. Reload the page and try again.",
@@ -21302,6 +21303,7 @@
       "unavailable": "Issuing isn't available on this server yet.",
       "activityRequired": "Set your business activity in Company settings before creating a business or government invoice.",
       "hsCodeRequired": "A goods line on this draft has no HS code, so it was not issued. Open the draft, choose the line's HS code (Other if none fits), save, then issue again.",
+      "goodsOrServiceRequired": "A line on this draft does not say whether it is goods or a service, so it was not issued and no number was used. Open the draft, give each goods line its HS code (Other if none fits) or mark the line as a service, save, then issue again.",
       "buyerAddressIncomplete": "This customer's address is incomplete for Peppol: add the street, additional street, city, postal code and address line 3, then issue again.",
       "buyerAddressAction": "Complete the customer"
     },

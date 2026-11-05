@@ -80,6 +80,9 @@ export const ISSUE_REFUSALS: Record<string, { field: IssueField | null; key: str
   // A draft saved before the goods/HS rule (GoodsHsCodeRequirement) and issued as it stands; the
   // composer checks the line before it saves, so this is the server's own refusal at issue.
   HS_CODE_REQUIRED: { field: null, key: 'invoiceIssue.refused.hsCodeRequired' },
+  // Backend 8f04050ab (HS Slice B, IBR-078-OM): a line of a non-simplified document stating neither
+  // goods nor services, refused at issue before a number is taken.
+  GOODS_OR_SERVICE_REQUIRED: { field: null, key: 'invoiceIssue.refused.goodsOrServiceRequired' },
   CUSTOMER_NOT_SELECTABLE: { field: null, key: 'invoiceIssue.refused.customerNotSelectable' },
   PAYMENT_TERMS_REQUIRED: { field: null, key: 'invoiceIssue.refused.termsRequired' },
   BRANCH_NOT_ACTIVE: { field: null, key: 'invoiceIssue.refused.branchInactive' },
