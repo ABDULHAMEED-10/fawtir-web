@@ -10,9 +10,10 @@ the server's own procedures are in the backend runbooks.
 part 3 to a burnt number and adds nothing that releases one.
 
 **What the cashier sees.** "Selling is stopped on this till: one number could not be kept, and
-none was printed." and "Checking again or an online sale does not clear this. This till cannot be
-used for now: sell on another till and ask your manager to escalate." Both offline and online
-selling are refused on that till, on that device.
+none was printed." and "Checking again or an online sale does not clear this. Selling on this till
+cannot resume for now: keep the device on and online so sales already numbered can still send, sell
+on another till and ask your manager to escalate." Both offline and online selling are refused on
+that till, on that device.
 
 **Why.** An offline sale took the till's next number. The browser then failed to save the sale
 and also failed to roll the counter back. No receipt carries that number, but the device's counter
@@ -42,7 +43,10 @@ a reinstall or a profile reset. The till resumes only through the server's audit
 3. **Let the already-numbered sales go.** Bring the device online and let its queue send. Sending
    and retrying sales already numbered stays allowed on the blocked till. A refused sale is handled
    under §10.1 parts 1 to 4 (never ask the customer to pay again). A sale held for validation is not
-   a §10.1 case: find it on the Held sales screen, record it on the ticket and escalate. If the queue
+   a §10.1 case: the customer has paid, so never ask the customer to pay again; find it on the Held
+   sales screen, record it on the ticket and escalate. A Held sales row that reads "waiting for
+   number X" is not a held sale but a refusal stall (POS_TILL_NUMBER_GAP): handle it under §10.1
+   part 3, as the refused-sale case above. If the queue
    cannot be emptied, keep the device whole and export `fawtir.pos.queue` read-only into the
    ticket's secure attachment (§10.1 part 3 steps 3 and 4). It is tenant data: never paste it into
    chat or logs.

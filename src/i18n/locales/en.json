@@ -4986,7 +4986,7 @@
     "storage": {
       "blocked": "This device can't safely read or save its sales and invoice numbers, so selling is unavailable here, online or offline. Sales already waiting can still be sent. Check again, or use another registered till.",
       "reportStale": "This device's date or time doesn't match the till's business date, so selling is unavailable here. Check the date and time, then check again.",
-      "burnt": "Checking again or an online sale does not clear this. This till cannot be used for now: sell on another till and ask your manager to escalate.",
+      "burnt": "Checking again or an online sale does not clear this. Selling on this till cannot resume for now: keep the device on and online so sales already numbered can still send, sell on another till and ask your manager to escalate.",
       "burntHeadline": "Selling is stopped on this till: one number could not be kept, and none was printed.",
       "checkAgain": "Check again"
     },
