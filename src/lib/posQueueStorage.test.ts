@@ -129,6 +129,15 @@ const filedAs = (value: number) => json(filedBody(numbered(value)), 201)
 let online = false
 let saleReply: () => Response
 let calls: { url: string; init?: RequestInit }[]
+/**
+ * The Idempotency-Key of every sale request tried, in order. The fetch stub records a request
+ * before it fails offline, so a sale numbered offline shows up here too: its own request went out
+ * and dropped before it fell back (review XW-2). A refused sale must never appear.
+ */
+const postedKeys = () =>
+  calls
+    .filter((call) => call.url === '/api/v1/pos/sales' && call.init?.method === 'POST')
+    .map((call) => new Headers(call.init?.headers).get('Idempotency-Key'))
 
 beforeEach(() => {
   vi.restoreAllMocks()
@@ -176,10 +185,11 @@ describe('POS-MEMQ: an offline sale is numbered only once storage keeps it', () 
     expect((await refusedOffline('pos-sale-key-st1-b')).reason).toBe('quota')
     expect(realGet.call(window.localStorage, COUNTER)).toBeNull()
 
-    // Rev 4.7 (OA:2773): no online sale either, and nothing is sent for it.
+    // Rev 4.7 (OA:2773): no online sale either, and nothing is sent for it. The only request so far
+    // is st1-a's own, tried offline before it fell back; the refused st1-b and st1-c sent nothing.
     online = true
     expect((await refusedOffline('pos-sale-key-st1-c')).reason).toBe('quota')
-    expect(calls.filter((call) => call.url === '/api/v1/pos/sales')).toEqual([])
+    expect(postedKeys()).toEqual(['pos-sale-key-st1-a'])
 
     expect(checkStorageAgain()).toBeNull()
     const sold = await submitSale(TILL, WALK_IN, 'pos-sale-key-st1-d')
@@ -246,10 +256,11 @@ describe('POS-MEMQ: an offline sale is numbered only once storage keeps it', () 
     expect((await refusedOffline('pos-sale-key-st4-b')).reason).toBe('burnt')
     expect(realGet.call(window.localStorage, COUNTER)).toBe('50')
 
-    // Online is refused before anything is sent, so no online sale can heal it either.
+    // Online is refused before anything is sent, so no online sale can heal it either. The only
+    // request is st4-a's own, tried offline before its number was burnt.
     online = true
     expect((await refusedOffline('pos-sale-key-st4-c')).reason).toBe('burnt')
-    expect(calls.filter((call) => call.url === '/api/v1/pos/sales')).toEqual([])
+    expect(postedKeys()).toEqual(['pos-sale-key-st4-a'])
     expect(checkStorageAgain()).toBeNull()
     expect(offlineBlock('till-1', 'online')).toBe('burnt')
   })
@@ -564,11 +575,13 @@ describe('XT-2: storage blocks selling on both paths (D.8 (iv), (viii))', () => 
     vi.restoreAllMocks()
     expect(offlineBlock('till-1', 'online')).toBe('quota')
 
+    // Offline: f1's own request, then f2's sale tried the waiting f1 first and was refused while
+    // being kept; f2 itself was never sent.
+    expect(postedKeys()).toEqual(['pos-sale-key-xt-f1', 'pos-sale-key-xt-f1'])
     online = true
     await flushQueue('till-1')
-    expect(salePosts().map((call) => new Headers(call.init?.headers).get('Idempotency-Key'))).toEqual([
-      'pos-sale-key-xt-f1',
-    ])
+    // The flush sends f1 only: the refused f2 is in no queue.
+    expect(postedKeys()).toEqual(['pos-sale-key-xt-f1', 'pos-sale-key-xt-f1', 'pos-sale-key-xt-f1'])
     expect(storedQueue()).toEqual([])
   })
 
@@ -629,7 +642,8 @@ describe('what a storage refusal tells the cashier about the request (review XW-
     vi.restoreAllMocks()
     online = true
     const before = await refusedOffline('pos-sale-key-xw2-b')
-    expect(calls.filter((call) => call.url === '/api/v1/pos/sales')).toEqual([])
+    // Only xw2-a's own request, tried offline before it fell back; xw2-b sent nothing.
+    expect(postedKeys()).toEqual(['pos-sale-key-xw2-a'])
     expect(before.requested).toBe(false)
     expect(posRefusalKey(before)).toBe('pos.refusal.storageUnavailable')
   })

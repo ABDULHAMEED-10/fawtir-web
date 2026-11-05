@@ -111,7 +111,18 @@ describe('the storage notice on the till (POS-MEMQ S8)', () => {
         reason === 'burnt' ? [] : [i18n.t('pos.storage.checkAgain')],
       )
       expect(screen.queryAllByRole('link')).toHaveLength(0)
-      expect(screen.getByRole('alert').textContent).not.toMatch(/print|receipt|NZW-|INV-/i)
+      const text = screen.getByRole('alert').textContent ?? ''
+      if (reason === 'burnt') {
+        // The approved burnt headline (IMPL2-U1, da598705) states that no number was printed; it
+        // offers nothing. The notice is exactly that headline and the burnt sentence, and outside the
+        // headline nothing speaks of printing, a receipt or a number.
+        const headline = i18n.t('pos.storage.burntHeadline')
+        expect(text).toBe(headline + i18n.t('pos.storage.burnt'))
+        expect(text.replace(headline, '')).not.toMatch(/print|receipt|NZW-|INV-/i)
+        expect(headline).not.toMatch(/receipt|NZW-|INV-/i)
+      } else {
+        expect(text).not.toMatch(/print|receipt|NZW-|INV-/i)
+      }
     },
   )
 
