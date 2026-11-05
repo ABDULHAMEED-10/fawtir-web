@@ -846,6 +846,8 @@ describe('the supplier bill link', () => {
     const held = JSON.parse(window.sessionStorage.getItem(HELD) ?? '{}')
     expect(held.unknown).toBe(true)
     expect(held.attempt.key).toBe('pos-paidout-stored-key-0006')
+    // W8R-5: a null sentAt pins the wait, so the cashier's check could never unlock the form.
+    expect(typeof held.sentAt).toBe('number')
     answer = () => json(PAID_OUT, 201)
     fireEvent.click(screen.getByRole('button', { name: form('pending.again') }))
     await waitFor(() => expect(paidOuts).toHaveLength(2))

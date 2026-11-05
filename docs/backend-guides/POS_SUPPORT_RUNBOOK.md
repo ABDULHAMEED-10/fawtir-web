@@ -10,9 +10,9 @@ the server's own procedures are in the backend runbooks.
 part 3 to a burnt number and adds nothing that releases one.
 
 **What the cashier sees.** "Selling is stopped on this till: one number could not be kept, and
-none was printed." and "Checking again or an online sale does not clear this. Ask your manager or
-support before selling on this till again." Both offline and online selling are refused on that
-till, on that device.
+none was printed." and "Checking again or an online sale does not clear this. This till cannot be
+used for now: sell on another till and ask your manager to escalate." Both offline and online
+selling are refused on that till, on that device.
 
 **Why.** An offline sale took the till's next number. The browser then failed to save the sale
 and also failed to roll the counter back. No receipt carries that number, but the device's counter
@@ -40,10 +40,12 @@ a reinstall or a profile reset. The till resumes only through the server's audit
    audited procedure (§10.1 part 3 step 1). Other tills are not affected.
 2. **Sell on another till** (§10.1 part 3 step 2).
 3. **Let the already-numbered sales go.** Bring the device online and let its queue send. Sending
-   and retrying sales already numbered stays allowed on the blocked till. Anything refused or held
-   is handled under §10.1 parts 3 and 4. If the queue cannot be emptied, keep the device whole
-   (§10.1 part 3 step 4) and export `fawtir.pos.queue` read-only into the ticket's secure attachment.
-   It is tenant data: never paste it into chat or logs.
+   and retrying sales already numbered stays allowed on the blocked till. A refused sale is handled
+   under §10.1 parts 1 to 4 (never ask the customer to pay again). A sale held for validation is not
+   a §10.1 case: find it on the Held sales screen, record it on the ticket and escalate. If the queue
+   cannot be emptied, keep the device whole and export `fawtir.pos.queue` read-only into the
+   ticket's secure attachment (§10.1 part 3 steps 3 and 4). It is tenant data: never paste it into
+   chat or logs.
 4. **Record the burnt number without changing anything.** In developer tools, *read* (do not delete)
    the marker's `prefix` and `value`. Record them on the ticket with company, branch, till, device
    and browser profile, and the date and time, as "burnt: never printed, not filed, blocked on

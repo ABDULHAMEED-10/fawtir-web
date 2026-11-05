@@ -4836,7 +4836,7 @@
           "unreadable": "The details of that press could not be read back on this device, so it cannot be sent again from here.",
           "unreadableHint": "After a minute and a half, check whether it was recorded. If it is not among the cash moves, unlock the form and enter it again.",
           "notRecorded": "It is not there: unlock the details",
-          "timedOut": "That press took too long, and the server recorded nothing from it. An earlier press may still be recorded, so the details stay locked. Press \"Record it again\": it is sent under the same key and cannot be recorded twice."
+          "timedOut": "That press took too long, and the server recorded nothing from it. An earlier press may still be recorded, so the details stay locked. Press \"Record it again\": it is sent as the same paid-out and cannot be recorded twice."
         }
       },
       "record": "Record it",
@@ -4986,7 +4986,7 @@
     "storage": {
       "blocked": "This device can't safely read or save its sales and invoice numbers, so selling is unavailable here, online or offline. Sales already waiting can still be sent. Check again, or use another registered till.",
       "reportStale": "This device's date or time doesn't match the till's business date, so selling is unavailable here. Check the date and time, then check again.",
-      "burnt": "Checking again or an online sale does not clear this. Ask your manager or support before selling on this till again.",
+      "burnt": "Checking again or an online sale does not clear this. This till cannot be used for now: sell on another till and ask your manager to escalate.",
       "burntHeadline": "Selling is stopped on this till: one number could not be kept, and none was printed.",
       "checkAgain": "Check again"
     },

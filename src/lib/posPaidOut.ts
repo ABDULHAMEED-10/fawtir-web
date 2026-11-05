@@ -298,8 +298,9 @@ const BILL_REFUSALS: Record<string, string> = {
  * 503 POS_PAID_OUT_TIMED_OUT is sent only after the rollback (Agent 10), so nothing was paid out,
  * yet the attempt and its key are kept (coordinator ruling, 2026-11-05): the same paid-out sent
  * again goes under the same key, so even a commit that ever coincided with this 503 would come back
- * as the replayed 200, never a second paid-out. The form is not locked: changing a detail is a new
- * attempt with a new key, which is safe because nothing was paid out.
+ * as the replayed 200, never a second paid-out. From the unlocked form the form stays unlocked:
+ * changing a detail is a new attempt with a new key, which is safe because nothing was paid out.
+ * From the locked view the lock stays, since an earlier press may still be recorded (W7R-3).
  */
 export function keepsAttemptAfter(error: unknown): boolean {
   return error instanceof ApiError && serverCode(error) === 'POS_PAID_OUT_TIMED_OUT'
