@@ -359,9 +359,11 @@ describe('taking the payment (P.12)', () => {
     }
     expect(JSON.parse(window.localStorage.getItem('fawtir.pos.queue') ?? '[]')).toEqual([])
 
-    // Storage works again but nothing has proved it: trying the sale again is refused the same way.
-    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
-    expect(await screen.findByText(i18n.t('pos.refusal.storageUnavailable'))).toBeTruthy()
+    // Storage works again but nothing has proved it: the sell control stays off, online or
+    // offline, while the notice shows (DES43 rev 4.7 D.9).
+    const finishButton = screen.getByRole('button', { name: 'Finish the sale' }) as HTMLButtonElement
+    expect(finishButton.disabled).toBe(true)
+    fireEvent.click(finishButton)
     expect(screen.queryByText(/^done/)).toBeNull()
 
     // Check again proves storage; the next try takes the number that was never printed, once.

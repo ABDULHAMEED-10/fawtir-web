@@ -32,7 +32,7 @@ import {
   type TipChoice,
 } from '../../lib/posPayment'
 import { posSaleBody, type TillBuyer } from '../../lib/posInvoice'
-import { submitSale } from '../../lib/posQueue'
+import { submitSale, useSellingBlock } from '../../lib/posQueue'
 import { posRefusalKey, refusalCode, refusalValues } from '../../lib/posRefusals'
 import { shrinkSlip, slipReading, type SlipReading } from '../../lib/posSlip'
 import { useReferenceData } from '../../lib/reference/referenceData'
@@ -159,6 +159,9 @@ function Payment({ till }: { till: Ready }) {
   const slipInput = useRef<HTMLInputElement>(null)
 
   const [busy, setBusy] = useState(false)
+  // The till's notices say why (PosTabLockNotice, PosStorageNotice); the sell controls are off for
+  // as long as any of them blocks selling, online or offline (DES43 rev 4.7 D.9).
+  const sellingBlocked = useSellingBlock(till.till.id) !== null
   const [refusal, setRefusal] = useState<unknown>(null)
   const [buyerAsked, setBuyerAsked] = useState(false)
   const [buyer, setBuyer] = useState({ name: '', scheme: 'CID', value: '', contact: '' })
@@ -885,7 +888,7 @@ function Payment({ till }: { till: Ready }) {
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
-                  disabled={!buyerReady || !covered || busy}
+                  disabled={!buyerReady || !covered || busy || sellingBlocked}
                   onClick={finishNamed}
                   className="inline-flex h-10 items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white disabled:opacity-50"
                 >
@@ -901,7 +904,7 @@ function Payment({ till }: { till: Ready }) {
           <div className="px-5 pb-5">
             <button
               type="button"
-              disabled={!covered || busy}
+              disabled={!covered || busy || sellingBlocked}
               onClick={() => void finish(false)}
               className="inline-flex h-[52px] w-full items-center justify-center rounded-sm bg-success-700 text-base font-semibold text-white transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
             >

@@ -4911,15 +4911,16 @@
       "onFileWithId": "Matches customer on file: {{name}} ({{id}})"
     },
     "storage": {
-      "blocked": "This browser isn't saving offline sales. Offline selling has stopped on this device. Online sales carry on.",
-      "burnt": "This block clears after the next online sale on this till.",
-      "burntHeadline": "Offline sales are stopped on this till: one offline number could not be kept, and none was printed.",
+      "blocked": "This device can't safely read or save its sales and invoice numbers, so selling is unavailable here, online or offline. Sales already waiting can still be sent. Check again, or use another registered till.",
+      "reportStale": "This device's date or time doesn't match the till's business date, so selling is unavailable here. Check the date and time, then check again.",
+      "burnt": "Checking again or an online sale does not clear this. Ask your manager or support before selling on this till again.",
+      "burntHeadline": "Selling is stopped on this till: one number could not be kept, and none was printed.",
       "checkAgain": "Check again"
     },
     "tabLock": {
-      "finishing": "Finishing the last offline sale in this tab. Offline sales start again in a moment.",
-      "otherTab": "This till is open in another tab or window on this device. Offline sales are stopped here. Use the other tab, or close it and check again.",
-      "unsupported": "This browser can't make sure only one tab sells offline on this till, so offline sales are stopped here. Online sales carry on.",
+      "finishing": "Finishing the last sale in this tab. Selling starts again in a moment.",
+      "otherTab": "This till is already active in another tab or window on this device. Selling is unavailable in this tab, online or offline. Use the other tab, or close it and check again.",
+      "unsupported": "This browser can't guarantee that only one tab uses this till, so selling is unavailable here, online or offline. Use a supported browser to sell on this till.",
       "checkAgain": "Check again"
     },
     "offline": {
@@ -5018,8 +5019,8 @@
     },
     "refusal": {
       "offline": "The till could not reach Fawtir. Check the connection and try again.",
-      "storageUnavailable": "Not sold: this device could not save the sale, so no number was printed.",
-      "tabLockUnavailable": "Not sold: offline sales are stopped in this tab, so no number was printed.",
+      "storageUnavailable": "Not sold: this device can't safely keep its sales right now, so nothing was sent and no number was printed.",
+      "tabLockUnavailable": "Not sold: selling is unavailable in this tab, so nothing was sent and no number was printed.",
       "POS_OFFLINE_KEY_ALREADY_REVOKED": "This device key was already revoked.",
       "POS_OFFLINE_KEY_NOT_FOUND": "This device key was not found, or you may not revoke it.",
       "POS_OFFLINE_KEY_HUMAN_ONLY": "Only a signed-in person can do this, not an API key or a support session.",

@@ -46,7 +46,7 @@ describe('the one-tab notice on the till (POS-TABLOCK)', () => {
     expect(locks.held.has(LOCK)).toBe(false)
   })
 
-  it('in a second tab says offline sales are stopped here, and Check again takes over once the other tab lets go', async () => {
+  it('in a second tab says selling is unavailable here, and Check again takes over once the other tab lets go', async () => {
     const letGo = otherTabHolds()
     render(<PosTabLockNotice tillId="till-1" />)
     await act(settled)
@@ -63,7 +63,7 @@ describe('the one-tab notice on the till (POS-TABLOCK)', () => {
     expect(locks.held.has(LOCK)).toBe(true)
   })
 
-  it('without navigator.locks says this browser cannot keep offline selling to one tab', async () => {
+  it('without navigator.locks says this browser cannot keep selling to one tab', async () => {
     installLocks(undefined)
     render(<PosTabLockNotice tillId="till-1" />)
     await act(settled)

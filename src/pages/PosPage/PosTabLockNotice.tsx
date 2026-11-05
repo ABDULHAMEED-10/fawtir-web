@@ -4,7 +4,9 @@ import { checkTillLockAgain, useTillLock } from '../../lib/posTillLock'
 /**
  * POS-TABLOCK (Q-25 R-TABS). Mounted on every till screen by PosTillGate, and its mount is what
  * holds the till's one-tab lock: the lock goes when the screens go (till change, sign-out, page
- * closed). Shown only when this tab may not number offline sales. The wording speaks of this
+ * closed). Shown only when this tab may not sell, online or offline (XT-2, DES43 rev 4.7 D.3); the
+ * sell controls are off meanwhile (`useSellingBlock`). `unsupported` gets no Check again, since the
+ * browser cannot change while the page is open. The wording speaks of this
  * device's tabs and windows only: the lock does nothing for another device, and must never be
  * read as if it did. There is no "use this tab" takeover, since taking the lock from a tab that
  * may be numbering a sale is the overlap it prevents; Check again only asks for the lock, and gets
@@ -13,8 +15,8 @@ import { checkTillLockAgain, useTillLock } from '../../lib/posTillLock'
 export function PosTabLockNotice({ tillId }: { tillId: string }) {
   const { t } = useTranslation()
   const lock = useTillLock(tillId)
-  // This tab's own last offline sale still holds the lock (IMPL2-T1): said neutrally, since nothing
-  // is wrong and the lock is taken again by itself once that sale is kept. Offline sales still wait.
+  // This tab's own last sale still holds the lock (IMPL2-T1): said neutrally, since nothing
+  // is wrong and the lock is taken again by itself once that sale is kept. Selling still waits.
   if (lock === 'finishing') {
     return (
       <p

@@ -2,14 +2,19 @@ import { useTranslation } from 'react-i18next'
 import { checkStorageAgain, useStorageFailure } from '../../lib/posQueue'
 
 /**
- * POS-MEMQ S8 (owner R2-1): while this device cannot keep an offline sale, the cashier is told that
- * offline selling has stopped and why, never left to find out from a refused sale. Check again only
- * re-tests storage; it never resends or reprints, so no number can be printed twice.
+ * POS-MEMQ S8 (owner R2-1), widened by DES43 rev 4.7 D.9 (OQ-XT2-STORAGE): while this device cannot
+ * read or keep its sales and numbers, the cashier is told that selling has stopped here, online and
+ * offline, and why, never left to find out from a refused sale. The sell controls are off meanwhile
+ * (`useSellingBlock`). Check again only re-tests storage; it never resends or reprints, so no number
+ * can be printed twice.
+ *
+ * `reportStale` (the server named another series or year: the device's date or time is likely
+ * wrong) has its own sentence and the same Check again.
  *
  * `burnt` is reported only when storage itself is fine (`offlineBlock` answers a storage fault
- * first), so it gets its own wording without "isn't saving", and no Check again: that re-tests
- * storage and by design cannot clear a burn; only an online sale on this till that files at or past
- * that number does (posQueue `burnt`; IMPL2-U1).
+ * first), so it gets its own wording without "can't save", and no Check again: by the owner's ruling
+ * on the burn neither Check again nor an online sale may clear an unverified number (posQueue
+ * `burnBlocks`; IMPL2-U1).
  */
 export function PosStorageNotice({ tillId }: { tillId: string }) {
   const { t } = useTranslation()
@@ -27,7 +32,9 @@ export function PosStorageNotice({ tillId }: { tillId: string }) {
         </>
       ) : (
         <>
-          <p className="text-sm font-semibold">{t('pos.storage.blocked')}</p>
+          <p className="text-sm font-semibold">
+            {t(blocked === 'reportStale' ? 'pos.storage.reportStale' : 'pos.storage.blocked')}
+          </p>
           <div>
             <button
               type="button"

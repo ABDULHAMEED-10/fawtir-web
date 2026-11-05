@@ -33,7 +33,7 @@ describe('the storage notice on the till (POS-MEMQ S8)', () => {
   })
 
   it.each<OfflineBlock>(['quota', 'denied', 'mismatch', 'unreadable'])(
-    'says offline selling has stopped when the block is %s',
+    'says selling has stopped when the block is %s',
     (reason) => {
       failure.mockReturnValue(reason)
       render(<PosStorageNotice tillId="till-1" />)
@@ -66,7 +66,7 @@ describe('the storage notice on the till (POS-MEMQ S8)', () => {
     expect(screen.getByRole('alert')).toBeTruthy()
   })
 
-  it('a burnt number alone says the block clears after the next online sale, not that storage fails (IMPL2-U1)', () => {
+  it('a burnt number alone says selling is stopped and that neither Check again nor an online sale clears it (IMPL2-U1, owner ruling item 6)', () => {
     failure.mockReturnValue('burnt')
     render(<PosStorageNotice tillId="till-1" />)
     const text = screen.getByRole('alert').textContent
@@ -76,6 +76,23 @@ describe('the storage notice on the till (POS-MEMQ S8)', () => {
     // Check again re-tests storage and cannot clear a burn, so it is not offered.
     expect(screen.queryByRole('button')).toBeNull()
     expect(checkAgain).not.toHaveBeenCalled()
+  })
+
+  it('a stale numbering report says to check the date and time, and offers Check again (D.9, D.10)', () => {
+    failure.mockReturnValue('reportStale')
+    render(<PosStorageNotice tillId="till-1" />)
+    const text = screen.getByRole('alert').textContent
+    expect(text).toContain(i18n.t('pos.storage.reportStale'))
+    expect(text).not.toContain(i18n.t('pos.storage.blocked'))
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('pos.storage.checkAgain') }))
+    expect(checkAgain).toHaveBeenCalledTimes(1)
+  })
+
+  it('the storage and lock sentences say selling stops online and offline (D.10)', () => {
+    for (const key of ['pos.storage.blocked', 'pos.tabLock.otherTab', 'pos.tabLock.unsupported']) {
+      expect(i18n.t(key)).toMatch(/online or offline/)
+      expect(i18n.t(key)).not.toMatch(/carry on/i)
+    }
   })
 
   it('a storage fault does not show the burnt sentence', () => {
@@ -104,6 +121,8 @@ describe('the storage notice on the till (POS-MEMQ S8)', () => {
       'pos.storage.blocked',
       'pos.storage.burnt',
       'pos.storage.burntHeadline',
+      'pos.storage.reportStale',
+      'pos.refusal.tabLockUnavailable',
       'pos.storage.checkAgain',
       'pos.refusal.storageUnavailable',
     ]) {
