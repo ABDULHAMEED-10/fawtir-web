@@ -19,6 +19,8 @@ import {
   useStorageFailure,
 } from './posQueue'
 import { posRefusalKey } from './posRefusals'
+import { ensureTillLock } from './posTillLock'
+import { fakeLocks, installLocks } from '../test/fakeLocks'
 import { memoryVault, setPosVault } from './posVault'
 
 /*
@@ -281,10 +283,20 @@ describe('POS-MEMQ: an offline sale is numbered only once storage keeps it', () 
     expect(offlineBlock('till-1')).toBe('burnt')
     expect(offlineBlock('till-1', 'online')).toBe('burnt')
     expect(offlineBlock('till-2')).toBeNull()
-    // The online path is gated as well, so no online sale after the reload can take the burnt
-    // value (the gate itself refusing a sale is ST-4's, before the reload).
     expect(checkStorageAgain()).toBeNull()
     expect(offlineBlock('till-1', 'online')).toBe('burnt')
+
+    // Review WB6-3: the reloaded page is a fresh browser tab, with its own lock manager, and takes
+    // the till's lock again. With the lock held a sale goes as far as the burn gate, and is refused
+    // there: nothing is numbered and nothing is sent, online or offline.
+    installLocks(fakeLocks())
+    expect(await ensureTillLock('till-1')).toBe('held')
+    const posted = postedKeys()
+    expect((await refusedOffline('pos-sale-key-st4b-offline')).reason).toBe('burnt')
+    online = true
+    expect((await refusedOffline('pos-sale-key-st4b-online')).reason).toBe('burnt')
+    expect(postedKeys()).toEqual(posted)
+    expect(realGet.call(window.localStorage, COUNTER)).toBe('50')
   })
 
   it('ST-4c a marker that does not read as a number still blocks the till (fail closed)', async () => {
