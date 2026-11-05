@@ -1,11 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import i18n from '../i18n'
 import { ApiError, NetworkError } from '../api'
+import { toApiError } from '../api/errors'
 import {
   choosableClasses,
   dropsHeldReceipt,
   fixedClass,
+  UNLOCK_AFTER_MS,
   emptyPaidOutStore,
+  isLocked,
   keyForAttempt,
   loadPaidOutStore,
   outcomeUnknown,
@@ -15,6 +18,8 @@ import {
   pendingBody,
   receiptProblem,
   savePaidOutStore,
+  serverCode,
+  unlockWaitMs,
 } from './posPaidOut'
 import { posRefusalKey } from './posRefusals'
 
@@ -179,6 +184,58 @@ describe('an outcome nobody knows (review W4-1)', () => {
     expect(outcomeUnknown(coded(503, 'POS_SOMETHING'))).toBe(false)
     expect(outcomeUnknown(coded(422, 'POS_PAID_OUT_EXCEEDS_CASH'))).toBe(false)
   })
+
+  // Review W5-1: toApiError takes `error` when there is no `code`, and a Spring or gateway body's
+  // `error` is the reason phrase. That is no code, so the outcome stays unknown.
+  it('takes a reason phrase in `error` for no code', () => {
+    const gateway = toApiError(new Response(null, { status: 500 }), {
+      timestamp: '2026-11-05T14:00:00Z',
+      status: 500,
+      error: 'Internal Server Error',
+      path: '/api/v1/pos/shifts/sh-1/cash-movements',
+    })
+    expect(gateway.code).toBe('Internal Server Error')
+    expect(serverCode(gateway)).toBeNull()
+    expect(outcomeUnknown(gateway)).toBe(true)
+    const badGateway = toApiError(new Response(null, { status: 502 }), { error: 'Bad Gateway' })
+    expect(outcomeUnknown(badGateway)).toBe(true)
+    const coded5xx = toApiError(new Response(null, { status: 500 }), { code: 'POS_LEDGER_UNAVAILABLE' })
+    expect(serverCode(coded5xx)).toBe('POS_LEDGER_UNAVAILABLE')
+    expect(outcomeUnknown(coded5xx)).toBe(false)
+    // An Expenditure code in `error` is still a code.
+    const expenditure = toApiError(new Response(null, { status: 503 }), { error: 'BILL_PAYMENT_ON_HOLD' })
+    expect(outcomeUnknown(expenditure)).toBe(false)
+  })
+})
+
+describe('the wait before unlocking (review W5-2)', () => {
+  const { attempt } = keyForAttempt(null, paidOutRequest(FORM))
+  const sent = 1_000_000
+
+  it('runs the gateway timeout from the last send', () => {
+    const store = { attempt, receipt: null, unknown: true, sentAt: sent }
+    expect(unlockWaitMs(store, sent)).toBe(UNLOCK_AFTER_MS)
+    expect(unlockWaitMs(store, sent + UNLOCK_AFTER_MS - 1)).toBe(1)
+    expect(unlockWaitMs(store, sent + UNLOCK_AFTER_MS)).toBe(0)
+  })
+
+  it('never runs short when the send time is not known', () => {
+    expect(unlockWaitMs({ attempt, receipt: null, unknown: true, sentAt: null }, sent)).toBe(UNLOCK_AFTER_MS)
+  })
+})
+
+describe('a body that cannot be read back (review N-W5a)', () => {
+  it('stays locked, with nothing to send again', () => {
+    const store = {
+      attempt: { key: 'pos-paidout-0000000000000001', fingerprint: '{not json' },
+      receipt: null,
+      unknown: true,
+      sentAt: 1,
+    }
+    expect(isLocked(store)).toBe(true)
+    expect(pendingBody(store)).toBeNull()
+    expect(pendingBody({ ...store, attempt: { ...store.attempt, fingerprint: '{"type":"PAID_IN"}' } })).toBeNull()
+  })
 })
 
 describe('the attempt kept in the tab (review W4-2)', () => {
@@ -189,7 +246,12 @@ describe('the attempt kept in the tab (review W4-2)', () => {
 
   it('round-trips per till and shift, and is forgotten once the attempt closes', () => {
     const { attempt } = keyForAttempt(null, paidOutRequest(FORM))
-    const store = { attempt, receipt: { file: 'r|3|1', receiptObjectId: 'rcpt-1' }, unknown: true }
+    const store = {
+      attempt,
+      receipt: { file: 'r|3|1', receiptObjectId: 'rcpt-1' },
+      unknown: true,
+      sentAt: Date.now() - 1000,
+    }
     savePaidOutStore('till-1', 'sh-1', store)
     expect(loadPaidOutStore('till-1', 'sh-1')).toEqual(store)
     expect(loadPaidOutStore('till-1', 'sh-2')).toEqual(emptyPaidOutStore())
@@ -209,7 +271,7 @@ describe('the attempt kept in the tab (review W4-2)', () => {
     })
     expect(loadPaidOutStore('till-1', 'sh-1')).toEqual(emptyPaidOutStore())
     const { attempt } = keyForAttempt(null, paidOutRequest(FORM))
-    expect(() => savePaidOutStore('till-1', 'sh-1', { attempt, receipt: null, unknown: true })).not.toThrow()
+    expect(() => savePaidOutStore('till-1', 'sh-1', { attempt, receipt: null, unknown: true, sentAt: 1 })).not.toThrow()
   })
 
   it('holds no unknown outcome without its attempt', () => {

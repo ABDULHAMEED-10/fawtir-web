@@ -120,23 +120,72 @@ export function keyForAttempt(
  * (review W4-1): the server may have recorded it, so the form is locked to that exact body and key
  * until a definite answer, or until the cashier has re-read the shift's cash moves and said it is
  * not there. The body is the attempt's fingerprint, so it can be sent again after a reload.
+ * `sentAt` (epoch ms) is the last time that body went out (review W5-2).
  */
 export type PaidOutStore = {
   attempt: PaidOutAttempt
   receipt: { file: string; receiptObjectId: string } | null
   unknown: boolean
+  sentAt: number | null
 }
 
-export const emptyPaidOutStore = (): PaidOutStore => ({ attempt: null, receipt: null, unknown: false })
+export const emptyPaidOutStore = (): PaidOutStore => ({
+  attempt: null,
+  receipt: null,
+  unknown: false,
+  sentAt: null,
+})
 
-/** The body of the press whose outcome is unknown, as it was sent. */
+/** Locked: a press went out and its outcome is not known (review W4-1). */
+export function isLocked(store: PaidOutStore): boolean {
+  return store.unknown && store.attempt !== null
+}
+
+/**
+ * The body of the press whose outcome is unknown, as it was sent; null when it cannot be read back.
+ * A null body never unlocks the form (review N-W5a): it can only not be sent again.
+ */
 export function pendingBody(store: PaidOutStore): PosPaidOutRequest | null {
-  if (!store.unknown || !store.attempt) return null
+  if (!isLocked(store) || !store.attempt) return null
   try {
-    return JSON.parse(store.attempt.fingerprint) as PosPaidOutRequest
+    const body = JSON.parse(store.attempt.fingerprint) as Partial<PosPaidOutRequest> | null
+    if (
+      !body ||
+      body.type !== 'PAID_OUT' ||
+      typeof body.amount !== 'number' ||
+      typeof body.note !== 'string' ||
+      typeof body.category !== 'string' ||
+      typeof body.currency !== 'string'
+    ) {
+      return null
+    }
+    return body as PosPaidOutRequest
   } catch {
     return null
   }
+}
+
+/**
+ * How long a sent press may still be in flight: the gateway's 60 s timeout. "It is not there" is
+ * offered only after it, since a re-read inside it can miss a paid-out the server is still writing
+ * (review W5-2).
+ */
+export const UNLOCK_AFTER_MS = 60_000
+
+/** Milliseconds left before the cashier may unlock; the full wait when no send time is known. */
+export function unlockWaitMs(store: PaidOutStore, now: number): number {
+  if (store.sentAt === null) return UNLOCK_AFTER_MS
+  return Math.max(0, store.sentAt + UNLOCK_AFTER_MS - now)
+}
+
+/**
+ * The server's own refusal code, or null. `ApiError.code` also takes a problem's `error` member
+ * (the Expenditure handlers put their code there), so a Spring or gateway body such as
+ * `{"error": "Internal Server Error"}` arrives as a "code" that is only a reason phrase. A code is
+ * the server's upper-case identifier; anything else is no code (review W5-1).
+ */
+export function serverCode(error: ApiError): string | null {
+  return error.code !== null && /^[A-Z][A-Z0-9_]+$/.test(error.code) ? error.code : null
 }
 
 /**
@@ -145,7 +194,7 @@ export function pendingBody(store: PaidOutStore): PosPaidOutRequest | null {
  */
 export function outcomeUnknown(error: unknown): boolean {
   if (error instanceof NetworkError) return true
-  return error instanceof ApiError && error.status >= 500 && !error.code
+  return error instanceof ApiError && error.status >= 500 && serverCode(error) === null
 }
 
 /*
@@ -170,7 +219,15 @@ export function loadPaidOutStore(tillId: string, shiftId: string): PaidOutStore 
       typeof held.receipt.receiptObjectId === 'string'
         ? { file: held.receipt.file, receiptObjectId: held.receipt.receiptObjectId }
         : null
-    return { attempt, receipt, unknown: held.unknown === true && attempt !== null }
+    const unknown = held.unknown === true && attempt !== null
+    // A stored lock with no readable send time starts its wait now: never shorter than the rule.
+    const sentAt =
+      typeof held.sentAt === 'number' && Number.isFinite(held.sentAt) && held.sentAt <= Date.now()
+        ? held.sentAt
+        : unknown
+          ? Date.now()
+          : null
+    return { attempt, receipt, unknown, sentAt }
   } catch {
     return emptyPaidOutStore()
   }
@@ -235,7 +292,7 @@ const BILL_REFUSALS: Record<string, string> = {
 
 /** The edge refused the body for size before the server's coded answer (the gateway's limit). */
 function refusedAtTheEdge(error: unknown): boolean {
-  return error instanceof ApiError && error.status === 413 && !error.code
+  return error instanceof ApiError && error.status === 413 && serverCode(error) === null
 }
 
 export function paidOutRefusal(

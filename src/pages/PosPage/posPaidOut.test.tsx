@@ -175,7 +175,21 @@ beforeEach(async () => {
   )
 })
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
+})
+
+const unlockButton = () =>
+  screen.getByRole('button', { name: form('pending.notRecorded') }) as HTMLButtonElement
+
+/** Moves the clock past the gateway's timeout and re-reads the cash moves (review W5-2). */
+async function afterTheWait() {
+  const now = Date.now()
+  vi.spyOn(Date, 'now').mockReturnValue(now + 61_000)
+  fireEvent.click(screen.getByRole('button', { name: form('pending.check') }))
+  await waitFor(() => expect(unlockButton().disabled).toBe(false))
+}
 
 const renderClose = () =>
   render(
@@ -312,7 +326,12 @@ describe('a paid-out', () => {
     fireEvent.click(screen.getByRole('button', { name: form('pending.check') }))
     expect(await screen.findByText(form('pending.movesNone'))).toBeTruthy()
     expect(previews).toBe(2)
-    fireEvent.click(screen.getByRole('button', { name: form('pending.notRecorded') }))
+    // Inside the gateway's minute the press may still land: no unlock yet, and the screen says why.
+    expect(unlockButton().disabled).toBe(true)
+    expect(screen.getByText(/so this unlocks [0-9]+ s from now/)).toBeTruthy()
+    await afterTheWait()
+    expect(previews).toBe(3)
+    fireEvent.click(unlockButton())
     // The details come back as they were sent, and can be changed again.
     const amount = screen.getByRole('textbox', { name: i18n.t('pos.pay.amount') }) as HTMLInputElement
     expect(amount.value).toBe('2.500')
@@ -380,6 +399,58 @@ describe('a paid-out', () => {
     } finally {
       if (original) Object.defineProperty(window, 'sessionStorage', original)
     }
+  })
+
+  it('locks on a gateway 500 whose only "code" is the reason phrase', async () => {
+    // Review W5-1: toApiError turns `error: "Internal Server Error"` into a code; it is not one.
+    answer = () =>
+      json({ timestamp: '2026-11-05T08:00:00Z', status: 500, error: 'Internal Server Error', path: '/x' }, 500)
+    await fillPettyCash()
+    chooseCurrency('OMR')
+    attachReceipt()
+    fireEvent.click(recordButton())
+    expect(await screen.findByText(form('pending.title'))).toBeTruthy()
+    expect(screen.queryByRole('textbox', { name: i18n.t('pos.pay.amount') })).toBeNull()
+    expect(window.sessionStorage.getItem(HELD)).toContain(paidOuts[0].key as string)
+  })
+
+  it('keeps a coded 5xx definite: nothing recorded, the form stays open', async () => {
+    answer = () => problem(500, 'POS_LEDGER_UNAVAILABLE')
+    await fillPettyCash()
+    chooseCurrency('OMR')
+    attachReceipt()
+    fireEvent.click(recordButton())
+    await waitFor(() => expect(paidOuts).toHaveLength(1))
+    await waitFor(() => expect(recordButton().disabled).toBe(false))
+    expect(screen.queryByText(form('pending.title'))).toBeNull()
+    expect(screen.getByRole('textbox', { name: i18n.t('pos.pay.amount') })).toBeTruthy()
+    expect(window.sessionStorage.getItem(HELD)).toBeNull()
+  })
+
+  it('stays locked when the stored body cannot be read; only the re-read and the wait unlock it', async () => {
+    // Review N-W5a: fail closed; nothing can be sent again without the body.
+    window.sessionStorage.setItem(
+      HELD,
+      JSON.stringify({
+        attempt: { key: 'pos-paidout-stored-key-0002', fingerprint: '{not json' },
+        receipt: null,
+        unknown: true,
+        sentAt: Date.now(),
+      }),
+    )
+    renderClose()
+    expect(await screen.findByText(form('pending.title'))).toBeTruthy()
+    expect(screen.getByText(form('pending.unreadable'))).toBeTruthy()
+    expect(screen.queryByRole('button', { name: form('pending.again') })).toBeNull()
+    expect(screen.queryByRole('textbox', { name: i18n.t('pos.pay.amount') })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: form('pending.check') }))
+    await screen.findByText(form('pending.movesNone'))
+    expect(unlockButton().disabled).toBe(true)
+    await afterTheWait()
+    fireEvent.click(unlockButton())
+    expect(await screen.findByRole('textbox', { name: i18n.t('pos.pay.amount') })).toBeTruthy()
+    expect(window.sessionStorage.getItem(HELD)).toBeNull()
+    expect(paidOuts).toHaveLength(0)
   })
 
   it('words a reused key and starts a new attempt after it', async () => {

@@ -4818,6 +4818,9 @@
           "check": "Check whether it was recorded",
           "movesFound": "Paid-outs recorded on this shift so far. If it is among them, press Record it again to confirm it.",
           "movesNone": "No paid-out is recorded on this shift yet.",
+          "wait": "A press can still be on its way for up to a minute, so this unlocks {{seconds}} s from now. Read the cash moves again then.",
+          "unreadable": "The details of that press could not be read back on this device, so it cannot be sent again from here.",
+          "unreadableHint": "Check whether it was recorded. After a minute, if it is not among the cash moves, unlock the form and enter it again.",
           "notRecorded": "It is not there: unlock the details"
         }
       },

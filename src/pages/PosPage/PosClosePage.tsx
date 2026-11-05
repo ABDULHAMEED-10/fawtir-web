@@ -54,9 +54,11 @@ import {
   paidOutGap,
   paidOutRefusal,
   paidOutRequest,
+  isLocked,
   pendingBody,
   receiptProblem,
   savePaidOutStore,
+  unlockWaitMs,
   type PaidOutStore,
 } from '../../lib/posPaidOut'
 import { apiRequest } from '../../api/client'
@@ -1203,6 +1205,14 @@ function PaidOutForm({
     | { status: 'failed'; error: unknown }
     | null
   >(null)
+  // Re-renders the locked view each second, so the unlock wait counts down (review W5-2).
+  const [, setTick] = useState(0)
+  const locked = isLocked(store)
+  useEffect(() => {
+    if (!locked) return
+    const timer = window.setInterval(() => setTick((value) => value + 1), 1000)
+    return () => window.clearInterval(timer)
+  }, [locked])
 
   const linked = category === 'SUPPLIER_PAYMENT' && bill !== null
   const fixed = category ? fixedClass(category, linked) : null
@@ -1237,6 +1247,7 @@ function PaidOutForm({
     store.attempt = null
     store.receipt = null
     store.unknown = false
+    store.sentAt = null
     save()
     onRecorded()
   }
@@ -1251,6 +1262,7 @@ function PaidOutForm({
       // A definite refusal recorded nothing, so the next press is a fresh attempt whatever it says.
       store.attempt = null
       store.unknown = false
+      store.sentAt = null
       if (dropsHeldReceipt(cause)) store.receipt = null
       save()
       // Uploading the same file again would only make a second copy of a receipt that already backs a
@@ -1267,6 +1279,9 @@ function PaidOutForm({
   const sendAgain = async (body: PosPaidOutRequest, key: string) => {
     setBusy(true)
     setError(null)
+    // This send may itself still be in flight a minute from now: the wait restarts with it.
+    store.sentAt = Date.now()
+    save()
     try {
       await recordPaidOut(shiftId, body, key)
       settled()
@@ -1288,10 +1303,15 @@ function PaidOutForm({
     }
   }
 
-  const notRecorded = (body: PosPaidOutRequest) => {
+  const notRecorded = (body: PosPaidOutRequest | null) => {
     store.attempt = null
     store.unknown = false
+    store.sentAt = null
     save()
+    setCheck(null)
+    setError(null)
+    // An unreadable body leaves the form as it stands: nothing to refill it from.
+    if (!body) return
     // The fields come back as they were sent (also after a reload, when the form had none); the
     // receipt id stays held, so a paid-out that was in fact recorded is refused as ALREADY_USED.
     setAmount(body.amount.toFixed(3))
@@ -1303,10 +1323,8 @@ function PaidOutForm({
       chosen && choosableClasses(body.category, false).includes(chosen) ? chosen : null,
     )
     setCurrency(body.currency)
-    setNoReceipt(body.missingReceiptReason !== null)
+    setNoReceipt(Boolean(body.missingReceiptReason))
     setReason(body.missingReceiptReason ?? '')
-    setCheck(null)
-    setError(null)
   }
 
   const record = async () => {
@@ -1340,6 +1358,7 @@ function PaidOutForm({
       })
       const { attempt, key } = keyForAttempt(store.attempt, body)
       store.attempt = attempt
+      store.sentAt = Date.now()
       // Stored as unknown before it leaves: a reload while it is in flight cannot tell either.
       savePaidOutStore(tillId, shiftId, { ...store, unknown: true })
       sent = true
@@ -1356,28 +1375,37 @@ function PaidOutForm({
   const refusal = error ? paidOutRefusal(error, i18n.language) : null
   const pending = pendingBody(store)
 
-  if (pending && store.attempt) {
+  if (locked && store.attempt) {
     const key = store.attempt.key
+    const waitSeconds = Math.ceil(unlockWaitMs(store, Date.now()) / 1000)
     return (
       <div className="flex flex-col gap-3">
         <p role="status" className="rounded-sm bg-pending-100 px-3 py-3 text-sm font-medium text-pending-700">
           {t('pos.close.paidOutForm.pending.title')}
         </p>
-        <ul className="flex flex-col gap-1 text-sm font-medium text-text-secondary">
-          <li>
-            {formatAmount(pending.amount, pending.currency, i18n.language)} {pending.currency} ·{' '}
-            {t(`pos.close.paidOutForm.categories.${pending.category}`)}
-          </li>
-          <li>{pending.note}</li>
-          <li>
-            {pending.missingReceiptReason
-              ? t('pos.close.paidOutForm.pending.noReceipt', { reason: pending.missingReceiptReason })
-              : t('pos.close.paidOutForm.pending.receipt')}
-          </li>
-          {pending.billId ? <li>{t('pos.close.paidOutForm.pending.bill')}</li> : null}
-        </ul>
+        {pending ? (
+          <ul className="flex flex-col gap-1 text-sm font-medium text-text-secondary">
+            <li>
+              {formatAmount(pending.amount, pending.currency, i18n.language)} {pending.currency} ·{' '}
+              {t(`pos.close.paidOutForm.categories.${pending.category}`)}
+            </li>
+            <li>{pending.note}</li>
+            <li>
+              {pending.missingReceiptReason
+                ? t('pos.close.paidOutForm.pending.noReceipt', { reason: pending.missingReceiptReason })
+                : t('pos.close.paidOutForm.pending.receipt')}
+            </li>
+            {pending.billId ? <li>{t('pos.close.paidOutForm.pending.bill')}</li> : null}
+          </ul>
+        ) : (
+          // Fail closed (review N-W5a): without the body nothing can be sent again, and the lock
+          // lifts only through the re-read and the wait.
+          <p className="text-sm font-medium text-text-secondary">
+            {t('pos.close.paidOutForm.pending.unreadable')}
+          </p>
+        )}
         <p className="text-xs font-medium text-text-quaternary">
-          {t('pos.close.paidOutForm.pending.hint')}
+          {t(pending ? 'pos.close.paidOutForm.pending.hint' : 'pos.close.paidOutForm.pending.unreadableHint')}
         </p>
         {refusal ? (
           <p role="alert" className="text-xs font-medium text-danger-700">
@@ -1385,14 +1413,16 @@ function PaidOutForm({
           </p>
         ) : null}
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void sendAgain(pending, key)}
-            className="inline-flex h-10 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-50"
-          >
-            {t('pos.close.paidOutForm.pending.again')}
-          </button>
+          {pending ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void sendAgain(pending, key)}
+              className="inline-flex h-10 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-50"
+            >
+              {t('pos.close.paidOutForm.pending.again')}
+            </button>
+          ) : null}
           <button
             type="button"
             disabled={busy || check?.status === 'loading'}
@@ -1419,15 +1449,23 @@ function PaidOutForm({
                 {check.moves.map((move) => (
                   <li key={move.movementId}>
                     {tillTime(move.recordedAt, i18n.language.startsWith('ar') ? 'ar' : 'en-GB')} ·{' '}
-                    {formatAmount(move.amount, pending.currency, i18n.language)} · {move.note ?? ''}
+                    {pending
+                      ? formatAmount(move.amount, pending.currency, i18n.language)
+                      : String(move.amount)}{' '}
+                    · {move.note ?? ''}
                   </li>
                 ))}
               </ul>
             ) : null}
+            {waitSeconds > 0 ? (
+              <p className="text-xs font-medium text-text-quaternary">
+                {t('pos.close.paidOutForm.pending.wait', { seconds: waitSeconds })}
+              </p>
+            ) : null}
             <div>
               <button
                 type="button"
-                disabled={busy}
+                disabled={busy || waitSeconds > 0}
                 onClick={() => notRecorded(pending)}
                 className="inline-flex h-10 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-50"
               >
