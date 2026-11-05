@@ -703,9 +703,20 @@ describe('drawer figures the server withholds', () => {
     expect(alert.textContent).toBe(
       i18n.t('pos.refusal.POS_SHIFT_CURRENCY_MIXED', { currencies: 'OMR, USD' }),
     )
-    expect(alert.textContent).toMatch(/count the float/i)
+    // Review WB2-1: no counted-float or new-shift screen exists, so neither is offered.
+    expect(alert.textContent).toMatch(/a manager needs to sort this out/i)
+    expect(alert.textContent).not.toMatch(/count the float|new shift/i)
     expect(closeButton()).toBeNull()
     expect(screen.queryByRole('textbox', { name: i18n.t('pos.pay.amount') })).toBeNull()
+  })
+
+  it('409 POS_SHIFT_CURRENCY_MIXED without its currencies reads whole, with no placeholder (review WB2-2)', async () => {
+    previewAnswer = () => problem(409, 'POS_SHIFT_CURRENCY_MIXED')
+    renderClose()
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toBe(i18n.t('pos.refusal.withoutFigures.POS_SHIFT_CURRENCY_MIXED'))
+    expect(alert.textContent).not.toContain('{{')
+    expect(closeButton()).toBeNull()
   })
 
   it('409 POS_SHIFT_CURRENCY_UNRECORDED on the preview is worded, and offers no close', async () => {

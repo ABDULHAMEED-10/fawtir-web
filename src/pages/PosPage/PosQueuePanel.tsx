@@ -315,7 +315,10 @@ function Problem({
         </span>
       </p>
       <p className="mt-1 text-sm font-medium text-danger-700">
-        {t(queueRefusalKey(entry.refusal, entry.refusalType ?? null), entry.refusalValues ?? {})}
+        {t(
+          queueRefusalKey(entry.refusal, entry.refusalType ?? null, entry.refusalValues ?? {}),
+          entry.refusalValues ?? {},
+        )}
         {heldLines
           ? ` ${t(undeclared ? 'pos.queue.goodsOrServiceLines' : 'pos.queue.hsCodeLines', { lines: heldLines })}`
           : null}

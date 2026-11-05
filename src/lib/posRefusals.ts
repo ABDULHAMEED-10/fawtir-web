@@ -163,6 +163,26 @@ function roleLimitInDetail(error: ApiError): { requested: string; limit: string 
 
 const percent = (value: number) => String(Math.round(value * 100) / 100)
 
+/*
+ * Review WB2-2: i18next prints a missing value as "{{name}}", so a sentence that names a figure the
+ * problem body did not carry (or carried in a form refusalValues will not take) falls back to one
+ * that names none.
+ */
+const NEEDS: Record<string, readonly string[]> = {
+  POS_SHIFT_CURRENCY_MIXED: ['currencies'],
+  POS_SHIFT_CURRENCY_UNRECORDED: ['unrecordedMovements'],
+  POS_PAID_OUT_CURRENCY_MISMATCH: ['shiftCurrency', 'sentCurrency'],
+  POS_CASH_MOVEMENT_CURRENCY_MISMATCH: ['shiftCurrency', 'sentCurrency'],
+  POS_REFUND_CURRENCY_MISMATCH: ['shiftCurrency', 'saleCurrency'],
+}
+
+function wordedKey(code: string, values: Record<string, string>): string {
+  const needs = NEEDS[code]
+  return needs && needs.some((name) => !values[name])
+    ? `pos.refusal.withoutFigures.${code}`
+    : `pos.refusal.${code}`
+}
+
 export function posRefusalKey(error: unknown): string {
   if (error instanceof NetworkError) return 'pos.refusal.offline'
   // Matched by name, not instanceof: posQueue imports this module, so importing its class back
@@ -186,7 +206,7 @@ export function posRefusalKey(error: unknown): string {
     return 'pos.refusal.tabLockUnavailable'
   }
   if (error instanceof ApiError) {
-    if (error.code && WORDED.has(error.code)) return `pos.refusal.${error.code}`
+    if (error.code && WORDED.has(error.code)) return wordedKey(error.code, refusalValues(error))
     const slug = error.problemType ? SLUGS[error.problemType] : undefined
     if (slug) return slug
     if (roleLimitInDetail(error)) return 'pos.refusal.DISCOUNT_ABOVE_LIMIT'
@@ -215,11 +235,15 @@ const QUEUE_SLUGS: Record<string, string> = {
 }
 
 /** The sentence for a queued sale's stored refusal (handbook 3.3: never the server's `detail`). */
-export function queueRefusalKey(code: string | null, slug: string | null): string {
+export function queueRefusalKey(
+  code: string | null,
+  slug: string | null,
+  values: Record<string, string> = {},
+): string {
   if (code?.startsWith('SUBSCRIPTION_')) return 'pos.queue.reason.readOnly'
   if (code && QUEUE_WORDED.has(code)) return `pos.queue.reason.${code}`
   if (slug && QUEUE_SLUGS[slug]) return QUEUE_SLUGS[slug]
-  if (code && WORDED.has(code)) return `pos.refusal.${code}`
+  if (code && WORDED.has(code)) return wordedKey(code, values)
   const general = slug ? SLUGS[slug] : undefined
   if (general) return general
   if (code === 'HTTP_403') return 'pos.refusal.forbidden'
