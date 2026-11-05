@@ -985,3 +985,54 @@ export function attachPosSlip(
 export function newPosKey(kind: string): string {
   return `pos-${kind}-${crypto.randomUUID()}`
 }
+
+/**
+ * `GET /pos/shifts/currency-exceptions` (backend cb02428c7, openapi 626a6235b; FIN-2a-REPORT): the
+ * shifts whose drawer figure the server withholds, because their cash states more than one currency
+ * or a paid-in or paid-out states none. Newest first, at most 500 (`truncated`). No field adds
+ * amounts across currencies, and a withheld figure arrives as null, never 0.
+ */
+export type PosCurrencyExceptionCash = {
+  /** Null, with currencyRecorded false, for movements recorded with no currency. */
+  currency: string | null
+  currencyRecorded: boolean
+  paidIn: number | null
+  paidOut: number | null
+  movements: number
+}
+
+export type PosCurrencyExceptionShift = {
+  shiftId: string
+  tillId: string
+  tillNumber: number
+  branchId: string
+  cashier: { userId: string; name: string | null } | null
+  status: 'OPEN' | 'ENDED_UNCOUNTED' | 'CLOSED'
+  businessDate: string
+  openedAt: string
+  endedAt: string | null
+  state: 'POS_SHIFT_CURRENCY_UNRECORDED' | 'POS_SHIFT_CURRENCY_MIXED'
+  currencies: string[]
+  unrecordedMovements: number
+  cash: PosCurrencyExceptionCash[]
+  /** As stored at the close, summed across the shift's records before the mix was refused. */
+  storedClose: {
+    closedAt: string
+    expectedCash: number | null
+    countedCash: number | null
+    overShort: number | null
+    currencyRecorded: boolean
+  } | null
+}
+
+export type PosCurrencyExceptions = {
+  from: string
+  to: string
+  truncated: boolean
+  shifts: PosCurrencyExceptionShift[]
+}
+
+/** Business dates, both required; at most 92 days apart, else 400 POS_REPORT_RANGE_INVALID. */
+export function currencyExceptionsPath(from: string, to: string, branchId: string | null): string {
+  return withQuery(`${POS_PATH}/shifts/currency-exceptions`, { from, to, branchId })
+}

@@ -175,6 +175,11 @@ function Today({ till }: { till: Ready }) {
               {t('pos.discountFlags.link')}
             </Link>
           ) : null}
+          {/* Today's own list is read under pos.read (GET /pos/sales), the report's permission, so
+              whoever sees this page may open it. */}
+          <Link to="/pos/currency-exceptions" className="inline-flex h-11 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25">
+            {t('pos.currencyExceptions.link')}
+          </Link>
         </div>
       </div>
 

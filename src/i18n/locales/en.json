@@ -5400,6 +5400,40 @@
         "sale": "The whole-sale discount takes {{percent}}% off. Your limit is {{limit}}%.",
         "total": "Your discounts come to {{percent}}% of the sale. Your limit is {{limit}}%."
       }
+    },
+    "currencyExceptions": {
+      "link": "Currency exceptions",
+      "title": "Currency exceptions",
+      "intro": "Shifts whose drawer cannot be totalled, because their cash is in more than one currency or was recorded with no currency. Nothing here is added across shifts or currencies.",
+      "notAllowed": "Seeing this report needs permission to view the till.",
+      "from": "From",
+      "to": "To",
+      "show": "Show",
+      "rangeInvalid": "Choose dates at most 92 days apart, with the start not after the end.",
+      "truncated": "More shifts match than are shown here. Narrow the dates to see the rest.",
+      "none": "No shift in these dates has cash in more than one currency or with no currency.",
+      "notAvailable": "Not available",
+      "shift": "Till {{till}} · {{date}}",
+      "cashierUnknown": "Cashier not known",
+      "opened": "Opened {{at}}",
+      "ended": "Ended {{at}}",
+      "status": {
+        "OPEN": "Open",
+        "ENDED_UNCOUNTED": "Handed over, not counted",
+        "CLOSED": "Closed"
+      },
+      "mixed": "Cash in more than one currency: {{currencies}}.",
+      "unrecorded": "Cash moved with no currency recorded. Movements: {{movements}}.",
+      "currency": "Currency",
+      "currencyUnknown": "Currency unknown",
+      "paidIn": "Paid in",
+      "paidOut": "Paid out",
+      "movements": "Movements",
+      "storedClose": "Closed {{at}}, as stored",
+      "storedCloseNote": "These figures were added up across currencies before the mix was refused. They are not an amount in any one currency.",
+      "expected": "Expected",
+      "counted": "Counted",
+      "overShort": "Over or short"
     }
   },
   "orderDetail": {
