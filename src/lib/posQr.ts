@@ -78,8 +78,17 @@ export async function uuidV5(name: string): Promise<string | null> {
   }
 }
 
-// Java's String.isBlank: the factory refuses a blank value but never trims a kept one.
-const blank = (value: unknown) => typeof value !== 'string' || value.trim() === ''
+/**
+ * Java's String.isBlank, which the factory uses to refuse a value (it never trims a kept one): every
+ * code point is Character.isWhitespace. That is not JS trim(): Java counts U+001C..U+001F and does
+ * not count the no-break spaces U+00A0, U+2007, U+202F (review WB6-6).
+ */
+const JAVA_WHITESPACE = new Set([
+  0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x1c, 0x1d, 0x1e, 0x1f, 0x20, 0x1680, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004,
+  0x2005, 0x2006, 0x2008, 0x2009, 0x200a, 0x2028, 0x2029, 0x205f, 0x3000,
+])
+const blank = (value: unknown) =>
+  typeof value !== 'string' || [...value].every((char) => JAVA_WHITESPACE.has(char.codePointAt(0)!))
 
 function fieldsInOrder(fields: QrFields): string[] | null {
   const { qrVersion, invoiceType, invoiceNumber, sellerName, sellerVatin, issueDate, issueTime } = fields
@@ -196,7 +205,7 @@ export function qrAmounts(
   return { totalWithVat: formatted(total, minorUnits), vatTotal: formatted(tax, minorUnits) }
 }
 
-const INSTANT = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d+))?(Z|[+-]\d{2}:\d{2})$/
+const INSTANT = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d+))?(Z|([+-])(\d{2}):(\d{2}))$/
 
 /**
  * Tags 6 and 7 from one soldAt instant, at Asia/Muscat. The time is truncated to whole seconds,
@@ -210,6 +219,13 @@ export function qrIssueMoment(soldAt: string, zone: string): { issueDate: string
   // Date keeps milliseconds only; cutting the rest off first keeps "truncate, never round".
   const instant = Date.parse(`${match[1]}.${(match[2] ?? '').slice(0, 3).padEnd(3, '0')}${match[3]}`)
   if (Number.isNaN(instant)) return null
+  // Date.parse rolls an impossible value over (2026-02-30 becomes 2 March, 24:00:00 the next day);
+  // read back at the stated offset, the instant must give exactly the fields that were sent
+  // (review WB6-5). Java's parse refuses them too.
+  const sign = match[4] === '-' ? -1 : 1
+  const offsetMinutes = match[3] === 'Z' ? 0 : sign * (Number(match[5]) * 60 + Number(match[6]))
+  if (Math.abs(offsetMinutes) > 18 * 60) return null
+  if (new Date(instant + offsetMinutes * 60_000).toISOString().slice(0, 19) !== match[1]) return null
   try {
     const parts = new Intl.DateTimeFormat('en-GB', {
       timeZone: zone,

@@ -1,7 +1,7 @@
 {
   "name": "qr-vectors",
   "version": 1,
-  "note": "Shared by the web (posQr.ts) and the backend (PintOmQrPayloadFactory, PintOmSellerUuid, PintOmQrTlvCodec); both repos keep identical bytes and pin the SHA-256 of the LF form. ASCII only: non-ASCII text is written as JSON escapes. SA v1.0.3 is the authority; every row holds the output of today's certified code, including review R-2.",
+  "note": "Shared by the web (posQr.ts) and the backend (PintOmQrPayloadFactory, PintOmSellerUuid, PintOmQrTlvCodec); both repos keep identical bytes and pin the SHA-256 of the LF form. ASCII only: non-ASCII text is written as JSON escapes. SA v1.0.3 is the authority; every row without \"side\" holds the output of today's certified code, including review R-2. Rows marked \"side\": \"web\" pin only the web encoder's own fail-closed checks on input the backend never receives in that form (a negative or exponent amount, unknown minor units, a non-Muscat or unknown zone, a soldAt that is not a real instant); the backend skips them.",
   "uuidNamespace": "e0bc4ac8-b025-46e5-a76d-0c893fc3027e",
   "payloads": [
     {
@@ -149,6 +149,37 @@
       "payloadLength": 700
     },
     {
+      "id": "T-X5 a name of only U+001C..U+001F is blank to Java isBlank, so refused",
+      "fields": {
+        "qrVersion": "1.1",
+        "invoiceType": "01",
+        "invoiceNumber": "INV-2026-0001",
+        "sellerName": "\u001c\u001d\u001e\u001f",
+        "sellerVatin": "OM11003554",
+        "issueDate": "2026-07-13",
+        "issueTime": "10:15:30",
+        "totalWithVat": "4550.500",
+        "vatTotal": "216.690"
+      },
+      "refused": "a blank value (Java isBlank)"
+    },
+    {
+      "id": "T-X5 a name of only a no-break space is not blank to Java isBlank, so accepted",
+      "fields": {
+        "qrVersion": "1.1",
+        "invoiceType": "01",
+        "invoiceNumber": "INV-2026-0001",
+        "sellerName": "\u00a0",
+        "sellerVatin": "OM11003554",
+        "issueDate": "2026-07-13",
+        "issueTime": "10:15:30",
+        "totalWithVat": "4550.500",
+        "vatTotal": "216.690"
+      },
+      "sellerUuid": "c32ecc8c-b430-58ec-977f-a12a042db37a",
+      "payload": "AQMxLjECAjAxAw1JTlYtMjAyNi0wMDAxBALCoAUKT00xMTAwMzU1NAYKMjAyNi0wNy0xMwcIMTA6MTU6MzAICDQ1NTAuNTAwCQcyMTYuNjkwCiRjMzJlY2M4Yy1iNDMwLTU4ZWMtOTc3Zi1hMTJhMDQyZGIzN2E="
+    },
+    {
       "id": "T-X5 the next padded length, 704 characters, is refused (701 cannot occur)",
       "fields": {
         "qrVersion": "1.1",
@@ -243,21 +274,24 @@
       "taxable": "-1.000",
       "vat": "0.050",
       "minorUnits": 3,
-      "refused": true
+      "refused": true,
+      "side": "web"
     },
     {
       "id": "T-X3 an exponent gives no QR",
       "taxable": "1E+1",
       "vat": "0.050",
       "minorUnits": 3,
-      "refused": true
+      "refused": true,
+      "side": "web"
     },
     {
       "id": "T-X3 unknown minor units give no QR",
       "taxable": "1.000",
       "vat": "0.050",
       "minorUnits": null,
-      "refused": true
+      "refused": true,
+      "side": "web"
     }
   ],
   "moments": [
@@ -321,19 +355,43 @@
       "id": "T-X6 a non-Muscat zone gives no QR",
       "soldAt": "2026-11-05T19:30:00Z",
       "zone": "Asia/Kolkata",
-      "refused": true
+      "refused": true,
+      "side": "web"
     },
     {
       "id": "T-X6 a zone that is not a zone gives no QR",
       "soldAt": "2026-11-05T19:30:00Z",
       "zone": "Mars/Olympus",
-      "refused": true
+      "refused": true,
+      "side": "web"
     },
     {
       "id": "T-X4 a soldAt that is not an instant gives no QR",
       "soldAt": "2026-11-05 19:30",
       "zone": "Asia/Muscat",
-      "refused": true
+      "refused": true,
+      "side": "web"
+    },
+    {
+      "id": "T-X4 an impossible date does not roll over (30 February)",
+      "soldAt": "2026-02-30T10:00:00Z",
+      "zone": "Asia/Muscat",
+      "refused": true,
+      "side": "web"
+    },
+    {
+      "id": "T-X4 an impossible time does not roll over (24:00:00)",
+      "soldAt": "2026-11-05T24:00:00Z",
+      "zone": "Asia/Muscat",
+      "refused": true,
+      "side": "web"
+    },
+    {
+      "id": "T-X4 an impossible offset does not parse (+24:00)",
+      "soldAt": "2026-11-05T19:30:00+24:00",
+      "zone": "Asia/Muscat",
+      "refused": true,
+      "side": "web"
     }
   ]
 }

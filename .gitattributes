@@ -1,3 +1,5 @@
 # Vendored third-party files are served byte-for-byte under Subresource Integrity: never
 # convert their line endings.
 public/vendor/** -text
+# The QR fixture is shared byte for byte with the backend, which pins its SHA-256 (review WB6-7).
+src/lib/qr-vectors.v1.json -text

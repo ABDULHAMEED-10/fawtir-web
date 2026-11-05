@@ -13,10 +13,10 @@ import {
 } from './posQr'
 
 // The shared cross-language fixture (PRV43-RC5-IMPL2 review §4, T-W1). The backend keeps the same
-// bytes and pins the same hash, so a change on either side fails both. The working tree may hold
-// CRLF (core.autocrlf); the blob, and so the hash, is LF.
+// bytes and pins the same hash, so a change on either side fails both. .gitattributes keeps it LF
+// in the working tree; the CRLF fold is only a guard for a checkout made before that.
 const FIXTURE = readFileSync(join(process.cwd(), 'src/lib/qr-vectors.v1.json'), 'utf8').replace(/\r\n/g, '\n')
-const FIXTURE_SHA256 = '15667bdb61fcbdda4163cd6963f4d1b1e99efa1f806abc7ef4506d401472fd3a'
+const FIXTURE_SHA256 = '02c3d32332354ad0b15378c13aa2cdfa94909bb7baa1d8e8d3ba09279667901b'
 
 interface PayloadRow {
   id: string
@@ -30,6 +30,7 @@ interface AmountRow {
   taxable: string
   vat: string
   minorUnits: number | null
+  side?: 'web'
   totalWithVat?: string
   vatTotal?: string
   refused?: boolean
@@ -38,6 +39,7 @@ interface MomentRow {
   id: string
   soldAt: string
   zone: string
+  side?: 'web'
   issueDate?: string
   issueTime?: string
   refused?: boolean
@@ -72,6 +74,13 @@ describe('the shared QR fixture (T-X7 integrity, T-W1)', () => {
     expect(createHash('sha256').update(FIXTURE).digest('hex')).toBe(FIXTURE_SHA256)
     expect(vectors.uuidNamespace).toBe(QR_UUID_NAMESPACE)
     expect(FIXTURE).not.toMatch(/[^\n\x20-\x7e]/)
+  })
+
+  it('marks as web-only only refusals of input the backend never receives (WB6-4)', () => {
+    const webOnly = [...vectors.amounts, ...vectors.moments].filter((row) => row.side === 'web')
+    expect(webOnly.length).toBeGreaterThanOrEqual(6)
+    expect(webOnly.every((row) => row.refused === true)).toBe(true)
+    expect(vectors.payloads.some((row) => 'side' in row)).toBe(false)
   })
 })
 
