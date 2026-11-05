@@ -60,6 +60,7 @@ describe('the refusals of adding a held HS code', () => {
     'HS_CODE_AMENDMENT_NOT_GOODS',
     'HS_CODE_AMENDMENT_ALREADY_SET',
     'HS_CODE_AMENDMENT_LINE_REPEATED',
+    'HS_CODE_REQUIRED',
   ])('%s has a sentence in English and Arabic with nothing left unfilled', (code) => {
     const refusal = heldHsRefusal(coded(code))!
     expect(refusal).not.toBeNull()
@@ -67,6 +68,14 @@ describe('the refusals of adding a held HS code', () => {
       expect(i18n.exists(refusal.key, { lng, fallbackLng: false })).toBe(true)
       expect(i18n.t(refusal.key, { ...refusal.values, lng })).not.toContain('{{')
     }
+  })
+
+  it('HS_CODE_REQUIRED names the goods line still without a code, never the item (WB6-1)', () => {
+    expect(heldHsRefusal(coded('HS_CODE_REQUIRED', { line: 3 }))).toEqual({
+      key: 'heldHs.refused.stillMissing.line',
+      values: { line: '3' },
+    })
+    expect(i18n.t('heldHs.refused.stillMissing.line', { line: '3', lng: 'en' })).not.toMatch(/item/i)
   })
 
   it('leaves a refusal it does not know to the general failure', () => {

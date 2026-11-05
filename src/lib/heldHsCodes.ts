@@ -44,6 +44,10 @@ const LINE_REFUSALS: Record<string, string> = {
   HS_CODE_AMENDMENT_NOT_GOODS: 'heldHs.refused.notGoods',
   HS_CODE_AMENDMENT_ALREADY_SET: 'heldHs.refused.alreadySet',
   HS_CODE_AMENDMENT_LINE_REPEATED: 'heldHs.refused.repeated',
+  // GoodsHsCodeRequirement.requireOn, run on the amended rows (review WB6-1): a goods line the
+  // amendment left without a code. The shared apiErrors sentence says to edit the item, which fixes
+  // nothing on an issued invoice.
+  HS_CODE_REQUIRED: 'heldHs.refused.stillMissing',
 }
 
 /** Its sentence, or null for a refusal this page does not word (the caller's general failure). */

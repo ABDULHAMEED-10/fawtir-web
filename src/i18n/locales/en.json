@@ -25988,6 +25988,10 @@
       "repeated": {
         "line": "Line {{line}} is named more than once.",
         "any": "A line is named more than once."
+      },
+      "stillMissing": {
+        "line": "Line {{line}} is goods and still has no HS code, so nothing was changed. Give every goods line a code.",
+        "any": "A goods line still has no HS code, so nothing was changed. Give every goods line a code."
       }
     }
   }
