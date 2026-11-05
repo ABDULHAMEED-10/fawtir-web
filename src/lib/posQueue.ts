@@ -444,9 +444,12 @@ let storageFailure: StorageFailureReason | null = null
 /**
  * A number this tab advanced the till's counter past and then could not queue or roll back: no
  * receipt carries it, and the server will refuse the next number as a gap until it is used. Only
- * an online sale on this till filing it (or a later number) clears it. Held in memory only: a
- * durable record of it is owner question OQ-W1, not decided. After a reload it is a held
- * POS_TILL_NUMBER_GAP, recovered through §10.1; it is never reused, released or skipped.
+ * an online sale on this till filing it (or a later number) clears it. Owner decision OQ-W1
+ * (2026-11-05): numbering fails closed and a lost number goes to a durable, auditable gap
+ * reconciliation; it is never reused, released or silently skipped. That reconciliation is the
+ * server's, and waits for the DES43 alignment and its review, so nothing durable is recorded here
+ * and the burn is held in memory only. After a reload it is a held POS_TILL_NUMBER_GAP, recovered
+ * through §10.1.
  */
 const burnt = new Map<string, { prefix: string; value: number }>()
 const blockListeners = new Set<() => void>()
