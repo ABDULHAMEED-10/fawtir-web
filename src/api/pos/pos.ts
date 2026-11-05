@@ -1038,7 +1038,7 @@ export function currencyExceptionsPath(from: string, to: string, branchId: strin
 }
 
 /**
- * `GET /pos/tills/held-sales` (backend e371713bf; HS-STALL-VIS): one item per till and printed
+ * `GET /pos/tills/held-sales` (backend 5c81f18d4; HS-STALL-VIS): one item per till and printed
  * number the server held for validation or that a later sale was refused behind
  * (POS_TILL_NUMBER_GAP), most recently active first, at most 500 (`truncated`). Hold times and
  * block times are kept apart; `reason` is null when only a block is on record.
