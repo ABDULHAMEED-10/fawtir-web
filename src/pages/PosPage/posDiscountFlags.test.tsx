@@ -289,6 +289,7 @@ describe('acknowledging a flag', () => {
     [404, 'POS_DISCOUNT_FLAG_NOT_FOUND', 2],
     [409, 'POS_DISCOUNT_FLAG_SELF', 1],
     [409, 'POS_DISCOUNT_FLAG_ALREADY_ACKNOWLEDGED', 2],
+    [409, 'POS_DISCOUNT_FLAG_HOLD_OPEN', 2],
   ] as const) {
     it(`words ${code} and withdraws the form, since sending again cannot succeed`, async () => {
       acknowledge = () => problem(status, code)
@@ -347,6 +348,30 @@ describe('acknowledging a flag', () => {
     expect(i18n.t('pos.refusal.POS_DISCOUNT_FLAG_HUMAN_ONLY', { lng: 'ar' })).not.toContain('جلسة دعم')
   })
 
+  // Backend 3f483a01a (review FB-3): the note is refused before the append-only insert. Correcting
+  // the note is the way out, so the form and what was typed stay.
+  it('keeps the form and the typed note after POS_NOTE_CARD_NUMBER', async () => {
+    acknowledge = () =>
+      json(
+        { type: 'about:blank', title: 'Refused', status: 400, code: 'POS_NOTE_CARD_NUMBER', field: 'note' },
+        400,
+      )
+    await open()
+    const typed = 'Paid with card 4111 1111 1111 1111'
+    fireEvent.change(await screen.findByLabelText(i18n.t('pos.discountFlags.note')), {
+      target: { value: typed },
+    })
+    fireEvent.click(await submit())
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      i18n.t('pos.refusal.POS_NOTE_CARD_NUMBER'),
+    )
+    expect(await submit()).toBeTruthy()
+    expect(
+      (screen.getByLabelText(i18n.t('pos.discountFlags.note')) as HTMLTextAreaElement).value,
+    ).toBe(typed)
+    expect(listCalls()).toHaveLength(1)
+  })
+
   it('keeps the form after a failure that may pass on a second try', async () => {
     acknowledge = () => json({ type: 'about:blank', status: 503 }, 503)
     await open()
@@ -380,6 +405,8 @@ describe('the discount-flag sentences', () => {
       'pos.refusal.POS_DISCOUNT_FLAG_ALREADY_ACKNOWLEDGED',
       'pos.refusal.POS_DISCOUNT_FLAG_RANGE_INVALID',
       'pos.refusal.impersonation',
+      'pos.refusal.POS_DISCOUNT_FLAG_HOLD_OPEN',
+      'pos.refusal.POS_NOTE_CARD_NUMBER',
     ]
     for (const lng of ['en', 'ar']) {
       for (const key of keys) expect(i18n.exists(key, { lng }), `${lng} ${key}`).toBe(true)

@@ -95,6 +95,8 @@ const WORDED = new Set([
   'POS_DISCOUNT_FLAG_NOT_FOUND',
   'POS_DISCOUNT_FLAG_SELF',
   'POS_DISCOUNT_FLAG_ALREADY_ACKNOWLEDGED',
+  // Backend 3f483a01a (review FB-1): the sale's attribution hold is still open.
+  'POS_DISCOUNT_FLAG_HOLD_OPEN',
   'POS_DISCOUNT_FLAG_RANGE_INVALID',
 ])
 

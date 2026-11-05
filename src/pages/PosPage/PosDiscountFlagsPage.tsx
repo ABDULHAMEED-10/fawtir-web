@@ -40,13 +40,18 @@ const WINDOW_MS = 92 * 24 * 3_600_000
 
 /**
  * The refusals after which sending again cannot succeed for this row, so the form gives way to the
- * sentence. Anything else (offline, a 5xx) leaves the form to try again.
+ * sentence. Anything else (offline, a 5xx, a card number in the note) leaves the form, and the note
+ * typed, to try again.
  */
 const FINAL = new Set([
   'POS_DISCOUNT_FLAG_HUMAN_ONLY',
   'POS_DISCOUNT_FLAG_NOT_FOUND',
   'POS_DISCOUNT_FLAG_SELF',
   'POS_DISCOUNT_FLAG_ALREADY_ACKNOWLEDGED',
+  // Backend 3f483a01a (review FB-1): refused while the sale's attribution hold is open, since the
+  // resolution may judge the discount again against another cashier. Resending before then cannot
+  // pass; the form comes back when the page is opened again after the hold is decided.
+  'POS_DISCOUNT_FLAG_HOLD_OPEN',
   'POS_ATTRIBUTION_REVIEWER_ONLY',
 ])
 
@@ -62,11 +67,15 @@ function isFinal(error: unknown): boolean {
 }
 
 /**
- * The refusals that mean the row on screen is out of date: another manager's acknowledgement, or a
- * sale no longer listed for this reader. The list is read again so the row shows what the server
- * holds (review AW-2).
+ * The refusals that mean the row on screen may be out of date: another manager's acknowledgement, a
+ * sale no longer listed for this reader, or a hold that may since have been decided and the sale
+ * judged again. The list is read again so the row shows what the server holds (review AW-2, FB-1).
  */
-const STALE = new Set(['POS_DISCOUNT_FLAG_ALREADY_ACKNOWLEDGED', 'POS_DISCOUNT_FLAG_NOT_FOUND'])
+const STALE = new Set([
+  'POS_DISCOUNT_FLAG_ALREADY_ACKNOWLEDGED',
+  'POS_DISCOUNT_FLAG_NOT_FOUND',
+  'POS_DISCOUNT_FLAG_HOLD_OPEN',
+])
 
 function Flags({ till }: { till: Ready }) {
   const { t } = useTranslation()

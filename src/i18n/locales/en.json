@@ -5054,6 +5054,7 @@
       "POS_DISCOUNT_FLAG_NOT_FOUND": "This sale is not on the list of sales over the discount limit, or it is outside your branches.",
       "POS_DISCOUNT_FLAG_SELF": "This sale is recorded as yours, so another manager has to acknowledge it.",
       "POS_DISCOUNT_FLAG_ALREADY_ACKNOWLEDGED": "Another manager has already acknowledged this sale. The acknowledgement is final.",
+      "POS_DISCOUNT_FLAG_HOLD_OPEN": "Decide who made this offline sale in Sales to review first; then acknowledge it here.",
       "POS_DISCOUNT_FLAG_RANGE_INVALID": "Choose a period of at most 92 days, with the start before the end.",
       "failed": "That did not go through. Try again.",
       "forbidden": "You do not have permission to do this at the till.",
