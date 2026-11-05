@@ -938,7 +938,7 @@ describe('Who works there', () => {
 // NOT RUN (static only). Backend 37b2fedca (review FR2-1): a 0% limit a role collapse carried is
 // listed apart as read-only carriedLimits. Full replacement keeps it only while the save does not
 // name its code, so the form must never send it back as a grant (that would lift the 0% to no limit
-// at all), and must name it, as a denial, only when the reader unticks it.
+// at all). Owner Q14 B (WC-1(c), backend de914262a): unticking it sends clearCarried, never a denial.
 describe('A carried limit (FR2-1)', () => {
   const CARRIED_VIEW = {
     userId: 'p-clerk',
@@ -1006,14 +1006,37 @@ describe('A carried limit (FR2-1)', () => {
     ])
   })
 
-  it('names it as a denial when the reader unticks it, or the server would keep it', async () => {
+  // WC-1(c) replaces be0eb8bce's denial: the untick removes only the carried row.
+  it('sends clearCarried, never a denial, when the reader unticks it', async () => {
     renderAt('/settings/team/p-clerk')
     await screen.findByText(carriedLine())
     fireEvent.click(sell())
     fireEvent.click(screen.getByRole('button', { name: 'Save permissions' }))
     await screen.findByText('Permissions saved. They apply from their next action.')
     expect(sent('PUT', '/api/v1/users/p-clerk/permissions')).toEqual([
-      { grants: [{ code: 'invoice.approve' }], denials: ['pos.sell'] },
+      { grants: [{ code: 'invoice.approve' }], denials: [], clearCarried: ['pos.sell'] },
+    ])
+  })
+
+  // The case the old denial reached through the role's codes: bill.read is the Accountant's, and
+  // also carried. Unticking still removes only the carried row; the role keeps giving it.
+  it('sends clearCarried, never a denial, for a carried code their role also gives', async () => {
+    answers['/api/v1/users/p-clerk/permissions'] = () =>
+      json(200, {
+        ...CARRIED_VIEW,
+        carriedLimits: [...CARRIED_VIEW.carriedLimits, { code: 'bill.read', qualifier: 'MAX_PERCENT', value: 0 }],
+      })
+    renderAt('/settings/team/p-clerk')
+    await screen.findByText(carriedLine())
+    const billRead = screen
+      .getAllByRole('checkbox')
+      .find((box) => box.closest('label')?.textContent?.includes(i18n.t('branchAccess.person.carriedTicked')) && box !== sell()) as HTMLInputElement
+    fireEvent.click(billRead)
+    expect(billRead.closest('label')?.textContent).toContain(i18n.t('branchAccess.person.carriedUnticked'))
+    fireEvent.click(screen.getByRole('button', { name: 'Save permissions' }))
+    await screen.findByText('Permissions saved. They apply from their next action.')
+    expect(sent('PUT', '/api/v1/users/p-clerk/permissions')).toEqual([
+      { grants: [{ code: 'invoice.approve' }], denials: [], clearCarried: ['bill.read'] },
     ])
   })
 
@@ -1035,9 +1058,9 @@ describe('A carried limit (FR2-1)', () => {
     ])
   })
 
-  // Review WC-1(a): the untick saves an own denial, which also keeps the permission from any role
-  // given later. The row says so before the save, not only after it.
-  it('says on the row that unticking also blocks it from a later role', async () => {
+  // Owner Q14 B: the untick removes only the carried row, and a role that gives the code keeps
+  // giving it. The row says so before the save, not only after it.
+  it('says on the row that unticking removes only the carried permission', async () => {
     renderAt('/settings/team/p-clerk')
     await screen.findByText(carriedLine())
     expect(sell().closest('label')?.textContent).toContain(
@@ -1070,15 +1093,66 @@ describe('A carried limit (FR2-1)', () => {
       ])
     })
 
-    it('still names it once, as a denial, when the reader unticks it', async () => {
+    // Read as a role code here, it would otherwise go out as a denial through the role's codes.
+    it('still sends it once, as clearCarried and not a denial, when the reader unticks it', async () => {
       renderAt('/settings/team/p-clerk')
       await screen.findByText(carriedLine())
       fireEvent.click(sell())
       fireEvent.click(screen.getByRole('button', { name: 'Save permissions' }))
       await screen.findByText('Permissions saved. They apply from their next action.')
       expect(sent('PUT', '/api/v1/users/p-clerk/permissions')).toEqual([
-        { grants: [{ code: 'invoice.approve' }], denials: ['pos.sell'] },
+        { grants: [{ code: 'invoice.approve' }], denials: [], clearCarried: ['pos.sell'] },
       ])
+    })
+  })
+
+  // A7R-11 (owner Q12, backend 4f1ddc683): the carried 0% is not current until the company's
+  // notice takes effect, so it is labelled with when it applies.
+  describe('and the company notice of the discount limits', () => {
+    const withNotice = (discountLimitNotice: unknown) => {
+      answers['/api/v1/users/p-clerk/permissions'] = () => json(200, { ...CARRIED_VIEW, discountLimitNotice })
+    }
+    const appliesFrom = (date: string) => i18n.t('branchAccess.person.carriedAppliesFrom', { date })
+
+    it('labels it "applies from" the notice date while NOTIFIED', async () => {
+      withNotice({ status: 'NOTIFIED', effectiveAt: '2026-11-19T20:30:00Z' })
+      renderAt('/settings/team/p-clerk')
+      // 20:30Z is the 20th in Muscat: the business day, not the UTC one.
+      expect(await screen.findByText(`${carriedLine()} ${appliesFrom('20 Nov 2026')}`)).toBeTruthy()
+      expect(document.body.textContent).toContain(
+        `${i18n.t('branchAccess.person.sellLimitCarried', { percent: 0 })} ${appliesFrom('20 Nov 2026')}`,
+      )
+    })
+
+    it('says it is not in force yet while NOT_NOTIFIED, or NOTIFIED with no date', async () => {
+      for (const notice of [
+        { status: 'NOT_NOTIFIED', effectiveAt: null },
+        { status: 'NOTIFIED', effectiveAt: null },
+      ]) {
+        withNotice(notice)
+        const view = renderAt('/settings/team/p-clerk')
+        expect(
+          await screen.findByText(`${carriedLine()} ${i18n.t('branchAccess.person.carriedNotInForce')}`),
+        ).toBeTruthy()
+        view.unmount()
+      }
+    })
+
+    it('shows it plainly once IN_FORCE, with or without a date', async () => {
+      for (const effectiveAt of ['2026-11-01T00:00:00Z', null]) {
+        withNotice({ status: 'IN_FORCE', effectiveAt })
+        const view = renderAt('/settings/team/p-clerk')
+        expect(await screen.findByText(carriedLine())).toBeTruthy()
+        expect(document.body.textContent).not.toContain('Applies from')
+        expect(document.body.textContent).not.toContain(i18n.t('branchAccess.person.carriedNotInForce'))
+        view.unmount()
+      }
+    })
+
+    it('has the notice sentences in Arabic', () => {
+      for (const key of ['carriedAppliesFrom', 'carriedNotInForce', 'carriedTicked', 'carriedUnticked']) {
+        expect(i18n.exists(`branchAccess.person.${key}`, { lng: 'ar', fallbackLng: false }), key).toBe(true)
+      }
     })
   })
 

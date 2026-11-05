@@ -25133,10 +25133,12 @@
       "sellLimitOwnOnly": "Set for them: discounts up to {{percent}}%. No role gives them till selling, so this is their only limit: change it here, or untick selling to take the right away.",
       "carriedLimit": "Carried from a removed role, and kept whatever role they hold now or later: {{permission}}, max discount {{percent}}%.",
       "carriedLimitOther": "Carried from a removed role, and kept whatever role they hold now or later: {{permission}}.",
-      "carriedTicked": "Carried from a removed role. Unticking takes it away and also blocks it from any role given to them later, until it is ticked again here.",
-      "carriedUnticked": "Will be taken away when saved, and blocked from any role given to them later, until it is ticked again here.",
-      "sellLimitCarried": "Carried from a removed role: discounts up to {{percent}}%, whatever role they hold now or later. Type a limit to replace it, or untick selling to take the right away. Unticking also blocks selling from any role given to them later, until it is ticked again here.",
-      "sellLimitNoRole": "No role gives them till selling: blank means no discount limit. Type a number to set one."
+      "carriedTicked": "Carried from a removed role. Unticking removes only this carried permission and its limit; it does not block the permission from a role.",
+      "carriedUnticked": "The carried permission and its limit will be removed when saved. If their role gives this permission, they keep it from the role, with the role's limit; otherwise it is taken away.",
+      "sellLimitCarried": "Carried from a removed role: discounts up to {{percent}}%, whatever role they hold now or later. Type a limit to replace it, or untick selling to remove it; if their role gives selling, they then sell with the role's limit.",
+      "sellLimitNoRole": "No role gives them till selling: blank means no discount limit. Type a number to set one.",
+      "carriedAppliesFrom": "Applies from {{date}}, when the company's notice of the new discount limits takes effect. Until then the limits read as they did before this release.",
+      "carriedNotInForce": "Not in force yet: it applies only after the company is given notice of the new discount limits. Until then the limits read as they did before this release."
     },
     "handover": {
       "open": "Hand over ownership",

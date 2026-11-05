@@ -48,6 +48,7 @@ import {
 } from '../../api/settings/branchAccess'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { branchAccessRefusalKey } from '../../lib/branchAccessRefusals'
+import { formatInstantDay } from '../../lib/format'
 import { permissionWords } from '../../lib/permissionLabels'
 import { roleLabel } from '../../lib/roleLabels'
 import { OwnerPill } from './people'
@@ -579,6 +580,17 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
   const carriedSell = carried.find(
     (limit) => limit.code === POS_SELL && limit.qualifier === 'MAX_PERCENT',
   )
+  // A7R-11: a carried discount limit shown while the company's notice has not taken effect would
+  // read as current. No block (a server before 4f1ddc683) and IN_FORCE show it plainly; NOTIFIED
+  // without a date, or a status this screen does not know, is never read as in force.
+  const notice = view.discountLimitNotice
+  const carriedWhen = !notice || notice.status === 'IN_FORCE'
+    ? null
+    : notice.status === 'NOTIFIED' && notice.effectiveAt
+      ? t('branchAccess.person.carriedAppliesFrom', {
+          date: formatInstantDay(notice.effectiveAt, i18n.language),
+        })
+      : t('branchAccess.person.carriedNotInForce')
   const roleCodes = (() => {
     // Every role the person holds, not only the job role: someone from before one role per person
     // (RL-1) may also hold Approver or Viewer, whose codes are theirs from that role, never their
@@ -671,14 +683,13 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
     const grants = limitChanged
       ? withSellLimit(kept, typedLimit, sellFromRole)
       : kept
-    const denials = [
-      ...[...roleCodes].filter((code) => !current.has(code)),
-      // Unticking a carried code must name it, or the server keeps it and the permission stays. A
-      // denial names it without granting anything.
-      ...[...carriedCodes].filter((code) => !current.has(code) && !roleCodes.has(code)),
-    ]
+    // Owner Q14 B (WC-1(c)): unticking a carried code removes only the carried row, through
+    // clearCarried, never a denial. A denial would also block the code from any role, and the server
+    // refuses a code named both ways (400), so a carried code never goes out as a denial here.
+    const clearCarried = [...carriedCodes].filter((code) => !current.has(code))
+    const denials = [...roleCodes].filter((code) => !current.has(code) && !carriedCodes.has(code))
     try {
-      await savePersonPermissions(person.id, grants, denials)
+      await savePersonPermissions(person.id, grants, denials, clearCarried)
       setWanted(null)
       setLimitText(null)
       setSaved(true)
@@ -752,6 +763,7 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
                     {limit.qualifier === 'MAX_PERCENT'
                       ? t('branchAccess.person.carriedLimit', { permission, percent: limit.value })
                       : t('branchAccess.person.carriedLimitOther', { permission })}
+                    {limit.qualifier === 'MAX_PERCENT' && carriedWhen ? ` ${carriedWhen}` : ''}
                   </li>
                 )
               })}
@@ -763,8 +775,8 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
               <div className="grid gap-2 md:grid-cols-2">
                 {entries.map((row) => {
                   const has = current.has(row.code)
-                  // Unticking a carried code saves an own denial (review WC-1(a)), which also keeps
-                  // the permission from any role given later; the note says so before the save.
+                  // Unticking a carried code removes only the carried row (owner Q14 B); a role that
+                  // gives the code still does, and the note says so before the save.
                   const note = carriedCodes.has(row.code)
                     ? has
                       ? t('branchAccess.person.carriedTicked')
@@ -835,7 +847,9 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
                       // The carried 0% is what the till applies, whatever the role says, until a
                       // typed limit replaces it.
                       carriedSell && limitText === null
-                        ? t('branchAccess.person.sellLimitCarried', { percent: carriedSell.value })
+                        ? `${t('branchAccess.person.sellLimitCarried', { percent: carriedSell.value })}${
+                            carriedWhen ? ` ${carriedWhen}` : ''
+                          }`
                         : !sellFromRole
                         ? typeof ownLimit === 'number'
                           ? t('branchAccess.person.sellLimitOwnOnly', { percent: ownLimit })
