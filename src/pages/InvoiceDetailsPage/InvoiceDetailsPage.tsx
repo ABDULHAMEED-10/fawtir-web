@@ -41,6 +41,7 @@ import {
   type InvoicePaymentDto,
   type InvoiceReceivableDto,
   type InvoiceSendResultDto,
+  deliveryBlockerKey,
 } from '../../api/invoices/detail'
 import { stockLineWarningTexts } from '../../lib/stockLineWarnings'
 import { loadBranches, type BranchDto } from '../../api/invoices/drafts'
@@ -156,9 +157,6 @@ const STATUS_TONES: Record<Tone, string> = {
   overdue: 'border-danger-100 bg-danger-100 text-danger-700',
   paid: 'border-success-100 bg-success-100 text-success-700',
 }
-
-/** The codes InvoiceResponse documents at a17fad205; anything else falls back to a generic line. */
-const DELIVERY_BLOCKERS = new Set(['CANONICAL_HANDOFF_NOT_ENABLED', 'DISPATCH_NOT_ACTIVE'])
 
 const ZOOMS = [0.75, 1, 1.25]
 
@@ -1162,14 +1160,9 @@ function InvoiceScreen() {
                             ? t('invoiceDetails.delivered.notSent', { customer: customerName })
                             : t('invoiceDetails.notSentYet'),
                           // The server sends `deliveryBlocker` only while nothing was submitted, so it
-                          // belongs on this branch alone; an unknown code still says sending is held
-                          // here rather than vanishing (IMPL2-D1, InvoiceResponse at a17fad205).
+                          // belongs on this branch alone (IMPL2-D1, InvoiceResponse at a17fad205).
                           data.deliveryBlocker
-                            ? t(
-                                DELIVERY_BLOCKERS.has(data.deliveryBlocker)
-                                  ? `invoiceDetails.deliveryBlocker.${data.deliveryBlocker}`
-                                  : 'invoiceDetails.deliveryBlocker.other',
-                              )
+                            ? t(`invoiceDetails.deliveryBlocker.${deliveryBlockerKey(data.deliveryBlocker)}`)
                             : null,
                         ]
                           .filter(Boolean)

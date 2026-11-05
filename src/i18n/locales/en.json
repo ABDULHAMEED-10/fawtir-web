@@ -22113,6 +22113,14 @@
         "credit": "This credit note is ready to deliver to {{customer}} over Peppol.",
         "debit": "This debit note is ready to deliver to {{customer}} over Peppol."
       },
+      "blocked": {
+        "CANONICAL_HANDOFF_NOT_ENABLED": "Peppol sending isn't switched on here yet, so nothing has been sent.",
+        "DISPATCH_NOT_ACTIVE": "Peppol sending is switched off here at the moment, so nothing has been sent.",
+        "other": {
+          "credit": "This credit note can't be sent over Peppol from here at the moment.",
+          "debit": "This debit note can't be sent over Peppol from here at the moment."
+        }
+      },
       "details": "Details",
       "viewCustomer": "View customer",
       "reverses": "Reverses {{invoice}}",

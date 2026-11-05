@@ -23494,6 +23494,14 @@
         "credit": "هذا الإشعار الدائن جاهز للتسليم إلى {{customer}} عبر Peppol.",
         "debit": "هذا الإشعار المدين جاهز للتسليم إلى {{customer}} عبر Peppol."
       },
+      "blocked": {
+        "CANONICAL_HANDOFF_NOT_ENABLED": "الإرسال عبر Peppol غير مفعّل هنا بعد، لذلك لم يُرسل شيء.",
+        "DISPATCH_NOT_ACTIVE": "الإرسال عبر Peppol متوقف هنا حاليًا، لذلك لم يُرسل شيء.",
+        "other": {
+          "credit": "لا يمكن إرسال هذا الإشعار الدائن عبر Peppol من هنا حاليًا.",
+          "debit": "لا يمكن إرسال هذا الإشعار المدين عبر Peppol من هنا حاليًا."
+        }
+      },
       "details": "التفاصيل",
       "viewCustomer": "عرض العميل",
       "reverses": "يعكس {{invoice}}",

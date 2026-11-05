@@ -38,6 +38,7 @@ import {
   type InvoicePaymentDto,
   type InvoiceReceivableDto,
   type InvoiceLineWarningDto,
+  deliveryBlockerKey,
 } from '../../api/invoices/detail'
 import type { NoteKind } from '../../api/invoices/drafts'
 import { loadCustomer, type CustomerDto } from '../../api/customers/customers'
@@ -379,6 +380,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
         ) / 1000
       : null
 
+  const blockerKey = deliveryBlockerKey(data.deliveryBlocker)
   // Manual delivery only: a detail page never reads `peppolResponse` (api/invoices/detail.ts).
   const status: NoteListStatus = draft
     ? 'draft'
@@ -864,7 +866,15 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
                 <img src={warningIcon} alt="" className="mt-0.5 size-4 shrink-0" />
                 <span>
                   <span className="font-semibold">{t('salesNote.detail.notSent')}</span>{' '}
-                  {t(`salesNote.detail.notSentHint.${kindKey}`, { customer: customerName })}
+                  {/* "Ready to deliver over Peppol" is untrue while the server reports a blocker, so
+                      the blocker takes the hint's place, in the same span (W2-D1, as IMPL2-D1). */}
+                  {blockerKey
+                    ? t(
+                        blockerKey === 'other'
+                          ? `salesNote.detail.blocked.other.${kindKey}`
+                          : `salesNote.detail.blocked.${blockerKey}`,
+                      )
+                    : t(`salesNote.detail.notSentHint.${kindKey}`, { customer: customerName })}
                 </span>
               </div>
             ) : null}

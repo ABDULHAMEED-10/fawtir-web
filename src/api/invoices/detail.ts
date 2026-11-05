@@ -490,3 +490,16 @@ export function newSendKey(): string {
 export function newPaymentKey(): string {
   return `payment-${crypto.randomUUID()}`
 }
+
+/** The `deliveryBlocker` codes InvoiceResponse documents at backend a17fad205. */
+const DELIVERY_BLOCKERS = new Set(['CANONICAL_HANDOFF_NOT_ENABLED', 'DISPATCH_NOT_ACTIVE'])
+
+/**
+ * The text key suffix for a document's `deliveryBlocker`, or null when it has none. An unknown code
+ * maps to `other` so that a code the backend adds later still says sending is held here rather
+ * than vanishing (IMPL2-D1, W2-D1).
+ */
+export function deliveryBlockerKey(blocker: string | null | undefined): string | null {
+  if (!blocker) return null
+  return DELIVERY_BLOCKERS.has(blocker) ? blocker : 'other'
+}

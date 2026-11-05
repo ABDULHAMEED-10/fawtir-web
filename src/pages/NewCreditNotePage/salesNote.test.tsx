@@ -2484,3 +2484,59 @@ describe('the note cancel refusals, shared by the note page and the documents li
     expect(noteCancelRefusalKey(new Error('offline'), 'DEBIT_NOTE')).toBeNull()
   })
 })
+
+describe("why a note was not sent, from the server's deliveryBlocker (W2-D1)", () => {
+  const openNote = async (kind: 'CREDIT_NOTE' | 'DEBIT_NOTE', deliveryBlocker: string | null) => {
+    const number = kind === 'CREDIT_NOTE' ? 'CRN-9' : 'DBN-9'
+    const note: InvoiceDetailDto = {
+      ...INVOICE,
+      id: NOTE_ID,
+      type: kind,
+      correctionOfInvoiceId: INVOICE_ID,
+      deliveryState: 'NOT_SUBMITTED',
+      deliveryBlocker,
+      invoiceNumber: number,
+    }
+    override = (url) => {
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}`) return json(200, note)
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}/receivable`) return json(200, RECEIVABLE)
+      if (url.startsWith(`/api/v1/authored-invoices/${NOTE_ID}/`))
+        return json(
+          200,
+          url.endsWith('/history')
+            ? { entries: [], truncated: false, limit: 200 }
+            : url.endsWith('/internal-note')
+              ? { internalNote: null }
+              : [],
+        )
+      return undefined
+    }
+    const path = kind === 'CREDIT_NOTE' ? 'credit-notes' : 'debit-notes'
+    render(
+      <MemoryRouter initialEntries={[`/income/${path}/${NOTE_ID}`]}>
+        <Routes>
+          <Route path="/income/credit-notes/:id" element={<CreditNoteDetailsPage />} />
+          <Route path="/income/debit-notes/:id" element={<DebitNoteDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('heading', { name: number })).toBeTruthy()
+  }
+
+  it.each([
+    ['CREDIT_NOTE', 'CANONICAL_HANDOFF_NOT_ENABLED', "Peppol sending isn't switched on here yet, so nothing has been sent."],
+    ['DEBIT_NOTE', 'DISPATCH_NOT_ACTIVE', 'Peppol sending is switched off here at the moment, so nothing has been sent.'],
+    ['CREDIT_NOTE', 'SOMETHING_NEW', "This credit note can't be sent over Peppol from here at the moment."],
+    ['DEBIT_NOTE', 'SOMETHING_NEW', "This debit note can't be sent over Peppol from here at the moment."],
+  ] as const)('a %s with %s says so in place of "ready to deliver"', async (kind, blocker, sentence) => {
+    await openNote(kind, blocker)
+    expect(await screen.findByText(sentence, { exact: false })).toBeTruthy()
+    expect(screen.queryByText(/ready to deliver to/)).toBeNull()
+  }, 30_000)
+
+  it('with no blocker the note keeps its "ready to deliver" hint', async () => {
+    await openNote('DEBIT_NOTE', null)
+    expect(await screen.findByText(/This debit note is ready to deliver to/)).toBeTruthy()
+    expect(screen.queryByText(/Peppol sending|sent over Peppol from here/)).toBeNull()
+  }, 30_000)
+})
