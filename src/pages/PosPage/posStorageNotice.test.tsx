@@ -32,7 +32,7 @@ describe('the storage notice on the till (POS-MEMQ S8)', () => {
     expect(failure).toHaveBeenCalledWith('till-1')
   })
 
-  it.each<OfflineBlock>(['quota', 'denied', 'mismatch', 'unreadable', 'burnt'])(
+  it.each<OfflineBlock>(['quota', 'denied', 'mismatch', 'unreadable'])(
     'says offline selling has stopped when the block is %s',
     (reason) => {
       failure.mockReturnValue(reason)
@@ -66,10 +66,16 @@ describe('the storage notice on the till (POS-MEMQ S8)', () => {
     expect(screen.getByRole('alert')).toBeTruthy()
   })
 
-  it('a burnt number says the block clears after the next online sale on this till', () => {
+  it('a burnt number alone says the block clears after the next online sale, not that storage fails (IMPL2-U1)', () => {
     failure.mockReturnValue('burnt')
     render(<PosStorageNotice tillId="till-1" />)
-    expect(screen.getByRole('alert').textContent).toContain(i18n.t('pos.storage.burnt'))
+    const text = screen.getByRole('alert').textContent
+    expect(text).toContain(i18n.t('pos.storage.burntHeadline'))
+    expect(text).toContain(i18n.t('pos.storage.burnt'))
+    expect(text).not.toContain(i18n.t('pos.storage.blocked'))
+    // Check again re-tests storage and cannot clear a burn, so it is not offered.
+    expect(screen.queryByRole('button')).toBeNull()
+    expect(checkAgain).not.toHaveBeenCalled()
   })
 
   it('a storage fault does not show the burnt sentence', () => {
@@ -83,9 +89,10 @@ describe('the storage notice on the till (POS-MEMQ S8)', () => {
     (reason) => {
       failure.mockReturnValue(reason)
       render(<PosStorageNotice tillId="till-1" />)
-      const buttons = screen.getAllByRole('button')
-      expect(buttons).toHaveLength(1)
-      expect(buttons[0].textContent).toBe(i18n.t('pos.storage.checkAgain'))
+      const buttons = screen.queryAllByRole('button')
+      expect(buttons.map((button) => button.textContent)).toEqual(
+        reason === 'burnt' ? [] : [i18n.t('pos.storage.checkAgain')],
+      )
       expect(screen.queryAllByRole('link')).toHaveLength(0)
       expect(screen.getByRole('alert').textContent).not.toMatch(/print|receipt|NZW-|INV-/i)
     },
@@ -96,6 +103,7 @@ describe('the storage notice on the till (POS-MEMQ S8)', () => {
     for (const key of [
       'pos.storage.blocked',
       'pos.storage.burnt',
+      'pos.storage.burntHeadline',
       'pos.storage.checkAgain',
       'pos.refusal.storageUnavailable',
     ]) {

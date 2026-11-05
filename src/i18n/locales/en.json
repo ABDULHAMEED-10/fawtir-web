@@ -4908,6 +4908,7 @@
     "storage": {
       "blocked": "This browser isn't saving offline sales. Offline selling has stopped on this device. Online sales carry on.",
       "burnt": "This block clears after the next online sale on this till.",
+      "burntHeadline": "Offline sales are stopped on this till: one offline number could not be kept, and none was printed.",
       "checkAgain": "Check again"
     },
     "tabLock": {
