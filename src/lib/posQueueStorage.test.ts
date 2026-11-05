@@ -643,3 +643,24 @@ describe('what a storage refusal tells the cashier about the request (review XW-
     expect(posRefusalKey(after)).toBe('pos.refusal.storageUnavailableAfterSend')
   })
 })
+
+describe('a failed queue read greys the sell controls at once (review XW-4)', () => {
+  it('tells the gate subscribers when a queue read fails, and again when it reads', async () => {
+    const { result } = renderHook(() => useStorageFailure('till-1'))
+    expect(result.current).toBeNull()
+
+    failReads((key) => key === QUEUE, security)
+    await act(async () => {
+      queuedFor('till-1')
+      await Promise.resolve()
+    })
+    expect(result.current).toBe('denied')
+
+    vi.restoreAllMocks()
+    await act(async () => {
+      queuedFor('till-1')
+      await Promise.resolve()
+    })
+    expect(result.current).toBeNull()
+  })
+})

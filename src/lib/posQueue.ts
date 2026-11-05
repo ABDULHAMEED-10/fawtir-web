@@ -359,6 +359,18 @@ let seenText: string | null | undefined
 let queueReadFailure: StorageFailureReason | null = null
 
 /**
+ * A change of `queueReadFailure` is a change of the selling gate, so its subscribers are told and
+ * the sell controls grey out at once rather than at the next refused sale (review XW-4). Told on a
+ * microtask: `synced` also runs while a screen renders (`queuedFor`), and a store must not notify
+ * React in the middle of a render.
+ */
+function noteQueueRead(next: StorageFailureReason | null) {
+  if (queueReadFailure === next) return
+  queueReadFailure = next
+  queueMicrotask(() => blockListeners.forEach((listener) => listener()))
+}
+
+/**
  * The queue as storage holds it now. Another tab of the till (or a second window) writes the same key,
  * and this tab used to keep the copy it loaded and write it back whole: a sale the other tab had queued,
  * printed and not yet sent vanished from the device, and its number with it (B37 OFF-4). Every change
@@ -370,22 +382,22 @@ function synced(): QueuedSale[] {
   try {
     text = window.localStorage.getItem(QUEUE_KEY)
   } catch (error) {
-    queueReadFailure = failureOf(error)
+    noteQueueRead(failureOf(error))
     return queue
   }
   if (text === seenText) {
-    queueReadFailure = null
+    noteQueueRead(null)
     return queue
   }
   try {
     const parsed = text ? (JSON.parse(text) as QueuedSale[]).map(revived) : []
     queue = parsed
     seenText = text
-    queueReadFailure = null
+    noteQueueRead(null)
   } catch {
     // Unreadable text is never taken for an empty queue: this tab keeps what it has, and `save`
     // will not write over it.
-    queueReadFailure = 'unreadable'
+    noteQueueRead('unreadable')
   }
   return queue
 }
@@ -421,7 +433,7 @@ function save(next: QueuedSale[]): SaveResult {
   if (written !== 'ok') return noteStorageFailure(written)
   queue = next
   seenText = text
-  queueReadFailure = null
+  noteQueueRead(null)
   listeners.forEach((listener) => listener())
   return 'ok'
 }
