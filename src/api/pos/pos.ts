@@ -592,13 +592,103 @@ export function setShiftFloat(shiftId: string, amount: number): Promise<PosShift
   })
 }
 
+/**
+ * Cash paid into the drawer. Since backend cb9898ac3 (FIN-M3) a paid-out goes through
+ * {@link recordPaidOut}: the server refuses a PAID_OUT without its purpose, currency, evidence and key.
+ */
 export function addCashMovement(
   shiftId: string,
-  body: { type: 'PAID_OUT' | 'PAID_IN'; amount: number; note: string | null },
+  body: { type: 'PAID_IN'; amount: number; note: string | null },
 ): Promise<PosCashMovementDto> {
   return apiRequest<PosCashMovementDto>(`${POS_SHIFTS_PATH}/${id(shiftId)}/cash-movements`, {
     method: 'POST',
     body,
+  })
+}
+
+export type PosPaidOutCategory =
+  | 'PETTY_CASH_EXPENSE'
+  | 'SUPPLIER_PAYMENT'
+  | 'CASH_TRANSFER'
+  | 'FLOAT_ADJUSTMENT'
+  | 'OTHER'
+
+export type PosPaidOutClass = 'EXPENSE' | 'ADVANCE' | 'TRANSFER' | 'BILL_SETTLEMENT'
+
+/**
+ * `PosCashMovementRequest` as a PAID_OUT (V536). The refund references the schema declares
+ * (saleId, invoiceId, ...) are deliberately absent: the server refuses any of them, since a paid-out
+ * is never a refund.
+ */
+export type PosPaidOutRequest = {
+  type: 'PAID_OUT'
+  amount: number
+  note: string
+  category: PosPaidOutCategory
+  accountingClass: PosPaidOutClass | null
+  currency: string
+  billId: string | null
+  receiptObjectId: string | null
+  missingReceiptReason: string | null
+}
+
+export type PosPaidOutDto = {
+  movementId: string
+  shiftId: string
+  tillId: string
+  type: 'PAID_OUT'
+  amount: number
+  currency: string
+  note: string
+  category: PosPaidOutCategory
+  accountingClass: PosPaidOutClass
+  billId: string | null
+  billPaymentId: string | null
+  receiptObjectId: string | null
+  missingReceiptReason: string | null
+  reviewFlags: ('NOTE_NAMES_DOCUMENT' | 'NOTE_MENTIONS_REFUND' | 'CATEGORY_OTHER' | 'MISSING_RECEIPT')[]
+  recordedBy: string
+  recordedAt: string
+  /** The same key and body paid out before: the stored paid-out, nothing written again (a 200). */
+  replayed: boolean
+}
+
+/** The key is per till on the server: a retry with it is answered with the first paid-out. */
+export function recordPaidOut(
+  shiftId: string,
+  body: PosPaidOutRequest,
+  idempotencyKey: string,
+): Promise<PosPaidOutDto> {
+  return apiRequest<PosPaidOutDto>(`${POS_SHIFTS_PATH}/${id(shiftId)}/cash-movements`, {
+    method: 'POST',
+    body,
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
+}
+
+/** `PosCashReceiptController`'s limit and V536's CHECK. */
+export const PAID_OUT_RECEIPT_MAX_BYTES = 10 * 1024 * 1024
+export const PAID_OUT_RECEIPT_TYPES = ['image/jpeg', 'image/png', 'application/pdf'] as const
+
+export type PosCashReceiptDto = {
+  receiptObjectId: string
+  contentType: string
+  byteSize: number
+  sha256: string
+  uploadedAt: string
+}
+
+/**
+ * Uploaded before the paid-out that names it. The malware scan runs inside the request, so it gets
+ * the slip upload's longer wait.
+ */
+export function uploadPaidOutReceipt(tillId: string, file: Blob, name: string): Promise<PosCashReceiptDto> {
+  const body = new FormData()
+  body.append('file', file, name)
+  return apiRequest<PosCashReceiptDto>(`${POS_TILLS_PATH}/${id(tillId)}/cash-movements/receipts`, {
+    method: 'POST',
+    body,
+    timeoutMs: 60_000,
   })
 }
 

@@ -60,7 +60,16 @@ export type TillState =
       userName?: string | null
       /** Their shift is the till's open one. */
       mine: boolean
-      can: { sell: boolean; close: boolean; refund: boolean; manage: boolean }
+      can: {
+        sell: boolean
+        close: boolean
+        refund: boolean
+        manage: boolean
+        /** Paying cash out of the drawer (backend cb9898ac3, FIN-M3); paying in stays with `close`. */
+        payOut: boolean
+        /** Linking a supplier paid-out to the bill it pays: the server asks it on top of `payOut`. */
+        billSettle: boolean
+      }
       retry: () => void
     }
 
@@ -113,6 +122,8 @@ export function usePosTill(): TillState {
       close: can('pos.close'),
       refund: can('pos.refund'),
       manage: can('pos.till.manage'),
+      payOut: can('pos.cash.pay_out'),
+      billSettle: can('bill.settle'),
     },
     retry,
   }

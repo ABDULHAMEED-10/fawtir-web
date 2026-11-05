@@ -18,7 +18,8 @@ const ME: Entitlements = {
   username: 'maryam',
   tenantId: 't-1',
   roles: [],
-  permissions: ['pos.read', 'pos.sell', 'pos.close'],
+  // pos.cash.pay_out: backend cb9898ac3 copies it to every pos.close holder, and Paid out asks it.
+  permissions: ['pos.read', 'pos.sell', 'pos.close', 'pos.cash.pay_out'],
   scopes: [],
   featureFlags: {},
 }

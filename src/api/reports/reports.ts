@@ -132,18 +132,37 @@ export type CashFlowRowDto = {
   period: string
   periodStart: string
   periodEnd: string
-  currency: string
+  /**
+   * Null only for till paid-outs written before RC5, which recorded no currency (backend cb9898ac3,
+   * OQ-F19): the "currency not recorded" bucket. Never to be read as the company's currency.
+   */
+  currency: string | null
   received: number
   paidOut: number
   net: number
+} & TillPaidOutFigures
+
+/**
+ * Till paid-outs by class (V536), beside `paidOut` and never in it or in `net`: a till payment that
+ * paid a bill is already in `paidOut`, once, as that bill payment. Absent from a server before
+ * cb9898ac3, which reads as none.
+ */
+export type TillPaidOutFigures = {
+  cashPaidOutExpense?: number
+  cashPaidOutAdvance?: number
+  /** An internal movement, in no outflow total. */
+  cashTransferred?: number
+  /** Written before RC5, which carry no class. */
+  cashPaidOutUnclassified?: number
 }
 
 export type CashFlowTotalDto = {
-  currency: string
+  /** Null for the "currency not recorded (before RC5)" bucket. */
+  currency: string | null
   received: number
   paidOut: number
   net: number
-}
+} & TillPaidOutFigures
 
 export type CashFlowReportDto = {
   from: string | null

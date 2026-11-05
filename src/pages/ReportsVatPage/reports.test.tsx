@@ -611,6 +611,59 @@ describe('the cash flow page', () => {
     renderAt('/reports/cash-flow', <ReportsCashFlowPage />)
     expect(await screen.findByText('No payments were recorded in this range.')).toBeTruthy()
   })
+
+  // NOT RUN (static only). Backend cb9898ac3 (FIN-M3): the four drawer columns and the bucket of
+  // till paid-outs from before RC5, which carry no currency.
+  it('shows the till paid-outs by class and keeps the currency-less bucket apart', async () => {
+    const september = {
+      period: '2026-09',
+      periodStart: '2026-09-01',
+      periodEnd: '2026-09-30',
+      received: 0,
+      paidOut: 0,
+      net: 0,
+    }
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/me/entitlements')) return json(200, READER)
+      if (url.includes('/reports/cash-flow'))
+        return json(200, {
+          ...CASH_FLOW,
+          rows: [
+            ...CASH_FLOW.rows,
+            {
+              ...september,
+              currency: 'OMR',
+              cashPaidOutExpense: 4,
+              cashPaidOutAdvance: 2,
+              cashTransferred: 7,
+              cashPaidOutUnclassified: 0,
+            },
+            { ...september, currency: null, cashPaidOutUnclassified: 1.25 },
+          ],
+          totals: [
+            { currency: null, received: 0, paidOut: 0, net: 0, cashPaidOutUnclassified: 1.25 },
+            ...CASH_FLOW.totals,
+          ],
+        })
+      if (url.includes('/reports/expenditure')) return json(200, EXPENDITURE)
+      return json(404)
+    })
+    renderAt('/reports/cash-flow', <ReportsCashFlowPage />)
+    expect(await screen.findByText('Cash paid out of the tills')).toBeTruthy()
+    expect(screen.getByText('Expenses')).toBeTruthy()
+    expect(screen.getByText('4.000')).toBeTruthy()
+    expect(screen.getByText('7.000')).toBeTruthy()
+    expect(screen.getByText('Not classed (before RC5)')).toBeTruthy()
+    // The null bucket is never taken as the report's currency, nor counted as a second one.
+    expect(screen.getByText('1,300.000')).toBeTruthy()
+    expect(screen.queryByText(/more than one currency/)).toBeNull()
+    expect(
+      screen.getByText(
+        'Till paid-outs from before RC5 carry no currency (currency not recorded (before RC5)): 1.25 in this report. They are kept apart and never added to any currency.',
+      ),
+    ).toBeTruthy()
+  })
 })
 
 describe('the downloads page', () => {

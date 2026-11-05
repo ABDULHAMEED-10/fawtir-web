@@ -26,7 +26,11 @@ import {
   type CashFlowReportDto,
   type ExpenditureReportDto,
 } from '../../api/reports/reports'
-import { periodsWithNegativeDirection } from '../../lib/cashFlowReport'
+import {
+  periodsWithNegativeDirection,
+  recordedCurrencies,
+  tillPaidOuts,
+} from '../../lib/cashFlowReport'
 import {
   MONTH_IDS,
   historyWindow,
@@ -134,15 +138,40 @@ function CashFlowBody({
   language: string
   t: (key: string, values?: Record<string, unknown>) => string
 }) {
-  if (report.rows.length === 0) {
-    return (
-      <p className="rounded-md bg-surface-card p-10 text-center text-sm font-medium text-text-quaternary">
-        {t('reports.cashFlow.empty')}
+  const currencies = recordedCurrencies(report.totals)
+  const currency =
+    currencies[0] ?? report.rows.find((row) => row.currency !== null)?.currency ?? null
+  // Till paid-outs from before RC5 carry no currency (backend cb9898ac3): named apart, as a plain
+  // figure, and never formatted, charted or added as any currency.
+  const unrecordedEntry = report.totals.find((entry) => entry.currency === null)
+  const unrecordedFigures = unrecordedEntry ? tillPaidOuts(unrecordedEntry) : null
+  const unrecordedSum = unrecordedFigures
+    ? unrecordedFigures.expense +
+      unrecordedFigures.advance +
+      unrecordedFigures.transferred +
+      unrecordedFigures.unclassified
+    : 0
+  const unrecorded =
+    unrecordedSum !== 0 ? (
+      <p className="rounded-md bg-pending-100 p-3 text-sm font-medium text-pending-700">
+        {t('reports.cashFlow.unrecorded', {
+          label: t('reports.cashFlow.currencyNotRecorded'),
+          amount: formatCount(unrecordedSum, language),
+        })}
       </p>
+    ) : null
+
+  if (report.rows.length === 0 || currency === null) {
+    return (
+      <>
+        {unrecorded}
+        <p className="rounded-md bg-surface-card p-10 text-center text-sm font-medium text-text-quaternary">
+          {t('reports.cashFlow.empty')}
+        </p>
+      </>
     )
   }
 
-  const currency = report.totals[0]?.currency ?? report.rows[0].currency
   const rows = report.rows.filter((row) => row.currency === currency)
   const money = (value: number) => formatAmount(value, currency, language)
   const whole = (value: number) => wholeFigure(value, language)
@@ -165,6 +194,17 @@ function CashFlowBody({
   // A bar cannot be drawn below nothing, so a period where reversals outweighed payments is
   // named in the footer rather than drawn as if it were a small positive.
   const negative = periodsWithNegativeDirection(rows)
+  const drawer = {
+    expense: sumOver(sumByMonth(rows, (row) => tillPaidOuts(row).expense), current.months),
+    advance: sumOver(sumByMonth(rows, (row) => tillPaidOuts(row).advance), current.months),
+    transferred: sumOver(sumByMonth(rows, (row) => tillPaidOuts(row).transferred), current.months),
+    unclassified: sumOver(sumByMonth(rows, (row) => tillPaidOuts(row).unclassified), current.months),
+  }
+  const drawerRows = (['expense', 'advance', 'transferred', 'unclassified'] as const).map((name) => ({
+    label: t(`reports.cashFlow.till.${name}`),
+    value: drawer[name],
+    display: money(drawer[name]),
+  }))
 
   const categoryRows =
     categories.status === 'ready'
@@ -194,13 +234,12 @@ function CashFlowBody({
 
   return (
     <>
-      {report.totals.length > 1 ? (
+      {currencies.length > 1 ? (
         <p className="rounded-md bg-pending-100 p-3 text-sm font-medium text-pending-700">
-          {t('reports.vat.mixedCurrency', {
-            currencies: report.totals.map((entry) => entry.currency).join(', '),
-          })}
+          {t('reports.vat.mixedCurrency', { currencies: currencies.join(', ') })}
         </p>
       ) : null}
+      {unrecorded}
 
       <KpiRow>
         <KpiCard
@@ -285,6 +324,28 @@ function CashFlowBody({
             color={SERIES.greenSoft}
             highlightColor={SERIES.green}
           />
+        </ChartCard>
+
+        <ChartCard
+          title={t('reports.cashFlow.till.title')}
+          legend={[
+            {
+              label: t('reports.cashFlow.till.legend', {
+                when: t(`reports.thisPeriod.${period}`),
+                currency,
+              }),
+              color: SERIES.strong,
+            },
+          ]}
+          note={t('reports.cashFlow.till.note')}
+        >
+          {drawerRows.some((row) => row.value !== 0) ? (
+            <HorizontalBars rows={drawerRows} />
+          ) : (
+            <p className="w-full text-center text-sm font-medium text-text-quaternary">
+              {t('reports.cashFlow.till.none')}
+            </p>
+          )}
         </ChartCard>
 
         {/* TODO(backend): receivables and payables due, by week (asks 1.10). */}

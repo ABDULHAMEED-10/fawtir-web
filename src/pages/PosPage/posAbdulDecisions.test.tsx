@@ -415,7 +415,7 @@ const READY = {
   till: TILL_DTO,
   branchId: 'b-1',
   branchName: 'Nizwa',
-  can: { sell: true, close: true, refund: true, manage: true },
+  can: { sell: true, close: true, refund: true, manage: true, payOut: true, billSettle: false },
 } as unknown as Extract<TillState, { status: 'ready' }>
 
 const buyerSale = (): PosSaleRequest =>
