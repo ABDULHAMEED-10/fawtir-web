@@ -1,4 +1,4 @@
-import { ApiError } from '../api'
+import { ApiError, NetworkError } from '../api'
 import {
   PAID_OUT_RECEIPT_MAX_BYTES,
   PAID_OUT_RECEIPT_TYPES,
@@ -113,6 +113,83 @@ export function keyForAttempt(
   const fingerprint = JSON.stringify(body)
   const next = attempt && attempt.fingerprint === fingerprint ? attempt : { fingerprint, key: newPosKey('paidout') }
   return { attempt: next, key: next.key }
+}
+
+/**
+ * The paid-out in flight. `unknown` is set when a press went out and no definite answer came back
+ * (review W4-1): the server may have recorded it, so the form is locked to that exact body and key
+ * until a definite answer, or until the cashier has re-read the shift's cash moves and said it is
+ * not there. The body is the attempt's fingerprint, so it can be sent again after a reload.
+ */
+export type PaidOutStore = {
+  attempt: PaidOutAttempt
+  receipt: { file: string; receiptObjectId: string } | null
+  unknown: boolean
+}
+
+export const emptyPaidOutStore = (): PaidOutStore => ({ attempt: null, receipt: null, unknown: false })
+
+/** The body of the press whose outcome is unknown, as it was sent. */
+export function pendingBody(store: PaidOutStore): PosPaidOutRequest | null {
+  if (!store.unknown || !store.attempt) return null
+  try {
+    return JSON.parse(store.attempt.fingerprint) as PosPaidOutRequest
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The press was sent and nothing definite came back: no answer at all, or a gateway or server fault
+ * without the server's own code. Any coded refusal is definite: nothing was recorded.
+ */
+export function outcomeUnknown(error: unknown): boolean {
+  if (error instanceof NetworkError) return true
+  return error instanceof ApiError && error.status >= 500 && !error.code
+}
+
+/*
+ * Kept in sessionStorage per till and shift (review W4-2) so a reload, or the tab coming back,
+ * cannot turn a retry into a second paid-out. Tab-scoped on purpose: another tab is another
+ * attempt. Storage may be absent or refuse (private mode, quota); the page then works from memory.
+ */
+const storageKey = (tillId: string, shiftId: string) => `fawtir.pos.paidOut.${tillId}.${shiftId}`
+
+export function loadPaidOutStore(tillId: string, shiftId: string): PaidOutStore {
+  try {
+    const raw = window.sessionStorage.getItem(storageKey(tillId, shiftId))
+    if (!raw) return emptyPaidOutStore()
+    const held = JSON.parse(raw) as Partial<PaidOutStore>
+    const attempt =
+      held.attempt && typeof held.attempt.key === 'string' && typeof held.attempt.fingerprint === 'string'
+        ? { key: held.attempt.key, fingerprint: held.attempt.fingerprint }
+        : null
+    const receipt =
+      held.receipt &&
+      typeof held.receipt.file === 'string' &&
+      typeof held.receipt.receiptObjectId === 'string'
+        ? { file: held.receipt.file, receiptObjectId: held.receipt.receiptObjectId }
+        : null
+    return { attempt, receipt, unknown: held.unknown === true && attempt !== null }
+  } catch {
+    return emptyPaidOutStore()
+  }
+}
+
+/**
+ * Written only while an attempt is open: once a definite answer closes it, nothing is kept, and a
+ * receipt still held in memory is not worth a stored entry of its own.
+ */
+export function savePaidOutStore(tillId: string, shiftId: string, store: PaidOutStore): void {
+  try {
+    if (!store.attempt) {
+      window.sessionStorage.removeItem(storageKey(tillId, shiftId))
+      return
+    }
+    window.sessionStorage.setItem(storageKey(tillId, shiftId), JSON.stringify(store))
+  } catch {
+    // Memory still holds it for this page.
+  }
 }
 
 /**

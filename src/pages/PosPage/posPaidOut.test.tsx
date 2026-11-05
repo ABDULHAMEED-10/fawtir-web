@@ -102,6 +102,10 @@ let previews: number
 let paidOuts: { key: string | null; body: Record<string, unknown> }[]
 let answer: () => Response | Promise<Response>
 let billSearches: string[]
+let bills: Record<string, unknown>[]
+
+/** Where the paid-out in flight is kept for this till and shift (review W4-2). */
+const HELD = 'fawtir.pos.paidOut.till-1.sh-1'
 
 beforeEach(async () => {
   await i18n.changeLanguage('en')
@@ -111,6 +115,8 @@ beforeEach(async () => {
   forgetEntitlements()
   forgetWorkingBranch()
   window.localStorage.clear()
+  window.sessionStorage.clear()
+  bills = [BILL]
   permissions = ['pos.read', 'pos.sell', 'pos.close', 'pos.cash.pay_out']
   uploads = 0
   previews = 0
@@ -162,7 +168,7 @@ beforeEach(async () => {
       }
       if (url.startsWith('/api/v1/bills')) {
         billSearches.push(url)
-        return json({ items: [BILL], page: 0, pageSize: 5, count: 1, total: 1 })
+        return json({ items: bills, page: 0, pageSize: 5, count: bills.length, total: bills.length })
       }
       return json({ type: 'about:blank', status: 404 }, 404)
     }),
@@ -269,22 +275,111 @@ describe('a paid-out', () => {
     expect(paidOuts[0].body.missingReceiptReason).toBe('The shop gave none')
   })
 
-  it('retries with the same key and the same receipt after the connection dropped', async () => {
+  it('locks the details after a dropped connection; Record it again sends the same key and body', async () => {
     answer = () => Promise.reject(new TypeError('Failed to fetch'))
     await fillPettyCash()
     chooseCurrency('OMR')
     attachReceipt()
     fireEvent.click(recordButton())
-    expect(await screen.findByText(i18n.t('pos.refusal.offline'))).toBeTruthy()
-    expect(screen.getByText(form('retrySafe'))).toBeTruthy()
+    expect(await screen.findByText(form('pending.title'))).toBeTruthy()
+    expect(screen.getByText(i18n.t('pos.refusal.offline'))).toBeTruthy()
+    expect(screen.getByText(form('pending.hint'))).toBeTruthy()
+    // Review W4-1: no field can be changed while the outcome is unknown.
+    expect(screen.queryByRole('textbox', { name: i18n.t('pos.pay.amount') })).toBeNull()
+    expect(screen.queryByRole('combobox', { name: form('currency') })).toBeNull()
+    expect(screen.queryByRole('button', { name: i18n.t('pos.close.record') })).toBeNull()
+    // Review W4-2: the attempt is in the tab's storage, keyed by till and shift.
+    expect(window.sessionStorage.getItem(HELD)).toContain(paidOuts[0].key as string)
     answer = () => json({ ...PAID_OUT, replayed: true }, 200)
-    fireEvent.click(recordButton())
+    fireEvent.click(screen.getByRole('button', { name: form('pending.again') }))
     await waitFor(() => expect(paidOuts).toHaveLength(2))
     expect(paidOuts[1].key).toBe(paidOuts[0].key)
     expect(paidOuts[1].body).toEqual(paidOuts[0].body)
     expect(uploads).toBe(1)
     // The replay is the paid-out already recorded: success, the drawer figures reloaded.
     await waitFor(() => expect(previews).toBe(2))
+    expect(window.sessionStorage.getItem(HELD)).toBeNull()
+  })
+
+  it('unlocks only after re-reading the cash moves and the cashier saying it is not there', async () => {
+    answer = () => Promise.reject(new TypeError('Failed to fetch'))
+    await fillPettyCash()
+    chooseCurrency('OMR')
+    attachReceipt()
+    fireEvent.click(recordButton())
+    await screen.findByText(form('pending.title'))
+    expect(screen.queryByRole('button', { name: form('pending.notRecorded') })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: form('pending.check') }))
+    expect(await screen.findByText(form('pending.movesNone'))).toBeTruthy()
+    expect(previews).toBe(2)
+    fireEvent.click(screen.getByRole('button', { name: form('pending.notRecorded') }))
+    // The details come back as they were sent, and can be changed again.
+    const amount = screen.getByRole('textbox', { name: i18n.t('pos.pay.amount') }) as HTMLInputElement
+    expect(amount.value).toBe('2.500')
+    expect((screen.getByRole('combobox', { name: form('currency') }) as HTMLSelectElement).value).toBe('OMR')
+    expect(window.sessionStorage.getItem(HELD)).toBeNull()
+    attachReceipt()
+    answer = () => json(PAID_OUT, 201)
+    fireEvent.click(recordButton())
+    await waitFor(() => expect(paidOuts).toHaveLength(2))
+    // A new attempt: a new key. The receipt held in memory is sent again, not uploaded again, so a
+    // paid-out that was in fact recorded would be refused as ALREADY_USED.
+    expect(paidOuts[1].key).not.toBe(paidOuts[0].key)
+    expect(uploads).toBe(1)
+    expect(paidOuts[1].body.receiptObjectId).toBe('rcpt-1')
+  })
+
+  it('comes back locked after a reload, from the tab’s storage, and sends the stored body', async () => {
+    const body = {
+      type: 'PAID_OUT',
+      amount: 2.5,
+      note: 'Milk',
+      category: 'PETTY_CASH_EXPENSE',
+      accountingClass: 'EXPENSE',
+      currency: 'OMR',
+      billId: null,
+      receiptObjectId: 'rcpt-9',
+      missingReceiptReason: null,
+    }
+    window.sessionStorage.setItem(
+      HELD,
+      JSON.stringify({
+        attempt: { key: 'pos-paidout-stored-key-0001', fingerprint: JSON.stringify(body) },
+        receipt: { file: 'receipt.jpg|3|1', receiptObjectId: 'rcpt-9' },
+        unknown: true,
+      }),
+    )
+    renderClose()
+    expect(await screen.findByText(form('pending.title'))).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: form('pending.again') }))
+    await waitFor(() => expect(paidOuts).toHaveLength(1))
+    expect(paidOuts[0].key).toBe('pos-paidout-stored-key-0001')
+    expect(paidOuts[0].body).toEqual(body)
+    expect(uploads).toBe(0)
+  })
+
+  it('works without the tab’s storage', async () => {
+    const original = Object.getOwnPropertyDescriptor(window, 'sessionStorage')
+    Object.defineProperty(window, 'sessionStorage', {
+      configurable: true,
+      get() {
+        throw new Error('storage blocked')
+      },
+    })
+    try {
+      answer = () => Promise.reject(new TypeError('Failed to fetch'))
+      await fillPettyCash()
+      chooseCurrency('OMR')
+      attachReceipt()
+      fireEvent.click(recordButton())
+      expect(await screen.findByText(form('pending.title'))).toBeTruthy()
+      answer = () => json(PAID_OUT, 201)
+      fireEvent.click(screen.getByRole('button', { name: form('pending.again') }))
+      await waitFor(() => expect(paidOuts).toHaveLength(2))
+      expect(paidOuts[1].key).toBe(paidOuts[0].key)
+    } finally {
+      if (original) Object.defineProperty(window, 'sessionStorage', original)
+    }
   })
 
   it('words a reused key and starts a new attempt after it', async () => {
@@ -387,11 +482,14 @@ describe('a refused receipt or currency', () => {
       'OMR',
     )
     expect(previews).toBe(1)
-    // The receipt stands: the same body again keeps its key and its upload.
+    // A definite refusal recorded nothing (review W4-2): the attempt is closed and forgotten, so the
+    // next press is a fresh key; the receipt stands and is not uploaded again.
+    expect(window.sessionStorage.getItem(HELD)).toBeNull()
     fireEvent.click(recordButton())
     await waitFor(() => expect(paidOuts).toHaveLength(2))
     expect(uploads).toBe(1)
-    expect(paidOuts[1].key).toBe(paidOuts[0].key)
+    expect(paidOuts[1].key).not.toBe(paidOuts[0].key)
+    expect(paidOuts[1].body).toEqual(paidOuts[0].body)
   })
 })
 
@@ -433,12 +531,48 @@ describe('the supplier bill link', () => {
       screen.getByText(i18n.t('pos.close.paidOutForm.billCurrency', { currency: 'OMR' })),
     ).toBeTruthy()
   })
+
+  it('never says "This bill is in ." for a bill that states no currency (review NIT)', async () => {
+    permissions = [...permissions, 'bill.settle']
+    bills = [{ ...BILL, currencyCode: null }]
+    await supplierPayment()
+    fireEvent.click(screen.getByRole('button', { name: form('billFind') }))
+    fireEvent.click(await screen.findByRole('button', { name: /Nizwa Dairy · ND-77/ }))
+    chooseCurrency('USD')
+    expect(screen.queryByText(/This bill is in/)).toBeNull()
+  })
+
+  it('asks for someone who can settle bills, never suggests recording it unlinked (review W4-3)', async () => {
+    permissions = [...permissions, 'bill.settle']
+    answer = () => problem(403, 'POS_PAID_OUT_BILL_FORBIDDEN')
+    await supplierPayment()
+    fireEvent.click(screen.getByRole('button', { name: form('billFind') }))
+    fireEvent.click(await screen.findByRole('button', { name: /Nizwa Dairy · ND-77/ }))
+    fireEvent.change(screen.getByRole('textbox', { name: i18n.t('pos.pay.amount') }), {
+      target: { value: '2.5' },
+    })
+    fireEvent.change(screen.getByRole('textbox', { name: i18n.t('pos.close.whatFor') }), {
+      target: { value: 'Milk bill' },
+    })
+    chooseCurrency('OMR')
+    fireEvent.click(screen.getByRole('checkbox', { name: form('noReceipt') }))
+    fireEvent.change(screen.getByRole('textbox', { name: form('noReceiptReason') }), {
+      target: { value: 'Paid by phone' },
+    })
+    fireEvent.click(recordButton())
+    expect(
+      await screen.findByText('Ask someone who can settle bills to record this payment against the bill.'),
+    ).toBeTruthy()
+    expect(screen.queryByText(/without the bill/)).toBeNull()
+  })
 })
 
 describe('the new sentences in Arabic', () => {
   it.each([
     'pos.close.paidOutForm.currencyNote',
-    'pos.close.paidOutForm.retrySafe',
+    'pos.close.paidOutForm.pending.title',
+    'pos.close.paidOutForm.pending.hint',
+    'pos.close.paidOutForm.pending.notRecorded',
     'pos.refusal.POS_PAID_OUT_REFUND_REFERENCE',
     'pos.refusal.POS_PAID_OUT_IDEMPOTENCY_KEY_REUSED',
     'pos.refusal.POS_PAID_OUT_BILL_FORBIDDEN',

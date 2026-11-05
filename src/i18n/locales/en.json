@@ -4808,7 +4808,18 @@
         "billLookupFailed": "Bills could not be read. Record the payment without a bill, or try again.",
         "billCurrency": "This bill is in {{currency}}. The cash paid out must be in the same currency.",
         "billAmountScale": "The amount has more decimals than the bill's currency takes.",
-        "retrySafe": "Pressing Record it again with the same details is safe: the paid-out is never recorded twice."
+        "pending": {
+          "title": "The till could not tell whether this paid-out was recorded.",
+          "receipt": "Receipt attached",
+          "noReceipt": "No receipt: {{reason}}",
+          "bill": "Pays a supplier bill",
+          "hint": "Press Record it again: the same paid-out is never recorded twice. Its details are locked, because changing any detail would record a new paid-out.",
+          "again": "Record it again",
+          "check": "Check whether it was recorded",
+          "movesFound": "Paid-outs recorded on this shift so far. If it is among them, press Record it again to confirm it.",
+          "movesNone": "No paid-out is recorded on this shift yet.",
+          "notRecorded": "It is not there: unlock the details"
+        }
       },
       "record": "Record it",
       "howMany": "How many of {{note}}",
@@ -5163,7 +5174,7 @@
       "POS_PAID_OUT_RECEIPT_OTHER_TILL": "That receipt was attached at another till. Press Record it again to attach it here.",
       "POS_PAID_OUT_RECEIPT_ALREADY_USED": "That receipt already backs another paid-out. Check the cash moves on this page; if this is a different payment, attach its own receipt.",
       "POS_PAID_OUT_CURRENCY_INVALID": "Cash is not counted in that currency. Choose the currency the cash was paid out in.",
-      "POS_PAID_OUT_BILL_FORBIDDEN": "Paying a supplier's bill from the till also needs the permission to settle bills. Record the payment without the bill.",
+      "POS_PAID_OUT_BILL_FORBIDDEN": "Ask someone who can settle bills to record this payment against the bill.",
       "POS_PAID_OUT_BILL_LINK_INVALID": "Only a payment to a supplier can pay a bill.",
       "POS_PAID_OUT_REFUND_REFERENCE": "A paid-out is never a refund. Refund the sale from the refund page.",
       "POS_CASH_MOVEMENT_FIELDS_INVALID": "Cash paid in takes only an amount and a note.",

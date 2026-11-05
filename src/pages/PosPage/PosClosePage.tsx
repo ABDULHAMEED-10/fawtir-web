@@ -37,6 +37,8 @@ import {
   type OverShortReason,
   type PosPaidOutCategory,
   type PosPaidOutClass,
+  type PosPaidOutRequest,
+  type PosCashMovementDto,
   type PosClosePreviewDto,
   type PosShiftCloseDto,
 } from '../../api/pos/pos'
@@ -47,12 +49,17 @@ import {
   dropsHeldReceipt,
   fixedClass,
   keyForAttempt,
+  loadPaidOutStore,
+  outcomeUnknown,
   paidOutGap,
   paidOutRefusal,
   paidOutRequest,
+  pendingBody,
   receiptProblem,
-  type PaidOutAttempt,
+  savePaidOutStore,
+  type PaidOutStore,
 } from '../../lib/posPaidOut'
+import { apiRequest } from '../../api/client'
 import { fitForUpload } from '../../lib/billUpload'
 import { CURRENCIES } from '../../lib/billIntake'
 import { billListPath, loadBillPage, type BillRowDto } from '../../api/expenditure/bills'
@@ -254,8 +261,10 @@ function CloseShift({ till, shiftId }: { till: Ready; shiftId: string }) {
   // Kept here, above the form, because the form is remounted by the reload that follows a send.
   const [sentBeforeClose, setSentBeforeClose] = useState(0)
   // Likewise the paid-out in flight: a reload while its outcome is unknown must not cost its key
-  // or its uploaded receipt, or the retry would be a second paid-out (FIN-M3).
-  const paidOut = useRef<PaidOutStore>({ attempt: null, receipt: null })
+  // or its uploaded receipt, or the retry would be a second paid-out (FIN-M3). Read once from the
+  // tab's storage, so a page reload keeps them too (review W4-2).
+  const paidOut = useRef<PaidOutStore | null>(null)
+  if (paidOut.current === null) paidOut.current = loadPaidOutStore(till.till.id, shiftId)
   if (preview.read.status === 'loading') return <LoadingNotice />
   if (preview.read.status === 'failed') {
     // The till's open shift is someone else's (`pos.close` with OWN): not a missing permission.
@@ -269,7 +278,7 @@ function CloseShift({ till, shiftId }: { till: Ready; shiftId: string }) {
       till={till}
       preview={preview.read.data}
       reload={preview.retry}
-      paidOut={paidOut.current}
+      paidOut={paidOut.current as PaidOutStore}
       sentBeforeClose={sentBeforeClose}
       onSent={(count) => {
         setSentBeforeClose((before) => before + count)
@@ -1152,15 +1161,6 @@ function CashMovements({
   )
 }
 
-/**
- * The paid-out in flight, held above the form (by CloseShift) so a reload while its outcome is
- * unknown keeps both: the key, and the receipt already uploaded for the file chosen.
- */
-type PaidOutStore = {
-  attempt: PaidOutAttempt
-  receipt: { file: string; receiptObjectId: string } | null
-}
-
 const fileIdentity = (file: File) => `${file.name}|${file.size}|${file.lastModified}`
 
 /**
@@ -1197,11 +1197,19 @@ function PaidOutForm({
   const [bill, setBill] = useState<BillRowDto | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<unknown>(null)
+  const [check, setCheck] = useState<
+    | { status: 'loading' }
+    | { status: 'ready'; moves: PosCashMovementDto[] }
+    | { status: 'failed'; error: unknown }
+    | null
+  >(null)
 
   const linked = category === 'SUPPLIER_PAYMENT' && bill !== null
   const fixed = category ? fixedClass(category, linked) : null
   const choices = category ? choosableClasses(category, linked) : []
-  const billCurrencyDiffers = linked && currency !== '' && bill?.currencyCode !== currency
+  // A bill that states no currency is left to the server, never shown as "This bill is in ."
+  const billCurrencyDiffers =
+    linked && currency !== '' && !!bill?.currencyCode && bill.currencyCode !== currency
   const gap = paidOutGap({
     amount: parseBaisa(amount) / 1000,
     note,
@@ -1222,10 +1230,90 @@ function PaidOutForm({
     else setFile(chosen)
   }
 
+  const save = () => savePaidOutStore(tillId, shiftId, store)
+
+  /** A definite answer that recorded it (201, or the 200 replay of the first press). */
+  const settled = () => {
+    store.attempt = null
+    store.receipt = null
+    store.unknown = false
+    save()
+    onRecorded()
+  }
+
+  const failed = (cause: unknown, sent: boolean) => {
+    if (sent && outcomeUnknown(cause)) {
+      // The server may have recorded it: from here on only the same body under the same key may
+      // go, until a definite answer or the cashier's check (review W4-1).
+      store.unknown = true
+      save()
+    } else {
+      // A definite refusal recorded nothing, so the next press is a fresh attempt whatever it says.
+      store.attempt = null
+      store.unknown = false
+      if (dropsHeldReceipt(cause)) store.receipt = null
+      save()
+      // Uploading the same file again would only make a second copy of a receipt that already backs a
+      // paid-out, which is what the server refused; the cashier picks the receipt again on purpose.
+      if (cause instanceof ApiError && cause.code === 'POS_PAID_OUT_RECEIPT_ALREADY_USED') {
+        setFile(null)
+        setPicker((value) => value + 1)
+      }
+    }
+    setError(cause)
+  }
+
+  /** The locked press: the stored body, the stored key, nothing read from the fields. */
+  const sendAgain = async (body: PosPaidOutRequest, key: string) => {
+    setBusy(true)
+    setError(null)
+    try {
+      await recordPaidOut(shiftId, body, key)
+      settled()
+    } catch (cause) {
+      failed(cause, true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /** The cashier's way out of the lock: read the shift's cash moves again before saying it is not there. */
+  const readMoves = async () => {
+    setCheck({ status: 'loading' })
+    try {
+      const preview = await apiRequest<PosClosePreviewDto>(closePreviewPath(shiftId))
+      setCheck({ status: 'ready', moves: preview.movements.filter((move) => move.type === 'PAID_OUT') })
+    } catch (cause) {
+      setCheck({ status: 'failed', error: cause })
+    }
+  }
+
+  const notRecorded = (body: PosPaidOutRequest) => {
+    store.attempt = null
+    store.unknown = false
+    save()
+    // The fields come back as they were sent (also after a reload, when the form had none); the
+    // receipt id stays held, so a paid-out that was in fact recorded is refused as ALREADY_USED.
+    setAmount(body.amount.toFixed(3))
+    setNote(body.note)
+    setCategory(body.category)
+    const chosen = body.accountingClass
+    setChosenClass(
+      // The bill row is not kept, so the form comes back unlinked and a bill settlement unchosen.
+      chosen && choosableClasses(body.category, false).includes(chosen) ? chosen : null,
+    )
+    setCurrency(body.currency)
+    setNoReceipt(body.missingReceiptReason !== null)
+    setReason(body.missingReceiptReason ?? '')
+    setCheck(null)
+    setError(null)
+  }
+
   const record = async () => {
     if (!category) return
     setBusy(true)
     setError(null)
+    let sent = false
     try {
       let receiptObjectId: string | null = null
       if (!noReceipt && file) {
@@ -1252,31 +1340,105 @@ function PaidOutForm({
       })
       const { attempt, key } = keyForAttempt(store.attempt, body)
       store.attempt = attempt
+      // Stored as unknown before it leaves: a reload while it is in flight cannot tell either.
+      savePaidOutStore(tillId, shiftId, { ...store, unknown: true })
+      sent = true
       // A 200 replay is the paid-out the first press recorded: success, never a second one.
       await recordPaidOut(shiftId, body, key)
-      store.attempt = null
-      store.receipt = null
-      onRecorded()
+      settled()
     } catch (cause) {
-      // The key went with other figures: a new press is a new paid-out, made only after the
-      // cashier has looked at what was recorded.
-      if (cause instanceof ApiError && cause.code === 'POS_PAID_OUT_IDEMPOTENCY_KEY_REUSED') {
-        store.attempt = null
-      }
-      if (dropsHeldReceipt(cause)) store.receipt = null
-      // Uploading the same file again would only make a second copy of a receipt that already backs a
-      // paid-out, which is what the server refused; the cashier picks the receipt again on purpose.
-      if (cause instanceof ApiError && cause.code === 'POS_PAID_OUT_RECEIPT_ALREADY_USED') {
-        setFile(null)
-        setPicker((value) => value + 1)
-      }
-      setError(cause)
+      failed(cause, sent)
     } finally {
       setBusy(false)
     }
   }
 
   const refusal = error ? paidOutRefusal(error, i18n.language) : null
+  const pending = pendingBody(store)
+
+  if (pending && store.attempt) {
+    const key = store.attempt.key
+    return (
+      <div className="flex flex-col gap-3">
+        <p role="status" className="rounded-sm bg-pending-100 px-3 py-3 text-sm font-medium text-pending-700">
+          {t('pos.close.paidOutForm.pending.title')}
+        </p>
+        <ul className="flex flex-col gap-1 text-sm font-medium text-text-secondary">
+          <li>
+            {formatAmount(pending.amount, pending.currency, i18n.language)} {pending.currency} ·{' '}
+            {t(`pos.close.paidOutForm.categories.${pending.category}`)}
+          </li>
+          <li>{pending.note}</li>
+          <li>
+            {pending.missingReceiptReason
+              ? t('pos.close.paidOutForm.pending.noReceipt', { reason: pending.missingReceiptReason })
+              : t('pos.close.paidOutForm.pending.receipt')}
+          </li>
+          {pending.billId ? <li>{t('pos.close.paidOutForm.pending.bill')}</li> : null}
+        </ul>
+        <p className="text-xs font-medium text-text-quaternary">
+          {t('pos.close.paidOutForm.pending.hint')}
+        </p>
+        {refusal ? (
+          <p role="alert" className="text-xs font-medium text-danger-700">
+            {t(refusal.key, refusal.values)}
+          </p>
+        ) : null}
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void sendAgain(pending, key)}
+            className="inline-flex h-10 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-50"
+          >
+            {t('pos.close.paidOutForm.pending.again')}
+          </button>
+          <button
+            type="button"
+            disabled={busy || check?.status === 'loading'}
+            onClick={() => void readMoves()}
+            className="inline-flex h-10 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-50"
+          >
+            {t('pos.close.paidOutForm.pending.check')}
+          </button>
+        </div>
+        {check?.status === 'failed' ? (
+          <p role="alert" className="text-xs font-medium text-danger-700">
+            {t(posRefusalKey(check.error), refusalValues(check.error))}
+          </p>
+        ) : null}
+        {check?.status === 'ready' ? (
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-medium text-text-tertiary">
+              {check.moves.length > 0
+                ? t('pos.close.paidOutForm.pending.movesFound')
+                : t('pos.close.paidOutForm.pending.movesNone')}
+            </p>
+            {check.moves.length > 0 ? (
+              <ul className="flex flex-col gap-1 text-sm font-medium text-text-secondary">
+                {check.moves.map((move) => (
+                  <li key={move.movementId}>
+                    {tillTime(move.recordedAt, i18n.language.startsWith('ar') ? 'ar' : 'en-GB')} ·{' '}
+                    {formatAmount(move.amount, pending.currency, i18n.language)} · {move.note ?? ''}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <div>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => notRecorded(pending)}
+                className="inline-flex h-10 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-50"
+              >
+                {t('pos.close.paidOutForm.pending.notRecorded')}
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    )
+  }
 
   return (
     <>
@@ -1432,11 +1594,6 @@ function PaidOutForm({
           {t(refusal.key, refusal.values)}
         </p>
       ) : null}
-      {store.attempt ? (
-        <p className="text-xs font-medium text-text-quaternary">
-          {t('pos.close.paidOutForm.retrySafe')}
-        </p>
-      ) : null}
       <div>
         <button
           type="button"
@@ -1472,8 +1629,11 @@ function BillLink({
   const describe = (row: BillRowDto) => ({
     supplier: row.supplierName ?? '—',
     number: row.supplierBillNumber ?? '—',
-    outstanding: formatAmount(row.outstandingAmount, row.currencyCode, i18n.language),
-    currency: row.currencyCode,
+    // Without a currency there are no minor units to format to, and none is assumed.
+    outstanding: row.currencyCode
+      ? formatAmount(row.outstandingAmount, row.currencyCode, i18n.language)
+      : String(row.outstandingAmount),
+    currency: row.currencyCode ?? '',
   })
 
   if (bill) {

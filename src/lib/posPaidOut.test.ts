@@ -1,15 +1,20 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import i18n from '../i18n'
-import { ApiError } from '../api'
+import { ApiError, NetworkError } from '../api'
 import {
   choosableClasses,
   dropsHeldReceipt,
   fixedClass,
+  emptyPaidOutStore,
   keyForAttempt,
+  loadPaidOutStore,
+  outcomeUnknown,
   paidOutGap,
   paidOutRefusal,
   paidOutRequest,
+  pendingBody,
   receiptProblem,
+  savePaidOutStore,
 } from './posPaidOut'
 import { posRefusalKey } from './posRefusals'
 
@@ -159,6 +164,60 @@ describe('a refusal that spends the held receipt (backend 9ce2bdcf4)', () => {
 
   it('a dropped connection keeps it, so the retry replays', () => {
     expect(dropsHeldReceipt(new TypeError('Failed to fetch'))).toBe(false)
+  })
+})
+
+describe('an outcome nobody knows (review W4-1)', () => {
+  it('is a dropped connection, a timeout, or an uncoded server fault', () => {
+    expect(outcomeUnknown(new NetworkError('offline'))).toBe(true)
+    expect(outcomeUnknown(new NetworkError('timeout'))).toBe(true)
+    expect(outcomeUnknown(new ApiError({ status: 504, problemType: null, problem: {} }))).toBe(true)
+  })
+
+  it('is never a coded refusal: that recorded nothing', () => {
+    expect(outcomeUnknown(coded(409, 'POS_PAID_OUT_IDEMPOTENCY_KEY_REUSED'))).toBe(false)
+    expect(outcomeUnknown(coded(503, 'POS_SOMETHING'))).toBe(false)
+    expect(outcomeUnknown(coded(422, 'POS_PAID_OUT_EXCEEDS_CASH'))).toBe(false)
+  })
+})
+
+describe('the attempt kept in the tab (review W4-2)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    window.sessionStorage.clear()
+  })
+
+  it('round-trips per till and shift, and is forgotten once the attempt closes', () => {
+    const { attempt } = keyForAttempt(null, paidOutRequest(FORM))
+    const store = { attempt, receipt: { file: 'r|3|1', receiptObjectId: 'rcpt-1' }, unknown: true }
+    savePaidOutStore('till-1', 'sh-1', store)
+    expect(loadPaidOutStore('till-1', 'sh-1')).toEqual(store)
+    expect(loadPaidOutStore('till-1', 'sh-2')).toEqual(emptyPaidOutStore())
+    expect(pendingBody(loadPaidOutStore('till-1', 'sh-1'))).toEqual(paidOutRequest(FORM))
+    savePaidOutStore('till-1', 'sh-1', { ...store, attempt: null, unknown: false })
+    expect(window.sessionStorage.getItem('fawtir.pos.paidOut.till-1.sh-1')).toBeNull()
+  })
+
+  it('reads damaged or refused storage as nothing held, and never throws', () => {
+    window.sessionStorage.setItem('fawtir.pos.paidOut.till-1.sh-1', '{not json')
+    expect(loadPaidOutStore('till-1', 'sh-1')).toEqual(emptyPaidOutStore())
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('quota')
+    })
+    expect(loadPaidOutStore('till-1', 'sh-1')).toEqual(emptyPaidOutStore())
+    const { attempt } = keyForAttempt(null, paidOutRequest(FORM))
+    expect(() => savePaidOutStore('till-1', 'sh-1', { attempt, receipt: null, unknown: true })).not.toThrow()
+  })
+
+  it('holds no unknown outcome without its attempt', () => {
+    window.sessionStorage.setItem(
+      'fawtir.pos.paidOut.till-1.sh-1',
+      JSON.stringify({ attempt: null, receipt: null, unknown: true }),
+    )
+    expect(loadPaidOutStore('till-1', 'sh-1').unknown).toBe(false)
   })
 })
 
