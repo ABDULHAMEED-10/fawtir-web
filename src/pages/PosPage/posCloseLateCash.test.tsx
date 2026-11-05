@@ -1,5 +1,5 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { SAMPLE_SALE } from '../../lib/posTestSale'
@@ -157,5 +157,20 @@ describe('late cash from the handed-over shift (WEB-9)', () => {
     renderAt('/pos/close')
     await screen.findByText(i18n.t('pos.close.shouldHold'))
     expect(screen.queryByText(i18n.t('pos.close.lateCashHint'))).toBeNull()
+  })
+})
+
+describe('a paid-out is not a refund (FIN-P1)', () => {
+  it.each(['en', 'ar'])('says refunds are made from the sale while Paid out is chosen (%s)', async (language) => {
+    await i18n.changeLanguage(language)
+    renderAt('/pos/close')
+    const note = i18n.t('pos.close.paidOutNotRefund')
+    expect(await screen.findByText(note)).toBeTruthy()
+    if (language === 'ar') expect(note).not.toBe('Refunds are made from the sale, not here.')
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('pos.close.move.PAID_IN') }))
+    expect(screen.queryByText(note)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('pos.close.move.PAID_OUT') }))
+    expect(screen.getByText(note)).toBeTruthy()
+    await i18n.changeLanguage('en')
   })
 })

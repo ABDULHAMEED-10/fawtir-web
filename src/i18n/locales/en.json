@@ -4760,6 +4760,7 @@
         "FLOAT": "Opening float"
       },
       "whatFor": "What was it for?",
+      "paidOutNotRefund": "Refunds are made from the sale, not here.",
       "record": "Record it",
       "howMany": "How many of {{note}}",
       "companyNote_one": "{{count}} company invoice over Peppol",

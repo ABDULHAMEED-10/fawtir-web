@@ -1035,6 +1035,11 @@ function CashMovements({
             </button>
           ))}
         </div>
+        {/* FIN-P1 (owner 2026-11-05): paid-outs stay separate from refunds. A refund is a credit
+            note against its sale; cash handed back here would have no credit note behind it. */}
+        {type === 'PAID_OUT' ? (
+          <p className="text-xs font-medium text-text-quaternary">{t('pos.close.paidOutNotRefund')}</p>
+        ) : null}
         <div className="flex flex-wrap gap-4">
           <label className="flex min-w-0 flex-1 basis-[140px] flex-col gap-1.5">
             <span className="text-xs font-medium text-text-tertiary">{t('pos.pay.amount')}</span>
