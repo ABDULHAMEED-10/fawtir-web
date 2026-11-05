@@ -4,6 +4,7 @@ import { resetSharedRequests } from '../api'
 import type { PosSaleRequest, PosTillDto } from '../api/pos/pos'
 import {
   checkStorageAgain,
+  deviceNumbering,
   flushQueue,
   markQueuedSaleSetAside,
   nextTillNumber,
@@ -158,7 +159,7 @@ afterEach(() => {
 })
 
 describe('POS-MEMQ: an offline sale is numbered only once storage keeps it', () => {
-  it('ST-1 a full queue gives no receipt, rolls the counter back, blocks offline sales, and still sells online', async () => {
+  it('ST-1 a full queue gives no receipt, rolls the counter back, and blocks selling online too until Check again (OQ-XT2-STORAGE)', async () => {
     failWrites((key) => key === QUEUE, quota)
 
     const refused = await refusedOffline('pos-sale-key-st1-a')
@@ -174,11 +175,16 @@ describe('POS-MEMQ: an offline sale is numbered only once storage keeps it', () 
     expect((await refusedOffline('pos-sale-key-st1-b')).reason).toBe('quota')
     expect(realGet.call(window.localStorage, COUNTER)).toBeNull()
 
+    // Rev 4.7 (OA:2773): no online sale either, and nothing is sent for it.
     online = true
-    const sold = await submitSale(TILL, WALK_IN, 'pos-sale-key-st1-c')
+    expect((await refusedOffline('pos-sale-key-st1-c')).reason).toBe('quota')
+    expect(calls.filter((call) => call.url === '/api/v1/pos/sales')).toEqual([])
+
+    expect(checkStorageAgain()).toBeNull()
+    const sold = await submitSale(TILL, WALK_IN, 'pos-sale-key-st1-d')
     expect('sale' in sold).toBe(true)
     expect(realGet.call(window.localStorage, COUNTER)).toBe('50')
-    expect(offlineBlock('till-1')).toBe('quota')
+    expect(offlineBlock('till-1')).toBeNull()
   })
 
   it('ST-2 storage that refuses to be read (SecurityError) gives no number and no receipt', async () => {
@@ -216,23 +222,44 @@ describe('POS-MEMQ: an offline sale is numbered only once storage keeps it', () 
     expect(storedQueue()).toEqual([])
   })
 
-  it('ST-4 a rollback that cannot be confirmed burns the number until an online sale files it', async () => {
+  /** A queue write refused and a counter rollback that cannot be confirmed: number 49 is burnt. */
+  async function burnNumber49() {
     failWrites((key) => key === QUEUE, quota)
     vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(function (this: Storage, key: string) {
       if (key === COUNTER) throw security()
       realRemove.call(this, key)
     })
-
     expect((await refusedOffline('pos-sale-key-st4-a')).reason).toBe('quota')
     // The number stays taken: never printed, never reused, never released.
     expect(realGet.call(window.localStorage, COUNTER)).toBe('50')
-
     vi.restoreAllMocks()
+  }
+
+  it('ST-4 a burnt number stops all selling on the till; neither Check again nor an online sale clears it (owner ruling, item 6)', async () => {
+    await burnNumber49()
+
     expect(checkStorageAgain()).toBeNull()
     expect(offlineBlock('till-1')).toBe('burnt')
+    expect(offlineBlock('till-1', 'online')).toBe('burnt')
     expect(offlineBlock('till-2')).toBeNull()
     expect((await refusedOffline('pos-sale-key-st4-b')).reason).toBe('burnt')
     expect(realGet.call(window.localStorage, COUNTER)).toBe('50')
+
+    // Online is refused before anything is sent, so no online sale can heal it either.
+    online = true
+    expect((await refusedOffline('pos-sale-key-st4-c')).reason).toBe('burnt')
+    expect(calls.filter((call) => call.url === '/api/v1/pos/sales')).toEqual([])
+    expect(checkStorageAgain()).toBeNull()
+    expect(offlineBlock('till-1', 'online')).toBe('burnt')
+  })
+
+  // Reading (a) of the burn: enabled only once the backend acknowledges burnt numbers (DES43
+  // backend). PENDING the backend fence: BURN_ACKNOWLEDGED_BY_SERVER stays false until then.
+  it.skip('ST-4a [pending backend burn fence] under reading (a), offline stays blocked and an online sale filing the number heals it', async () => {
+    await burnNumber49()
+    expect(checkStorageAgain()).toBeNull()
+    expect(offlineBlock('till-1')).toBe('burnt')
+    expect(offlineBlock('till-1', 'online')).toBeNull()
 
     online = true
     saleReply = () => filedAs(48)
@@ -497,5 +524,99 @@ describe('POS-MEMQ: an offline sale is numbered only once storage keeps it', () 
 
   it('keeps strict number order (Q-27): opensNumbers stays false', () => {
     expect(opensNumbers()).toBe(false)
+  })
+})
+
+/*
+ * XT-2 web slice (DES43 rev 4.7 D.9, OQ-XT2-STORAGE, OA:2773): one selling gate for both paths.
+ * Storage that cannot be read or trusted refuses online sales too, before any request; the safe
+ * non-selling actions still work.
+ */
+describe('XT-2: storage blocks selling on both paths (D.8 (iv), (viii))', () => {
+  const salePosts = () => calls.filter((call) => call.url === '/api/v1/pos/sales')
+
+  it('an unreadable queue refuses an online sale before any request, and Check again restores it', async () => {
+    online = true
+    failReads((key) => key === QUEUE, security)
+    expect((await refusedOffline('pos-sale-key-xt-q')).reason).toBe('denied')
+    expect(salePosts()).toEqual([])
+    vi.restoreAllMocks()
+
+    expect(offlineBlock('till-1', 'online')).toBe('denied')
+    expect(checkStorageAgain()).toBeNull()
+    expect('sale' in (await submitSale(TILL, WALK_IN, 'pos-sale-key-xt-q2'))).toBe(true)
+  })
+
+  it('an unreadable counter refuses an online sale before any request', async () => {
+    online = true
+    failReads((key) => key === COUNTER, security)
+    expect((await refusedOffline('pos-sale-key-xt-c')).reason).toBe('denied')
+    expect(salePosts()).toEqual([])
+    vi.restoreAllMocks()
+    expect(offlineBlock('till-1', 'online')).toBe('denied')
+  })
+
+  it('while selling is blocked, sales already numbered are still sent', async () => {
+    expect(await queuedOffline('pos-sale-key-xt-f1')).toBe(numbered(49))
+    failWrites((key) => key === QUEUE, quota)
+    await refusedOffline('pos-sale-key-xt-f2')
+    vi.restoreAllMocks()
+    expect(offlineBlock('till-1', 'online')).toBe('quota')
+
+    online = true
+    await flushQueue('till-1')
+    expect(salePosts().map((call) => new Headers(call.init?.headers).get('Idempotency-Key'))).toEqual([
+      'pos-sale-key-xt-f1',
+    ])
+    expect(storedQueue()).toEqual([])
+  })
+
+  it('a STALE numbering answer blocks selling with no renumbering, until Check again', async () => {
+    online = true
+    saleReply = () =>
+      new Response(JSON.stringify({ status: 409, code: 'POS_NUMBERING_REPORT_STALE' }), {
+        status: 409,
+        headers: { 'Content-Type': 'application/problem+json' },
+      })
+    await submitSale(TILL, WALK_IN, 'pos-sale-key-xt-s1').catch(() => null)
+    expect(offlineBlock('till-1', 'online')).toBe('reportStale')
+    expect(realGet.call(window.localStorage, COUNTER)).toBeNull()
+
+    expect((await refusedOffline('pos-sale-key-xt-s2')).reason).toBe('reportStale')
+    expect(salePosts()).toHaveLength(1)
+    expect(checkStorageAgain()).toBeNull()
+    expect(offlineBlock('till-1', 'online')).toBeNull()
+  })
+
+  it('never puts deviceNumbering on the wire: the backend rejects unknown fields (R47-1)', async () => {
+    online = true
+    await submitSale(TILL, WALK_IN, 'pos-sale-key-xt-w')
+    const sent = JSON.parse(String(salePosts()[0].init?.body)) as Record<string, unknown>
+    expect('deviceNumbering' in sent).toBe(false)
+  })
+
+  it('the report is the highest queued number of the sale\'s year; a burnt number does not raise it', async () => {
+    // Number 49 is burnt: its queue write is refused and its counter rollback cannot be confirmed.
+    failWrites((key) => key === QUEUE, quota)
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(function (this: Storage, key: string) {
+      if (key === COUNTER) throw security()
+      realRemove.call(this, key)
+    })
+    await refusedOffline('pos-sale-key-xt-d1')
+    vi.restoreAllMocks()
+    expect(checkStorageAgain()).toBeNull()
+    expect(offlineBlock('till-1')).toBe('burnt')
+
+    // Another tab of the till has 47 and 48 waiting.
+    otherTabWrites(QUEUE, JSON.stringify([stored(47), stored(48)]))
+    expect(deviceNumbering(TILL, WALK_IN.soldAt)).toEqual({
+      status: 'KNOWN',
+      highestUnfiled: numbered(48),
+    })
+    // A sale in the next business year counts that year's queue only, though the cached series is 2026.
+    expect(deviceNumbering(TILL, '2027-01-01T10:00:00Z')).toEqual({
+      status: 'KNOWN',
+      highestUnfiled: null,
+    })
   })
 })

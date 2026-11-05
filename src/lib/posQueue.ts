@@ -24,6 +24,8 @@ import {
   ensureTillLock,
   PosTillLockUnavailable,
   releaseTillLocks,
+  subscribeTillLocks,
+  tillLockState,
   type TillLockState,
 } from './posTillLock'
 
@@ -465,16 +467,27 @@ function update(
 }
 
 /**
- * Offline numbering is off for this tab once storage has failed (POS-MEMQ: "block numbered offline
- * sales when storage is unreadable or unwritable"). Selling online is unchanged. It comes back only
- * through `checkStorageAgain`, or a reload.
+ * Selling is off for this tab, online and offline, once storage has failed (OQ-XT2-STORAGE,
+ * OA:2773: "Block both online and offline POS selling when the offline queue, numbering counter or
+ * durable high-water state cannot be read or trusted"). That supersedes POS-MEMQ's "online is
+ * unchanged": an online sale needs the queue and the counter read to know what this device has
+ * printed (DES43 rev 4.7 D.9). Sending, retrying and correcting sales already numbered stay
+ * allowed. It comes back only through `checkStorageAgain`, or a reload.
  */
 let storageFailure: StorageFailureReason | null = null
 
 /**
+ * The server said this device's numbering report named another series or year
+ * (POS_NUMBERING_REPORT_STALE): its date or time is likely wrong. Selling stops until Check again
+ * or a reload, and nothing is renumbered (D.9).
+ */
+let reportStale = false
+
+/**
  * A number this tab advanced the till's counter past and then could not queue or roll back: no
- * receipt carries it, and the server will refuse the next number as a gap until it is used. Only
- * an online sale on this till filing it (or a later number) clears it. Owner decision OQ-W1
+ * receipt carries it, and the server will refuse the next number as a gap until it is used. It
+ * stops all selling on the till, and neither Check again nor an online sale clears it, until the
+ * server acknowledges burns (`burnBlocks`, owner ruling on the burn). Owner decision OQ-W1
  * (2026-11-05): numbering fails closed and a lost number goes to a durable, auditable gap
  * reconciliation; it is never reused, released or silently skipped. That reconciliation is the
  * server's, and waits for the DES43 alignment and its review, so nothing durable is recorded here
@@ -492,31 +505,90 @@ function noteStorageFailure(reason: StorageFailureReason): StorageFailureReason 
   return reason
 }
 
-/** What stops this tab numbering a sale offline on `tillId`, if anything. */
-export type OfflineBlock = StorageFailureReason | 'burnt'
+/** Whether a sale is to be sent to the server or numbered and kept on this device. */
+export type SalePath = 'online' | 'offline'
 
-export function offlineBlock(tillId: string | null): OfflineBlock | null {
-  if (storageFailure) return storageFailure
-  return tillId && burnt.has(tillId) ? 'burnt' : null
+/**
+ * Whether the server acknowledges a burnt number: durably fences it so it cannot be allocated
+ * again. Owner ruling on the burn (OA, final entry, item 6): reading (a), "a known state that an
+ * online sale heals", only "when the burnt number is durably fenced, acknowledged by the
+ * authoritative server state, and cannot be allocated again ... If those guarantees cannot be
+ * proven, retain a fail-closed blocker." No such server fence exists, so this stays false. Enabled
+ * only once the backend acknowledges burnt numbers (DES43 backend).
+ */
+const BURN_ACKNOWLEDGED_BY_SERVER = false
+
+/**
+ * Whether a burnt number stops selling on `path`. Fail closed while the server does not
+ * acknowledge burns: both paths. Reading (a), offline only, is the disabled branch.
+ */
+export function burnBlocks(path: SalePath): boolean {
+  return BURN_ACKNOWLEDGED_BY_SERVER ? path === 'offline' : true
 }
 
-/** For the till screens: whether offline selling is blocked on this till, and why. */
+/** Whether an online sale filing the burnt number (or a later one) lifts the burn: only under (a). */
+function burnHealsOnline(): boolean {
+  return BURN_ACKNOWLEDGED_BY_SERVER
+}
+
+/** What stops this device's storage side from selling on `tillId`, if anything. */
+export type OfflineBlock = StorageFailureReason | 'reportStale' | 'burnt'
+
+/** The one selling gate (D.9): the till lock first, then storage, then a burn. */
+export type SellingBlock = Exclude<TillLockState, 'held'> | OfflineBlock
+
+/** The storage side of the gate, for `path`; offline by default, where a burn always counts. */
+export function offlineBlock(tillId: string | null, path: SalePath = 'offline'): OfflineBlock | null {
+  if (storageFailure) return storageFailure
+  if (queueReadFailure) return queueReadFailure
+  if (reportStale) return 'reportStale'
+  return tillId && burnt.has(tillId) && burnBlocks(path) ? 'burnt' : null
+}
+
+/** Whether this tab may sell on `tillId` by `path` now, and if not, why. */
+export function sellingBlock(tillId: string, path: SalePath): SellingBlock | null {
+  const lock = tillLockState(tillId)
+  if (lock !== 'held') return lock
+  return offlineBlock(tillId, path)
+}
+
+function subscribeBlocks(listener: () => void) {
+  blockListeners.add(listener)
+  return () => {
+    blockListeners.delete(listener)
+  }
+}
+
+/** For the storage notice: what blocks this device's storage side on this till, and why. */
 export function useStorageFailure(tillId: string | null = null): OfflineBlock | null {
+  return useSyncExternalStore(subscribeBlocks, () => offlineBlock(tillId))
+}
+
+/**
+ * For the sell controls: what stops a sale on this till by any path. Online is the path asked,
+ * since it is the one every sale starts on; anything that stops offline only (a burn, were the
+ * server to acknowledge burns) is refused when the sale actually falls back to offline.
+ */
+export function useSellingBlock(tillId: string | null): SellingBlock | null {
   return useSyncExternalStore(
     (listener) => {
-      blockListeners.add(listener)
-      return () => blockListeners.delete(listener)
+      const offBlocks = subscribeBlocks(listener)
+      const offLocks = subscribeTillLocks(listener)
+      return () => {
+        offBlocks()
+        offLocks()
+      }
     },
-    () => offlineBlock(tillId),
+    () => (tillId ? sellingBlock(tillId, 'online') : null),
   )
 }
 
-/** Thrown before any number is printed when this device cannot keep an offline sale. */
+/** Thrown before any request or number when this device cannot keep or know its sales. */
 export class PosStorageUnavailable extends Error {
   readonly reason: OfflineBlock
 
   constructor(reason: OfflineBlock) {
-    super(`This device cannot keep an offline sale (${reason})`)
+    super(`This device cannot safely sell now (${reason})`)
     this.name = 'PosStorageUnavailable'
     this.reason = reason
   }
@@ -526,8 +598,9 @@ const PROBE_KEY = 'fawtir.pos.storageProbe'
 
 /**
  * "Check again": a probe write that reads back, then the queue saved again on top of what storage
- * holds. Both must land before offline numbering is allowed again. Returns what still blocks it
- * (a burnt number on a till is cleared only by an online sale, not here).
+ * holds. Both must land before selling is allowed again; a stale-report block is lifted with it.
+ * Returns what still blocks it. A burnt number is never cleared here (owner ruling on the burn,
+ * final-approval item 6: Check again must not clear an unverified number).
  */
 export function checkStorageAgain(): StorageFailureReason | null {
   const probe = writeText(PROBE_KEY, `${Date.now()}`)
@@ -539,8 +612,9 @@ export function checkStorageAgain(): StorageFailureReason | null {
   }
   const resaved = update((entries) => entries)
   if (resaved !== 'ok') return noteStorageFailure(resaved)
-  if (storageFailure !== null) {
+  if (storageFailure !== null || reportStale) {
     storageFailure = null
+    reportStale = false
     blockListeners.forEach((listener) => listener())
   }
   return null
@@ -675,12 +749,13 @@ export function noteNumberUsed(tillId: string, invoiceNumber: string): StorageWr
 
 /**
  * A sale filed online took `invoiceNumber`. The counter is raised past it; if that cannot be kept,
- * offline numbering stops for this tab, since a stale counter could print the number again. A
- * number burnt on this till is healed once the server has filed it or a later one.
+ * selling stops for this tab, since a stale counter could print the number again. A number burnt
+ * on this till is healed by it only under reading (a) of the burn (`burnHealsOnline`).
  */
 function noteFiledOnline(tillId: string, invoiceNumber: string) {
   const noted = noteNumberUsed(tillId, invoiceNumber)
   if (noted !== 'ok') noteStorageFailure(noted)
+  if (!burnHealsOnline()) return
   const burn = burnt.get(tillId)
   const value = numberValue(invoiceNumber)
   if (burn && value != null && numberPrefix(invoiceNumber) === burn.prefix && value >= burn.value) {
@@ -935,6 +1010,92 @@ function withNumberNotes(tillId: string, sale: PosSaleDto): PosSaleDto {
   }
 }
 
+const LOCK_BLOCKS: ReadonlySet<string> = new Set<Exclude<TillLockState, 'held'>>([
+  'pending',
+  'otherTab',
+  'unsupported',
+  'released',
+  'finishing',
+])
+
+function isLockBlock(block: SellingBlock): block is Exclude<TillLockState, 'held'> {
+  return LOCK_BLOCKS.has(block)
+}
+
+/**
+ * Per till, this tab's sales run one at a time (XT2-1). The Web Lock excludes other tabs, not two
+ * submissions in this one: without this, a sale rung while another is being sent could number k
+ * offline while the first's online request is being issued k. A chain of promises, so a sale that
+ * fails still lets the next one in.
+ */
+const sections = new Map<string, Promise<void>>()
+
+async function inTillSection<T>(tillId: string, run: () => Promise<T>): Promise<T> {
+  const before = sections.get(tillId) ?? Promise.resolve()
+  let leave: () => void = () => {}
+  const mine = new Promise<void>((done) => {
+    leave = done
+  })
+  const tail = before.then(() => mine)
+  sections.set(tillId, tail)
+  await before
+  try {
+    return await run()
+  } finally {
+    leave()
+    if (sections.get(tillId) === tail) sections.delete(tillId)
+  }
+}
+
+/**
+ * The device's numbering report for an online sale (DES43 D.2): the highest number of the sale's
+ * series and business year that this device has printed and not yet seen filed, i.e. the highest
+ * queued for that prefix, or null. A burnt number is in no queue, so it does not count. Read from
+ * the queue and the counter as storage holds them now; either unreadable is a block, never a guess
+ * (OQ-XT2-STORAGE). Not sent until the backend accepts the field (R47-1).
+ */
+export function deviceNumbering(
+  till: PosTillDto,
+  soldAt?: string,
+): { status: 'KNOWN'; highestUnfiled: string | null } | { blocked: StorageFailureReason } {
+  const entries = synced()
+  if (queueReadFailure) return { blocked: queueReadFailure }
+  const series = till.series?.INVOICE
+  // No series: the server numbers the sale and this device has numbered nothing of it.
+  if (!series) return { status: 'KNOWN', highestUnfiled: null }
+  const year = businessYear(soldAt, series.timeZone)
+  if (year == null) return { blocked: 'unreadable' }
+  const prefix = `${series.series}-${year}`
+  const counter = readCounter(nextKey(till.id, prefix))
+  if (!counter.ok) return { blocked: counter.reason }
+  let highestUnfiled: string | null = null
+  let highest = -1
+  for (const entry of entries) {
+    if (entry.tillId !== till.id || numberPrefix(entry.number) !== prefix) continue
+    const value = numberValue(entry.number) ?? -1
+    if (value > highest) {
+      highest = value
+      highestUnfiled = entry.number
+    }
+  }
+  return { status: 'KNOWN', highestUnfiled }
+}
+
+/**
+ * Refusals about the device's own numbering state (D.9). Neither can arrive while the report is not
+ * sent (R47-1); they are handled so that a backend which starts answering them fails closed here.
+ * STALE blocks with the date-and-time message; its refresh-and-retry-once needs the report on the
+ * wire and lands with it. UNKNOWN sets the storage block.
+ */
+function noteNumberingRefusal(error: unknown) {
+  if (!(error instanceof ApiError)) return
+  if (error.code === 'POS_TILL_DEVICE_STATE_UNKNOWN') noteStorageFailure('unreadable')
+  if (error.code === 'POS_NUMBERING_REPORT_STALE' && !reportStale) {
+    reportStale = true
+    blockListeners.forEach((listener) => listener())
+  }
+}
+
 /**
  * Sends one sale, or numbers it and keeps it when the till is offline (or already has a queue).
  * A refusal (`ApiError`) is not queued: it is the cashier's to put right, so it is thrown.
@@ -950,10 +1111,10 @@ export async function submitSale(
   printed?: PosPrintedTotals,
   maker: PosPerson | null = null,
 ): Promise<SubmitResult> {
-  // No number, so no receipt: the sale is the cashier's to take again once online.
+  // No number and no request, so no receipt: the sale is the cashier's to take again.
   const refuseOffline = (reason: OfflineBlock): never => {
     void dropSlipPhotos(key)
-    if (reason !== 'burnt') noteStorageFailure(reason)
+    if (reason !== 'burnt' && reason !== 'reportStale') noteStorageFailure(reason)
     throw new PosStorageUnavailable(reason)
   }
   /*
@@ -964,29 +1125,60 @@ export async function submitSale(
    * window as it was. If the entry cannot be kept the counter is rolled back; if even that cannot be
    * confirmed the number is burnt: never printed, never reused, a gap the server holds.
    *
-   * POS-TABLOCK (Q-25 R-TABS): all of it runs only while this tab holds the till's lock, and the
-   * lock is kept until the entry is saved or refused, so a handover cannot overlap a sale being
-   * numbered. Without the lock no number is taken at all. It guards this browser's tabs only; the
-   * server's GAP and REPEATED checks remain the guard across devices. It also leaves online sales
-   * out: another tab's online sale and this holder's offline sale can share a number, which the
-   * server catches as POS_TILL_NUMBER_REPEATED (IMPL2-T2).
+   * XT-2 (DES43 rev 4.7 D.3, OA:2673): every sale, online or offline, runs in one span: the till's
+   * lock held, this tab's section for the till entered, then `beginNumbering`, then the gate; it
+   * ends only once the sale is filed, kept or refused. So no other tab sells while the holder does,
+   * a handover waits for the sale in flight, and inside the holder an offline number cannot be
+   * printed while its own online request is being issued that number. It guards this browser's
+   * tabs only; the server's GAP and REPEATED checks remain the guard across devices.
    */
   const refuseTab = (reason: Exclude<TillLockState, 'held'>): never => {
     void dropSlipPhotos(key)
     throw new PosTillLockUnavailable(reason)
   }
-  const enqueue = async (): Promise<SubmitResult> => {
+  const refuse = (block: SellingBlock): never =>
+    isLockBlock(block) ? refuseTab(block) : refuseOffline(block)
+  const span = async (path: SalePath, run: () => Promise<SubmitResult>): Promise<SubmitResult> => {
     const lock = await ensureTillLock(till.id)
     if (lock !== 'held') return refuseTab(lock)
-    // Synchronous from here to the counter's reservation: the lock cannot be handed over between.
-    const end = beginNumbering(till.id)
-    if (!end) return refuseTab('released')
-    try {
-      return await numberAndKeep()
-    } finally {
-      end()
-    }
+    return inTillSection(till.id, async () => {
+      // The lock may have gone while this sale waited behind another in the section. Synchronous
+      // from here to the request or the counter's reservation: no handover can happen between.
+      const end = beginNumbering(till.id)
+      if (!end) {
+        const now = tillLockState(till.id)
+        return refuseTab(now === 'held' ? 'released' : now)
+      }
+      try {
+        const blocked = sellingBlock(till.id, path)
+        if (blocked) return refuse(blocked)
+        return await run()
+      } finally {
+        end()
+      }
+    })
   }
+  const enqueue = () => span('offline', () => numberAndKeep())
+  const sendOnline = () =>
+    span('online', async () => {
+      // What this device has printed must be read before the server numbers the sale (D.9 (4)).
+      // The report is computed and deliberately not sent: today's backend rejects unknown fields,
+      // so `deviceNumbering` on the wire would refuse every online sale (R47-1).
+      const known = deviceNumbering(till, body.soldAt)
+      if ('blocked' in known) return refuseOffline(known.blocked)
+      try {
+        const sale = await createPosSale(body, key)
+        noteFiledOnline(till.id, sale.invoiceNumber)
+        void sendSlipPhotos(key, sale.saleId, till.id)
+        return { sale: withNumberNotes(till.id, sale) }
+      } catch (error) {
+        // Kept inside the same span, so the fallback number is taken under the same lock.
+        if (error instanceof NetworkError) return numberAndKeep()
+        noteNumberingRefusal(error)
+        void dropSlipPhotos(key)
+        throw error
+      }
+    })
   const numberAndKeep = async (): Promise<SubmitResult> => {
     const blocked = offlineBlock(till.id)
     if (blocked) return refuseOffline(blocked)
@@ -1035,6 +1227,12 @@ export async function submitSale(
     if (saved !== 'ok' || !entry) return refuseOffline(saved === 'ok' ? 'denied' : saved)
     return { queued: entry }
   }
+  // The gate before anything is sent, the waiting sales' flush included: a tab that may not sell
+  // sends nothing for this sale (D.8 (vii), (iv)). The flush on its own stays allowed (D.9).
+  const lock = await ensureTillLock(till.id)
+  if (lock !== 'held') return refuseTab(lock)
+  const blocked = sellingBlock(till.id, 'online')
+  if (blocked) return refuse(blocked)
   await holdSlipPhotos(key, till.id, photos)
   const canSkip = opensNumbers()
   // The older sales go first: once they are in, this one is sent as an ordinary online sale and
@@ -1044,33 +1242,11 @@ export async function submitSale(
       ? await flushQueue(till.id, maker ? { sender: maker.userId } : {})
       : 'done'
   const waiting = queuedFor(till.id)
-  if (waiting.length === 0) {
-    try {
-      const sale = await createPosSale(body, key)
-      noteFiledOnline(till.id, sale.invoiceNumber)
-      void sendSlipPhotos(key, sale.saleId, till.id)
-      return { sale: withNumberNotes(till.id, sale) }
-    } catch (error) {
-      if (error instanceof NetworkError) return enqueue()
-      void dropSlipPhotos(key)
-      throw error
-    }
-  }
+  if (waiting.length === 0) return sendOnline()
   if (outcome === 'offline' || outcome === 'busy') return enqueue()
   // Unreachable while `opensNumbers()` is false (Q-27): an unnumbered online sale past stuck entries
   // would take the refused number a customer already holds (NF-1).
-  if (outcome === 'done' && canSkip) {
-    try {
-      const sale = await createPosSale(body, key)
-      noteFiledOnline(till.id, sale.invoiceNumber)
-      void sendSlipPhotos(key, sale.saleId, till.id)
-      return { sale: withNumberNotes(till.id, sale) }
-    } catch (error) {
-      if (error instanceof NetworkError) return enqueue()
-      void dropSlipPhotos(key)
-      throw error
-    }
-  }
+  if (outcome === 'done' && canSkip) return sendOnline()
   // Read-only, the plan, a retired till: an online sale would get the same answer, so it is the
   // cashier's to know now, before a receipt exists. It is not printed and not queued.
   if (outcome !== 'done' && outcome.verdict === 'till') {
@@ -1468,6 +1644,8 @@ export function resetPosQueue() {
   if (retryTimer) clearTimeout(retryTimer)
   retryTimer = null
   storageFailure = null
+  reportStale = false
+  sections.clear()
   burnt.clear()
   releaseTillLocks()
   queueReadFailure = null
