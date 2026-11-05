@@ -2719,3 +2719,45 @@ describe('stock warnings recorded at issue, on the single read (batch 39 STK-Q4B
     expect(screen.queryByTestId('invoice-recorded-stock-warnings')).toBeNull()
   })
 })
+
+describe('why nothing was sent, from the server\'s deliveryBlocker (IMPL2-D1)', () => {
+  it.each([
+    [
+      'CANONICAL_HANDOFF_NOT_ENABLED',
+      "Not yet sent to Sohar Port Logistics · Peppol sending isn't switched on here yet, so nothing has been sent",
+    ],
+    [
+      'DISPATCH_NOT_ACTIVE',
+      'Not yet sent to Sohar Port Logistics · Peppol sending is switched off here at the moment, so nothing has been sent',
+    ],
+    [
+      'SOMETHING_NEW',
+      "Not yet sent to Sohar Port Logistics · This invoice can't be sent over Peppol from here at the moment",
+    ],
+  ])('%s is said on the delivery line', async (blocker, line) => {
+    invoiceResponse = () => json(200, invoice({ deliveryBlocker: blocker }))
+    renderInvoice()
+    await screen.findByRole('heading', { level: 1, name: 'Invoice INV-2026-0042' })
+    expect(await screen.findByText(line)).toBeTruthy()
+  })
+
+  it('a null blocker adds nothing to the delivery line', async () => {
+    invoiceResponse = () => json(200, invoice({ deliveryBlocker: null }))
+    renderInvoice()
+    await screen.findByRole('heading', { level: 1, name: 'Invoice INV-2026-0042' })
+    expect(await screen.findByText('Not yet sent to Sohar Port Logistics')).toBeTruthy()
+    expect(screen.queryByText(/Peppol sending|sent over Peppol from here/)).toBeNull()
+  })
+
+  it('a reader who may not see the customer still gets the blocker', async () => {
+    who = READ_ONLY
+    invoiceResponse = () => json(200, invoice({ deliveryBlocker: 'DISPATCH_NOT_ACTIVE' }))
+    renderInvoice()
+    await screen.findByRole('heading', { level: 1, name: 'Invoice INV-2026-0042' })
+    expect(
+      await screen.findByText(
+        'Not sent yet · Peppol sending is switched off here at the moment, so nothing has been sent',
+      ),
+    ).toBeTruthy()
+  })
+})

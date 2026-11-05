@@ -157,6 +157,9 @@ const STATUS_TONES: Record<Tone, string> = {
   paid: 'border-success-100 bg-success-100 text-success-700',
 }
 
+/** The codes InvoiceResponse documents at a17fad205; anything else falls back to a generic line. */
+const DELIVERY_BLOCKERS = new Set(['CANONICAL_HANDOFF_NOT_ENABLED', 'DISPATCH_NOT_ACTIVE'])
+
 const ZOOMS = [0.75, 1, 1.25]
 
 type Translate = (key: string, values?: Record<string, unknown>) => string
@@ -1153,10 +1156,24 @@ function InvoiceScreen() {
                         ]
                           .filter(Boolean)
                           .join(' · ')
-                      : // A reader who may not see the customer gets the fact without a placeholder name.
-                        customer.read.status === 'ready'
-                        ? t('invoiceDetails.delivered.notSent', { customer: customerName })
-                        : t('invoiceDetails.notSentYet')}
+                      : [
+                          // A reader who may not see the customer gets the fact without a placeholder name.
+                          customer.read.status === 'ready'
+                            ? t('invoiceDetails.delivered.notSent', { customer: customerName })
+                            : t('invoiceDetails.notSentYet'),
+                          // The server sends `deliveryBlocker` only while nothing was submitted, so it
+                          // belongs on this branch alone; an unknown code still says sending is held
+                          // here rather than vanishing (IMPL2-D1, InvoiceResponse at a17fad205).
+                          data.deliveryBlocker
+                            ? t(
+                                DELIVERY_BLOCKERS.has(data.deliveryBlocker)
+                                  ? `invoiceDetails.deliveryBlocker.${data.deliveryBlocker}`
+                                  : 'invoiceDetails.deliveryBlocker.other',
+                              )
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
                 </p>
               </div>
             </section>

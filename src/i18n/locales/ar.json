@@ -2707,6 +2707,11 @@
       "DEBIT_NOTE": "إشعار مدين {{id}}"
     },
     "notSentYet": "لم تُرسل بعد",
+    "deliveryBlocker": {
+      "CANONICAL_HANDOFF_NOT_ENABLED": "الإرسال عبر Peppol غير مفعّل هنا بعد، لذلك لم يُرسل شيء",
+      "DISPATCH_NOT_ACTIVE": "الإرسال عبر Peppol متوقف هنا حاليًا، لذلك لم يُرسل شيء",
+      "other": "لا يمكن إرسال هذه الفاتورة عبر Peppol من هنا حاليًا"
+    },
     "duplicateUnavailable": "النسخ غير متاح بعد: لا يوجد مسار لنسخ مستند.",
     "delivered": {
       "sentManually": "أُرسلت يدويًا إلى {{customer}} · {{when}}",

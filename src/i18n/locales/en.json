@@ -2540,6 +2540,11 @@
       "DEBIT_NOTE": "Debit note {{id}}"
     },
     "notSentYet": "Not sent yet",
+    "deliveryBlocker": {
+      "CANONICAL_HANDOFF_NOT_ENABLED": "Peppol sending isn't switched on here yet, so nothing has been sent",
+      "DISPATCH_NOT_ACTIVE": "Peppol sending is switched off here at the moment, so nothing has been sent",
+      "other": "This invoice can't be sent over Peppol from here at the moment"
+    },
     "duplicateUnavailable": "Duplicating is not available yet: there is no route to copy a document.",
     "delivered": {
       "sentManually": "Sent manually to {{customer}} · {{when}}",
