@@ -54,6 +54,7 @@ import {
   outcomeUnknown,
   paidOutGap,
   paidOutRefusal,
+  retryRefusedForBillSettle,
   paidOutRequest,
   isLocked,
   mayUnlock,
@@ -1349,8 +1350,8 @@ function PaidOutForm({
     onRecorded()
   }
 
-  const failed = (cause: unknown, sent: boolean) => {
-    if (sent && outcomeUnknown(cause)) {
+  const failed = (cause: unknown, sent: boolean, retried: boolean) => {
+    if (sent && (outcomeUnknown(cause) || (retried && retryRefusedForBillSettle(cause)))) {
       // The server may have recorded it: from here on only the same body under the same key may
       // go, until a definite answer or the cashier's check (review W4-1).
       store.unknown = true
@@ -1383,7 +1384,7 @@ function PaidOutForm({
       await recordPaidOut(shiftId, body, key)
       settled()
     } catch (cause) {
-      failed(cause, true)
+      failed(cause, true, true)
     } finally {
       setBusy(false)
     }
@@ -1438,6 +1439,7 @@ function PaidOutForm({
     setBusy(true)
     setError(null)
     let sent = false
+    let retried = false
     try {
       let receiptObjectId: string | null = null
       if (!noReceipt && file) {
@@ -1463,6 +1465,7 @@ function PaidOutForm({
         missingReceiptReason: noReceipt ? reason : null,
       })
       const { attempt, key } = keyForAttempt(store.attempt, body)
+      retried = store.attempt?.key === key
       store.attempt = attempt
       store.sentAt = Date.now()
       // Stored as unknown before it leaves: a reload while it is in flight cannot tell either.
@@ -1472,13 +1475,18 @@ function PaidOutForm({
       await recordPaidOut(shiftId, body, key)
       settled()
     } catch (cause) {
-      failed(cause, sent)
+      failed(cause, sent, retried)
     } finally {
       setBusy(false)
     }
   }
 
-  const refusal = error ? paidOutRefusal(error, i18n.language) : null
+  // Only a retry under a kept key leaves this refusal locked (B8R-1), so locked means that case.
+  const refusal = !error
+    ? null
+    : locked && retryRefusedForBillSettle(error)
+      ? { key: 'pos.close.paidOutForm.pending.mayBeRecorded', values: {} }
+      : paidOutRefusal(error, i18n.language)
   const pending = pendingBody(store)
 
   if (locked && store.attempt) {

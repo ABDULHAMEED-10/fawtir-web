@@ -292,6 +292,16 @@ const BILL_REFUSALS: Record<string, string> = {
   BILL_PAYMENT_AMOUNT_SCALE_INVALID: 'pos.close.paidOutForm.billAmountScale',
 }
 
+/**
+ * B8R-1 (Agent 10, on WB4-2): a supplier payment recorded before K10 and sent again under its kept
+ * key by someone without bill.settle is answered 403 POS_SUPPLIER_PAYMENT_REQUIRES_BILL_SETTLE, not
+ * replayed. On such a retry the 403 says nothing about the first press, which may have paid the cash
+ * out, so it is not a definite "nothing was recorded": the attempt stays held for a manager's check.
+ */
+export function retryRefusedForBillSettle(error: unknown): boolean {
+  return error instanceof ApiError && serverCode(error) === 'POS_SUPPLIER_PAYMENT_REQUIRES_BILL_SETTLE'
+}
+
 /** The edge refused the body for size before the server's coded answer (the gateway's limit). */
 function refusedAtTheEdge(error: unknown): boolean {
   return error instanceof ApiError && error.status === 413 && serverCode(error) === null

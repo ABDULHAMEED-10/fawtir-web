@@ -735,6 +735,44 @@ describe('the supplier bill link', () => {
     )
   })
 
+  // B8R-1 (Agent 10): a supplier payment kept from before K10 is sent again under its key by a
+  // cashier without bill.settle. The server answers 403 instead of replaying the first press, which
+  // may have paid the cash out, so the till must not say nothing was recorded.
+  it('a retry of a kept supplier payment refused for bill.settle may have been recorded, and stays held', async () => {
+    const body = {
+      type: 'PAID_OUT',
+      amount: 2.5,
+      note: 'Milk',
+      category: 'SUPPLIER_PAYMENT',
+      accountingClass: 'EXPENSE',
+      currency: 'OMR',
+      billId: null,
+      receiptObjectId: 'rcpt-9',
+      missingReceiptReason: null,
+    }
+    window.sessionStorage.setItem(
+      HELD,
+      JSON.stringify({
+        attempt: { key: 'pos-paidout-stored-key-0004', fingerprint: JSON.stringify(body) },
+        receipt: { file: 'receipt.jpg|3|1', receiptObjectId: 'rcpt-9' },
+        unknown: true,
+      }),
+    )
+    answer = () => problem(403, 'POS_SUPPLIER_PAYMENT_REQUIRES_BILL_SETTLE')
+    renderClose()
+    fireEvent.click(await screen.findByRole('button', { name: form('pending.again') }))
+    await waitFor(() => expect(paidOuts).toHaveLength(1))
+    expect(paidOuts[0].key).toBe('pos-paidout-stored-key-0004')
+    expect(await screen.findByText(form('pending.mayBeRecorded'))).toBeTruthy()
+    expect(screen.queryByText(/Nothing was recorded|nothing was paid/i)).toBeNull()
+    // Still held: the details stay locked, the key stays kept, and the check is offered.
+    expect(screen.getByText(form('pending.title'))).toBeTruthy()
+    expect(screen.queryByRole('button', { name: i18n.t('pos.close.record') })).toBeNull()
+    expect(screen.getByRole('button', { name: form('pending.check') })).toBeTruthy()
+    expect(window.sessionStorage.getItem(HELD)).toContain('pos-paidout-stored-key-0004')
+    expect(i18n.exists('pos.close.paidOutForm.pending.mayBeRecorded', { lng: 'ar', fallbackLng: false })).toBe(true)
+  })
+
   it('a failed bill search never steers the cashier to record it without the bill', async () => {
     permissions = [...permissions, 'bill.settle']
     await supplierPayment()

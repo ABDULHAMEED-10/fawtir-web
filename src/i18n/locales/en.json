@@ -4822,6 +4822,7 @@
         "billAmountScale": "The amount has more decimals than the bill's currency takes.",
         "pending": {
           "title": "The till could not tell whether this paid-out was recorded.",
+          "mayBeRecorded": "This paid-out may already have been recorded by an earlier press, and you cannot send it again. Do not pay the cash out again: ask a manager to check this shift's paid-outs.",
           "receipt": "Receipt attached",
           "noReceipt": "No receipt: {{reason}}",
           "bill": "Pays a supplier bill",
