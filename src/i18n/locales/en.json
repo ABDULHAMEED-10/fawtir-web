@@ -4805,7 +4805,7 @@
         "billRow": "{{supplier}} · {{number}} · {{outstanding}} {{currency}} owed",
         "billLinked": "Pays {{supplier}} · {{number}} ({{outstanding}} {{currency}} owed)",
         "billUnlink": "Do not link a bill",
-        "billLookupFailed": "Bills could not be read. Record the payment without a bill, or try again.",
+        "billLookupFailed": "Bills could not be read. Try again, or ask someone who can settle bills.",
         "billCurrency": "This bill is in {{currency}}. The cash paid out must be in the same currency.",
         "billAmountScale": "The amount has more decimals than the bill's currency takes.",
         "pending": {

@@ -5080,7 +5080,7 @@
         "billRow": "{{supplier}} · {{number}} · مستحق {{outstanding}} {{currency}}",
         "billLinked": "يسدد {{supplier}} · {{number}} (مستحق {{outstanding}} {{currency}})",
         "billUnlink": "دون ربط فاتورة",
-        "billLookupFailed": "تعذّرت قراءة الفواتير. سجّل الدفعة دون فاتورة، أو حاول مرة أخرى.",
+        "billLookupFailed": "تعذّرت قراءة الفواتير. حاول مرة أخرى، أو اطلب ذلك من شخص يملك صلاحية تسوية الفواتير.",
         "billCurrency": "هذه الفاتورة بعملة {{currency}}. يجب أن يكون النقد المصروف بالعملة نفسها.",
         "billAmountScale": "في المبلغ منازل عشرية أكثر مما تقبله عملة الفاتورة.",
         "pending": {

@@ -565,6 +565,17 @@ describe('the supplier bill link', () => {
     ).toBeTruthy()
     expect(screen.queryByText(/without the bill/)).toBeNull()
   })
+
+  it('a failed bill search never steers the cashier to record it without the bill', async () => {
+    permissions = [...permissions, 'bill.settle']
+    await supplierPayment()
+    vi.mocked(fetch).mockImplementationOnce(async () => problem(500, 'INTERNAL'))
+    fireEvent.click(screen.getByRole('button', { name: form('billFind') }))
+    expect(
+      await screen.findByText('Bills could not be read. Try again, or ask someone who can settle bills.'),
+    ).toBeTruthy()
+    expect(screen.queryByText(/without a bill|without the bill/)).toBeNull()
+  })
 })
 
 describe('the new sentences in Arabic', () => {
