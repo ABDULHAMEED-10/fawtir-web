@@ -1,4 +1,4 @@
-import { ApiError, NetworkError } from '../api'
+import { ApiError, NetworkError, serverCode } from '../api'
 import { PosTillLockUnavailable } from './posTillLock'
 
 /**
@@ -274,6 +274,8 @@ export function posRefusalKey(error: unknown): string {
     if (error.code && WORDED.has(error.code)) return wordedKey(error.code, refusalValues(error))
     const slug = error.problemType ? SLUGS[error.problemType] : undefined
     if (slug) return slug
+    // WB5-5: an edge or proxy 413 without the gateway's problem type is the same refusal.
+    if (error.status === 413 && serverCode(error) === null) return 'pos.refusal.tooLarge'
     if (roleLimitInDetail(error)) return 'pos.refusal.DISCOUNT_ABOVE_LIMIT'
     if (error.status === 403) return 'pos.refusal.forbidden'
   }

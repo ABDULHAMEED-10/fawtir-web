@@ -391,6 +391,11 @@ describe('a sale too large to send (K30)', () => {
     expect(queueRefusalKey('HTTP_413', null)).toBe('pos.queue.reason.tooLarge')
     const online = new ApiError({ status: 413, problemType: 'payload-too-large', code: null })
     expect(posRefusalKey(online)).toBe('pos.refusal.tooLarge')
+    // WB5-5: a bare 413 from an edge or proxy, with no problem type, says the same.
+    expect(posRefusalKey(new ApiError({ status: 413, problemType: null }))).toBe('pos.refusal.tooLarge')
+    expect(posRefusalKey(new ApiError({ status: 413, problemType: null, code: 'SOME_CODE' }))).not.toBe(
+      'pos.refusal.tooLarge',
+    )
     for (const key of ['pos.queue.reason.tooLarge', 'pos.queue.tooLargeHint', 'pos.refusal.tooLarge']) {
       for (const lng of ['en', 'ar']) expect(i18n.exists(key, { lng, fallbackLng: false })).toBe(true)
     }
