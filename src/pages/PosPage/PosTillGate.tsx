@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { registerPosTill } from '../../api/pos/pos'
 import { usePosTill, type TillState } from '../../lib/posTill'
-import { posRefusalKey } from '../../lib/posRefusals'
+import { refusalSentence } from '../../lib/posRefusals'
 import { noteTillServer, usePosQueue } from '../../lib/posQueue'
 import { useOfflineSigningKey } from '../../lib/posSigning/useOfflineSigningKey'
 import { PosQueuePanel } from './PosQueuePanel'
@@ -109,7 +109,7 @@ function NoTill({ state }: { state: Extract<TillState, { status: 'noTill' }> }) 
             {t('pos.till.register')}
           </button>
           {error ? (
-            <p className="text-xs font-medium text-danger-700">{t(posRefusalKey(error))}</p>
+            <p className="text-xs font-medium text-danger-700">{refusalSentence(t, error)}</p>
           ) : null}
         </>
       }

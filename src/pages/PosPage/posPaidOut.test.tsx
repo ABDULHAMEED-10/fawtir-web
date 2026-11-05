@@ -713,8 +713,11 @@ describe('drawer figures the server withholds', () => {
     renderClose()
     const alert = await screen.findByRole('alert')
     expect(alert.textContent).toBe(
-      i18n.t('pos.refusal.POS_SHIFT_CURRENCY_MIXED', { currencies: 'OMR, USD' }),
+      i18n.t('pos.close.withheld.POS_SHIFT_CURRENCY_MIXED', { currencies: 'OMR, USD' }),
     )
+    // Review WB3-5: a read refused; nothing was being recorded, so it does not say so.
+    expect(alert.textContent).not.toMatch(/nothing was recorded/i)
+    expect(alert.textContent).toContain('OMR, USD')
     // Review WB2-1: no counted-float or new-shift screen exists, so neither is offered.
     expect(alert.textContent).toMatch(/a manager needs to sort this out/i)
     expect(alert.textContent).not.toMatch(/count the float|new shift/i)
@@ -726,7 +729,8 @@ describe('drawer figures the server withholds', () => {
     previewAnswer = () => problem(409, 'POS_SHIFT_CURRENCY_MIXED')
     renderClose()
     const alert = await screen.findByRole('alert')
-    expect(alert.textContent).toBe(i18n.t('pos.refusal.withoutFigures.POS_SHIFT_CURRENCY_MIXED'))
+    expect(alert.textContent).toBe(i18n.t('pos.close.withheld.withoutFigures.POS_SHIFT_CURRENCY_MIXED'))
+    expect(alert.textContent).not.toMatch(/nothing was recorded/i)
     expect(alert.textContent).not.toContain('{{')
     expect(closeButton()).toBeNull()
   })
@@ -737,8 +741,9 @@ describe('drawer figures the server withholds', () => {
     renderClose()
     const alert = await screen.findByRole('alert')
     expect(alert.textContent).toBe(
-      i18n.t('pos.refusal.POS_SHIFT_CURRENCY_UNRECORDED', { unrecordedMovements: '2' }),
+      i18n.t('pos.close.withheld.POS_SHIFT_CURRENCY_UNRECORDED', { unrecordedMovements: '2' }),
     )
+    expect(alert.textContent).not.toMatch(/nothing was recorded/i)
     expect(closeButton()).toBeNull()
   })
 
@@ -966,6 +971,82 @@ describe('a paid-out or paid-in the shift currency refuses', () => {
     await i18n.changeLanguage('ar')
     expect(i18n.exists(key, { lng: 'ar', fallbackLng: false })).toBe(true)
     expect(i18n.t(key)).not.toMatch(/[A-Za-z]{4,}/)
+    await i18n.changeLanguage('en')
+  })
+})
+
+// Backend b2234c04d (W6-90S): the paid-out's transaction is bounded at 45 s and rolled back past it.
+describe('a paid-out the server timed out', () => {
+  it('503 POS_PAID_OUT_TIMED_OUT says nothing was recorded, keeps the form, and is not locked', async () => {
+    answer = () => problem(503, 'POS_PAID_OUT_TIMED_OUT')
+    await fillPettyCash()
+    chooseCurrency('OMR')
+    attachReceipt()
+    fireEvent.click(recordButton())
+    expect(
+      await screen.findByText('This paid-out took too long, so nothing was recorded. Try again.'),
+    ).toBeTruthy()
+    expect(
+      (screen.getByRole('textbox', { name: i18n.t('pos.pay.amount') }) as HTMLInputElement).value,
+    ).toBe('2.5')
+    expect((screen.getByRole('combobox', { name: form('currency') }) as HTMLSelectElement).value).toBe(
+      'OMR',
+    )
+    expect(screen.queryByText(form('pending.title'))).toBeNull()
+    expect(window.sessionStorage.getItem(HELD)).toBeNull()
+    // A coded answer is definite, so the attempt is closed: Try again is a new attempt under a new
+    // key, with the same body and the receipt already uploaded. The sentence therefore promises no
+    // deduplication of the retry.
+    answer = () => json(PAID_OUT, 201)
+    fireEvent.click(recordButton())
+    await waitFor(() => expect(paidOuts).toHaveLength(2))
+    expect(paidOuts[1].key).not.toBe(paidOuts[0].key)
+    expect(paidOuts[1].body).toEqual(paidOuts[0].body)
+    expect(uploads).toBe(1)
+  })
+
+  it('reads in Arabic with nothing left in English', async () => {
+    await i18n.changeLanguage('ar')
+    expect(i18n.exists('pos.refusal.POS_PAID_OUT_TIMED_OUT', { lng: 'ar', fallbackLng: false })).toBe(true)
+    expect(i18n.t('pos.refusal.POS_PAID_OUT_TIMED_OUT')).not.toMatch(/[A-Za-z]{4,}/)
+    await i18n.changeLanguage('en')
+  })
+})
+
+// Backend 0e9aa15ac (FIN-2a-1): until a sale or a refund records the shift's currency, a paid-in or
+// paid-out stating one is refused 409 POS_SHIFT_CURRENCY_UNKNOWN (review WB3-1).
+describe('a shift whose currency is not known yet', () => {
+  const SENTENCE = "This shift's currency is not known yet. Nothing was recorded. A manager can help."
+
+  it('a paid-out is refused in words, and the form keeps its values with nothing held', async () => {
+    answer = () => problem(409, 'POS_SHIFT_CURRENCY_UNKNOWN')
+    await fillPettyCash()
+    chooseCurrency('OMR')
+    attachReceipt()
+    fireEvent.click(recordButton())
+    expect(await screen.findByText(SENTENCE)).toBeTruthy()
+    expect(
+      (screen.getByRole('textbox', { name: i18n.t('pos.pay.amount') }) as HTMLInputElement).value,
+    ).toBe('2.5')
+    expect(window.sessionStorage.getItem(HELD)).toBeNull()
+    expect(screen.queryByText(form('pending.title'))).toBeNull()
+  })
+
+  it('a paid-in is refused in words, and the form keeps its values', async () => {
+    answer = () => problem(409, 'POS_SHIFT_CURRENCY_UNKNOWN')
+    const amount = await openPaidIn()
+    fireEvent.change(amount, { target: { value: '4' } })
+    choosePaidInCurrency('OMR')
+    fireEvent.click(recordButton())
+    expect(await screen.findByText(SENTENCE)).toBeTruthy()
+    expect(amount.value).toBe('4')
+    expect(paidInCurrency().value).toBe('OMR')
+  })
+
+  it('reads in Arabic with nothing left in English', async () => {
+    await i18n.changeLanguage('ar')
+    expect(i18n.exists('pos.refusal.POS_SHIFT_CURRENCY_UNKNOWN', { lng: 'ar', fallbackLng: false })).toBe(true)
+    expect(i18n.t('pos.refusal.POS_SHIFT_CURRENCY_UNKNOWN')).not.toMatch(/[A-Za-z]{4,}|\{\{/)
     await i18n.changeLanguage('en')
   })
 })

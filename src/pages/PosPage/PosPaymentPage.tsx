@@ -33,7 +33,7 @@ import {
 } from '../../lib/posPayment'
 import { posSaleBody, type TillBuyer } from '../../lib/posInvoice'
 import { PosTenantZoneUnavailable, submitSale, useSellingBlock } from '../../lib/posQueue'
-import { posRefusalKey, refusalCode, refusalValues } from '../../lib/posRefusals'
+import { refusalCode, refusalSentence } from '../../lib/posRefusals'
 import { shrinkSlip, slipReading, type SlipReading } from '../../lib/posSlip'
 import { useReferenceData } from '../../lib/reference/referenceData'
 import { DESIGN_REFERENCE } from '../../lib/invoiceDraft'
@@ -810,7 +810,7 @@ function Payment({ till }: { till: Ready }) {
                   </>
                 ) : (
                   <>
-                    {t(posRefusalKey(refusal), refusalValues(refusal))}
+                    {refusalSentence(t, refusal)}
                     {refusal instanceof ApiError && refusal.problemType === 'quota-exceeded' ? (
                       <PosQuotaNextStep />
                     ) : null}
@@ -937,7 +937,7 @@ function SlipNote({
   if (state === 'failed') {
     return (
       <p className="rounded-sm bg-pending-100 px-3 py-2.5 text-xs font-medium leading-[1.5] text-pending-700">
-        {t(posRefusalKey(error))} {t('pos.pay.slipSkip')}
+        {refusalSentence(t, error)} {t('pos.pay.slipSkip')}
       </p>
     )
   }

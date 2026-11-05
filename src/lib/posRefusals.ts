@@ -73,6 +73,9 @@ const WORDED = new Set([
   'POS_REFUND_CURRENCY_MISMATCH',
   'POS_CASH_MOVEMENT_CURRENCY_INVALID',
   'POS_CASH_MOVEMENT_CURRENCY_REQUIRED',
+  'POS_SHIFT_CURRENCY_UNKNOWN',
+  // A coded 503 is a definite answer (outcomeUnknown): the server rolled the paid-out back.
+  'POS_PAID_OUT_TIMED_OUT',
   'POS_PAID_OUT_BILL_FORBIDDEN',
   'POS_PAID_OUT_BILL_LINK_INVALID',
   'POS_PAID_OUT_REFUND_REFERENCE',
@@ -164,23 +167,80 @@ function roleLimitInDetail(error: ApiError): { requested: string; limit: string 
 const percent = (value: number) => String(Math.round(value * 100) / 100)
 
 /*
- * Review WB2-2: i18next prints a missing value as "{{name}}", so a sentence that names a figure the
- * problem body did not carry (or carried in a form refusalValues will not take) falls back to one
- * that names none.
+ * Reviews WB2-2, WB3-2: i18next prints a missing value as "{{name}}". Every worded sentence that names
+ * a figure lists it here, and falls back to pos.refusal.withoutFigures.<CODE>, which names none, when
+ * the body did not carry it (an older server, a malformed body) or refusalValues would not take it.
+ * posRefusals.test.ts rebuilds this map from the English sentences, so a new placeholder without a
+ * fallback fails there.
  */
-const NEEDS: Record<string, readonly string[]> = {
+export const NEEDS: Readonly<Record<string, readonly string[]>> = {
+  SIMPLIFIED_INVOICE_LIMIT: ['limit'],
+  POS_PAYMENTS_DO_NOT_MATCH_TOTAL: ['received', 'expected'],
+  POS_PRODUCT_NOT_SELLABLE: ['line'],
+  POS_VARIANT_NOT_SELLABLE: ['line'],
+  POS_PRICE_NOT_CATALOGUE: ['line', 'expectedPrice'],
+  POS_TILL_NUMBER_GAP: ['expectedNumber'],
+  POS_ZERO_PRICE: ['line'],
+  POS_OVER_SHORT_REASON_REQUIRED: ['counted', 'expected'],
+  POS_CARD_DIFFERENCE_NOTE_REQUIRED: ['cardTerminalTotal', 'fawtirCardTotal'],
+  POS_PAID_OUT_EXCEEDS_CASH: ['expectedCash'],
   POS_SHIFT_CURRENCY_MIXED: ['currencies'],
   POS_SHIFT_CURRENCY_UNRECORDED: ['unrecordedMovements'],
   POS_PAID_OUT_CURRENCY_MISMATCH: ['shiftCurrency', 'sentCurrency'],
   POS_CASH_MOVEMENT_CURRENCY_MISMATCH: ['shiftCurrency', 'sentCurrency'],
-  POS_REFUND_CURRENCY_MISMATCH: ['shiftCurrency', 'saleCurrency'],
+  POS_REFUND_CURRENCY_MISMATCH: ['saleCurrency', 'shiftCurrency'],
+  POS_REFUND_CASH_EXCEEDS_DRAWER: ['cashInDrawer', 'cashRequested'],
+  POS_REFUND_LINE_CREDIT_UNCLEAR: ['line'],
+  POS_REFUND_QUANTITY_EXCEEDS: ['remaining', 'line'],
+  POS_REFUND_MONEY_DOES_NOT_MATCH: ['expected'],
+  POS_REFUND_MORE_THAN_PAID: ['maxMoneyBack'],
+  POS_REFUND_CARD_MORE_THAN_PAID: ['maxCard'],
+  POS_REFUND_MORE_THAN_OWED: ['owed'],
+  DISCOUNT_ABOVE_LIMIT: ['requestedPercent', 'limitPercent'],
+  HS_CODE_REQUIRED: ['line'],
+  GOODS_OR_SERVICE_REQUIRED: ['line'],
 }
 
+const lacksFigures = (code: string, values: Record<string, string>) =>
+  (NEEDS[code] ?? []).some((name) => !values[name])
+
 function wordedKey(code: string, values: Record<string, string>): string {
-  const needs = NEEDS[code]
-  return needs && needs.some((name) => !values[name])
-    ? `pos.refusal.withoutFigures.${code}`
-    : `pos.refusal.${code}`
+  return lacksFigures(code, values) ? `pos.refusal.withoutFigures.${code}` : `pos.refusal.${code}`
+}
+
+export type RefusalMessage = { key: string; values: Record<string, string> }
+
+/**
+ * The sentence for a refusal and the values it names, taken together (review WB3-3): a key rendered
+ * without its values is how "{{line}}" reached a cashier. Every POS call site words a refusal
+ * through this, or through {@link refusalSentence}.
+ */
+export function refusalMessage(error: unknown): RefusalMessage {
+  return { key: posRefusalKey(error), values: refusalValues(error) }
+}
+
+export function refusalSentence(
+  t: (key: string, values: Record<string, string>) => string,
+  error: unknown,
+): string {
+  const { key, values } = refusalMessage(error)
+  return t(key, values)
+}
+
+/**
+ * The close preview's own refusal is a read, so its sentence never says "Nothing was recorded"
+ * (review WB3-5): pos.close.withheld.<CODE>, with the same figure fallback.
+ */
+const READ_WORDED = new Set(['POS_SHIFT_CURRENCY_MIXED', 'POS_SHIFT_CURRENCY_UNRECORDED'])
+
+export function previewRefusalMessage(error: unknown): RefusalMessage {
+  const code = error instanceof ApiError ? error.code : null
+  if (!code || !READ_WORDED.has(code)) return refusalMessage(error)
+  const values = refusalValues(error)
+  return {
+    key: lacksFigures(code, values) ? `pos.close.withheld.withoutFigures.${code}` : `pos.close.withheld.${code}`,
+    values,
+  }
 }
 
 export function posRefusalKey(error: unknown): string {

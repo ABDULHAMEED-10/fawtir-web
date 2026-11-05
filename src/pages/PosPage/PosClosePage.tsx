@@ -24,7 +24,7 @@ import {
   withheldFigures,
   type Counted,
 } from '../../lib/posClose'
-import { posRefusalKey, refusalValues } from '../../lib/posRefusals'
+import { previewRefusalMessage, refusalSentence } from '../../lib/posRefusals'
 import { useApiRead } from '../../hooks'
 import { ApiError } from '../../api/errors'
 import {
@@ -258,7 +258,7 @@ function NotYourShift({ error }: { error: ApiError }) {
         ‹ {t('pos.backToTill')}
       </Link>
       <p className="rounded-md bg-surface-card px-6 py-12 text-center text-sm font-medium text-text-tertiary">
-        {t(posRefusalKey(error))}
+        {refusalSentence(t, error)}
       </p>
     </div>
   )
@@ -285,7 +285,9 @@ function ShiftWithheld({
       </Link>
       <div className="rounded-md bg-surface-card px-6 py-8">
         <p role="alert" className="text-sm font-medium text-pending-700">
-          {error ? t(posRefusalKey(error), refusalValues(error)) : t('pos.close.figuresWithheld')}
+          {error
+            ? t(previewRefusalMessage(error).key, previewRefusalMessage(error).values)
+            : t('pos.close.figuresWithheld')}
         </p>
         {preview ? (
           <dl className="mt-4 flex flex-col gap-2 text-sm">
@@ -1002,7 +1004,7 @@ function CloseForm({
               role="alert"
               className="mx-5 mb-2 rounded-sm bg-pending-100 px-4 py-3 text-sm font-medium text-pending-700"
             >
-              {t(posRefusalKey(refusal), refusalValues(refusal))}
+              {refusalSentence(t, refusal)}
             </p>
           ) : null}
           {sentBeforeClose > 0 && !closed ? (
@@ -1238,7 +1240,7 @@ function CashMovements({
             ) : null}
             {error ? (
               <p role="alert" className="text-xs font-medium text-danger-700">
-                {t(posRefusalKey(error), refusalValues(error))}
+                {refusalSentence(t, error)}
               </p>
             ) : null}
             <div>
@@ -1536,7 +1538,7 @@ function PaidOutForm({
         </div>
         {check?.status === 'failed' ? (
           <p role="alert" className="text-xs font-medium text-danger-700">
-            {t(posRefusalKey(check.error), refusalValues(check.error))}
+            {refusalSentence(t, check.error)}
           </p>
         ) : null}
         {check?.status === 'ready' ? (

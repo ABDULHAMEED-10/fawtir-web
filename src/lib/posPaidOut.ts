@@ -8,7 +8,7 @@ import {
   type PosPaidOutRequest,
 } from '../api/pos/pos'
 import { formatAmount } from './format'
-import { posRefusalKey, refusalValues } from './posRefusals'
+import { refusalMessage } from './posRefusals'
 
 /**
  * The till's paid-out (backend cb9898ac3, FIN-M3, V536): what it was for, how it is classed, the
@@ -316,5 +316,5 @@ export function paidOutRefusal(
     }
     return { key: BILL_REFUSALS[error.code], values: {} }
   }
-  return { key: posRefusalKey(error), values: refusalValues(error) }
+  return refusalMessage(error)
 }

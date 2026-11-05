@@ -12,7 +12,7 @@ import {
   useQueuedSales,
   type QueuedSale,
 } from '../../lib/posQueue'
-import { posRefusalKey, queueRefusalKey } from '../../lib/posRefusals'
+import { queueRefusalKey, refusalSentence } from '../../lib/posRefusals'
 import type { TillState } from '../../lib/posTill'
 import { posOpenNumbersPath, setAsideOpenNumber, type PosOpenNumberDto } from '../../api/pos/pos'
 import type { DraftLineRequest } from '../../api/invoices/drafts'
@@ -212,7 +212,7 @@ function SetAsideForm({
         />
       </label>
       {error ? (
-        <p className="mt-1 text-xs font-medium text-danger-700">{t(posRefusalKey(error))}</p>
+        <p className="mt-1 text-xs font-medium text-danger-700">{refusalSentence(t, error)}</p>
       ) : null}
       <div className="mt-2 flex flex-wrap gap-2">
         <button
@@ -448,7 +448,9 @@ function Elsewhere({ row, refresh }: { row: PosOpenNumberDto; refresh: () => voi
       </p>
       {row.refusalCode ? (
         <p className="mt-1 text-sm font-medium text-danger-700">
-          {t(queueRefusalKey(row.refusalCode, null))}
+          {/* The other till's row carries a code and no figures: a sentence that names one
+              falls back to its figure-free form (review WB3-3). */}
+          {t(queueRefusalKey(row.refusalCode, null, {}), {})}
         </p>
       ) : null}
       {row.setAsideAt ? <SetAsideNote reason={row.setAsideReason} /> : null}

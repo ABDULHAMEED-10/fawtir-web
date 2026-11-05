@@ -11,7 +11,7 @@ import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNoti
 import { useApiRead } from '../../hooks'
 import { AppShell } from '../../layouts/AppShell'
 import { offlineHoldTime as when } from '../../lib/posOfflineHolds'
-import { posRefusalKey } from '../../lib/posRefusals'
+import { refusalSentence } from '../../lib/posRefusals'
 import type { TillState } from '../../lib/posTill'
 import { PosTillGate } from './PosTillGate'
 
@@ -203,7 +203,7 @@ function FlagRow({
       )}
       {refusal ? (
         <p role="alert" className="text-sm text-error-600">
-          {t(posRefusalKey(refusal))}
+          {refusalSentence(t, refusal)}
         </p>
       ) : null}
     </div>
@@ -255,7 +255,7 @@ function Acknowledge({
       <p className="text-sm text-text-tertiary">{t('pos.discountFlags.final')}</p>
       {error ? (
         <p role="alert" className="text-sm text-error-600">
-          {t(posRefusalKey(error))}
+          {refusalSentence(t, error)}
         </p>
       ) : null}
       <button type="submit" disabled={busy} className={button}>

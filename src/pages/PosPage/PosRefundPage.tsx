@@ -37,11 +37,10 @@ import {
 import { approvalCodeOk } from '../../lib/posPayment'
 import { containsCardNumber } from '../../lib/cardNumbers'
 import {
-  posRefusalKey,
   problemNumber,
   quoteUnavailable,
   refusalCode,
-  refusalValues,
+  refusalSentence as wordedRefusal,
 } from '../../lib/posRefusals'
 import { creditCapRefusal } from '../../lib/salesNote'
 import { useApiRead } from '../../hooks'
@@ -153,7 +152,7 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
     const capped = creditCapRefusal(error, t, 'OMR', i18n.language)
     return capped
       ? withRial(t(capped.key, capped.values))
-      : t(posRefusalKey(error), refusalValues(error))
+      : wordedRefusal(t, error)
   }
   const navigate = useNavigate()
   const refundable = sale.lines.filter((line) => line.refundable && line.role !== 'ADD_ON')

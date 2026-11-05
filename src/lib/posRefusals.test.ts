@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import i18n from '../i18n'
 import { ApiError } from '../api'
-import { posRefusalKey, queueRefusalKey, refusalValues } from './posRefusals'
+import { readFileSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
+import en from '../i18n/locales/en.json'
+import ar from '../i18n/locales/ar.json'
+import { NEEDS, posRefusalKey, queueRefusalKey, refusalMessage, refusalValues } from './posRefusals'
 
 const coded = (status: number, code: string, problem: Record<string, unknown> = {}) =>
   new ApiError({ status, problemType: null, code, problem: { code, ...problem } })
@@ -291,5 +295,76 @@ describe('a currency refusal whose figures are missing or unusable', () => {
     const key = `pos.refusal.withoutFigures.${code}`
     expect(i18n.exists(key, { lng: 'ar', fallbackLng: false })).toBe(true)
     expect(i18n.t(key)).not.toMatch(/[A-Za-z]{4,}/)
+  })
+})
+
+// Review WB3-2: the map of what each sentence names is rebuilt here from the English sentences, so a
+// worded code whose sentence gains a placeholder fails until it has a fallback that names none.
+describe('every worded sentence that names a figure has one that names none', () => {
+  const refusal = (en as { pos: { refusal: Record<string, unknown> } }).pos.refusal
+  const arRefusal = (ar as { pos: { refusal: Record<string, unknown> } }).pos.refusal
+  const placeholders = (text: string) =>
+    [...new Set([...text.matchAll(/\{\{\s*([A-Za-z]+)/g)].map((match) => match[1]))].sort()
+  const named = Object.entries(refusal).filter(
+    (entry): entry is [string, string] =>
+      /^[A-Z][A-Z0-9_]+$/.test(entry[0]) && typeof entry[1] === 'string' && placeholders(entry[1]).length > 0,
+  )
+  // Worded by posRefusalKey: anything else comes out as the general failure.
+  const worded = named.filter(([code]) => posRefusalKey(coded(422, code, {})) !== 'pos.refusal.failed')
+
+  it('only the codes worded elsewhere are left out', () => {
+    // CUSTOMER_NOT_INVOICE_ELIGIBLE is said by the payment page with its own values.
+    expect(named.filter((entry) => !worded.includes(entry)).map(([code]) => code)).toEqual([
+      'CUSTOMER_NOT_INVOICE_ELIGIBLE',
+    ])
+  })
+
+  it('the map in posRefusals is exactly the one the English sentences give', () => {
+    const fromEnglish = Object.fromEntries(worded.map(([code, text]) => [code, placeholders(text)]))
+    const inCode = Object.fromEntries(Object.entries(NEEDS).map(([code, needs]) => [code, [...needs].sort()]))
+    expect(inCode).toEqual(fromEnglish)
+  })
+
+  it.each(worded.map(([code]) => code))('%s without its figures reads whole in English and Arabic', (code) => {
+    const { key, values } = refusalMessage(coded(422, code, {}))
+    expect(key).toBe(`pos.refusal.withoutFigures.${code}`)
+    const fallbacks = refusalWithout(refusal)
+    const arFallbacks = refusalWithout(arRefusal)
+    expect(typeof fallbacks[code]).toBe('string')
+    expect(typeof arFallbacks[code]).toBe('string')
+    expect(fallbacks[code]).not.toContain('{{')
+    expect(arFallbacks[code]).not.toContain('{{')
+    expect(i18n.t(key, values)).not.toContain('{{')
+  })
+
+  function refusalWithout(tree: Record<string, unknown>) {
+    return tree.withoutFigures as Record<string, string>
+  }
+})
+
+describe('POS_SHIFT_CURRENCY_UNKNOWN (backend 0e9aa15ac, FIN-2a-1)', () => {
+  it('is worded by its code, names nothing, and says nothing was recorded', () => {
+    const { key, values } = refusalMessage(coded(409, 'POS_SHIFT_CURRENCY_UNKNOWN'))
+    expect(key).toBe('pos.refusal.POS_SHIFT_CURRENCY_UNKNOWN')
+    const text = i18n.t(key, values)
+    expect(text).not.toContain('{{')
+    expect(text).toMatch(/nothing was recorded/i)
+    expect(text).toMatch(/not known yet/i)
+    expect(text).toMatch(/manager/i)
+    // A read-only tenant cannot sell, so the sentence never sends the cashier to make a sale.
+    expect(text).not.toMatch(/sale/i)
+  })
+})
+
+// Review WB3-3: a key said without its values is how "{{line}}" reached a cashier, so no page words
+// a refusal from the bare key.
+describe('no POS page words a refusal from its key alone', () => {
+  const dir = join(__dirname, '../pages/PosPage')
+  const pages = readdirSync(dir).filter((name) => name.endsWith('.tsx') && !name.includes('.test.'))
+
+  it.each(pages)('%s', (name) => {
+    const source = readFileSync(join(dir, name), 'utf8')
+    expect(source).not.toMatch(/posRefusalKey\(/)
+    expect(source).not.toMatch(/t\(queueRefusalKey\([^)]*\)\)/)
   })
 })

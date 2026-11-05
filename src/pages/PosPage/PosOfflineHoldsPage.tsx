@@ -21,7 +21,7 @@ import {
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import { AppShell } from '../../layouts/AppShell'
-import { posRefusalKey } from '../../lib/posRefusals'
+import { refusalSentence } from '../../lib/posRefusals'
 import {
   heldForMessage,
   heldForText,
@@ -345,7 +345,7 @@ function Resolve({
       <p className="text-sm text-text-tertiary">{t('pos.offline.resolve.final')}</p>
       {error ? (
         <p role="alert" className="text-sm text-error-600">
-          {t(posRefusalKey(error))}
+          {refusalSentence(t, error)}
         </p>
       ) : null}
       <button type="submit" disabled={!ready || busy} className={button}>
@@ -393,7 +393,7 @@ function RevokeKey({ keyId }: { keyId: string }) {
       </button>
       {error ? (
         <p role="alert" className="text-sm text-error-600">
-          {t(posRefusalKey(error))}
+          {refusalSentence(t, error)}
         </p>
       ) : null}
     </div>

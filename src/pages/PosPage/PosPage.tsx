@@ -42,7 +42,7 @@ import {
 } from '../../api/catalog/products'
 import { getCatalogGroups, type CatalogGroupsDto } from '../../api/catalog/groups'
 import type { Page } from '../../api'
-import { posRefusalKey } from '../../lib/posRefusals'
+import { refusalSentence } from '../../lib/posRefusals'
 import { loadOrRecall } from '../../lib/posOffline'
 import { captureScans, findOnShelf, lookupBarcode, type ScanHit } from '../../lib/posScan'
 import { playErrorBeep } from '../../lib/posBeep'
@@ -490,7 +490,7 @@ function Shelf({
               role="alert"
               className="rounded-sm bg-danger-100 px-4 py-3 text-sm font-medium text-danger-700"
             >
-              {t(posRefusalKey(error))}
+              {refusalSentence(t, error)}
             </p>
           ) : null}
 
