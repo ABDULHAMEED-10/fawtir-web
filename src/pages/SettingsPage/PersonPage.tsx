@@ -48,7 +48,7 @@ import {
 } from '../../api/settings/branchAccess'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { branchAccessRefusalKey } from '../../lib/branchAccessRefusals'
-import { formatInstantDay } from '../../lib/format'
+import { BUSINESS_TIME_ZONE, formatInstant, formatInstantDay } from '../../lib/format'
 import { permissionWords } from '../../lib/permissionLabels'
 import { roleLabel } from '../../lib/roleLabels'
 import { OwnerPill } from './people'
@@ -507,6 +507,23 @@ function BranchesCard({ person, onSaved }: { person: CompanyUser; onSaved: () =>
 /** One permission row: the person has it from their role, given to them, or taken away. */
 type PermissionRow = { code: string; group: string; action: string; fromRole: boolean }
 
+function businessMidnight(iso: string): boolean {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return true
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: BUSINESS_TIME_ZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date)
+  const part = (type: string) => parts.find((entry) => entry.type === type)?.value
+  return (
+    part('hour') === '00' && part('minute') === '00' && part('second') === '00' &&
+    date.getUTCMilliseconds() === 0
+  )
+}
+
 function PermissionsCard({ person }: { person: CompanyUser }) {
   const { t, i18n } = useTranslation()
   const session = useSession()
@@ -588,7 +605,11 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
     ? null
     : notice.status === 'NOTIFIED' && notice.effectiveAt
       ? t('branchAccess.person.carriedAppliesFrom', {
-          date: formatInstantDay(notice.effectiveAt, i18n.language),
+          // WC1R-3: effectiveAt is an instant. At Muscat midnight the day says it all; at any other
+          // time the limit is not in force for part of that day, so the time is printed too.
+          date: businessMidnight(notice.effectiveAt)
+            ? formatInstantDay(notice.effectiveAt, i18n.language)
+            : formatInstant(notice.effectiveAt, i18n.language),
         })
       : t('branchAccess.person.carriedNotInForce')
   const roleCodes = (() => {

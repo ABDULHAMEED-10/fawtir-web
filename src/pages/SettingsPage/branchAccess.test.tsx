@@ -1114,14 +1114,32 @@ describe('A carried limit (FR2-1)', () => {
     }
     const appliesFrom = (date: string) => i18n.t('branchAccess.person.carriedAppliesFrom', { date })
 
-    it('labels it "applies from" the notice date while NOTIFIED', async () => {
-      withNotice({ status: 'NOTIFIED', effectiveAt: '2026-11-19T20:30:00Z' })
+    it('labels it "applies from" the notice day while NOTIFIED at Muscat midnight', async () => {
+      withNotice({ status: 'NOTIFIED', effectiveAt: '2026-11-19T20:00:00Z' })
       renderAt('/settings/team/p-clerk')
-      // 20:30Z is the 20th in Muscat: the business day, not the UTC one.
+      // 20:00Z is midnight of the 20th in Muscat: the business day, not the UTC one, and no time.
       expect(await screen.findByText(`${carriedLine()} ${appliesFrom('20 Nov 2026')}`)).toBeTruthy()
       expect(document.body.textContent).toContain(
         `${i18n.t('branchAccess.person.sellLimitCarried', { percent: 0 })} ${appliesFrom('20 Nov 2026')}`,
       )
+    })
+
+    // WC1R-3: not in force for part of that day, so the Muscat time is printed too.
+    it('adds the Muscat time when the notice takes effect other than at midnight', async () => {
+      withNotice({ status: 'NOTIFIED', effectiveAt: '2026-11-20T10:00:00Z' })
+      renderAt('/settings/team/p-clerk')
+      expect(await screen.findByText(`${carriedLine()} ${appliesFrom('20 Nov 2026, 14:00')}`)).toBeTruthy()
+    })
+
+    // WC1R-2: a status this screen does not know is never read as in force, even with a date.
+    it('says it is not in force yet for an unknown status', async () => {
+      withNotice({ status: 'SOMETHING_ELSE', effectiveAt: '2026-11-19T20:30:00Z' })
+      renderAt('/settings/team/p-clerk')
+      expect(
+        await screen.findByText(`${carriedLine()} ${i18n.t('branchAccess.person.carriedNotInForce')}`),
+      ).toBeTruthy()
+      expect(screen.queryByText(carriedLine())).toBeNull()
+      expect(document.body.textContent).not.toContain('Applies from')
     })
 
     it('says it is not in force yet while NOT_NOTIFIED, or NOTIFIED with no date', async () => {
