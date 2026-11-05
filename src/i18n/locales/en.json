@@ -5020,6 +5020,7 @@
     "refusal": {
       "offline": "The till could not reach Fawtir. Check the connection and try again.",
       "storageUnavailable": "Not sold: this device can't safely keep its sales right now, so nothing was sent and no number was printed.",
+      "storageUnavailableAfterSend": "No receipt: the connection dropped while sending, and this device couldn't keep the sale, so no number was printed. It may already have reached Fawtir: check today's sales before taking it again.",
       "tabLockUnavailable": "Not sold: selling is unavailable in this tab, so nothing was sent and no number was printed.",
       "POS_OFFLINE_KEY_ALREADY_REVOKED": "This device key was already revoked.",
       "POS_OFFLINE_KEY_NOT_FOUND": "This device key was not found, or you may not revoke it.",

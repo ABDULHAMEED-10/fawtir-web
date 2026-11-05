@@ -583,14 +583,20 @@ export function useSellingBlock(tillId: string | null): SellingBlock | null {
   )
 }
 
-/** Thrown before any request or number when this device cannot keep or know its sales. */
+/**
+ * Thrown before any number is printed when this device cannot keep or know its sales. `requested`:
+ * the sale's own request had already gone out (its connection dropped, then it could not be kept
+ * offline), so the server may have filed it; otherwise nothing was sent.
+ */
 export class PosStorageUnavailable extends Error {
   readonly reason: OfflineBlock
+  readonly requested: boolean
 
-  constructor(reason: OfflineBlock) {
+  constructor(reason: OfflineBlock, requested = false) {
     super(`This device cannot safely sell now (${reason})`)
     this.name = 'PosStorageUnavailable'
     this.reason = reason
+    this.requested = requested
   }
 }
 
@@ -1111,11 +1117,15 @@ export async function submitSale(
   printed?: PosPrintedTotals,
   maker: PosPerson | null = null,
 ): Promise<SubmitResult> {
-  // No number and no request, so no receipt: the sale is the cashier's to take again.
+  // Set once this sale's own request has gone out: a refusal after it (the NetworkError fallback
+  // could not keep the sale) must not tell the cashier that nothing was sent, since the server may
+  // have filed it (review XW-2).
+  let requested = false
+  // No number, so no receipt.
   const refuseOffline = (reason: OfflineBlock): never => {
     void dropSlipPhotos(key)
     if (reason !== 'burnt' && reason !== 'reportStale') noteStorageFailure(reason)
-    throw new PosStorageUnavailable(reason)
+    throw new PosStorageUnavailable(reason, requested)
   }
   /*
    * POS-MEMQ order (Gate A W-MEMQ S5): counter, then sign and seal, then the entry. A receipt prints
@@ -1167,6 +1177,7 @@ export async function submitSale(
       const known = deviceNumbering(till, body.soldAt)
       if ('blocked' in known) return refuseOffline(known.blocked)
       try {
+        requested = true
         const sale = await createPosSale(body, key)
         noteFiledOnline(till.id, sale.invoiceNumber)
         void sendSlipPhotos(key, sale.saleId, till.id)

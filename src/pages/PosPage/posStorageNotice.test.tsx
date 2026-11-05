@@ -125,6 +125,7 @@ describe('the storage notice on the till (POS-MEMQ S8)', () => {
       'pos.refusal.tabLockUnavailable',
       'pos.storage.checkAgain',
       'pos.refusal.storageUnavailable',
+      'pos.refusal.storageUnavailableAfterSend',
     ]) {
       expect(i18n.exists(key, { lng: 'ar', fallbackLng: false })).toBe(true)
       expect(i18n.exists(key, { lng: 'en', fallbackLng: false })).toBe(true)

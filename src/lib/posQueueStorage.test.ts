@@ -18,6 +18,7 @@ import {
   useQueuedSales,
   useStorageFailure,
 } from './posQueue'
+import { posRefusalKey } from './posRefusals'
 import { memoryVault, setPosVault } from './posVault'
 
 /*
@@ -618,5 +619,27 @@ describe('XT-2: storage blocks selling on both paths (D.8 (iv), (viii))', () => 
       status: 'KNOWN',
       highestUnfiled: null,
     })
+  })
+})
+
+describe('what a storage refusal tells the cashier about the request (review XW-2)', () => {
+  it('a refusal before any request says nothing was sent', async () => {
+    failWrites((key) => key === QUEUE, quota)
+    await refusedOffline('pos-sale-key-xw2-a')
+    vi.restoreAllMocks()
+    online = true
+    const before = await refusedOffline('pos-sale-key-xw2-b')
+    expect(calls.filter((call) => call.url === '/api/v1/pos/sales')).toEqual([])
+    expect(before.requested).toBe(false)
+    expect(posRefusalKey(before)).toBe('pos.refusal.storageUnavailable')
+  })
+
+  it('a refusal after the sale\'s own request dropped does not say nothing was sent', async () => {
+    failWrites((key) => key === QUEUE, quota)
+    const after = await refusedOffline('pos-sale-key-xw2-c')
+    vi.restoreAllMocks()
+    expect(calls.filter((call) => call.url === '/api/v1/pos/sales')).toHaveLength(1)
+    expect(after.requested).toBe(true)
+    expect(posRefusalKey(after)).toBe('pos.refusal.storageUnavailableAfterSend')
   })
 })

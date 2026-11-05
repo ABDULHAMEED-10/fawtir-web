@@ -350,7 +350,8 @@ describe('taking the payment (P.12)', () => {
       })
     try {
       fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
-      expect(await screen.findByText(i18n.t('pos.refusal.storageUnavailable'))).toBeTruthy()
+      // Its request went out before the connection dropped, so the refusal does not say nothing was sent (XW-2).
+      expect(await screen.findByText(i18n.t('pos.refusal.storageUnavailableAfterSend'))).toBeTruthy()
       expect(await screen.findByText(i18n.t('pos.storage.blocked'))).toBeTruthy()
       expect(screen.queryByText(/^done/)).toBeNull()
       expect(screen.queryByText(/NZW-T01-INV-2026-000049/)).toBeNull()

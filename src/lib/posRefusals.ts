@@ -121,7 +121,11 @@ export function posRefusalKey(error: unknown): string {
   // would make the two a cycle. No number was printed for the sale (POS-MEMQ S8), so the
   // general failure is not enough: the cashier must know no receipt number exists.
   if (error instanceof Error && error.name === 'PosStorageUnavailable') {
-    return 'pos.refusal.storageUnavailable'
+    // After its own request went out the server may have filed the sale, so "nothing was sent"
+    // would be untrue and could have it rung again (review XW-2).
+    return (error as { requested?: unknown }).requested === true
+      ? 'pos.refusal.storageUnavailableAfterSend'
+      : 'pos.refusal.storageUnavailable'
   }
   // POS-TABLOCK refused the offline sale before it had a number: the cashier must know no receipt
   // number exists. posTillLock imports nothing of ours, so unlike posQueue it can be imported here.
