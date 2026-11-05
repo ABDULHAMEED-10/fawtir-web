@@ -5017,6 +5017,23 @@
         "none": "None in the last 7 days."
       }
     },
+    "discountFlags": {
+      "link": "Discounts over the limit",
+      "title": "Sales over the discount limit",
+      "intro": "Sales kept with a manual discount above what the cashier's role allows, from the last 92 days. A sale made offline was already printed and paid, so it was kept and is listed here. Acknowledge each one once you have looked at it.",
+      "none": "No sales over the discount limit in the last 92 days.",
+      "notAllowed": "Only a manager who closes tills can review these sales.",
+      "cashier": "Cashier: {{name}}",
+      "cashierUnnamed": "Cashier {{id}}",
+      "discount": "Discount {{discount}}%, limit {{limit}}%",
+      "discountNoLimit": "Discount {{discount}}%; the cashier can no longer sell, so no limit is shown",
+      "afterReview": "Judged when a manager decided who made this offline sale.",
+      "acknowledgedByYou": "Acknowledged by you, {{at}}",
+      "acknowledgedByOther": "Acknowledged by manager {{id}}, {{at}}",
+      "note": "Note (optional)",
+      "final": "An acknowledgement is final and cannot be changed.",
+      "submit": "Acknowledge"
+    },
     "refusal": {
       "offline": "The till could not reach Fawtir. Check the connection and try again.",
       "storageUnavailable": "Not sold: this device can't safely keep its sales right now, so nothing was sent and no number was printed.",
@@ -5032,6 +5049,11 @@
       "POS_ATTRIBUTION_HOLD_NOT_FOUND": "This held sale was not found.",
       "POS_ATTRIBUTION_REVIEWER_ONLY": "Only a manager who closes tills for every cashier, not only their own, can review these sales.",
       "POS_LEGACY_RANGE_INVALID": "Choose a period of at most 92 days, with the start before the end.",
+      "POS_DISCOUNT_FLAG_HUMAN_ONLY": "Only a signed-in person can acknowledge this, not an API key or a support session.",
+      "POS_DISCOUNT_FLAG_NOT_FOUND": "This sale is not on the list of sales over the discount limit, or it is outside your branches.",
+      "POS_DISCOUNT_FLAG_SELF": "This sale is recorded as yours, so another manager has to acknowledge it.",
+      "POS_DISCOUNT_FLAG_ALREADY_ACKNOWLEDGED": "Another manager has already acknowledged this sale. The acknowledgement is final.",
+      "POS_DISCOUNT_FLAG_RANGE_INVALID": "Choose a period of at most 92 days, with the start before the end.",
       "failed": "That did not go through. Try again.",
       "forbidden": "You do not have permission to do this at the till.",
       "planFeature": "Your plan does not include this.",

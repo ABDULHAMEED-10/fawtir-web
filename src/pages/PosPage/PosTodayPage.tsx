@@ -165,6 +165,16 @@ function Today({ till }: { till: Ready }) {
               {t('pos.offline.holds.link')}
             </Link>
           ) : null}
+          {/* pos.close only: unlike the holds page, which also shows a till manager the device keys,
+              this page has nothing for pos.till.manage alone, and its list would be refused. */}
+          {till.can.close ? (
+            <Link
+              to="/pos/discount-flags"
+              className="inline-flex h-11 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+            >
+              {t('pos.discountFlags.link')}
+            </Link>
+          ) : null}
         </div>
       </div>
 

@@ -90,6 +90,12 @@ const WORDED = new Set([
   'POS_ATTRIBUTION_HOLD_NOT_FOUND',
   'POS_ATTRIBUTION_REVIEWER_ONLY',
   'POS_LEGACY_RANGE_INVALID',
+  // RC5 A2-b (598fd6715): the manager's acknowledgement of a sale kept above the discount limit.
+  'POS_DISCOUNT_FLAG_HUMAN_ONLY',
+  'POS_DISCOUNT_FLAG_NOT_FOUND',
+  'POS_DISCOUNT_FLAG_SELF',
+  'POS_DISCOUNT_FLAG_ALREADY_ACKNOWLEDGED',
+  'POS_DISCOUNT_FLAG_RANGE_INVALID',
 ])
 
 /** Problem slugs (no `code`) the till words too. */

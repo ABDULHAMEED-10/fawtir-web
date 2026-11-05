@@ -116,3 +116,25 @@ describe('the offline holds link on Today, on a build that does not sign', () =>
     expect(holdsLink()).toBeNull()
   })
 })
+
+// NOT RUN (RC5 A2, static only). The discount-flag list needs pos.close; pos.till.manage alone would
+// only be refused, so unlike the holds it is not offered to a till manager.
+const flagsLink = () =>
+  screen.queryByRole('link', { name: i18n.t('pos.discountFlags.link') })
+
+describe('the discount-flag link on Today', () => {
+  it('is there for whoever closes tills, and leads to the list', async () => {
+    await today(['pos.read', 'pos.sell', 'pos.close'])
+    expect(flagsLink()?.getAttribute('href')).toBe('/pos/discount-flags')
+  })
+
+  it('is not there for a till manager who does not close tills', async () => {
+    await today(['pos.read', 'pos.sell', 'pos.till.manage'])
+    expect(flagsLink()).toBeNull()
+  })
+
+  it('is not there for a cashier who only sells', async () => {
+    await today(['pos.read', 'pos.sell'])
+    expect(flagsLink()).toBeNull()
+  })
+})

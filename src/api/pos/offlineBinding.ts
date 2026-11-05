@@ -191,3 +191,58 @@ export function resolveOfflineHold(
 export function legacySalesPath(branchId: string, from: string, to: string): string {
   return withQuery(OFFLINE_LEGACY_SALES_PATH, { branchId, from, to })
 }
+
+/**
+ * `GET /pos/discount-flags` (RC5 A2-a, A2-b at 598fd6715): sales the branch kept with a manual
+ * discount above the cashier's `pos.sell` limit, newest first, at most 200. An offline sale is
+ * already printed and paid, so the server keeps it and lists it here instead of refusing it.
+ * `limitPercent` is null when the cashier no longer holds `pos.sell`; `acknowledgedBy` is a user id
+ * only, the contract carries no name for it.
+ */
+export type DiscountFlag = {
+  saleId: string
+  tillId: string
+  invoiceNumber: string
+  soldAt: string
+  total: number
+  cashierUserId: string
+  cashierName: string | null
+  discountPercentMax: number
+  limitPercent: number | null
+  judgedAt: 'FILING' | 'RESOLUTION'
+  flaggedAt: string
+  acknowledgedBy: string | null
+  acknowledgedAt: string | null
+}
+
+export type DiscountFlagAcknowledgement = {
+  saleId: string
+  originatingCashierUserId: string
+  acknowledgedBy: string
+  acknowledgedAt: string
+  note: string | null
+  /** The same manager sent it again: the recorded acknowledgement, not a second one. */
+  replayed: boolean
+}
+
+export const DISCOUNT_FLAGS_PATH = `${POS_PATH}/discount-flags`
+
+/** The note's ceiling (`@Size(max = 500)` on the request record), in UTF-16 units as Java counts. */
+export const DISCOUNT_FLAG_NOTE_MAX = 500
+
+/** `from`/`to` are instants; the server refuses a range over 92 days (`POS_DISCOUNT_FLAG_RANGE_INVALID`). */
+export function discountFlagsPath(branchId: string, from: string, to: string): string {
+  return withQuery(DISCOUNT_FLAGS_PATH, { branchId, from, to })
+}
+
+/** A blank note is sent as null: the server stores a blank as null anyway, so nothing is lost. */
+export function acknowledgeDiscountFlag(
+  saleId: string,
+  note: string | null,
+): Promise<DiscountFlagAcknowledgement> {
+  const kept = note?.trim() ? note.trim() : null
+  return apiRequest<DiscountFlagAcknowledgement>(
+    `${DISCOUNT_FLAGS_PATH}/${encodeURIComponent(saleId)}/acknowledge`,
+    { method: 'POST', body: { note: kept } },
+  )
+}
