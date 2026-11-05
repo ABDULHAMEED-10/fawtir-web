@@ -203,6 +203,8 @@ const KNOWN_EVENTS = new Set([
   'APPROVED',
   'APPROVAL_REJECTED',
   'APPROVAL_CLEARED_BY_EDIT',
+  // Backend 5597b0250 (HS Slice A, V534): HS codes added to a never-sent invoice held at dispatch.
+  'ISSUED_HS_CODE_AMENDED',
 ])
 
 const SILENT_OUTCOMES = new Set(['SUCCEEDED', 'SUCCESS'])

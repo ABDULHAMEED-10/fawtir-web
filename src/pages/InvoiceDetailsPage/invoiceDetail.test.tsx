@@ -1228,6 +1228,36 @@ describe('invoice detail mapping', () => {
       },
     ])
   })
+
+  // NOT RUN (static only). Backend 5597b0250 (HS Slice A, V534).
+  it('names the HS code amendment of a held invoice, in English and Arabic', () => {
+    const [entry] = timelineOf(
+      {
+        entries: [
+          {
+            id: 'h-10',
+            eventType: 'ISSUED_HS_CODE_AMENDED',
+            outcome: 'SUCCEEDED',
+            invoiceVersion: 2,
+            changedFieldsHash: null,
+            actorId: 'u-2',
+            occurredAt: '2026-11-05T07:00:00Z',
+          },
+        ],
+        truncated: false,
+        limit: 200,
+      },
+      'u-1',
+    )
+    expect(entry).toEqual({
+      key: 'invoiceDetails.event.ISSUED_HS_CODE_AMENDED',
+      at: '2026-11-05T07:00:00Z',
+      byYou: false,
+      outcome: null,
+    })
+    expect(i18n.exists(entry.key, { lng: 'en' })).toBe(true)
+    expect(i18n.exists(entry.key, { lng: 'ar' })).toBe(true)
+  })
 })
 
 describe('Send', () => {

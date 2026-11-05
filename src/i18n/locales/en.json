@@ -2466,7 +2466,8 @@
       "APPROVAL_WITHDRAWN": "Approval request withdrawn",
       "APPROVED": "Approved",
       "APPROVAL_REJECTED": "Not approved",
-      "APPROVAL_CLEARED_BY_EDIT": "Approval cleared by an edit"
+      "APPROVAL_CLEARED_BY_EDIT": "Approval cleared by an edit",
+      "ISSUED_HS_CODE_AMENDED": "HS codes added after issue"
     },
     "cancel": {
       "title": "Cancel this invoice?",

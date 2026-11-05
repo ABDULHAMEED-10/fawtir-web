@@ -2633,7 +2633,8 @@
       "APPROVAL_WITHDRAWN": "سُحب طلب الاعتماد",
       "APPROVED": "تم الاعتماد",
       "APPROVAL_REJECTED": "لم يُعتمد",
-      "APPROVAL_CLEARED_BY_EDIT": "أُلغي الاعتماد بسبب تعديل"
+      "APPROVAL_CLEARED_BY_EDIT": "أُلغي الاعتماد بسبب تعديل",
+      "ISSUED_HS_CODE_AMENDED": "أُضيفت رموز النظام المنسق بعد الإصدار"
     },
     "cancel": {
       "title": "إلغاء هذه الفاتورة؟",
