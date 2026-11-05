@@ -108,6 +108,8 @@ describe('the sale panel', () => {
 describe('taking the payment (P.12)', () => {
   let calls: { url: string; init?: RequestInit }[]
   let saleReply: () => Response
+  /** The till list the server answers; a test swaps it to give the till another zone. */
+  let tillsReply: () => Response
 
   beforeEach(async () => {
     await i18n.changeLanguage('en')
@@ -119,6 +121,7 @@ describe('taking the payment (P.12)', () => {
     forgetEntitlements()
     window.localStorage.clear()
     calls = []
+    tillsReply = () => json([TILL])
     saleReply = () =>
       json(
         {
@@ -139,7 +142,7 @@ describe('taking the payment (P.12)', () => {
         if (url === '/api/v1/branches') {
           return json([{ id: 'b-1', code: 'NZW', name: 'Nizwa', type: 'BRANCH', city: 'Nizwa' }])
         }
-        if (url.startsWith('/api/v1/pos/tills')) return json([TILL])
+        if (url.startsWith('/api/v1/pos/tills')) return tillsReply()
         if (url === '/api/v1/pos/sales' && init?.method === 'POST') return saleReply()
         return new Response('', { status: 404 })
       }),
@@ -165,6 +168,37 @@ describe('taking the payment (P.12)', () => {
     expect(screen.getByText('−0.538')).toBeTruthy()
     // The sale (5.084); no tip unless the customer asks for one.
     expect(screen.getAllByText('5.084').length).toBeGreaterThan(0)
+  })
+
+  // Owner decision XT2-ZONE-UNREADABLE (2026-11-05 item 4, Option A); Agent 10 test gap 1 on 346d0d06c.
+  it('an unreadable company zone says so, not storage, reads the till again, and sells once the zone is valid', async () => {
+    const withZone = (timeZone: string) => ({
+      ...TILL,
+      series: { INVOICE: { ...TILL.series.INVOICE, timeZone } },
+    })
+    const tillReads = () => calls.filter((call) => call.url.startsWith('/api/v1/pos/tills')).length
+    // The first read names a zone this browser cannot read; any read after it, a valid one.
+    let reads = 0
+    tillsReply = () => json([withZone(reads++ === 0 ? 'Not/AZone' : 'Asia/Muscat')])
+    renderPayment()
+    fireEvent.change(await screen.findByLabelText('Cash handed over'), { target: { value: '10' } })
+    fireEvent.click(screen.getByRole('button', { name: /Take 5.649 in cash/ }))
+    const before = tillReads()
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+
+    expect(await screen.findByText(i18n.t('pos.refusal.tenantZoneUnavailable'))).toBeTruthy()
+    expect(
+      i18n.t('pos.refusal.tenantZoneUnavailable').startsWith("Your company's time zone could not be verified."),
+    ).toBe(true)
+    expect(screen.queryByText(i18n.t('pos.refusal.storageUnavailable'))).toBeNull()
+    expect(screen.queryByText(i18n.t('pos.refusal.storageUnavailableAfterSend'))).toBeNull()
+    expect(calls.filter((call) => call.url === '/api/v1/pos/sales')).toEqual([])
+    // till.retry(): the till list is read again.
+    await waitFor(() => expect(tillReads()).toBe(before + 1))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Finish the sale' }))
+    expect(await screen.findByText('done NZW-T01-INV-2026-000049')).toBeTruthy()
+    expect(calls.filter((call) => call.url === '/api/v1/pos/sales')).toHaveLength(1)
   })
 
   it('sends the sale once, with its key, its catalogue lines and the cash handed over', async () => {

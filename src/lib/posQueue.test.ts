@@ -1107,6 +1107,41 @@ describe('offline numbering in the tenant zone (B37 OFF-6)', () => {
     expect(salePosts()).toEqual([])
   })
 
+  // Agent 10 test gap 2 on 346d0d06c: the refused sale sends nothing, its waiting sales included.
+  it('a zone-refused sale flushes nothing that waits; Try again and the flush still send them in order', async () => {
+    const walkIn: PosSaleRequest = { ...BODY, customer: { kind: 'WALK_IN' } }
+    const valid = tillIn(2026, 49, 'Asia/Muscat')
+    await submitSale(valid, walkIn, 'pos-sale-key-tzq1')
+    await submitSale(valid, walkIn, 'pos-sale-key-tzq2')
+    expect(queuedFor('till-1').map((entry) => entry.number)).toEqual([
+      'NZW-T01-INV-2026-000049',
+      'NZW-T01-INV-2026-000050',
+    ])
+    online = true
+    // Each answer files the number it was sent.
+    saleReply = () => {
+      const sent = JSON.parse(String(calls[calls.length - 1].init?.body)) as PosSaleRequest
+      return json({ saleId: `s-${sent.invoiceNumber}`, invoiceNumber: sent.invoiceNumber, warnings: [] }, 201)
+    }
+    const posted = () =>
+      salePosts().map((call) => new Headers(call.init?.headers).get('Idempotency-Key'))
+    const offlineTries = posted()
+
+    await expect(
+      submitSale(tillIn(2026, 49, 'Not/AZone'), walkIn, 'pos-sale-key-tzq3'),
+    ).rejects.toBeInstanceOf(PosTenantZoneUnavailable)
+    // No POST for any key: neither the refused sale nor the two waiting before it.
+    expect(posted()).toEqual(offlineTries)
+    expect(queuedFor('till-1').map((entry) => entry.key)).toEqual(['pos-sale-key-tzq1', 'pos-sale-key-tzq2'])
+    expect(offlineBlock('till-1', 'online')).toBeNull()
+
+    await retryQueuedSale('till-1', 'pos-sale-key-tzq1')
+    expect(posted().slice(offlineTries.length)[0]).toBe('pos-sale-key-tzq1')
+    await flushQueue('till-1')
+    expect(posted().slice(offlineTries.length)).toEqual(['pos-sale-key-tzq1', 'pos-sale-key-tzq2'])
+    expect(queuedFor('till-1')).toEqual([])
+  })
+
   it('a zone failure is not a storage failure: no block, no Check again loop, and it sells once the zone is valid', async () => {
     const unreadable = tillIn(2026, 49, 'Not/AZone')
     online = true
