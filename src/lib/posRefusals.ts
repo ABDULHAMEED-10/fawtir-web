@@ -74,7 +74,8 @@ const WORDED = new Set([
   'POS_CASH_MOVEMENT_CURRENCY_INVALID',
   'POS_CASH_MOVEMENT_CURRENCY_REQUIRED',
   'POS_SHIFT_CURRENCY_UNKNOWN',
-  // A coded 503 is a definite answer (outcomeUnknown): the server rolled the paid-out back.
+  // A coded 503 is a definite answer (outcomeUnknown): the server rolled the paid-out back. The
+  // attempt and its key are kept all the same (WB5-1), so the sentence can promise a safe resend.
   'POS_PAID_OUT_TIMED_OUT',
   'POS_PAID_OUT_BILL_FORBIDDEN',
   // K10, an unlinked supplier payment without bill.settle (review WB4-2). PROPOSED name: Agent 6's

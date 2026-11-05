@@ -1,5 +1,5 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { SAMPLE_SALE } from '../../lib/posTestSale'
@@ -1105,6 +1105,26 @@ describe('a paid-out the server timed out', () => {
     expect(paidOuts[1].body).toEqual(paidOuts[0].body)
     expect(uploads).toBe(1)
     await waitFor(() => expect(window.sessionStorage.getItem(HELD)).toBeNull())
+  })
+
+  it('after the 503 and a reload, the same paid-out entered again goes under the same key', async () => {
+    answer = () => problem(503, 'POS_PAID_OUT_TIMED_OUT')
+    await fillPettyCash()
+    chooseCurrency('OMR')
+    attachReceipt()
+    fireEvent.click(recordButton())
+    await screen.findByText(/nothing was paid out/)
+    // A reload: the page and its memory go, the tab's storage stays.
+    cleanup()
+    answer = () => json({ ...PAID_OUT, replayed: true }, 200)
+    await fillPettyCash()
+    chooseCurrency('OMR')
+    attachReceipt()
+    fireEvent.click(recordButton())
+    await waitFor(() => expect(paidOuts).toHaveLength(2))
+    expect(paidOuts[1].key).toBe(paidOuts[0].key)
+    expect(paidOuts[1].body).toEqual(paidOuts[0].body)
+    expect(uploads).toBe(1)
   })
 
   it('after the 503, a changed detail is a new paid-out under a new key', async () => {

@@ -1358,6 +1358,8 @@ function PaidOutForm({
       store.unknown = true
       save()
     } else if (sent && keepsAttemptAfter(cause)) {
+      // WB5-1: nothing was paid out, but the attempt, its key and the receipt stay (and are saved,
+      // so they outlive a reload): the same body sent again goes under the same key.
       store.unknown = false
       store.sentAt = null
       save()

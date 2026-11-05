@@ -192,7 +192,8 @@ export function mayUnlock(store: PaidOutStore, checkedAt: number | null): boolea
 
 /**
  * The press was sent and nothing definite came back: no answer at all, or a gateway or server fault
- * without the server's own code. Any coded refusal is definite: nothing was recorded.
+ * without the server's own code. Any coded refusal is definite: nothing was recorded. That includes
+ * 503 POS_PAID_OUT_TIMED_OUT, whose attempt and key are nevertheless kept (keepsAttemptAfter, WB5-1).
  */
 export function outcomeUnknown(error: unknown): boolean {
   if (error instanceof NetworkError) return true
