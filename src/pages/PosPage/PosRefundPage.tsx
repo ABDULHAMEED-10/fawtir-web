@@ -273,8 +273,9 @@ function Refund({ till, sale }: { till: Ready; sale: PosRefundLookupDto }) {
   const drawer = useApiRead<PosClosePreviewDto>(
     cashOut > 0 && shiftId && till.can.close ? closePreviewPath(shiftId) : null,
   )
+  // A withheld figure (FIN-M3-CURRENCY-MIX) is no check at all here, never 0: the server decides.
   const inDrawer =
-    cashOut > 0 && drawer.read.status === 'ready'
+    cashOut > 0 && drawer.read.status === 'ready' && drawer.read.data.expectedCash != null
       ? Math.max(0, toBaisa(drawer.read.data.expectedCash))
       : null
   const drawerShort = inDrawer !== null && cashOut > inDrawer

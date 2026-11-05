@@ -897,6 +897,51 @@ describe('a refused sale never stops the till (E2E 30 Oct 2026, H-1)', () => {
     expect(queuedFor('till-1')).toHaveLength(1)
   })
 
+  // Backend a2c9fcf0c (FIN-M3-CURRENCY-MIX Phase 2a): the implicit shift open carries the float over
+  // through expectedCash, which refuses 409 while the earlier shift's cash is in mixed or unrecorded
+  // currencies. A person clears that (counting the float, a new shift, a manager), so a queued sale
+  // refused there must stay on its printed number and body, retryable, never given up on (FIN-2a-3).
+  it.each(['POS_SHIFT_CURRENCY_MIXED', 'POS_SHIFT_CURRENCY_UNRECORDED'])(
+    'a queued sale refused %s at the float carry stays queued, numbered as printed and unchanged, and Try again sends it',
+    async (code) => {
+      fakeServer()
+      await submitSale(TILL, BODY, 'pos-sale-key-cur')
+      const [queued] = queuedFor('till-1')
+      online = true
+      const reply = saleReply
+      saleReply = () =>
+        new Response(
+          JSON.stringify({
+            type: `https://api.fawtir.om/problems/${code.toLowerCase().replace(/_/g, '-')}`,
+            status: 409,
+            code,
+            currencies: ['OMR', 'USD'],
+            unrecordedMovements: 2,
+          }),
+          { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+        )
+      await flushQueue('till-1')
+      const [held] = queuedFor('till-1')
+      expect(held).toMatchObject({
+        key: 'pos-sale-key-cur',
+        refusal: code,
+        number: queued.number,
+        attempts: 1,
+      })
+      expect(held.number).toBe('NZW-T01-INV-2026-000049')
+      expect(held.final).toBeUndefined()
+      expect(held.body).toEqual(queued.body)
+      expect(isFinalRefusal(new ApiError({ status: 409, problemType: null, code }))).toBe(false)
+
+      saleReply = reply
+      await retryQueuedSale('till-1', 'pos-sale-key-cur')
+      const last = calls.filter((call) => call.init?.method === 'POST').at(-1)!
+      expect(new Headers(last.init?.headers).get('Idempotency-Key')).toBe('pos-sale-key-cur')
+      expect(JSON.parse(String(last.init?.body)).invoiceNumber).toBe('NZW-T01-INV-2026-000049')
+      expect(queuedFor('till-1')).toEqual([])
+    },
+  )
+
   it('on the current server an unreviewed refusal holds later numbers only as far as number order forces', async () => {
     const server = fakeServer()
     await submitSale(TILL, WALK_IN, 'pos-sale-key-u1')

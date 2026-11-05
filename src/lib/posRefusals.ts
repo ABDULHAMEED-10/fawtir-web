@@ -64,6 +64,15 @@ const WORDED = new Set([
   'POS_PAID_OUT_RECEIPT_OTHER_TILL',
   'POS_PAID_OUT_RECEIPT_ALREADY_USED',
   'POS_PAID_OUT_CURRENCY_INVALID',
+  // Backend a2c9fcf0c (FIN-M3-CURRENCY-MIX 2a): a drawer total across currencies is withheld, and cash
+  // in a currency the shift's records do not state is refused before anything is recorded.
+  'POS_SHIFT_CURRENCY_MIXED',
+  'POS_SHIFT_CURRENCY_UNRECORDED',
+  'POS_PAID_OUT_CURRENCY_MISMATCH',
+  'POS_CASH_MOVEMENT_CURRENCY_MISMATCH',
+  'POS_REFUND_CURRENCY_MISMATCH',
+  'POS_CASH_MOVEMENT_CURRENCY_INVALID',
+  'POS_CASH_MOVEMENT_CURRENCY_REQUIRED',
   'POS_PAID_OUT_BILL_FORBIDDEN',
   'POS_PAID_OUT_BILL_LINK_INVALID',
   'POS_PAID_OUT_REFUND_REFERENCE',
@@ -276,6 +285,24 @@ export function refusalValues(error: unknown): Record<string, string> {
   for (const name of ['expectedNumber', 'line']) {
     const value = error.problem[name]
     if (value != null) values[name] = String(value)
+  }
+  // FIN-M3-CURRENCY-MIX: only three-letter codes are taken, so a body cannot put text in a sentence.
+  for (const name of ['shiftCurrency', 'sentCurrency', 'saleCurrency']) {
+    const value = error.problem[name]
+    if (typeof value === 'string' && /^[A-Z]{3}$/.test(value)) values[name] = value
+  }
+  // All or nothing: a list with one entry dropped would name a mix that is not the shift's.
+  const currencies = error.problem.currencies
+  if (
+    Array.isArray(currencies) &&
+    currencies.length > 0 &&
+    currencies.every((code) => typeof code === 'string' && /^[A-Z]{3}$/.test(code))
+  ) {
+    values.currencies = currencies.join(', ')
+  }
+  const unrecorded = error.problem.unrecordedMovements
+  if (typeof unrecorded === 'number' && Number.isInteger(unrecorded) && unrecorded >= 0) {
+    values.unrecordedMovements = String(unrecorded)
   }
   // POS_QUEUED_SALE_HS_CODE_REQUIRED and POS_QUEUED_SALE_GOODS_OR_SERVICE_REQUIRED name every line they
   // hold the sale for, not one `line`.

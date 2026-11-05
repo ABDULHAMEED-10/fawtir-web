@@ -21,6 +21,7 @@ import {
   figuresOf,
   parseSignedBaisa,
   startingCount,
+  withheldFigures,
   type Counted,
 } from '../../lib/posClose'
 import { posRefusalKey, refusalValues } from '../../lib/posRefusals'
@@ -196,9 +197,13 @@ function NothingOpen({ closed }: { closed: PosShiftCloseDto | null }) {
               value={omr(toBaisa(closed.countedCash))}
             />
             <Sum
-              money
+              money={closed.expectedCash != null}
               label={t('pos.close.summary.expected')}
-              value={omr(toBaisa(closed.expectedCash))}
+              value={
+                closed.expectedCash == null
+                  ? t('pos.close.notAvailable')
+                  : omr(toBaisa(closed.expectedCash))
+              }
             />
             <Sum money label={t('pos.close.summary.toBank')} value={omr(toBaisa(closed.toBank))} />
             <Sum
@@ -259,6 +264,52 @@ function NotYourShift({ error }: { error: ApiError }) {
   )
 }
 
+/** Refused or withheld drawer figures: worded, with no close (FIN-M3-CURRENCY-MIX; D-CUR-3 is a manager's). */
+function ShiftWithheld({
+  error,
+  preview,
+}: {
+  error?: ApiError
+  preview?: PosClosePreviewDto
+}) {
+  const { t } = useTranslation()
+  const figure = (value: number | null | undefined) =>
+    value == null ? t('pos.close.notAvailable') : omr(toBaisa(value))
+  return (
+    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
+      <Link
+        to="/pos"
+        className="inline-flex items-center gap-1.5 text-sm font-semibold text-text-tertiary hover:text-primary-700"
+      >
+        ‹ {t('pos.backToTill')}
+      </Link>
+      <div className="rounded-md bg-surface-card px-6 py-8">
+        <p role="alert" className="text-sm font-medium text-pending-700">
+          {error ? t(posRefusalKey(error), refusalValues(error)) : t('pos.close.figuresWithheld')}
+        </p>
+        {preview ? (
+          <dl className="mt-4 flex flex-col gap-2 text-sm">
+            {(
+              [
+                ['pos.close.paidIn', preview.paidIn],
+                ['pos.close.paidOut', preview.paidOut],
+                ['pos.close.shouldHold', preview.expectedCash],
+              ] as const
+            ).map(([label, value]) => (
+              <div key={label} className="flex justify-between gap-3">
+                <dt className="font-medium text-text-tertiary">{t(label)}</dt>
+                <dd className="font-semibold text-text-primary">{figure(value)}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+const CURRENCY_REFUSALS = new Set(['POS_SHIFT_CURRENCY_MIXED', 'POS_SHIFT_CURRENCY_UNRECORDED'])
+
 function CloseShift({ till, shiftId }: { till: Ready; shiftId: string }) {
   const preview = useApiRead<PosClosePreviewDto>(closePreviewPath(shiftId))
   // Kept here, above the form, because the form is remounted by the reload that follows a send.
@@ -274,8 +325,13 @@ function CloseShift({ till, shiftId }: { till: Ready; shiftId: string }) {
     if (preview.read.error instanceof ApiError && preview.read.error.code === 'POS_SHIFT_NOT_OWN') {
       return <NotYourShift error={preview.read.error} />
     }
+    if (preview.read.error instanceof ApiError && CURRENCY_REFUSALS.has(preview.read.error.code ?? '')) {
+      return <ShiftWithheld error={preview.read.error} />
+    }
     return <ApiReadFailure error={preview.read.error} retry={preview.retry} />
   }
+  // A withheld figure leaves nothing to count against: shown as not available, never as 0.
+  if (withheldFigures(preview.read.data).length > 0) return <ShiftWithheld preview={preview.read.data} />
   return (
     <CloseForm
       till={till}

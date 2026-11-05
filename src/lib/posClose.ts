@@ -54,6 +54,15 @@ export type Figures = {
   terminal: number
 }
 
+/**
+ * The drawer figures the server withheld because the shift's records span currencies (backend
+ * a2c9fcf0c, FIN-M3-CURRENCY-MIX). Any one of them leaves no total to count against, so the close
+ * form is not drawn; nothing is worked out here in their place.
+ */
+export function withheldFigures(preview: PosClosePreviewDto): ('expectedCash' | 'paidOut' | 'paidIn')[] {
+  return (['expectedCash', 'paidOut', 'paidIn'] as const).filter((name) => preview[name] == null)
+}
+
 export function figuresOf(preview: PosClosePreviewDto): Figures {
   const by = (method: PosMethod) => preview.byMethod.find((entry) => entry.method === method)
   const cash = by('CASH')

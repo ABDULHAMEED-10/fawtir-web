@@ -101,6 +101,7 @@ let uploads: number
 let previews: number
 let paidOuts: { key: string | null; body: Record<string, unknown> }[]
 let answer: () => Response | Promise<Response>
+let previewAnswer: () => Response
 let billSearches: string[]
 let bills: Record<string, unknown>[]
 
@@ -123,6 +124,7 @@ beforeEach(async () => {
   paidOuts = []
   billSearches = []
   answer = () => json(PAID_OUT, 201)
+  previewAnswer = () => json(PREVIEW)
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -159,7 +161,7 @@ beforeEach(async () => {
       if (url.startsWith('/api/v1/pos/tills')) return json([TILL])
       if (url.includes('/close-preview')) {
         previews += 1
-        return json(PREVIEW)
+        return previewAnswer()
       }
       if (url.endsWith('/cash-movements') && init?.method === 'POST') {
         const headers = (init.headers ?? {}) as Record<string, string>
@@ -682,6 +684,169 @@ describe('the new sentences in Arabic', () => {
     'pos.refusal.POS_PAID_OUT_IDEMPOTENCY_KEY_REUSED',
     'pos.refusal.POS_PAID_OUT_BILL_FORBIDDEN',
   ])('%s', async (key) => {
+    await i18n.changeLanguage('ar')
+    expect(i18n.exists(key, { lng: 'ar', fallbackLng: false })).toBe(true)
+    expect(i18n.t(key)).not.toMatch(/[A-Za-z]{4,}/)
+    await i18n.changeLanguage('en')
+  })
+})
+
+// Backend a2c9fcf0c (FIN-M3-CURRENCY-MIX Phase 2a): a shift whose cash is in mixed or unrecorded
+// currencies has no drawer figure. It is refused or withheld, never shown as 0 nor added up here.
+describe('drawer figures the server withholds', () => {
+  const closeButton = () => screen.queryByRole('button', { name: i18n.t('pos.close.closeTill') })
+
+  it('409 POS_SHIFT_CURRENCY_MIXED on the preview is worded, names the currencies, and offers no close', async () => {
+    previewAnswer = () => problem(409, 'POS_SHIFT_CURRENCY_MIXED', { currencies: ['OMR', 'USD'] })
+    renderClose()
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toBe(
+      i18n.t('pos.refusal.POS_SHIFT_CURRENCY_MIXED', { currencies: 'OMR, USD' }),
+    )
+    expect(alert.textContent).toMatch(/count the float/i)
+    expect(closeButton()).toBeNull()
+    expect(screen.queryByRole('textbox', { name: i18n.t('pos.pay.amount') })).toBeNull()
+  })
+
+  it('409 POS_SHIFT_CURRENCY_UNRECORDED on the preview is worded, and offers no close', async () => {
+    previewAnswer = () =>
+      problem(409, 'POS_SHIFT_CURRENCY_UNRECORDED', { unrecordedMovements: 2, currencies: ['OMR'] })
+    renderClose()
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toBe(
+      i18n.t('pos.refusal.POS_SHIFT_CURRENCY_UNRECORDED', { unrecordedMovements: '2' }),
+    )
+    expect(closeButton()).toBeNull()
+  })
+
+  it('a preview with null figures shows them as not available, never 0, and offers no close', async () => {
+    previewAnswer = () => json({ ...PREVIEW, expectedCash: null, paidOut: null, paidIn: null })
+    renderClose()
+    expect(await screen.findByText(i18n.t('pos.close.figuresWithheld'))).toBeTruthy()
+    expect(screen.getAllByText(i18n.t('pos.close.notAvailable'))).toHaveLength(3)
+    expect(screen.queryByText(/0\.000/)).toBeNull()
+    expect(screen.queryByText(/35\.649/)).toBeNull()
+    expect(closeButton()).toBeNull()
+  })
+
+  it('one null figure is enough: the others are not used to work it out', async () => {
+    previewAnswer = () => json({ ...PREVIEW, expectedCash: null })
+    renderClose()
+    expect(await screen.findByText(i18n.t('pos.close.figuresWithheld'))).toBeTruthy()
+    expect(screen.getAllByText(i18n.t('pos.close.notAvailable'))).toHaveLength(1)
+    expect(screen.queryByText(/35\.649/)).toBeNull()
+    expect(closeButton()).toBeNull()
+  })
+
+  it('a paid-out held with an unknown outcome stays held while the figures are refused, and comes back', async () => {
+    const body = {
+      type: 'PAID_OUT',
+      amount: 2.5,
+      note: 'Milk',
+      category: 'PETTY_CASH_EXPENSE',
+      accountingClass: 'EXPENSE',
+      currency: 'OMR',
+      billId: null,
+      receiptObjectId: 'rcpt-9',
+      missingReceiptReason: null,
+    }
+    window.sessionStorage.setItem(
+      HELD,
+      JSON.stringify({
+        attempt: { key: 'pos-paidout-stored-key-0002', fingerprint: JSON.stringify(body) },
+        receipt: { file: 'receipt.jpg|3|1', receiptObjectId: 'rcpt-9' },
+        unknown: true,
+      }),
+    )
+    previewAnswer = () => problem(409, 'POS_SHIFT_CURRENCY_MIXED', { currencies: ['OMR', 'USD'] })
+    const first = renderClose()
+    await screen.findByRole('alert')
+    // Nothing can be sent from here, and the held attempt is not forgotten.
+    expect(screen.queryByRole('button', { name: form('pending.again') })).toBeNull()
+    expect(screen.queryByRole('button', { name: i18n.t('pos.close.record') })).toBeNull()
+    expect(paidOuts).toHaveLength(0)
+    expect(window.sessionStorage.getItem(HELD)).toContain('pos-paidout-stored-key-0002')
+    first.unmount()
+
+    resetSharedRequests()
+    previewAnswer = () => json(PREVIEW)
+    renderClose()
+    expect(await screen.findByText(form('pending.title'))).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: form('pending.again') }))
+    await waitFor(() => expect(paidOuts).toHaveLength(1))
+    expect(paidOuts[0].key).toBe('pos-paidout-stored-key-0002')
+    expect(paidOuts[0].body).toEqual(body)
+  })
+})
+
+describe('a paid-out or paid-in the shift currency refuses', () => {
+  it('422 POS_PAID_OUT_CURRENCY_MISMATCH names both currencies and leaves the form as it was', async () => {
+    answer = () =>
+      problem(422, 'POS_PAID_OUT_CURRENCY_MISMATCH', { shiftCurrency: 'OMR', sentCurrency: 'USD' })
+    await fillPettyCash()
+    chooseCurrency('USD')
+    attachReceipt()
+    fireEvent.click(recordButton())
+    expect(
+      await screen.findByText(
+        i18n.t('pos.refusal.POS_PAID_OUT_CURRENCY_MISMATCH', {
+          shiftCurrency: 'OMR',
+          sentCurrency: 'USD',
+        }),
+      ),
+    ).toBeTruthy()
+    expect(
+      (screen.getByRole('textbox', { name: i18n.t('pos.pay.amount') }) as HTMLInputElement).value,
+    ).toBe('2.5')
+    expect((screen.getByRole('combobox', { name: form('currency') }) as HTMLSelectElement).value).toBe(
+      'USD',
+    )
+    // Definite: nothing recorded, nothing held, no lock.
+    expect(window.sessionStorage.getItem(HELD)).toBeNull()
+    expect(screen.queryByText(form('pending.title'))).toBeNull()
+  })
+
+  it.each(['POS_SHIFT_CURRENCY_MIXED', 'POS_SHIFT_CURRENCY_UNRECORDED'])(
+    'a paid-out refused 409 %s is worded and definite: the form stays, nothing is held',
+    async (code) => {
+      answer = () => problem(409, code, { currencies: ['OMR', 'USD'], unrecordedMovements: 1 })
+      await fillPettyCash()
+      chooseCurrency('OMR')
+      attachReceipt()
+      fireEvent.click(recordButton())
+      expect(
+        await screen.findByText(
+          i18n.t(`pos.refusal.${code}`, { currencies: 'OMR, USD', unrecordedMovements: '1' }),
+        ),
+      ).toBeTruthy()
+      expect(
+        (screen.getByRole('textbox', { name: i18n.t('pos.pay.amount') }) as HTMLInputElement).value,
+      ).toBe('2.5')
+      expect(window.sessionStorage.getItem(HELD)).toBeNull()
+      expect(screen.queryByText(form('pending.title'))).toBeNull()
+    },
+  )
+
+  // BLOCKED on owner D-CUR-1: nothing records a till's currency, so the paid-in sends none and the
+  // server refuses it 400. This pins the refusal's wording and that the amount survives it; it does
+  // not choose a currency.
+  it('a paid-in refused 400 POS_CASH_MOVEMENT_CURRENCY_REQUIRED is worded and keeps the amount', async () => {
+    answer = () => problem(400, 'POS_CASH_MOVEMENT_CURRENCY_REQUIRED')
+    renderClose()
+    fireEvent.click(await screen.findByRole('button', { name: i18n.t('pos.close.move.PAID_IN') }))
+    const amount = screen.getAllByPlaceholderText('0.000').at(-1) as HTMLInputElement
+    fireEvent.change(amount, { target: { value: '4' } })
+    fireEvent.click(recordButton())
+    expect(
+      await screen.findByText(i18n.t('pos.refusal.POS_CASH_MOVEMENT_CURRENCY_REQUIRED')),
+    ).toBeTruthy()
+    expect(paidOuts).toHaveLength(1)
+    expect(paidOuts[0].body).toMatchObject({ type: 'PAID_IN', amount: 4 })
+    expect(paidOuts[0].body).not.toHaveProperty('currency')
+    expect(amount.value).toBe('4')
+  })
+
+  it.each(['pos.close.notAvailable', 'pos.close.figuresWithheld'])('%s is in Arabic', async (key) => {
     await i18n.changeLanguage('ar')
     expect(i18n.exists(key, { lng: 'ar', fallbackLng: false })).toBe(true)
     expect(i18n.t(key)).not.toMatch(/[A-Za-z]{4,}/)

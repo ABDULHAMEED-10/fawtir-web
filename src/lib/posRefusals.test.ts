@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import i18n from '../i18n'
 import { ApiError } from '../api'
-import { posRefusalKey, queueRefusalKey } from './posRefusals'
+import { posRefusalKey, queueRefusalKey, refusalValues } from './posRefusals'
 
 const coded = (status: number, code: string, problem: Record<string, unknown> = {}) =>
   new ApiError({ status, problemType: null, code, problem: { code, ...problem } })
@@ -92,5 +92,128 @@ describe('a line that states neither goods nor services', () => {
     await i18n.changeLanguage('ar')
     expect(i18n.exists(key, { lng: 'ar', fallbackLng: false })).toBe(true)
     expect(i18n.t(key, { line: 1, lines: '1' })).not.toMatch(/[A-Za-z]{4,}/)
+  })
+})
+
+// Backend a2c9fcf0c (FIN-M3-CURRENCY-MIX Phase 2a). Problem bodies as PosShiftCurrencies builds them.
+describe('a shift whose cash is in more than one currency, or in unrecorded ones', () => {
+  const MIXED = () => coded(409, 'POS_SHIFT_CURRENCY_MIXED', { currencies: ['OMR', 'USD'] })
+  const UNRECORDED = () =>
+    coded(409, 'POS_SHIFT_CURRENCY_UNRECORDED', { unrecordedMovements: 3, currencies: [] })
+
+  it('MIXED names the currencies, says nothing was recorded, and says what to do', () => {
+    const error = MIXED()
+    expect(posRefusalKey(error)).toBe('pos.refusal.POS_SHIFT_CURRENCY_MIXED')
+    const text = i18n.t(posRefusalKey(error), refusalValues(error))
+    expect(text).toContain('OMR, USD')
+    expect(text).toMatch(/nothing was recorded/i)
+    expect(text).toMatch(/count the float/i)
+    expect(text).toMatch(/new shift/i)
+    expect(text).toMatch(/manager/i)
+    expect(text).not.toContain('{{')
+  })
+
+  it('UNRECORDED names how many movements, and says what to do', () => {
+    const error = UNRECORDED()
+    expect(posRefusalKey(error)).toBe('pos.refusal.POS_SHIFT_CURRENCY_UNRECORDED')
+    const text = i18n.t(posRefusalKey(error), refusalValues(error))
+    expect(text).toContain('(3)')
+    expect(text).toMatch(/count the float/i)
+    expect(text).toMatch(/new shift/i)
+    expect(text).toMatch(/manager/i)
+    expect(text).not.toContain('{{')
+  })
+
+  it('takes a currency list only when every entry is a three-letter code, and a count only as a whole number', () => {
+    expect(refusalValues(coded(409, 'POS_SHIFT_CURRENCY_MIXED', { currencies: ['OMR', 'USD'] }))).toEqual({
+      currencies: 'OMR, USD',
+    })
+    expect(
+      refusalValues(coded(409, 'POS_SHIFT_CURRENCY_MIXED', { currencies: ['OMR', '<b>x</b>'] })),
+    ).toEqual({})
+    expect(
+      refusalValues(coded(409, 'POS_SHIFT_CURRENCY_UNRECORDED', { unrecordedMovements: 'many' })),
+    ).toEqual({})
+    expect(
+      refusalValues(coded(409, 'POS_SHIFT_CURRENCY_UNRECORDED', { unrecordedMovements: 2 })),
+    ).toEqual({ unrecordedMovements: '2' })
+  })
+})
+
+describe('cash in a currency the drawer does not hold', () => {
+  it('a paid-out names both currencies', () => {
+    const error = coded(422, 'POS_PAID_OUT_CURRENCY_MISMATCH', {
+      shiftCurrency: 'OMR',
+      sentCurrency: 'USD',
+    })
+    expect(posRefusalKey(error)).toBe('pos.refusal.POS_PAID_OUT_CURRENCY_MISMATCH')
+    const text = i18n.t(posRefusalKey(error), refusalValues(error))
+    expect(text).toContain('OMR')
+    expect(text).toContain('USD')
+    expect(text).toMatch(/nothing was recorded/i)
+  })
+
+  it('a paid-in names both currencies', () => {
+    const error = coded(422, 'POS_CASH_MOVEMENT_CURRENCY_MISMATCH', {
+      shiftCurrency: 'OMR',
+      sentCurrency: 'AED',
+    })
+    expect(posRefusalKey(error)).toBe('pos.refusal.POS_CASH_MOVEMENT_CURRENCY_MISMATCH')
+    const text = i18n.t(posRefusalKey(error), refusalValues(error))
+    expect(text).toContain('OMR')
+    expect(text).toContain('AED')
+  })
+
+  it('a cash refund names the sale currency and the drawer currency, and says nothing was refunded', () => {
+    const error = coded(422, 'POS_REFUND_CURRENCY_MISMATCH', {
+      shiftCurrency: 'OMR',
+      saleCurrency: 'USD',
+    })
+    expect(posRefusalKey(error)).toBe('pos.refusal.POS_REFUND_CURRENCY_MISMATCH')
+    const text = i18n.t(posRefusalKey(error), refusalValues(error))
+    expect(text).toContain('USD')
+    expect(text).toContain('OMR')
+    expect(text).toMatch(/nothing was refunded/i)
+  })
+
+  it('takes a currency value only as a three-letter code', () => {
+    expect(
+      refusalValues(
+        coded(422, 'POS_PAID_OUT_CURRENCY_MISMATCH', { shiftCurrency: 'OMR', sentCurrency: 'usd dollars' }),
+      ),
+    ).toEqual({ shiftCurrency: 'OMR' })
+  })
+
+  it.each(['POS_CASH_MOVEMENT_CURRENCY_INVALID', 'POS_CASH_MOVEMENT_CURRENCY_REQUIRED'])(
+    '%s at 400 is worded by its code, never the general failure',
+    (code) => {
+      const key = posRefusalKey(coded(400, code))
+      expect(key).toBe(`pos.refusal.${code}`)
+      expect(i18n.t(key)).not.toBe(i18n.t('pos.refusal.failed'))
+      expect(i18n.t(key)).toMatch(/nothing was recorded/i)
+    },
+  )
+
+  it.each([
+    'POS_SHIFT_CURRENCY_MIXED',
+    'POS_SHIFT_CURRENCY_UNRECORDED',
+    'POS_PAID_OUT_CURRENCY_MISMATCH',
+    'POS_CASH_MOVEMENT_CURRENCY_MISMATCH',
+    'POS_REFUND_CURRENCY_MISMATCH',
+    'POS_CASH_MOVEMENT_CURRENCY_INVALID',
+    'POS_CASH_MOVEMENT_CURRENCY_REQUIRED',
+  ])('pos.refusal.%s is in Arabic', async (code) => {
+    await i18n.changeLanguage('ar')
+    const key = `pos.refusal.${code}`
+    expect(i18n.exists(key, { lng: 'ar', fallbackLng: false })).toBe(true)
+    const text = i18n.t(key, {
+      currencies: 'OMR, USD',
+      unrecordedMovements: '3',
+      shiftCurrency: 'OMR',
+      sentCurrency: 'USD',
+      saleCurrency: 'USD',
+    })
+    expect(text.replace(/OMR|USD/g, '')).not.toMatch(/[A-Za-z]{4,}/)
+    expect(text).not.toContain('{{')
   })
 })

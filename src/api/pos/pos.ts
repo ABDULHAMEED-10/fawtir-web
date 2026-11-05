@@ -537,10 +537,15 @@ export type PosClosePreviewDto = {
   vatWithin: number
   discounts: number
   tips: number
-  paidOut: number
-  paidIn: number
+  /**
+   * Null when the shift's records span currencies (backend a2c9fcf0c, FIN-M3-CURRENCY-MIX): the
+   * figure is withheld, never 0. The preview itself is then refused 409 POS_SHIFT_CURRENCY_MIXED or
+   * _UNRECORDED, so null here is defensive.
+   */
+  paidOut: number | null
+  paidIn: number | null
   cashRefunded: number
-  expectedCash: number
+  expectedCash: number | null
   /**
    * Cash of offline sales filed into the shift this one took over from after the handover
    * (fix/b39-fin-latecash, B39-SR-3). Information only: never part of `expectedCash`. Absent on an
@@ -571,7 +576,8 @@ export type PosShiftCloseDto = {
   shiftId: string
   closedAt: string
   countedCash: number
-  expectedCash: number
+  /** Null only if withheld (FIN-M3-CURRENCY-MIX); the close is refused then, so defensive. */
+  expectedCash: number | null
   overShort: number
   floatLeft: number
   toBank: number
@@ -733,8 +739,9 @@ export type PosDaySummaryDto = {
     tips: number
     discounts: number
     vat: number
-    paidOut: number
-    paidIn: number
+    /** Null when the day's rows span more than one currency (backend a2c9fcf0c): withheld, never 0. */
+    paidOut: number | null
+    paidIn: number | null
     notYetAccepted: number
     onAccountOpen: { count: number; amount: number }
   }
