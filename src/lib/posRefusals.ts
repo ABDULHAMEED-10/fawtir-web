@@ -78,8 +78,7 @@ const WORDED = new Set([
   // attempt and its key are kept all the same (WB5-1), so the sentence can promise a safe resend.
   'POS_PAID_OUT_TIMED_OUT',
   'POS_PAID_OUT_BILL_FORBIDDEN',
-  // K10, an unlinked supplier payment without bill.settle (review WB4-2). PROPOSED name: Agent 6's
-  // backend commit has not landed; confirm before shipping.
+  // K10, an unlinked supplier payment without bill.settle (review WB4-2; backend e643ad188).
   'POS_SUPPLIER_PAYMENT_REQUIRES_BILL_SETTLE',
   'POS_PAID_OUT_BILL_LINK_INVALID',
   'POS_PAID_OUT_REFUND_REFERENCE',

@@ -674,7 +674,7 @@ describe('the supplier bill link', () => {
     expect(screen.queryByText(/without the bill/)).toBeNull()
   })
 
-  // Review WB4-2. The code's name is PROPOSED (Agent 6's backend commit has not landed).
+  // Review WB4-2. The code is backend e643ad188's.
   it('an unlinked supplier payment refused for bill.settle says so, not "against the bill"', async () => {
     permissions = [...permissions, 'bill.settle']
     answer = () => problem(403, 'POS_SUPPLIER_PAYMENT_REQUIRES_BILL_SETTLE')
