@@ -119,10 +119,10 @@ describe('the currency-exceptions report', () => {
     expect(rows.find((row) => row.startsWith('OMR'))).toBe('OMR10.000 OMR2.500 OMR3')
     expect(rows.find((row) => row.startsWith('AED'))).toBe('AEDNot available7.25 AED1')
     const unknown = rows.find((row) => row.startsWith('Currency unknown'))!
-    expect(unknown).toBe('Currency unknown4.2Not available1')
+    expect(unknown).toBe('Currency unknown4.200Not available1')
     expect(unknown).not.toMatch(/OMR|ر\.ع/)
     // The stored close: summed across currencies, so no currency, and its withheld figures as such.
-    expect(screen.getByText(/Expected: 50.5 · Counted: Not available · Over or short: Not available/)).toBeTruthy()
+    expect(screen.getByText(/Expected: 50.500 · Counted: Not available · Over or short: Not available/)).toBeTruthy()
     expect(screen.getByText(i18n.t('pos.currencyExceptions.storedCloseNote'))).toBeTruthy()
     expect(document.body.textContent).not.toMatch(/(^|[^.\d])0(\.0+)?( |$)/)
   })

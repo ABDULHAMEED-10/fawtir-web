@@ -12,7 +12,7 @@ import { useWorkingBranch } from '../../components/branch/useWorkingBranch'
 import { useApiRead } from '../../hooks'
 import { useEntitlements } from '../../hooks/useEntitlements'
 import { AppShell } from '../../layouts/AppShell'
-import { formatAmount, formatDate } from '../../lib/format'
+import { formatAmount, formatDate, formatUncurrencied } from '../../lib/format'
 import { hasPermission } from '../../lib/identity/entitlements'
 import { muscatToday } from '../../lib/pos'
 import { offlineHoldTime as when } from '../../lib/posOfflineHolds'
@@ -131,10 +131,10 @@ function ShiftRow({ shift }: { shift: PosCurrencyExceptionShift }) {
   const language = i18n.language
   const notAvailable = t('pos.currencyExceptions.notAvailable')
   // A figure in a known currency is formatted to that currency's places and labelled with its code;
-  // one with no currency, or a close summed across currencies, is printed as sent, with no sign.
+  // one with no currency, or a close summed across currencies, gets three places and no sign.
   const money = (value: number | null | undefined, currency: string | null) => {
     if (typeof value !== 'number' || !Number.isFinite(value)) return notAvailable
-    return currency ? `${formatAmount(value, currency, language)} ${currency}` : String(value)
+    return currency ? `${formatAmount(value, currency, language)} ${currency}` : formatUncurrencied(value, language)
   }
   return (
     <div className="flex flex-col gap-3 text-sm text-text-secondary">

@@ -44,6 +44,20 @@ export function formatAmount(amount: Amount, currency = 'OMR', language = 'en'):
   }).format(value)
 }
 
+/**
+ * A figure no single currency scales: a cash move recorded with no currency, or a close the server
+ * summed across currencies. Three places, the most any currency in the books uses, so no baisa is
+ * rounded away; no currency sign, since none is known (review W7R-5).
+ */
+export function formatUncurrencied(amount: Amount, language = 'en'): string {
+  const value = typeof amount === 'string' ? Number(amount) : amount
+  if (!Number.isFinite(value)) return String(amount)
+  return new Intl.NumberFormat(numberLocale(language), {
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
+  }).format(value)
+}
+
 export function formatCount(value: number, language = 'en'): string {
   return new Intl.NumberFormat(numberLocale(language)).format(value)
 }
