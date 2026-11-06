@@ -247,9 +247,9 @@ export function omr(baisa: number): string {
 }
 
 /**
- * Rials the server wrote, to three places, rounded once from the decimal it sent. Not through
- * `toBaisa`: 0.5025 times 1000 is 502.4999… in floating point, so a reprint row would print 0.502
- * where the till printed 0.503 (FU2R-4; the till rounds its baisa product the same way as this).
+ * Rials as the server wrote them. A reprint row's amount comes already rounded HALF_UP to three
+ * places (backend PosSaleResponse.Line), the rounding the till's own row gets, so it is printed as
+ * written and never rounded a second time on the way through baisa (FU2R-4, review QW5R-3).
  */
 export function omrOfRials(rials: number): string {
   return rials.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })

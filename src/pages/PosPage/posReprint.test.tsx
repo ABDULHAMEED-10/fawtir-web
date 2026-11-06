@@ -13,7 +13,7 @@ import {
 import { resetPosQueue } from '../../lib/posQueue'
 import { resetOpenSale, setFinishedSale } from '../../lib/posSale'
 import { SAMPLE_SALE } from '../../lib/posTestSale'
-import { NO_SALE_DISCOUNT, omr, receiptStamp, toBaisa, totalsFor } from '../../lib/pos'
+import { NO_SALE_DISCOUNT, receiptStamp, totalsFor } from '../../lib/pos'
 import { resetSharedRequests } from '../../api'
 import { forgetWorkingBranch } from '../../lib/workingBranch'
 import type { PosSaleDto, PosTodaySaleRow } from '../../api/pos/pos'
@@ -501,9 +501,9 @@ describe('the reprint rows (FU2R)', () => {
   })
 
   // FU2R-4: the till prints omr(unitPrice(line) × qty) on whole baisa times the quantity; the server
-  // sums the issued gross amounts, each quantity × unit price kept at ten places. For the same lines,
-  // a fractional quantity and a half-baisa tie on an item with a priced add-on included, the
-  // reprint's rows are the Done page's, character for character.
+  // sums the issued gross amounts, kept at ten places, and serves the sum rounded HALF_UP to three
+  // (PosSaleResponse.Line). For the same lines, a fractional quantity and a half-baisa tie on an item
+  // with a priced add-on included, the reprint's rows are the Done page's, character for character.
   it('equals the rows the Done page printed for the same lines, a fractional quantity included', async () => {
     const lines = [
       ...SAMPLE_SALE,
@@ -520,13 +520,13 @@ describe('the reprint rows (FU2R)', () => {
         rulePercent: undefined,
       },
     ]
-    // What PosReceiptRows serves for them: Karak is 0.3375 + 0.165 issued, so 0.5025 to ten places.
+    // What the server serves for them: Karak is 0.3375 + 0.165 issued, 0.5025, served as 0.503.
     const served = [
       { description: 'Flat White (Large)', quantity: 2, unitPrice: 2.2, amount: 4.4, vatCategory: 'S', vatRate: 5 },
       { description: 'Cortado', quantity: 1, unitPrice: 1.2, amount: 1.2, vatCategory: 'S', vatRate: 5 },
       { description: 'Date & walnut slice', quantity: 1, unitPrice: 0.9, amount: 0.9, vatCategory: 'S', vatRate: 5 },
-      { description: 'Saffron tea', quantity: 2.5, unitPrice: 0.201, amount: 0.5025, vatCategory: 'S', vatRate: 5 },
-      { description: 'Karak (Small)', quantity: 2.5, unitPrice: 0.201, amount: 0.5025, vatCategory: 'S', vatRate: 5 },
+      { description: 'Saffron tea', quantity: 2.5, unitPrice: 0.201, amount: 0.503, vatCategory: 'S', vatRate: 5 },
+      { description: 'Karak (Small)', quantity: 2.5, unitPrice: 0.201, amount: 0.503, vatCategory: 'S', vatRate: 5 },
     ]
     saleAnswer = sale({ receipt: { ...sale().receipt, lines: served } })
     const totals = totalsFor(lines, NO_SALE_DISCOUNT)
@@ -564,8 +564,31 @@ describe('the reprint rows (FU2R)', () => {
 
     const sheet = await sheetOf(await openReprint())
     expect(itemRows(sheet)).toEqual(printed)
-    // Through baisa the same amount would print a baisa short: why the row is not read that way.
-    expect(omr(toBaisa(0.5025))).toBe('0.502')
+  })
+
+  // QW5R-2: 1.005 × 0.5 is 0.50249999… in floating point; the server's 0.503 is half a baisa from
+  // the exact 0.5025 and is its own rounding, so the row is good.
+  it('accepts an amount rounded half a baisa up from unit price times quantity (1.005 × 0.5 = 0.503)', async () => {
+    saleAnswer = sale({
+      receipt: {
+        ...sale().receipt,
+        lines: [{ description: 'Halwa', quantity: 0.5, unitPrice: 1.005, amount: 0.503, vatCategory: 'S', vatRate: 5 }],
+      },
+    })
+    const sheet = await sheetOf(await openReprint())
+    expect(itemRows(sheet)).toEqual(['0.5 × Halwa | 0.503'])
+  })
+
+  it('still refuses an amount a whole baisa away from unit price times quantity', async () => {
+    saleAnswer = sale({
+      receipt: {
+        ...sale().receipt,
+        lines: [{ description: 'Halwa', quantity: 0.5, unitPrice: 1.005, amount: 0.504, vatCategory: 'S', vatRate: 5 }],
+      },
+    })
+    const dialog = await openReprint()
+    expect(await within(dialog).findByText(unavailable())).toBeTruthy()
+    expect(dialog.querySelector('.fawtir-print-sheet')).toBeNull()
   })
 })
 

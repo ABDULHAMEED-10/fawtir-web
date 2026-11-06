@@ -159,15 +159,20 @@ describe('an online consumer receipt and its server QR', () => {
     }
   })
 
-  it('prints no tax receipt when the waits end with the QR still PENDING, and sends the cashier to the reprint', async () => {
+  // QW5R-1: the reprint is gated off for RC5, so the cashier is sent to a manager and promised no
+  // reprint, in the offline sentence's terms.
+  it('prints no tax receipt when the waits end with the QR still PENDING, and asks for a manager without promising a reprint', async () => {
     finish('PENDING')
     renderReceipt()
-    expect(await screen.findByText(notReady(), { exact: false })).toBeTruthy()
+    const alert = await screen.findByText(notReady(), { exact: false })
+    expect(alert.textContent).toBe(
+      `No receipt was printed: this sale’s QR is not ready, and a tax invoice to a consumer must carry its QR. The sale is recorded as ${NUMBER}. Ask a manager to review it before the customer is given a receipt.`,
+    )
+    expect(alert.textContent).not.toMatch(/reprint|once it is ready/i)
+    expect(screen.queryByRole('link', { name: /today/i })).toBeNull()
     expect(printAgain()).toBeNull()
     expect(screen.queryByText(i18n.t('pos.done.theirReceipt'))).toBeNull()
     expect(screen.queryByAltText(i18n.t('pos.done.qrAlt'))).toBeNull()
-    fireEvent.click(screen.getByRole('link', { name: i18n.t('pos.done.openToday') }))
-    expect(await screen.findByText('today’s sales')).toBeTruthy()
   })
 
   it('prints no tax receipt for a status this build does not know', async () => {
@@ -199,7 +204,7 @@ describe('an online consumer receipt and its server QR', () => {
     expect(printAgain()).toBeNull()
     expect(screen.queryByText(i18n.t('pos.done.theirReceipt'))).toBeNull()
     expect(screen.queryByText(i18n.t('pos.done.qrNone'))).toBeNull()
-    expect(screen.getByRole('link', { name: i18n.t('pos.done.openToday') })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: /today/i })).toBeNull()
   })
 
   it.each([

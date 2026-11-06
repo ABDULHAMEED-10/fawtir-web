@@ -390,8 +390,8 @@ export type PosAttribution = 'ONLINE' | 'VERIFIED' | 'PENDING_REVIEW' | 'LEGACY'
 
 /**
  * One row of the original till receipt (backend PosReceiptRows): "Name (Size)", the item's price with
- * its priced add-ons, and that times the quantity, before VAT and discounts. Rial amounts as the server
- * writes them, at up to ten places.
+ * its priced add-ons, and that times the quantity, before VAT and discounts. `amount` comes rounded
+ * HALF_UP to three places (backend PosSaleResponse.Line); `unitPrice` is as issued.
  */
 export type PosReceiptLineDto = {
   description: string
@@ -1109,7 +1109,8 @@ export function currencyExceptionsPath(from: string, to: string, branchId: strin
 export type PosHeldSale = {
   tillId: string
   tillNumber: number
-  heldNumber: string
+  /** Null on a WITHHELD item whose sale the server holds no number for (review QW5R-6). */
+  heldNumber: string | null
   reason: string | null
   lines: number[]
   firstHeldAt: string | null

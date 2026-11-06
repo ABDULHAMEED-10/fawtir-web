@@ -4565,8 +4565,7 @@
       "queuedBehindSummary": "Invoice {{invoice}} is numbered and will be filed after an earlier sale the till is holding. See the till screen for what it needs. There is {{change}} change to hand back.",
       "sentAfterEarlier": "it is filed once the earlier sale has gone",
       "receiptWithheld": "No receipt was printed: this sale’s QR could not be made on this till. The sale is kept as {{invoice}} and is sent when the till is back online. Ask a manager to review it before the customer is given a receipt.",
-      "receiptQrNotReady": "Recorded as {{invoice}}, but its QR is not ready, so no receipt was printed: a tax invoice to a consumer must carry its QR. Reprint the receipt with its QR from today’s sales once it is ready.",
-      "openToday": "Open today’s sales"
+      "receiptQrNotReady": "No receipt was printed: this sale’s QR is not ready, and a tax invoice to a consumer must carry its QR. The sale is recorded as {{invoice}}. Ask a manager to review it before the customer is given a receipt."
     },
     "company": {
       "whose": "Whose company is it?",
@@ -5484,7 +5483,8 @@
       "otherKind": "Listed by the server for review.",
       "refused": "Refused by the server: this sale was not filed, and the till’s later sales are blocked behind number {{number}}. It is not overdue itself.",
       "refusedTimes": "Refused first {{first}}, last {{last}}.",
-      "reRefused": "Refused again since: {{times}}."
+      "reRefused": "Refused again since: {{times}}.",
+      "rowNoNumber": "Till {{till}} · number not recorded"
     }
   },
   "orderDetail": {

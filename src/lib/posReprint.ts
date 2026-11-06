@@ -30,7 +30,9 @@ function printableRow(line: PosReceiptLineDto | null | undefined): boolean {
   if (!finite(line.quantity) || line.quantity <= 0) return false
   if (!finite(line.unitPrice) || line.unitPrice < 0) return false
   if (!finite(line.amount) || line.amount < 0) return false
-  return Math.abs(line.unitPrice * line.quantity - line.amount) < 0.0005
+  // Half a baisa either way is the server's own rounding of the amount to three places; the 1e-9
+  // absorbs the floating-point tail of a product such as 1.005 × 0.5 (review QW5R-2).
+  return Math.abs(line.unitPrice * line.quantity - line.amount) <= 0.0005 + 1e-9
 }
 
 /** A company or government receipt carries no QR (QR E-3); every other one is a consumer tax invoice. */

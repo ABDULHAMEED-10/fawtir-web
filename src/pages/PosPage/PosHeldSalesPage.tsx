@@ -60,8 +60,10 @@ function HeldSales() {
             <p className={card}>{t('pos.heldSales.none')}</p>
           ) : (
             <ul className="flex flex-col gap-2">
-              {list.read.data.items.map((item) => (
-                <li key={`${item.tillId}-${item.heldNumber}-${item.kind ?? 'HELD'}`} className={card}>
+              {list.read.data.items.map((item, index) => (
+                // A null number would key every such item on a till alike (review QW5R-6); the
+                // position tells them apart, and the list is read whole, never patched in place.
+                <li key={`${item.tillId}-${item.kind ?? 'HELD'}-${item.heldNumber ?? `#${index}`}`} className={card}>
                   <HeldRow item={item} />
                 </li>
               ))}
@@ -71,6 +73,13 @@ function HeldSales() {
       ) : null}
     </div>
   )
+}
+
+function RowTitle({ item }: { item: PosHeldSale }) {
+  const { t } = useTranslation()
+  return item.heldNumber === null
+    ? t('pos.heldSales.rowNoNumber', { till: item.tillNumber })
+    : t('pos.heldSales.row', { till: item.tillNumber, number: item.heldNumber })
 }
 
 function HeldRow({ item }: { item: PosHeldSale }) {
@@ -92,7 +101,7 @@ function RefusedRow({ item }: { item: PosHeldSale }) {
   return (
     <div className="flex flex-col gap-2 text-sm text-text-secondary">
       <p className="text-base font-semibold text-text-primary">
-        {t('pos.heldSales.row', { till: item.tillNumber, number: item.heldNumber })}
+        <RowTitle item={item} />
       </p>
       <p className="font-medium text-text-primary">{t('pos.heldSales.refused', { number: item.heldNumber })}</p>
       {item.firstRefusedAt || item.lastRefusedAt ? (
@@ -117,7 +126,7 @@ function ReviewRow({ item, withheld }: { item: PosHeldSale; withheld: boolean })
   return (
     <div className="flex flex-col gap-2 text-sm text-text-secondary">
       <p className="text-base font-semibold text-text-primary">
-        {t('pos.heldSales.row', { till: item.tillNumber, number: item.heldNumber })}
+        <RowTitle item={item} />
       </p>
       <p className="font-medium text-text-primary">
         {t(withheld ? 'pos.heldSales.withheld' : 'pos.heldSales.otherKind')}
@@ -139,7 +148,7 @@ function HoldRow({ item }: { item: PosHeldSale }) {
     <div className="flex flex-col gap-2 text-sm text-text-secondary">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-base font-semibold text-text-primary">
-          {t('pos.heldSales.row', { till: item.tillNumber, number: item.heldNumber })}
+          <RowTitle item={item} />
         </p>
         {item.overdue ? (
           <span className="rounded-sm bg-danger-100 px-2 py-1 text-xs font-semibold text-danger-700">

@@ -210,6 +210,26 @@ describe('the held-sales screen', () => {
     expect(text()).not.toContain('POS_RECEIPT_WITHHELD')
   })
 
+  // QW5R-6: a WITHHELD item may carry no number; it never reads "null", and two on one till keep
+  // distinct keys.
+  it('words a WITHHELD item with no number as not recorded, never "null"', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const withheld = { kind: 'WITHHELD', reason: 'POS_RECEIPT_WITHHELD', lines: [], heldNumber: null }
+      list = () =>
+        json({
+          items: [item(withheld), item({ ...withheld, firstHeldAt: '2026-11-04T07:00:00Z' })],
+          truncated: false,
+        })
+      await open()
+      expect(await screen.findAllByText('Till 3 · number not recorded')).toHaveLength(2)
+      expect(text()).not.toContain('null')
+      expect(error.mock.calls.some((call) => String(call[0]).includes('same key'))).toBe(false)
+    } finally {
+      error.mockRestore()
+    }
+  })
+
   it('shows a kind this build does not know neutrally: no reason, hold wording or overdue', async () => {
     list = () => json({ items: [item({ kind: 'SOMETHING_NEW', overdue: true })], truncated: false })
     await open()
@@ -260,7 +280,7 @@ describe('the held-sales screen', () => {
   })
 
   it('has the review wording in both languages', () => {
-    for (const key of ['withheld', 'withheldTimes', 'otherKind', 'refused', 'refusedTimes', 'reRefused'] as const) {
+    for (const key of ['withheld', 'withheldTimes', 'otherKind', 'refused', 'refusedTimes', 'reRefused', 'rowNoNumber'] as const) {
       expect(ar.pos.heldSales[key]).toBeTruthy()
       expect(ar.pos.heldSales[key]).not.toBe(en.pos.heldSales[key])
     }

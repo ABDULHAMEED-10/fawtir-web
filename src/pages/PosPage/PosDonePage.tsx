@@ -303,10 +303,7 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
               </h2>
               {onlineWithheld ? (
                 <p role="alert" className="mt-2 text-sm font-medium leading-[1.6] text-danger-700">
-                  {t('pos.done.receiptQrNotReady', { invoice })}{' '}
-                  <Link to="/pos/today" className="font-semibold text-primary-700 hover:text-primary-800">
-                    {t('pos.done.openToday')}
-                  </Link>
+                  {t('pos.done.receiptQrNotReady', { invoice })}
                 </p>
               ) : receiptWithheld ? (
                 <p role="alert" className="mt-2 text-sm font-medium leading-[1.6] text-danger-700">
