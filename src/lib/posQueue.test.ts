@@ -7,6 +7,7 @@ import {
   flushQueue,
   isFinalRefusal,
   keyMayBeQueued,
+  queueDecision,
   numberPrefix,
   numbersBefore,
   queuedFor,
@@ -1840,6 +1841,29 @@ describe('a queued sale and the server key lookup (RESEND-AUTH)', () => {
     const error = new ApiError({ status: 409, problemType: null, code: 'POS_SALE_KEY_ABANDONED' })
     expect(isFinalRefusal(error)).toBe(true)
     expect(posRefusalKey(error)).toBe('pos.refusal.POS_SALE_KEY_ABANDONED')
+  })
+
+  // RW6-1: what releases a held sale under the same key.
+  it('decides a key only when the server filed it or refused it for good', async () => {
+    await submitSale(TILL, WALK_IN, 'pos-sale-key-wait')
+    await submitSale(TILL, WALK_IN, 'pos-sale-key-filed')
+    online = true
+    const reply = saleReply
+    saleReply = () => new Response('', { status: 503 })
+    await flushQueue('till-1')
+    expect(queueDecision('pos-sale-key-wait')).toBeNull()
+    saleReply = reply
+    await flushQueue('till-1')
+    expect(queuedFor('till-1')).toEqual([])
+    expect(queueDecision('pos-sale-key-filed')).toMatchObject({ saleId: expect.any(String) })
+    expect(queueDecision('pos-sale-key-wait')).toMatchObject({ saleId: expect.any(String) })
+    online = false
+    await submitSale(TILL, WALK_IN, 'pos-sale-key-closed-2')
+    online = true
+    saleReply = closed
+    await flushQueue('till-1')
+    expect(queueDecision('pos-sale-key-closed-2')).toMatchObject({ key: 'pos-sale-key-closed-2', final: true })
+    expect(queueDecision('pos-sale-key-never-sent')).toBeNull()
   })
 
   it('never asks the server about a key in the queue, nor while the queue cannot be read (RA-1)', async () => {

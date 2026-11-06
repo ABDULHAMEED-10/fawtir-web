@@ -5,11 +5,12 @@ import { settleHeldKey, type UncertainSale } from './posSale'
 /**
  * RESEND-AUTH (owner decision 5, backend 98c0066cb): a held sale whose details this device could not
  * keep is decided by the server, never by the cashier. Only a server answer releases the hold:
- * offline, an error, a 404 or an answer this build does not know all leave it locked.
+ * offline, an error, a 404 or an answer this build does not know all leave it locked. `released` is
+ * false when the hold had already gone by the time the answer came (RW6-4): nothing is shown then.
  */
 export type HeldCheck =
-  | { outcome: 'recorded'; sale: PosSaleDto }
-  | { outcome: 'notRecorded' }
+  | { outcome: 'recorded'; sale: PosSaleDto; released: boolean }
+  | { outcome: 'notRecorded'; released: boolean }
   | { outcome: 'inProgress'; retryAfterSeconds: number }
   | { outcome: 'queued' }
   | { outcome: 'failed'; error: unknown }
@@ -30,12 +31,10 @@ export async function checkHeldWithServer(
     return { outcome: 'failed', error }
   }
   if (answer.status === 'RECORDED' && answer.sale) {
-    settleHeldKey(held.key)
-    return { outcome: 'recorded', sale: answer.sale }
+    return { outcome: 'recorded', sale: answer.sale, released: settleHeldKey(held.key) }
   }
   if (answer.status === 'NOT_RECORDED') {
-    settleHeldKey(held.key)
-    return { outcome: 'notRecorded' }
+    return { outcome: 'notRecorded', released: settleHeldKey(held.key) }
   }
   if (answer.status === 'IN_PROGRESS') {
     return {

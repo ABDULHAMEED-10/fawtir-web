@@ -4,6 +4,7 @@ import { TillMoneyInput } from './TillMoneyInput'
 import {
   holdUncertainSale,
   setFinishedSale,
+  settleHeldKey,
   settleUncertainSale,
   startNewSale,
   useOpenSale,
@@ -47,6 +48,8 @@ import { posSaleBody, type TillBuyer } from '../../lib/posInvoice'
 import {
   PosTenantZoneUnavailable,
   keyMayBeQueued,
+  useQueueDecision,
+  useQueuedSales,
   refusesTheSale,
   saleOutcomeUncertain,
   submitSale,
@@ -411,9 +414,12 @@ function Payment({ till }: { till: Ready }) {
     setHeldCheck('checking')
     const result = await checkHeldWithServer(held)
     if (result.outcome === 'recorded' || result.outcome === 'notRecorded') {
-      attempt.current = null
       setHeldCheck('idle')
-      setDecided(result.outcome === 'recorded' ? { sale: result.sale } : { sale: null })
+      if (!result.released) return
+      attempt.current = null
+      setDecided(
+        result.outcome === 'recorded' ? { kind: 'recorded', sale: result.sale } : { kind: 'notRecorded' },
+      )
     } else if (result.outcome === 'inProgress') {
       setHeldCheck('inProgress')
       retryCheck.current = window.setTimeout(() => {
@@ -426,6 +432,21 @@ function Payment({ till }: { till: Ready }) {
   }
   const checkAgain = useRef(checkHeld)
   checkAgain.current = checkHeld
+  // RW6-1: a held key the till's queue also has is decided by the queue's own send. Read on every
+  // queue change, so the panel's button and note follow it; filed or refused for good by the server
+  // releases the hold, anything that waits (offline, 401, 403, 408, 429, 5xx) does not.
+  useQueuedSales(till.till.id)
+  const queueDecided = useQueueDecision(uncertain?.key ?? null)
+  useEffect(() => {
+    if (!uncertain || !queueDecided) return
+    if (!settleHeldKey(uncertain.key)) return
+    attempt.current = null
+    setDecided(
+      'saleId' in queueDecided
+        ? { kind: 'recorded', sale: queueDecided }
+        : { kind: 'queueRefused', number: queueDecided.number },
+    )
+  }, [uncertain, queueDecided])
   useEffect(
     () => () => {
       if (retryCheck.current !== null) window.clearTimeout(retryCheck.current)
@@ -487,7 +508,7 @@ function Payment({ till }: { till: Ready }) {
   if (decided && !uncertain) {
     return (
       <HeldDecidedPanel
-        sale={decided.sale}
+        decided={decided}
         onNewSale={() => {
           setDecided(null)
           startNewSale()
@@ -1112,8 +1133,11 @@ function Payment({ till }: { till: Ready }) {
 }
 
 type HeldCheckState = 'idle' | 'checking' | 'inProgress' | 'queued' | 'failed'
-/** `sale` null: the server has no record and closed the key (NOT_RECORDED). */
-type Decided = { sale: PosSaleDto | null }
+/** What the server decided for a held key, by the key lookup or the queue's own send. */
+type Decided =
+  | { kind: 'recorded'; sale: PosSaleDto }
+  | { kind: 'notRecorded' }
+  | { kind: 'queueRefused'; number: string }
 
 /**
  * The sale was sent and its outcome is not known (E-01). Nothing here changes it: no basket, no
@@ -1230,24 +1254,43 @@ function UncertainSalePanel({
 }
 
 /**
- * The server decided a lock-only hold and it is released (RESEND-AUTH). Recorded: the sale as the
+ * The server decided a held sale and it is released (RESEND-AUTH, RW6-1). Recorded: the sale as the
  * server has it, so it is not rung again. Not recorded: its key is closed, the customer may still
- * have been charged on the terminal, and the sale goes again only as a new one with a new key.
+ * have paid, and the sale goes again only as a new one with a new key. Refused from the queue: the
+ * queued entry keeps the sale, and it is dealt with there.
  */
-function HeldDecidedPanel({ sale, onNewSale }: { sale: PosSaleDto | null; onNewSale: () => void }) {
+function HeldDecidedPanel({ decided, onNewSale }: { decided: Decided; onNewSale: () => void }) {
   const { t, i18n } = useTranslation()
+  const sale = decided.kind === 'recorded' ? decided.sale : null
   return (
     <div className="mx-auto flex w-full max-w-[720px] flex-col gap-4 pb-10">
       <section className="flex flex-col gap-4 rounded-md bg-surface-card px-6 py-5">
         <h1 className="text-xl font-semibold text-text-primary">
-          {t(sale ? 'pos.pay.uncertain.recordedTitle' : 'pos.pay.uncertain.notRecordedTitle')}
+          {t(
+            sale
+              ? 'pos.pay.uncertain.recordedTitle'
+              : decided.kind === 'queueRefused'
+                ? 'pos.pay.uncertain.queueRefusedTitle'
+                : 'pos.pay.uncertain.notRecordedTitle',
+          )}
         </h1>
         {sale ? (
+          <>
+            <p role="status" className="text-sm font-medium leading-[1.6] text-text-secondary">
+              {t('pos.pay.uncertain.recorded', {
+                invoice: sale.invoiceNumber,
+                amount: `OMR ${formatAmount(sale.totals.total, 'OMR', i18n.language)}`,
+              })}
+            </p>
+            {/* RW6-3: no reprint here; ReceiptReprint prints nothing while REPRINT_LINES_SETTLED
+                is off, so the cashier is pointed to Today's own reprint, which lifts with it. */}
+            <p className="text-sm font-medium text-text-secondary">
+              {t('pos.pay.uncertain.reprintFromToday')}
+            </p>
+          </>
+        ) : decided.kind === 'queueRefused' ? (
           <p role="status" className="text-sm font-medium leading-[1.6] text-text-secondary">
-            {t('pos.pay.uncertain.recorded', {
-              invoice: sale.invoiceNumber,
-              amount: `OMR ${formatAmount(sale.totals.total, 'OMR', i18n.language)}`,
-            })}
+            {t('pos.pay.uncertain.queueRefused', { number: decided.number })}
           </p>
         ) : (
           <p role="alert" className="text-sm font-medium leading-[1.6] text-danger-700">
@@ -1260,7 +1303,7 @@ function HeldDecidedPanel({ sale, onNewSale }: { sale: PosSaleDto | null; onNewS
             onClick={onNewSale}
             className="inline-flex h-11 items-center rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
           >
-            {t(sale ? 'pos.done.startNew' : 'pos.pay.uncertain.ringAgain')}
+            {t(decided.kind === 'notRecorded' ? 'pos.pay.uncertain.ringAgain' : 'pos.done.startNew')}
           </button>
           <Link to="/pos/today" className="text-sm font-semibold text-primary-700 hover:text-primary-800">
             {t('pos.pay.uncertain.checkToday')}

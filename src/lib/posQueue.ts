@@ -1002,6 +1002,25 @@ export function keyMayBeQueued(key: string): boolean {
   return queueReadFailure !== null || entries.some((entry) => entry.key === key)
 }
 
+/*
+ * RW6-1: what the server decided for a queued key, so a held sale under the same key is released
+ * by the queue's outcome instead of staying stuck. Filed (201, or a 200 replay) is the server's own
+ * record of the sale; it is noted here, in this tab, because the entry then leaves the queue and its
+ * absence alone proves nothing (storage can be cleared). After a reload the note is gone, the key is
+ * no longer queued, and the server's key lookup answers RECORDED instead. A final refusal is read
+ * from the entry itself, which stays queued and carries the sale. Nothing transient decides a key.
+ */
+const filedInTab = new Map<string, PosSaleDto>()
+
+/** The server's sale for a filed key, or the queued entry it refused for good; else null. */
+export function queueDecision(key: string): PosSaleDto | QueuedSale | null {
+  return filedInTab.get(key) ?? queue.find((entry) => entry.key === key && entry.final === true) ?? null
+}
+
+export function useQueueDecision(key: string | null): PosSaleDto | QueuedSale | null {
+  return useSyncExternalStore(subscribe, () => (key ? queueDecision(key) : null))
+}
+
 export function queuedFor(tillId: string): QueuedSale[] {
   return synced()
     .filter((entry) => entry.tillId === tillId)
@@ -1676,6 +1695,8 @@ export async function flushQueue(
       if (senderGeneration !== generation) return 'done'
       try {
         const sale = await sendNumbered(body, entry.key, canSkip, generation)
+        filedInTab.set(entry.key, sale)
+        listeners.forEach((listener) => listener())
         noteForNextSale(entry, sale)
         // The entry is this device's record that its number was used; it goes only once the counter
         // is confirmed past both the printed and the filed number, or a later offline sale could
@@ -1930,6 +1951,7 @@ export function resetPosQueue() {
   burnt.clear()
   releaseTillLocks()
   queueReadFailure = null
+  filedInTab.clear()
   // A test starts from whatever storage holds now, and empties it.
   queue = []
   try {

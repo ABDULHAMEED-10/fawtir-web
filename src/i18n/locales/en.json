@@ -4527,7 +4527,10 @@
         "recorded": "Invoice {{invoice}}, {{amount}}. It is recorded once: do not ring it or charge for it again.",
         "notRecordedTitle": "The server has no record of this sale",
         "notRecorded": "The server has no record of this sale. Before taking payment again, check everything already taken: the card terminal or slip, any bank transfer, and the cash handed over. Give back what was taken, or keep it for the new sale (for a card, keep the approval).",
-        "ringAgain": "Ring it again as a new sale"
+        "ringAgain": "Ring it again as a new sale",
+        "reprintFromToday": "To reprint its receipt, use Print receipt on this sale in Today.",
+        "queueRefusedTitle": "The server refused this sale from the till's queue",
+        "queueRefused": "It is kept in this till's waiting sales as {{number}}, with the server's reason. Deal with it there, on Today; do not ring it again."
       }
     },
     "done": {

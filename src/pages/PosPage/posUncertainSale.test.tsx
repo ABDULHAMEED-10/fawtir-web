@@ -19,7 +19,7 @@ import {
   useOpenSale,
   useUncertainSale,
 } from '../../lib/posSale'
-import { noteQueueSender, resetPosQueue } from '../../lib/posQueue'
+import { flushQueue, noteQueueSender, resetPosQueue, retryQueuedSale } from '../../lib/posQueue'
 import { resetSharedRequests } from '../../api'
 import { memoryVault, setPosVault } from '../../lib/posVault'
 
@@ -672,6 +672,150 @@ describe('a lock-only hold decided by the server (RESEND-AUTH)', () => {
     expect(heldNames()).toEqual([])
   })
 
+  it('RECORDED: points to Today for the receipt, since the reprint gate is off (RW6-3)', async () => {
+    await lockOnlyHold()
+    lookupReplies.push(() => json(RECORDED))
+    fireEvent.click(checkServer())
+    expect(await screen.findByText(i18n.t('pos.pay.uncertain.reprintFromToday'))).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /reprint/i })).toBeNull()
+  })
+
+  it('shows nothing decided when the hold was already released before the answer came (RW6-4)', async () => {
+    const key = await lockOnlyHold()
+    let answer: (response: Response) => void = () => undefined
+    lookupReplies.push(() => new Promise<Response>((resolve) => (answer = resolve)))
+    fireEvent.click(checkServer())
+    await vi.waitFor(() => expect(lookups).toHaveLength(1))
+    act(() => settleHeldKey(key))
+    await act(async () => {
+      answer(json(RECORDED))
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    })
+    expect(screen.queryByText(i18n.t('pos.pay.uncertain.recordedTitle'))).toBeNull()
+    expect(heldNames()).toEqual([])
+  })
+})
+
+// RW6-1 (coordinator ruling: no stuck till): a held key the till's queue also has is released by the
+// queue's own outcome once the server has decided it, and only then.
+describe('a held key the queue decides (RW6-1)', () => {
+  const queuedEntry = (key: string) => ({
+    key,
+    tillId: 'till-1',
+    number: 'NZW-T01-INV-2026-000049',
+    body: { ...JSON.parse(posts[0].body), queuedOffline: true, invoiceNumber: 'NZW-T01-INV-2026-000049' },
+    refusal: null,
+    madeBy: { userId: 'u-1', name: null },
+  })
+  /**
+   * A lock-only hold whose key the queue also has. The server's answer to the queue's send is set
+   * first: the till sends its own waiting sales as soon as its screen opens.
+   */
+  async function queuedHold(answer: () => Response) {
+    setPosVault(memoryVault(false))
+    const view = await sendIntoUnknown(503)
+    await vi.waitFor(() => expect(screen.getByText(i18n.t('pos.pay.uncertain.lockOnly'))).toBeTruthy())
+    reload(view)
+    const key = posts[0].key
+    window.localStorage.setItem('fawtir.pos.queue', JSON.stringify([queuedEntry(key)]))
+    replies.push(answer)
+    renderPayment()
+    await vi.waitFor(() => expect(posts.filter((post) => post.key === key)).toHaveLength(2))
+    return key
+  }
+  const FILED = () => json({ ...SOLD, tillId: 'till-1', totals: { total: 5.649 } }, 201)
+
+  it('filed by the queue (201): released and shown as recorded', async () => {
+    await queuedHold(FILED)
+    expect(await screen.findByText(i18n.t('pos.pay.uncertain.recordedTitle'))).toBeTruthy()
+    expect(
+      screen.getByText(
+        i18n.t('pos.pay.uncertain.recorded', { invoice: 'NZW-T01-INV-2026-000049', amount: 'OMR 5.649' }),
+      ),
+    ).toBeTruthy()
+    expect(heldNames()).toEqual([])
+    expect(lookups).toEqual([])
+  })
+
+  it('filed as a replay (200): released the same way', async () => {
+    await queuedHold(() => json({ ...SOLD, replayed: true, tillId: 'till-1', totals: { total: 5.649 } }, 200))
+    expect(await screen.findByText(i18n.t('pos.pay.uncertain.recordedTitle'))).toBeTruthy()
+    expect(heldNames()).toEqual([])
+  })
+
+  it('refused for good: released, and the cashier is pointed to the queued sale', async () => {
+    await queuedHold(() => json({ type: 'about:blank', status: 422, code: 'VALIDATION_FAILED' }, 422))
+    expect(await screen.findByText(i18n.t('pos.pay.uncertain.queueRefusedTitle'))).toBeTruthy()
+    expect(
+      screen.getByText(i18n.t('pos.pay.uncertain.queueRefused', { number: 'NZW-T01-INV-2026-000049' })),
+    ).toBeTruthy()
+    expect(heldNames()).toEqual([])
+    expect(JSON.parse(window.localStorage.getItem('fawtir.pos.queue')!)).toHaveLength(1)
+    expect(lookups).toEqual([])
+  })
+
+  it.each([
+    ['an uncoded 503', () => new Response('', { status: 503 })],
+    ['a coded 500', () => json({ type: 'about:blank', status: 500, code: 'POS_SALES_UNAVAILABLE' }, 500)],
+    ['a 429', () => json({ type: 'about:blank', status: 429, code: 'TOO_MANY_REQUESTS' }, 429)],
+    ['a 408', () => json({ type: 'about:blank', status: 408, code: 'REQUEST_TIMEOUT' }, 408)],
+    ['a 403', () => json({ type: 'about:blank', status: 403, code: 'BRANCH_SCOPE_DENIED' }, 403)],
+    ['an unknown refusal', () => json({ type: 'about:blank', status: 409, code: 'POS_SOMETHING_NEW' }, 409)],
+  ])('after %s the hold stays, the key is still the queue’s', async (_case, answer) => {
+    await queuedHold(answer)
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(heldNames()).toEqual([HELD])
+    expect(screen.getByText(i18n.t('pos.pay.uncertain.title'))).toBeTruthy()
+    expect(screen.getByText(i18n.t('pos.pay.uncertain.queuedKey'))).toBeTruthy()
+    expect(checkServer().disabled).toBe(true)
+    expect(screen.queryByText(i18n.t('pos.pay.uncertain.recordedTitle'))).toBeNull()
+    expect(screen.queryByText(i18n.t('pos.pay.uncertain.queueRefusedTitle'))).toBeNull()
+  })
+
+  // A 401 also ends the session (DA-16), so the screen moves on; the hold is what must stay.
+  it('after a 401 the hold stays for whoever signs in next', async () => {
+    await queuedHold(() => json({ type: 'about:blank', status: 401, code: 'AUTH_SESSION_EXPIRED' }, 401))
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(heldNames()).toEqual([HELD])
+    expect(screen.queryByText(i18n.t('pos.pay.uncertain.recordedTitle'))).toBeNull()
+    expect(screen.queryByText(i18n.t('pos.pay.uncertain.queueRefusedTitle'))).toBeNull()
+  })
+
+  it('follows the queue without a remount: the button locks once the key turns up, and the filing releases it', async () => {
+    setPosVault(memoryVault(false))
+    const view = await sendIntoUnknown(503)
+    await vi.waitFor(() => expect(screen.getByText(i18n.t('pos.pay.uncertain.lockOnly'))).toBeTruthy())
+    reload(view)
+    renderPayment()
+    expect(await screen.findByText(i18n.t('pos.pay.uncertain.lockOnly'))).toBeTruthy()
+    expect(checkServer().disabled).toBe(false)
+    const key = posts[0].key
+    window.localStorage.setItem('fawtir.pos.queue', JSON.stringify([queuedEntry(key)]))
+    replies.push(() => new Response('', { status: 503 }))
+    await act(async () => void (await flushQueue('till-1', { sender: 'u-1' })))
+    expect(await screen.findByText(i18n.t('pos.pay.uncertain.queuedKey'))).toBeTruthy()
+    expect(checkServer().disabled).toBe(true)
+    replies.push(FILED)
+    await act(async () => void (await retryQueuedSale('till-1', key, 'u-1')))
+    expect(await screen.findByText(i18n.t('pos.pay.uncertain.recordedTitle'))).toBeTruthy()
+    expect(heldNames()).toEqual([])
+  })
+
+  it('has its wording in both languages', () => {
+    for (const key of [
+      'pos.pay.uncertain.reprintFromToday',
+      'pos.pay.uncertain.queueRefusedTitle',
+      'pos.pay.uncertain.queueRefused',
+      'pos.refusal.qrUnavailableTaken',
+      'pos.refusal.qrGiveBack.cash',
+    ]) {
+      expect(i18n.exists(key, { lng: 'ar' })).toBe(true)
+      expect(i18n.t(key, { lng: 'ar' })).not.toBe(i18n.t(key, { lng: 'en' }))
+    }
+  })
+})
+
+describe('the RESEND-AUTH wording', () => {
   it('has its wording in both languages', () => {
     for (const key of [
       'pos.pay.uncertain.checkServer',

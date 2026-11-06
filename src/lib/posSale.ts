@@ -340,10 +340,13 @@ export const settleUncertainSale = () => {
 
 /**
  * The server decided this key (RESEND-AUTH): released only if it is still the hold on the till, so
- * an answer that comes back after the hold changed releases nothing else.
+ * an answer that comes back after the hold changed releases nothing else. True only when this call
+ * released it (RW6-4): a caller shows the outcome only for a hold it actually released.
  */
-export const settleHeldKey = (key: string) => {
-  if (uncertain?.key === key) settleUncertainSale()
+export const settleHeldKey = (key: string): boolean => {
+  if (uncertain?.key !== key) return false
+  settleUncertainSale()
+  return true
 }
 
 /** The first release's entry for this till, moved under the tenant and till and sealed. */
