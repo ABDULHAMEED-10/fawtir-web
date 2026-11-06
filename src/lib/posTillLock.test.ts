@@ -23,6 +23,13 @@ import {
 } from './posTillLock'
 import { memoryVault, setPosVault } from './posVault'
 
+// Queue mechanics, not the QR: a consumer sale is queued offline only with its QR (owner
+// directive 2026-11-06), so the builder answers with a fixed stand-in here. The real build and
+// its refusals are tested in posOfflineQr.test.ts and posOfflineQrIssuance.test.ts.
+vi.mock('./posOfflineQr', () => ({
+  offlinePrintedQr: async () => ({ payload: 'AQ==', sellerUuid: 'stand-in', profileVersion: '0'.repeat(64) }),
+}))
+
 /*
  * POS-TABLOCK (DES43 Q-25 option (iv), FR-2): one tab per till numbers offline sales on this
  * device. `navigator.locks` is a fake here; "another tab" is a second request on the same fake

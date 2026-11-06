@@ -268,6 +268,11 @@ export function posRefusalKey(error: unknown): string {
   if (error instanceof Error && error.name === 'PosTenantZoneUnavailable') {
     return 'pos.refusal.tenantZoneUnavailable'
   }
+  // Same name match. Nothing was numbered or printed and the cart is kept (owner directive
+  // 2026-11-06 item B), so the sentence says that, not a storage or zone fault.
+  if (error instanceof Error && error.name === 'PosOfflineQrUnavailable') {
+    return 'pos.refusal.offlineQrUnavailable'
+  }
   // POS-TABLOCK refused the offline sale before it had a number: the cashier must know no receipt
   // number exists. posTillLock imports nothing of ours, so unlike posQueue it can be imported here.
   if (error instanceof PosTillLockUnavailable) {

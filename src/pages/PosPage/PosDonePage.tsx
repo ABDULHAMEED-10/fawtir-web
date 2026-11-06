@@ -73,10 +73,14 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
   const { entitlements } = useEntitlements()
   const profile = useApiRead<CompanyProfileDto>(COMPANY_PROFILE_PATH, loadCompanyProfile)
   const business = profile.read.status === 'ready' ? profile.read.data : null
-  // QR E-1: only a consumer's queued sale carries one. The receipt says it holds a QR, and prints,
-  // only once the image is drawn; one that cannot be drawn reads "QR to follow" (review QW3R-3).
+  // QR E-1: a consumer's queued sale is a tax invoice that must carry its QR on paper (owner
+  // directive 2026-11-06). The receipt says it holds a QR, and prints, only once the image is drawn
+  // (review QW3R-3). With no QR to draw, or one that cannot be drawn, no receipt is shown or printed
+  // and the cashier is told why (item C); there is no "QR to follow" receipt (item D).
   const offlineQr = useServerQrImage(!done.sale && !done.company ? done.queuedQr : null)
-  const printHeld = offlineQr.status === 'encoding'
+  const receiptWithheld =
+    !done.sale && !done.company && (offlineQr.status === 'none' || offlineQr.status === 'failed')
+  const printHeld = offlineQr.status === 'encoding' || receiptWithheld
 
   // Waits (up to 15 s a time, three times) for the filed and accepted steps and the QR.
   useEffect(() => {
@@ -281,23 +285,30 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
               <h2 className="text-base font-medium leading-[1.2] text-text-primary">
                 {t('pos.done.giveReceipt')}
               </h2>
-              <p className="mt-1 text-xs font-medium text-text-quaternary">
-                {/* The server decides the QR (receipt.qr.status): B2C only, so a business or
-                    government buyer never gets one. A queued sale has one only when the till held the
-                    server's QR profile (QR E-1); otherwise it comes once filed (retest N-6). */}
-                {t(
-                  qrStatus === 'READY' || (!sale && !company && offlineQr.status === 'drawn')
-                    ? 'pos.done.qrAlreadyUp'
-                    : qrStatus === 'PENDING'
-                      ? 'pos.done.qrNotReadyShort'
-                      : qrStatus === 'NOT_APPLICABLE' || company
-                        ? 'pos.done.qrNone'
-                        : 'pos.done.qrAfterFiling',
-                )}
-              </p>
+              {receiptWithheld ? (
+                <p role="alert" className="mt-2 text-sm font-medium leading-[1.6] text-danger-700">
+                  {t('pos.done.receiptWithheld', { invoice })}
+                </p>
+              ) : !sale && !company && offlineQr.status === 'encoding' ? null : (
+                <p className="mt-1 text-xs font-medium text-text-quaternary">
+                  {/* The server decides the QR (receipt.qr.status): B2C only, so a business or
+                      government buyer never gets one. A queued consumer sale shows it once drawn. The
+                      last wording is left for an online sale whose status this build does not know. */}
+                  {t(
+                    qrStatus === 'READY' || (!sale && !company && offlineQr.status === 'drawn')
+                      ? 'pos.done.qrAlreadyUp'
+                      : qrStatus === 'PENDING'
+                        ? 'pos.done.qrNotReadyShort'
+                        : qrStatus === 'NOT_APPLICABLE' || company
+                          ? 'pos.done.qrNone'
+                          : 'pos.done.qrAfterFiling',
+                  )}
+                </p>
+              )}
             </div>
             {/* TODO(backend): only printing works; e-mailing or texting a receipt has no route
                 yet (INCOME.md row P.29). */}
+            {receiptWithheld ? null : (
             <div className="grid grid-cols-2 gap-3 px-6 py-4 max-md:grid-cols-1">
               {RECEIPT_WAYS.map((option) => {
                 const chosen = option.id === way
@@ -347,6 +358,7 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
                 )
               })}
             </div>
+            )}
             {till.can.refund ? (
               <div className="mx-6 mb-6 flex flex-wrap items-center gap-3 rounded-sm bg-surface-background px-4 py-3">
                 <p className="flex min-w-[220px] flex-1 items-start gap-2 text-sm font-medium leading-[1.6] text-text-tertiary">
@@ -391,6 +403,7 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
           </section>
         </div>
 
+        {receiptWithheld ? null : (
         <aside className="flex w-full flex-col rounded-md bg-surface-card xl:w-[392px] xl:shrink-0">
           <div className="flex items-center justify-between gap-3 border-b border-border-subtle px-5 py-4">
             <h2 className="text-base font-medium leading-[1.2] text-text-primary">
@@ -523,10 +536,6 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
                   <ReceiptQr saleId={sale.saleId} status={sale.receipt.qr.status} />
                 ) : !company && offlineQr.status === 'drawn' ? (
                   <OfflineReceiptQr image={offlineQr.image} />
-                ) : !company && offlineQr.status !== 'encoding' ? (
-                  <p className="text-[11px] font-medium leading-[1.5] text-text-quaternary">
-                    {t('pos.done.qrComing')}
-                  </p>
                 ) : null}
                 <p className="mt-1 text-[11px] font-medium text-text-quaternary">
                   {t('pos.done.thankYou')}
@@ -536,6 +545,7 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
             </div>
           </div>
         </aside>
+        )}
       </div>
     </div>
   )

@@ -3,6 +3,7 @@ import { ApiError, NetworkError, serverCode } from '../api'
 import {
   createPosSale,
   type PosPerson,
+  type PosPrintedQr,
   type PosPrintedTotals,
   type PosSaleDto,
   type PosSaleRequest,
@@ -47,10 +48,11 @@ import {
  * order whatever the server says (`opensNumbers`, Q-27), so they wait behind it, in order, and are
  * numbered and printed meanwhile.
  *
- * A sale queued offline to a consumer prints its QR when the till holds the server's `qrProfile`
- * (QR E-1): built from the claimed number, soldAt and the printed totals, and sent as `printedQr`
- * for the server to compare after issue (`offlinePrintedQr`). Without a profile it prints "QR to
- * follow", as before.
+ * A sale queued offline to a walk-in or named consumer is a simplified or full tax invoice that
+ * must carry its QR on paper (owner directive 2026-11-06, QR E-1): built from the claimed number,
+ * soldAt and the printed totals with the till's `qrProfile`, and sent as `printedQr` for the
+ * server to compare after issue (`offlinePrintedQr`). Without a usable profile the sale is not
+ * numbered or kept at all (`PosOfflineQrUnavailable`); there is no "QR to follow" receipt.
  *
  * A full invoice names its buyer, and their civil ID or passport number is personal data: the
  * queue entry never holds it where the device can seal it (`posVault`). The sealed copy stays until
@@ -91,6 +93,12 @@ export type QueuedSale = {
    * is not evidence (DES43 §5.6 option (b), NF7R).
    */
   setAsideSeen?: true
+  /**
+   * The QR could not be built after the number was claimed (owner directive 2026-11-06 item C), so
+   * no receipt was printed. The entry and its number are kept and sent as usual; this device note
+   * is never sent and keeps the sale marked for review on this till.
+   */
+  receiptWithheld?: true
   /**
    * The buyer was in plain text on a device that cannot seal, and went at the final refusal: the
    * sale cannot be sent from this device any more, since a full invoice has to name them.
@@ -693,6 +701,27 @@ export class PosTenantZoneUnavailable extends Error {
   }
 }
 
+/**
+ * Thrown before a number is claimed when a sale that would be queued offline to a walk-in or named
+ * consumer cannot carry its QR: no profile on this till, or one this build cannot honour (kill
+ * switch off, seller unverified, a zone other than Asia/Muscat, a malformed profile version), or a
+ * dry run of the QR with the number the till would claim fails. Owner directive 2026-11-06 items A
+ * and B: nothing is numbered, kept or printed, and the cart stays as it is for the cashier to sell
+ * online once the connection is back. Online sales never reach it.
+ */
+export class PosOfflineQrUnavailable extends Error {
+  constructor() {
+    super('This till cannot issue an offline receipt with its QR now')
+    this.name = 'PosOfflineQrUnavailable'
+  }
+}
+
+/** A walk-in or named consumer: the buyers whose receipt carries a QR (B2C). */
+function takesReceiptQr(body: PosSaleRequest): boolean {
+  const kind = body.customer?.kind
+  return kind === 'WALK_IN' || kind === 'CONSUMER'
+}
+
 /** The till's series names a zone this browser cannot read: no business year, so no sale. */
 export function tillZoneUnreadable(till: PosTillDto, soldAt?: string): boolean {
   const series = till.series?.INVOICE
@@ -921,7 +950,9 @@ export function queuedFor(tillId: string): QueuedSale[] {
  * `behind`: the server answered, and this sale waits behind one it would not take yet, so the till
  * is not offline and its receipt must not say it is.
  */
-export type SubmitResult = { sale: PosSaleDto } | { queued: QueuedSale; behind?: boolean }
+export type SubmitResult =
+  | { sale: PosSaleDto }
+  | { queued: QueuedSale; behind?: boolean; receiptWithheld?: true }
 
 export function refusalVerdict(error: ApiError): RefusalVerdict {
   return verdictOf(error.status, error.code, error.problemType)
@@ -1276,6 +1307,16 @@ export async function submitSale(
     void dropSlipPhotos(key)
     throw new PosTenantZoneUnavailable()
   }
+  const refuseQr = (): never => {
+    void dropSlipPhotos(key)
+    throw new PosOfflineQrUnavailable()
+  }
+  const qrFor = (number: string) =>
+    offlinePrintedQr(
+      till.qrProfile,
+      { invoiceNumber: number, soldAt: body.soldAt, customer: body.customer },
+      printed,
+    )
   const enqueue = () => span('offline', () => numberAndKeep())
   const sendOnline = () =>
     span('online', async () => {
@@ -1308,18 +1349,21 @@ export async function submitSale(
     if ('blocked' in numbering) return refuseOffline(numbering.blocked)
     const number = numbering.number
     if (!number) throw new NetworkError('offline')
+    const receiptQr = takesReceiptQr(body)
+    // Directive item A: the QR is proved with the number the till is about to claim before anything
+    // is claimed, so a till that cannot make it leaves no number, entry or receipt behind (item B).
+    // The await sits inside this sale's span, as the online path's own fallback does.
+    if (receiptQr && !(await qrFor(number))) return refuseQr()
     const reservation = reserveNumber(till.id, number)
     if (!reservation.ok) return refuseOffline(reservation.reason)
     let saved = 'denied' as StorageWrite
     let entry: QueuedSale | null = null
+    let printedQr: PosPrintedQr | null = null
     try {
       // Built from the number just claimed and never the other way round: no number, time or total
-      // is changed to make a QR. Before signing, so the proof covers it.
-      const printedQr = await offlinePrintedQr(
-        till.qrProfile,
-        { invoiceNumber: number, soldAt: body.soldAt, customer: body.customer },
-        printed,
-      )
+      // is changed to make a QR. Before signing, so the proof covers it. Kept in the entry and sent
+      // as it is by every retry, correction and resend: never built again (directive item E).
+      printedQr = receiptQr ? await qrFor(number) : null
       // Signed before the buyer is sealed, so the signed body is the body `bodyToSend` rebuilds (WEB-3).
       entry = await sealed({
         key,
@@ -1332,6 +1376,9 @@ export async function submitSale(
           printed,
         ),
         refusal: null,
+        // Directive item C: past the dry run this is not expected. The number is claimed, so the
+        // sale is kept and filed with it, but no receipt is printed and the till marks it.
+        ...(receiptQr && !printedQr ? { receiptWithheld: true as const } : {}),
         ...(maker
           ? { madeBy: maker }
           : deviceSender
@@ -1354,7 +1401,7 @@ export async function submitSale(
       }
     }
     if (saved !== 'ok' || !entry) return refuseOffline(saved === 'ok' ? 'denied' : saved)
-    return { queued: entry }
+    return entry.receiptWithheld ? { queued: entry, receiptWithheld: true } : { queued: entry }
   }
   // The gate before anything is sent, the waiting sales' flush included: a tab that may not sell
   // sends nothing for this sale (D.8 (vii), (iv)). The flush on its own stays allowed (D.9).

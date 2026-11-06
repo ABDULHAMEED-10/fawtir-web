@@ -51,6 +51,19 @@ const TILL = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
+// QR E-1: the profile comes only from GET /pos/tills/{id}; the till list never carries it. A
+// consumer sale is queued offline only with its QR (owner directive 2026-11-06).
+const QR_PROFILE = {
+  qrVersion: '1.1',
+  invoiceType: '01',
+  sellerName: 'Al Noor Trading LLC',
+  sellerVatin: 'OM1100012345',
+  issueDateZone: 'Asia/Muscat',
+  issueTimeZone: 'Asia/Muscat',
+  amountScale: 3,
+  profileVersion: 'c'.repeat(64),
+}
+
 /** The panel as the sale screen mounts it: on the shared open sale. */
 function SharedPanel() {
   const { lines } = useOpenSale()
@@ -142,6 +155,7 @@ describe('taking the payment (P.12)', () => {
         if (url === '/api/v1/branches') {
           return json([{ id: 'b-1', code: 'NZW', name: 'Nizwa', type: 'BRANCH', city: 'Nizwa' }])
         }
+        if (url === '/api/v1/pos/tills/till-1') return json({ ...TILL, qrProfile: QR_PROFILE })
         if (url.startsWith('/api/v1/pos/tills')) return tillsReply()
         if (url === '/api/v1/pos/sales' && init?.method === 'POST') return saleReply()
         return new Response('', { status: 404 })
@@ -369,18 +383,6 @@ describe('taking the payment (P.12)', () => {
     })
   })
 
-  // QR E-1: the profile comes only from GET /pos/tills/{id}; the till list never carries it.
-  const QR_PROFILE = {
-    qrVersion: '1.1',
-    invoiceType: '01',
-    sellerName: 'Al Noor Trading LLC',
-    sellerVatin: 'OM1100012345',
-    issueDateZone: 'Asia/Muscat',
-    issueTimeZone: 'Asia/Muscat',
-    amountScale: 3,
-    profileVersion: 'c'.repeat(64),
-  }
-
   async function sellOffline(detail: unknown) {
     const answer = (url: string) => (url === '/api/v1/pos/tills/till-1' ? json(detail) : json([TILL]))
     vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -400,22 +402,37 @@ describe('taking the payment (P.12)', () => {
       expect(calls.some((call) => call.url === '/api/v1/pos/tills/till-1')).toBe(true),
     )
     fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+  }
+
+  async function soldOffline(detail: unknown) {
+    await sellOffline(detail)
     const done = await screen.findByText('done NZW-T01-INV-2026-000049')
     const [queued] = JSON.parse(window.localStorage.getItem('fawtir.pos.queue') ?? '[]')
     return { done, body: queued.body }
   }
 
   it('offline with the till’s QR profile, the receipt shows the QR the queued sale carries (QR E-1)', async () => {
-    const { done, body } = await sellOffline({ ...TILL, qrProfile: QR_PROFILE })
+    const { done, body } = await soldOffline({ ...TILL, qrProfile: QR_PROFILE })
     expect(body.printedQr).toMatchObject({ profileVersion: QR_PROFILE.profileVersion })
     expect(body.printedQr.payload).toMatch(/^[A-Za-z0-9+/]+=*$/)
     expect(done.getAttribute('data-queued-qr')).toBe(body.printedQr.payload)
   })
 
-  it('offline without a QR profile, the queued sale and its receipt are as before E-1', async () => {
-    const { done, body } = await sellOffline({ ...TILL })
-    expect('printedQr' in body).toBe(false)
-    expect(done.getAttribute('data-queued-qr')).toBe('')
+  // Owner directive 2026-11-06 items A and B. Named cases: the kill switch off or an unverified
+  // seller (the server sends no profile), an unsupported zone, a profile version that is not one.
+  it.each([
+    ['no profile (kill switch off, or an unverified seller)', { ...TILL }],
+    ['an unsupported zone', { ...TILL, qrProfile: { ...QR_PROFILE, issueDateZone: 'Asia/Dubai' } }],
+    ['a malformed profile version', { ...TILL, qrProfile: { ...QR_PROFILE, profileVersion: 'stale' } }],
+  ])('offline with %s: no number, no receipt, nothing kept, the cart stays, and the cashier is told', async (_why, detail) => {
+    await sellOffline(detail)
+    expect(await screen.findByText(i18n.t('pos.refusal.offlineQrUnavailable'))).toBeTruthy()
+    expect(screen.queryByText(/^done/)).toBeNull()
+    expect(screen.queryByText(/NZW-T01-INV-2026-000049/)).toBeNull()
+    expect(JSON.parse(window.localStorage.getItem('fawtir.pos.queue') ?? '[]')).toEqual([])
+    // The cart is as it was, ready to finish once the till is online again.
+    expect(screen.getAllByText(/5\.649/).length).toBeGreaterThan(0)
+    expect(screen.getByRole('button', { name: 'Finish the sale' })).toBeTruthy()
   })
 
   it('offline with storage that cannot keep the sale: "Not sold", no receipt, and no number until Check again (POS-MEMQ S8)', async () => {
@@ -489,6 +506,7 @@ describe('POS follow-ups (Abdul, 28 Oct 2026)', () => {
         if (url === '/api/v1/branches') {
           return json([{ id: 'b-1', code: 'NZW', name: 'Nizwa', type: 'BRANCH', city: 'Nizwa' }])
         }
+        if (url === '/api/v1/pos/tills/till-1') return json({ ...TILL, qrProfile: QR_PROFILE })
         if (url.startsWith('/api/v1/pos/tills')) return json([TILL])
         if (url === '/api/v1/auth/logout') return new Response(null, { status: 204 })
         if (!online) throw new TypeError('Failed to fetch')

@@ -160,6 +160,7 @@ const json = (body: unknown, status = 200) =>
   })
 
 let saleAnswer: PosSaleDto
+let queuedAnswer: PosSaleDto
 let fetchMock: ReturnType<typeof vi.fn>
 const requested = () => fetchMock.mock.calls.map(([input]) => String(input))
 
@@ -173,6 +174,12 @@ beforeEach(async () => {
   window.localStorage.clear()
   vi.mocked(QRCode.toDataURL).mockClear()
   saleAnswer = sale()
+  queuedAnswer = sale({
+    saleId: 's-2',
+    invoiceId: 'inv-2',
+    invoiceNumber: 'NZW-T01-INV-2026-000050',
+    queuedOffline: true,
+  })
   rows = [row({}), QUEUED_ROW]
   fetchMock = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input)
@@ -186,6 +193,7 @@ beforeEach(async () => {
       return json({ branchId: 'b-1', businessDate: '2026-10-29', page: 0, size: 50, totalElements: rows.length, content: rows })
     }
     if (url.startsWith('/api/v1/pos/sales/s-1')) return json(saleAnswer)
+    if (url.startsWith('/api/v1/pos/sales/s-2')) return json(queuedAnswer)
     return json({ type: 'about:blank', status: 404 }, 404)
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -269,7 +277,51 @@ describe('reprinting a filed online sale from the day', () => {
     expect(QRCode.toDataURL).not.toHaveBeenCalled()
   })
 
-  it('leaves a sale queued offline as it was: no reprint is read or shown', async () => {
+})
+
+// Owner directive 2026-11-06 item F: a filed queued sale reprints from the server's answer only,
+// with the QR the server serves for it (frozen at the till's printedQr), never from this device.
+describe('reprinting a filed sale that was queued offline', () => {
+  it('prints the server QR once the answer carries lines and a READY QR', async () => {
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {})
+    await renderToday()
+    printFromRow(1)
+    const dialog = await screen.findByRole('dialog', { name: i18n.t('pos.today.reprintTitle') })
+    expect(await within(dialog).findByText('Al Noor Trading LLC')).toBeTruthy()
+    expect(numberRow(dialog, 'NZW-T01-INV-2026-000050')).toBe('NZW-T01-INV-2026-000050 | 29 Oct, 14:00')
+    expect(qrSrc(dialog)).toBe('/api/v1/pos/sales/s-2/qr')
+    expect(requested()).toContain('/api/v1/pos/sales/s-2?wait=0')
+    expect(QRCode.toDataURL).not.toHaveBeenCalled()
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('pos.done.printAgain') }))
+    expect(print).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['PENDING', { status: 'PENDING', payload: null, pngUrl: null }],
+    ['NOT_APPLICABLE', { status: 'NOT_APPLICABLE', payload: null, pngUrl: null }],
+  ] as const)('prints nothing while its QR is %s, and says the reprint is unavailable', async (_status, qr) => {
+    queuedAnswer = { ...queuedAnswer, receipt: { ...queuedAnswer.receipt, qr: { ...qr } } }
+    await renderToday()
+    printFromRow(1)
+    const dialog = await screen.findByRole('dialog', { name: i18n.t('pos.today.reprintTitle') })
+    expect(await within(dialog).findByText(i18n.t('pos.today.reprintUnavailable'))).toBeTruthy()
+    expect(dialog.querySelector('.fawtir-print-sheet')).toBeNull()
+    expect(
+      (within(dialog).getByRole('button', { name: i18n.t('pos.done.printAgain') }) as HTMLButtonElement).disabled,
+    ).toBe(true)
+  })
+
+  it('prints nothing without lines, as an online sale', async () => {
+    queuedAnswer = { ...queuedAnswer, receipt: { ...queuedAnswer.receipt, lines: undefined } }
+    await renderToday()
+    printFromRow(1)
+    const dialog = await screen.findByRole('dialog', { name: i18n.t('pos.today.reprintTitle') })
+    expect(await within(dialog).findByText(i18n.t('pos.today.reprintUnavailable'))).toBeTruthy()
+    expect(dialog.querySelector('.fawtir-print-sheet')).toBeNull()
+  })
+
+  it('is not offered while the queued sale still waits to be filed', async () => {
+    rows = [row({}), { ...QUEUED_ROW, displayState: 'waiting' }]
     await renderToday()
     printFromRow(1)
     expect(screen.queryByRole('dialog', { name: i18n.t('pos.today.reprintTitle') })).toBeNull()

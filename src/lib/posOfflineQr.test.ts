@@ -7,6 +7,7 @@ import { offlinePrintedQr } from './posOfflineQr'
 import { encodeQr, sellerUuid } from './posQr'
 import {
   correctQueuedSale,
+  PosOfflineQrUnavailable,
   flushQueue,
   noteQueueSender,
   queuedFor,
@@ -139,6 +140,7 @@ describe('the offline QR from the profile', () => {
 describe('the queued sale it rides on', () => {
   let online: boolean
   let sent: string[]
+  let failNext: boolean
 
   beforeEach(() => {
     window.localStorage.clear()
@@ -149,6 +151,7 @@ describe('the queued sale it rides on', () => {
     resetSharedRequests()
     online = false
     sent = []
+    failNext = false
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -156,6 +159,10 @@ describe('the queued sale it rides on', () => {
         if (!online) throw new TypeError('Failed to fetch')
         if (url === '/api/v1/pos/sales' && init?.method === 'POST') {
           sent.push(String(init.body))
+          if (failNext) {
+            failNext = false
+            throw new TypeError('Failed to fetch')
+          }
           return new Response(
             JSON.stringify({
               saleId: 'sale-9',
@@ -186,15 +193,49 @@ describe('the queued sale it rides on', () => {
     return sent.at(-1)!
   }
 
-  // The bytes a queued sale sent before E-1: the sale, marked queued, with its claimed number.
-  const BEFORE_E1 = JSON.stringify({ ...BODY, queuedOffline: true, invoiceNumber: NUMBER })
-
-  it('without a profile the request is the one sent before E-1, byte for byte', async () => {
-    expect(await queueAndSend(TILL, BODY, 'pos-sale-key-qr-01')).toBe(BEFORE_E1)
+  /**
+   * Owner directive 2026-11-06 items A and B: a consumer sale that cannot carry its QR is not
+   * numbered, kept or printed. The number stays unclaimed: the next sale that can be queued takes
+   * it. Named cases: the kill switch off or an unverified seller (no profile, or null), an
+   * unsupported zone, a malformed profile version, and a dry run the encoder refuses.
+   */
+  it.each([
+    ['no profile (kill switch off, or an unverified seller)', TILL],
+    ['a null profile', { ...TILL, qrProfile: null }],
+    ['an unsupported zone', { ...TILL, qrProfile: { ...PROFILE, issueTimeZone: 'Asia/Dubai' } }],
+    ['a malformed profile version', { ...TILL, qrProfile: { ...PROFILE, profileVersion: 'stale' } }],
+    ['a dry run the encoder refuses', { ...TILL, qrProfile: { ...PROFILE, sellerName: 'x'.repeat(256) } }],
+  ] as [string, PosTillDto][])('a consumer sale with %s claims no number and keeps nothing', async (_why, till) => {
+    await expect(submitSale(till, BODY, 'pos-sale-key-qr-01', [], PRINTED)).rejects.toBeInstanceOf(
+      PosOfflineQrUnavailable,
+    )
+    expect(queuedFor('till-1')).toEqual([])
+    expect(sent).toEqual([])
+    const next = await submitSale({ ...TILL, qrProfile: PROFILE }, BODY, 'pos-sale-key-qr-01b', [], PRINTED)
+    expect('queued' in next && next.queued.number).toBe(NUMBER)
   })
 
-  it('a profile the server did not state (null) is the same as none', async () => {
-    expect(await queueAndSend({ ...TILL, qrProfile: null }, BODY, 'pos-sale-key-qr-01')).toBe(BEFORE_E1)
+  it('a company sale without a profile is queued and sent as before E-1, byte for byte', async () => {
+    const company = { ...BODY, customer: { kind: 'BUSINESS' as const, customerId: 'c-1' } }
+    expect(await queueAndSend(TILL, company, 'pos-sale-key-qr-01c')).toBe(
+      JSON.stringify({ ...company, queuedOffline: true, invoiceNumber: NUMBER }),
+    )
+  })
+
+  // Directive item E: the entry's printedQr is what every later send carries, never built again.
+  it('a send that fails is retried with the same printedQr, byte for byte', async () => {
+    await submitSale({ ...TILL, qrProfile: PROFILE }, BODY, 'pos-sale-key-qr-07', [], PRINTED)
+    const kept = queuedFor('till-1')[0].body.printedQr
+    failNext = true
+    online = true
+    await flushQueue('till-1')
+    expect(queuedFor('till-1')).toHaveLength(1)
+    await flushQueue('till-1')
+    expect(sent).toHaveLength(2)
+    const [first, second] = sent.map((body) => JSON.parse(body).printedQr)
+    expect(first).toEqual(kept)
+    expect(second).toEqual(kept)
+    expect(queuedFor('till-1')).toEqual([])
   })
 
   it('with a profile, a walk-in sale keeps its number, time and totals and sends the QR it printed', async () => {
@@ -240,15 +281,10 @@ describe('the queued sale it rides on', () => {
     expect(sent[0]).not.toContain('printedQr')
   })
 
-  it('a QR that cannot be built leaves the sale queued as before, with no printedQr', async () => {
-    const result = await submitSale(
-      { ...TILL, qrProfile: { ...PROFILE, sellerName: 'x'.repeat(256) } },
-      BODY,
-      'pos-sale-key-qr-05',
-      [],
-      PRINTED,
-    )
-    expect('queued' in result && result.queued.number).toBe(NUMBER)
-    expect(queuedFor('till-1')[0].body.printedQr).toBeUndefined()
+  it('without printed totals a consumer sale cannot carry its QR, so it is not queued', async () => {
+    await expect(
+      submitSale({ ...TILL, qrProfile: PROFILE }, BODY, 'pos-sale-key-qr-05'),
+    ).rejects.toBeInstanceOf(PosOfflineQrUnavailable)
+    expect(queuedFor('till-1')).toEqual([])
   })
 })

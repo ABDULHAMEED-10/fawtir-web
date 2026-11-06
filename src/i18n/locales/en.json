@@ -4563,7 +4563,8 @@
       "rungUpWrongQueued": "Rung it up wrong? This sale is waiting to be filed. Once it is filed, a mistake is put right with a credit note, which the Tax Authority also sees.",
       "queuedBehindTitle": "Sold, filing after an earlier sale",
       "queuedBehindSummary": "Invoice {{invoice}} is numbered and will be filed after an earlier sale the till is holding. See the till screen for what it needs. There is {{change}} change to hand back.",
-      "sentAfterEarlier": "it is filed once the earlier sale has gone"
+      "sentAfterEarlier": "it is filed once the earlier sale has gone",
+      "receiptWithheld": "No receipt was printed: this sale’s QR could not be made on this till. The sale is kept as {{invoice}} and is sent when the till is back online. Ask a manager to review it before the customer is given a receipt."
     },
     "company": {
       "whose": "Whose company is it?",
@@ -5276,7 +5277,8 @@
       "CREDIT_NOTE_NOTHING_CORRECTABLE": "There is no remaining amount available to credit on this sale. Review its existing credit notes. Nothing was refunded.",
       "CREDIT_NOTE_EXCEEDS_CORRECTABLE_AMOUNT": "This refund asks to credit more than the amount still available to credit on this sale. Give back less, or review the sale's existing credit notes. Nothing was refunded.",
       "tooLarge": "This sale is too large to send, so nothing was recorded. Contact Fawtir support.",
-      "TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE": "This company's time zone is not set to Oman time, so e-invoices can't be issued and nothing was recorded. Contact Fawtir support to set it to Asia/Muscat."
+      "TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE": "This company's time zone is not set to Oman time, so e-invoices can't be issued and nothing was recorded. Contact Fawtir support to set it to Asia/Muscat.",
+      "offlineQrUnavailable": "This till cannot issue an offline receipt now: the QR settings are not available. Nothing was numbered or printed. Reconnect to sell online, or keep the sale open until the connection is back."
     },
     "warning": {
       "STOCK_BELOW_ZERO": "Line {{line}} took the stock below zero. Count it when you can.",

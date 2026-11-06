@@ -51,7 +51,8 @@ export type PosTillDto = {
   takesMakerClaim?: boolean
   /**
    * QR E-1: only on `GET /pos/tills/{tillId}`, and only behind the server's offline-QR flag when it
-   * can state every field. Absent, a sale queued offline prints "QR to follow" as before.
+   * can state every field. Absent, a consumer sale cannot be queued offline (owner directive
+   * 2026-11-06): the till refuses it before numbering it (`PosOfflineQrUnavailable`).
    */
   qrProfile?: PosQrProfile | null
 }

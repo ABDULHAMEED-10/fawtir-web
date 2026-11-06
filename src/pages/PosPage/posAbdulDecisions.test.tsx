@@ -26,6 +26,13 @@ import { forgetWorkingBranch } from '../../lib/workingBranch'
 import type { PosSaleRequest, PosTillDto } from '../../api/pos/pos'
 import type { TillState } from '../../lib/posTill'
 
+// Queue mechanics, not the QR: a consumer sale is queued offline only with its QR (owner
+// directive 2026-11-06), so the builder answers with a fixed stand-in here. The real build and
+// its refusals are tested in posOfflineQr.test.ts and posOfflineQrIssuance.test.ts.
+vi.mock('../../lib/posOfflineQr', () => ({
+  offlinePrintedQr: async () => ({ payload: 'AQ==', sellerUuid: 'stand-in', profileVersion: '0'.repeat(64) }),
+}))
+
 /** Abdul's decisions of 1 Nov 2026 on the till, on the API's own shapes. */
 
 const MANAGER: Entitlements = {
@@ -526,7 +533,8 @@ describe('the civil ID on the receipt (decision 4)', () => {
   })
 
   it.each([
-    ['queued', {}],
+    // A consumer's queued receipt carries its QR (owner directive 2026-11-06); without one none prints.
+    ['queued', { queuedQr: 'AQ==' }],
     ['online', { sale: SOLD, queuedNumber: null }],
   ])('a %s receipt never prints the whole number', async (_kind, patch) => {
     finished(patch)

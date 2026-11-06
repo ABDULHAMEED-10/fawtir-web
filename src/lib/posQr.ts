@@ -8,8 +8,9 @@
  * QrTlvEncoder (TLV, limits, Base64) and AuthoredInvoiceCanonicalMapper (amounts). The shared
  * fixture qr-vectors.v1.json pins both sides (PRV43-RC5-IMPL2 review §4, T-X1..X6).
  *
- * Every function answers null for "no QR", never throws: the receipt then says the QR is to follow,
- * which is today's approved state (INCOME.md P.28). A QR must never stop a sale.
+ * Every function answers null for "no QR" and never throws; what a sale does without one is the
+ * caller's (a consumer sale queued offline is refused before it is numbered, owner directive
+ * 2026-11-06).
  */
 
 /** SA v1.0.3 §10.2.3 and App. D.1; public by design. */

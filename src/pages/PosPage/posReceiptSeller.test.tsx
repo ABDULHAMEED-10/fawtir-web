@@ -232,6 +232,8 @@ describe('a sale queued offline has no issued invoice yet', () => {
       payments: [{ method: 'cash', amount: totals.sale }],
       sale: null,
       queuedNumber: 'NZW-T01-INV-2026-000050',
+      // The QR it printed (owner directive 2026-11-06): without one no receipt is shown at all.
+      queuedQr: 'AQ==',
       finishedAt: '2026-10-29T10:00:00Z',
     })
     renderReceipt()

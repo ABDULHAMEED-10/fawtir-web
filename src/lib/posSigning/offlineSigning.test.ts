@@ -31,11 +31,25 @@ const SHIFT = '88888888-8888-8888-8888-888888888888'
 const TILL_ID = '11111111-1111-1111-1111-111111111111'
 const KEY_ID = '44444444-4444-4444-4444-444444444444'
 
+// A consumer sale is queued offline only with its QR (owner directive 2026-11-06), so the till
+// holds a usable profile; a company sale needs none.
+const QR_PROFILE = {
+  qrVersion: '1.1',
+  invoiceType: '01',
+  sellerName: 'Al Noor Trading LLC',
+  sellerVatin: 'OM1100012345',
+  issueDateZone: 'Asia/Muscat',
+  issueTimeZone: 'Asia/Muscat',
+  amountScale: 3,
+  profileVersion: 'd'.repeat(64),
+}
+
 const TILL = {
   id: TILL_ID,
   branchId: 'b-1',
   series: { INVOICE: { series: 'NZW-T01-INV', year: new Date().getFullYear(), nextValue: 49 } },
   openShift: { shiftId: SHIFT, cashier: { userId: USER, name: 'Aisha' }, openedAt: '' },
+  qrProfile: QR_PROFILE,
 } as unknown as PosTillDto
 
 const BODY: PosSaleRequest = {
@@ -334,9 +348,10 @@ describe('signing a queued sale (WEB-3, WEB-4, WEB-14)', () => {
     expect(await verifies(tampered, 'sale-key-6')).toBe(false)
   })
 
-  it('without a profile the signed body has no printedQr member and verifies as before', async () => {
+  it('a company sale, without a profile, has no printedQr member and verifies as before', async () => {
     await ensureSigningKey({ shiftId: SHIFT, userId: USER, tenantId: TENANT })
-    await submitSale(TILL, BODY, 'sale-key-7', [], PRINTED)
+    const company: PosSaleRequest = { ...BODY, customer: { kind: 'BUSINESS', customerId: 'c-1' } }
+    await submitSale({ ...TILL, qrProfile: null }, company, 'sale-key-7', [], PRINTED)
     const [entry] = queuedFor(TILL_ID)
     expect('printedQr' in entry.body).toBe(false)
     expect(canonicalSale(bodyForSigning(entry.body))).not.toContain('printedQr')

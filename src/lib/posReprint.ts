@@ -2,15 +2,14 @@ import type { PosSaleDto, PosTodaySaleRow } from '../api/pos/pos'
 import { saleState } from './posToday'
 
 /**
- * Which sales the day's list offers to reprint (QR E-5). Only a filed sale made online that stands
- * as issued: a credited sale would reprint as a clean receipt, and a failed, waiting or held one is
- * not what the customer can rely on (review QW2R-3). A queued sale printed its own number and QR,
- * which the server's answer cannot restate yet (E-1).
+ * Which sales the day's list offers to reprint (QR E-5). Only a filed sale that stands as issued: a
+ * credited sale would reprint as a clean receipt, and a failed, waiting or held one is not what the
+ * customer can rely on (review QW2R-3). A queued sale is offered once filed (owner directive
+ * 2026-11-06 item F); whether it prints is decided on the server's answer (`reprintReady`).
  */
 export function reprintOffered(row: PosTodaySaleRow): boolean {
   const state = saleState(row)
   return (
-    !row.queuedOffline &&
     (state === 'filed' || state === 'peppol') &&
     row.credit.state === 'NONE' &&
     row.attribution !== 'PENDING_REVIEW'
@@ -26,6 +25,9 @@ export function reprintOffered(row: PosTodaySaleRow): boolean {
 export function reprintReady(sale: PosSaleDto): boolean {
   const lines = sale.receipt.lines
   if (!Array.isArray(lines) || lines.length === 0) return false
+  // Item F: a queued sale reprints only the QR the server serves for it, READY, which reads the
+  // payload the till printed (frozen, then filed, then live); never one made from data here.
+  if (sale.queuedOffline && sale.receipt.qr.status !== 'READY') return false
   if (sale.transactionType === 'FULL_TAX') {
     const buyer = sale.receipt.buyer
     if (!buyer || !buyer.name?.trim()) return false

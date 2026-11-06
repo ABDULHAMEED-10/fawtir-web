@@ -79,8 +79,8 @@ export function ReceiptMasthead({
 
 /**
  * The QR a sale queued offline printed (QR E-1): the image of the `printedQr.payload` sent with it,
- * drawn as it is. The page encodes it (`useServerQrImage`) so its heading and Print can wait for
- * the image and fall back to "QR to follow" when it cannot be drawn (review QW3R-3).
+ * drawn as it is. The page encodes it (`useServerQrImage`) so its heading and Print wait for the
+ * image, and shows no receipt at all when it cannot be drawn (QW3R-3, owner directive 2026-11-06).
  */
 export function OfflineReceiptQr({ image }: { image: string }) {
   const { t } = useTranslation()

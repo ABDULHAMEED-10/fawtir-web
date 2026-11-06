@@ -24,6 +24,13 @@ import { heldSlipPhotos } from './posSlipOutbox'
 import { posRefusalKey } from './posRefusals'
 import { memoryVault, setPosVault, type PosVault } from './posVault'
 
+// Queue mechanics, not the QR: a consumer sale is queued offline only with its QR (owner
+// directive 2026-11-06), so the builder answers with a fixed stand-in here. The real build and
+// its refusals are tested in posOfflineQr.test.ts and posOfflineQrIssuance.test.ts.
+vi.mock('./posOfflineQr', () => ({
+  offlinePrintedQr: async () => ({ payload: 'AQ==', sellerUuid: 'stand-in', profileVersion: '0'.repeat(64) }),
+}))
+
 const TILL = {
   id: 'till-1',
   branchId: 'b-1',

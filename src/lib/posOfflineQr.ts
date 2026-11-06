@@ -8,10 +8,10 @@ import { encodeQr, qrAmounts, qrIssueMoment, type QrFields } from './posQr'
  * server builds its own after issue and compares the two byte for byte; a difference holds the
  * invoice (PRINTED_QR_DIFFERS), so nothing here may adjust a number, a time or a total to make a QR.
  *
- * Null means "QR to follow", exactly as before E-1: no profile (the server flag is off, or a value
- * could not be stated), a company buyer (a business or government buyer never gets a receipt QR),
- * anything the profile states that this build cannot honour, or any encoding check failing. A QR
- * never stops a sale.
+ * Null means no QR can be made: no profile (the server flag is off, or a value could not be
+ * stated), a company buyer (a business or government buyer never gets a receipt QR), anything the
+ * profile states that this build cannot honour, or any encoding check failing. For a consumer sale
+ * the queue then numbers and keeps nothing (owner directive 2026-11-06, `PosOfflineQrUnavailable`).
  */
 export async function offlinePrintedQr(
   profile: PosQrProfile | null | undefined,
@@ -32,8 +32,9 @@ export async function offlinePrintedQr(
     const amounts = qrAmounts(taxable, vat, scale)
     // qrIssueMoment answers only for Asia/Muscat, so any other zone gives no QR (E-2, T-X6). The
     // server states a zone that merely shares Muscat's rules (e.g. Asia/Dubai, sharesMuscatRules)
-    // under its own id, so such a tenant prints "QR to follow" until the profile carries one
-    // canonical zone (review QW3R-5, recorded by the coordinator). Literal on purpose: fails safe.
+    // under its own id, so such a tenant cannot queue a consumer sale offline until the profile
+    // carries one canonical zone (review QW3R-5, recorded by the coordinator). Literal on purpose:
+    // fails safe.
     const day = qrIssueMoment(sale.soldAt, profile.issueDateZone)
     const clock = qrIssueMoment(sale.soldAt, profile.issueTimeZone)
     if (!amounts || !day || !clock) return null

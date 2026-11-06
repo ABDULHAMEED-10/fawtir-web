@@ -23,6 +23,13 @@ import { ensureTillLock } from './posTillLock'
 import { fakeLocks, installLocks } from '../test/fakeLocks'
 import { memoryVault, setPosVault } from './posVault'
 
+// Queue mechanics, not the QR: a consumer sale is queued offline only with its QR (owner
+// directive 2026-11-06), so the builder answers with a fixed stand-in here. The real build and
+// its refusals are tested in posOfflineQr.test.ts and posOfflineQrIssuance.test.ts.
+vi.mock('./posOfflineQr', () => ({
+  offlinePrintedQr: async () => ({ payload: 'AQ==', sellerUuid: 'stand-in', profileVersion: '0'.repeat(64) }),
+}))
+
 /*
  * POS-MEMQ (DES43 rev 4.3.4 R-MEMQ, A8-G2, Gate A W-MEMQ S1-S7): a sale is numbered offline only
  * when both the counter and the queue entry read back from storage. Storage is made to fail through

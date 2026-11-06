@@ -50,6 +50,19 @@ const TILL = {
   series: { INVOICE: { series: 'NZW-T01-INV', year: 2026, nextValue: 49 } },
 }
 
+// Only GET /pos/tills/{id} carries it; a consumer sale is queued offline only with its QR (owner
+// directive 2026-11-06).
+const QR_PROFILE = {
+  qrVersion: '1.1',
+  invoiceType: '01',
+  sellerName: 'Al Noor Trading LLC',
+  sellerVatin: 'OM1100012345',
+  issueDateZone: 'Asia/Muscat',
+  issueTimeZone: 'Asia/Muscat',
+  amountScale: 3,
+  profileVersion: 'e'.repeat(64),
+}
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -99,6 +112,7 @@ beforeEach(async () => {
       if (url === '/api/v1/branches') {
         return json([{ id: 'b-1', code: 'NZW', name: 'Nizwa', type: 'BRANCH', city: 'Nizwa' }])
       }
+      if (url === '/api/v1/pos/tills/till-1') return json({ ...TILL, openShift: tillShift, qrProfile: QR_PROFILE })
       if (url.startsWith('/api/v1/pos/tills')) return json([{ ...TILL, openShift: tillShift }])
       if (url === '/api/v1/pos/sales' && init?.method === 'POST') {
         return json(sold('NZW-T01-INV-2026-000049'), 201)
@@ -763,7 +777,8 @@ describe('the receipt QR as the server states it (B2C only, owner batch 33 Q5)',
 })
 
 describe('the receipt of a sale queued offline (retest N-6)', () => {
-  const queued = () => {
+  // A consumer's queued sale prints the QR it was queued with (owner directive 2026-11-06).
+  const queued = (queuedQr: string | null = 'AQ==') => {
     const totals = totalsFor(SAMPLE_SALE, NO_SALE_DISCOUNT)
     setFinishedSale({
       lines: SAMPLE_SALE,
@@ -774,19 +789,34 @@ describe('the receipt of a sale queued offline (retest N-6)', () => {
       payments: [{ method: 'cash', amount: totals.sale }],
       sale: null,
       queuedNumber: 'NZW-T01-INV-2026-000049',
+      ...(queuedQr ? { queuedQr } : {}),
       finishedAt: '2026-10-29T11:35:22Z',
     })
   }
 
   afterEach(() => vi.useRealTimers())
 
-  it('says it waits to be filed, not that it is filed, and that the QR comes later', async () => {
+  it('says it waits to be filed, not that it is filed, and shows the QR it printed', async () => {
     queued()
     renderAt('/pos/receipt')
     expect(await screen.findByText(/This sale is waiting to be filed/)).toBeTruthy()
     expect(screen.queryByText(/has already been filed/)).toBeNull()
-    expect(screen.getByText(i18n.t('pos.done.qrAfterFiling'))).toBeTruthy()
-    expect(screen.queryByText(i18n.t('pos.done.qrAlreadyUp'))).toBeNull()
+    expect(await screen.findByText(i18n.t('pos.done.qrAlreadyUp'))).toBeTruthy()
+    // No "QR to follow" on a consumer's offline receipt (owner directive 2026-11-06 item D).
+    expect(screen.queryByText(i18n.t('pos.done.qrAfterFiling'))).toBeNull()
+    expect(screen.queryByText(i18n.t('pos.done.qrComing'))).toBeNull()
+  })
+
+  it('without its QR shows no receipt and says why, never that the QR comes later', async () => {
+    queued(null)
+    renderAt('/pos/receipt')
+    expect(await screen.findByText(/This sale is waiting to be filed/)).toBeTruthy()
+    expect(
+      screen.getByText(i18n.t('pos.done.receiptWithheld', { invoice: 'NZW-T01-INV-2026-000049' })),
+    ).toBeTruthy()
+    expect(screen.queryByText(i18n.t('pos.done.qrAfterFiling'))).toBeNull()
+    expect(screen.queryByText(i18n.t('pos.done.qrComing'))).toBeNull()
+    expect(screen.queryByRole('button', { name: i18n.t('pos.done.printAgain') })).toBeNull()
   })
 
   it('clears itself for the next customer after 20 seconds', async () => {
