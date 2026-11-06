@@ -251,6 +251,21 @@ export function omrSigned(baisa: number): string {
   return `${baisa < 0 ? '−' : ''}${omr(Math.abs(baisa))}`
 }
 
+/**
+ * The day and time on a till receipt, in Muscat. One function for the receipt and its reprint, so
+ * the reprint states the same moment in the same words (QR E-5).
+ */
+export function receiptStamp(iso: string, locale = 'en-GB'): string {
+  return new Date(iso).toLocaleString(locale, {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'Asia/Muscat',
+  })
+}
+
 /** A clock time in the company's zone (Muscat), as the till prints it. */
 export function tillTime(iso: string | null | undefined, locale = 'en-GB'): string {
   if (!iso) return ''

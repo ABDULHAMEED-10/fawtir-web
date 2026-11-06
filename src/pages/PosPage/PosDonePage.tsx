@@ -11,10 +11,9 @@ import { AppShell } from '../../layouts/AppShell'
 import { Rial, withRial } from '../../components/ui'
 import { CheckIcon, EnvelopeIcon, InfoIcon, PhoneIcon, PrinterIcon, QrIcon } from './posIcons'
 import { PosTillGate } from './PosTillGate'
-import { LULL, omr, omrSigned, tillTime, toBaisa, unitPrice } from '../../lib/pos'
+import { LULL, omr, omrSigned, receiptStamp, tillTime, toBaisa, unitPrice } from '../../lib/pos'
 import { FILING_STEPS, RECEIPT_WAYS } from '../../lib/posPayment'
-import { loadPosSale, posSaleQrPath, type PosSaleDto } from '../../api/pos/pos'
-import { API_BASE_URL } from '../../config/api'
+import { loadPosSale, type PosSaleDto } from '../../api/pos/pos'
 import { useApiRead } from '../../hooks'
 import { useEntitlements } from '../../hooks/useEntitlements'
 import {
@@ -22,7 +21,7 @@ import {
   loadCompanyProfile,
   type CompanyProfileDto,
 } from '../../api/company/companyProfile'
-import { initialsOf } from '../../lib/posTill'
+import { ReceiptMasthead, ReceiptQr, ReceiptRow } from './PosReceiptParts'
 import { receiptSellerHeader } from '../../lib/posReceiptSeller'
 import type { TillState } from '../../lib/posTill'
 import { saleCashierLabel } from '../../lib/posAttribution'
@@ -144,8 +143,6 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
     business,
     entitlements?.tenantName,
   )
-  const name = seller.name ?? ''
-  const address = seller.address
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
@@ -405,54 +402,15 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
           {/* The receipt paper on a grey card body, as the frame draws it. */}
           <div className="rounded-b-md bg-surface-background p-5 max-sm:px-3">
             <div className="rounded-sm bg-white px-5 py-6 text-center shadow-sm">
-              <span className="mx-auto flex size-11 items-center justify-center rounded-full bg-primary-700 text-sm font-semibold text-white">
-                {initialsOf(name || 'F')}
-              </span>
-              <p className="mt-3 text-base font-semibold text-text-primary">
-                {seller.source === 'frozen' && seller.name == null
-                  ? t('pos.done.sellerNameNotRecorded')
-                  : name}
-              </p>
-              <p className="mt-1 text-xs font-medium leading-[1.5] text-text-quaternary">
-                {address}
-                {seller.source === 'frozen' ? (
-                  <>
-                    {address ? <br /> : null}
-                    {t('pos.done.vat')}{' '}
-                    {seller.vatNumber != null ? (
-                      <span dir="ltr">{seller.vatNumber}</span>
-                    ) : (
-                      t('pos.done.notRecorded')
-                    )}
-                  </>
-                ) : business ? (
-                  <>
-                    <br />
-                    {t('pos.done.vat')} <span dir="ltr">{business.taxNumber}</span>
-                  </>
-                ) : null}
-              </p>
-              <p className="mt-3 text-xs font-semibold uppercase tracking-[0.06em] text-text-secondary">
-                {fullInvoice ? t('pos.done.taxInvoice') : t('pos.done.simplifiedInvoice')}
-              </p>
-              {locale === 'ar' ? null : (
-                <p className="font-arabic text-xs text-text-secondary">
-                  {fullInvoice ? 'فاتورة ضريبية' : 'فاتورة ضريبية مبسطة'}
-                </p>
-              )}
+              <ReceiptMasthead
+                seller={seller}
+                liveVatNumber={business?.taxNumber ?? null}
+                fullInvoice={fullInvoice}
+                locale={locale}
+              />
 
               <div className="mt-4 border-t border-dashed border-border-subtle pt-3 text-start">
-                <ReceiptRow
-                  label={invoice}
-                  value={new Date(done.finishedAt).toLocaleString(locale, {
-                    day: 'numeric',
-                    month: 'short',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false,
-                    timeZone: 'Asia/Muscat',
-                  })}
-                />
+                <ReceiptRow label={invoice} value={receiptStamp(done.finishedAt, locale)} />
                 <ReceiptRow
                   label={t('pos.done.till', {
                     number: till.till.number,
@@ -554,22 +512,9 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
               </div>
 
               <div className="mt-5 flex flex-col items-center gap-2">
-                {sale?.receipt.qr.status === 'READY' ? (
-                  <>
-                    <img
-                      src={`${API_BASE_URL}${posSaleQrPath(sale.saleId)}`}
-                      alt={t('pos.done.qrAlt')}
-                      className="size-[132px]"
-                    />
-                    <p className="text-[11px] font-medium leading-[1.5] text-text-quaternary">
-                      {t('pos.done.scanToCheck')}
-                    </p>
-                  </>
-                ) : qrStatus === 'PENDING' ? (
-                  <p className="text-[11px] font-medium leading-[1.5] text-text-quaternary">
-                    {t('pos.done.qrPending')}
-                  </p>
-                ) : !sale && !company ? (
+                {sale ? (
+                  <ReceiptQr saleId={sale.saleId} status={sale.receipt.qr.status} />
+                ) : !company ? (
                   <p className="text-[11px] font-medium leading-[1.5] text-text-quaternary">
                     {t('pos.done.qrComing')}
                   </p>
@@ -583,17 +528,6 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
           </div>
         </aside>
       </div>
-    </div>
-  )
-}
-
-function ReceiptRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3 py-0.5">
-      <span className="text-xs font-medium text-text-tertiary">{label}</span>
-      <span dir="ltr" className="text-xs font-semibold tabular-nums text-text-primary">
-        {value}
-      </span>
     </div>
   )
 }

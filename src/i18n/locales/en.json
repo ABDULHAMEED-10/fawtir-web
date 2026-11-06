@@ -2218,7 +2218,8 @@
       "delivered": "Delivered",
       "undeliverable": "Could not be delivered",
       "heldSenderStanding": "On hold, not sent yet",
-      "unknown": "Sending status not recognised by this screen. Reload, or contact support if it stays"
+      "unknown": "Sending status not recognised by this screen. Reload, or contact support if it stays",
+      "heldPrintedQr": "Held for review: nothing filed yet"
     },
     "reason": {
       "sellerAddress": "Your company address on this invoice is incomplete. It was fixed when the invoice was issued, so this invoice cannot be sent: cancel it and issue a new one after completing the address.",
@@ -2241,7 +2242,8 @@
       "senderNotAuthorized": "The seller on this invoice is not your company's Peppol participant. It was fixed when the invoice was issued, so this invoice cannot be sent. Contact support with the invoice number.",
       "transportUnavailable": "Sending over Peppol was not available on this service, so nothing was sent.",
       "noOutcome": "The sending service gave no answer for this invoice, so it was not sent. Contact support with the invoice number.",
-      "retriesSpent": "Sending failed repeatedly and has stopped. It will not be retried by itself: contact support with the invoice number."
+      "retriesSpent": "Sending failed repeatedly and has stopped. It will not be retried by itself: contact support with the invoice number.",
+      "printedQrDiffers": "The QR code printed for the customer differs from the one this invoice would be filed with, so the invoice is held for review and nothing has been filed yet. Contact Fawtir support with the invoice number."
     },
     "sent": {
       "dispatched": "The invoice was validated and queued for sending.",
@@ -2592,7 +2594,8 @@
       "creditNote": "CREDIT NOTE",
       "debitNote": "DEBIT NOTE",
       "from": "From",
-      "totalDue": "Total due"
+      "totalDue": "Total due",
+      "qrAlt": "The invoice's receipt QR code"
     },
     "you": "You",
     "sentViaPeppol": "Sent via Peppol",
@@ -2610,6 +2613,12 @@
       "payments": "This invoice cannot be cancelled: payments are recorded against it.",
       "paymentsOnNote": "This note cannot be cancelled: payments are recorded against it.",
       "correctionsOnNote": "This note cannot be cancelled: credit or debit notes have been issued against it."
+    },
+    "receiptQr": {
+      "pending": "No QR code yet: this invoice's receipt QR is not ready.",
+      "notApplicable": "No QR code: receipt QR codes are printed only on sales to consumers.",
+      "notAnIssuedSale": "No QR code: only an issued sales invoice carries a receipt QR.",
+      "unavailable": "No QR code: the receipt QR could not be read."
     }
   },
   "createInvoice": {
@@ -4674,7 +4683,8 @@
       "mixed": "Split",
       "approval": "Approval {{code}}",
       "partlyCredited": "{{amount}} credited",
-      "plusTip": "+ {{amount}} tip"
+      "plusTip": "+ {{amount}} tip",
+      "reprintTitle": "Reprint receipt"
     },
     "close": {
       "title": "Closing it",

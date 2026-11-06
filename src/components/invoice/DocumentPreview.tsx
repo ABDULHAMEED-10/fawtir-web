@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react'
-import QRCode from 'qrcode'
 import { Rial, withRial } from '../ui'
+import { useServerQr } from './useServerQr'
 
 /**
  * The printable face of a tax document, rendered from data rather than shipped as an image.
@@ -87,26 +86,7 @@ export function DocumentPreview({
   zoom?: number
   className?: string
 }) {
-  const [qr, setQr] = useState<string>()
-
-  useEffect(() => {
-    let cancelled = false
-    if (!doc.qrPayload) {
-      setQr(undefined)
-      return
-    }
-    QRCode.toDataURL(doc.qrPayload, { margin: 0, width: 240, errorCorrectionLevel: 'M' })
-      .then((url) => {
-        if (!cancelled) setQr(url)
-      })
-      .catch(() => {
-        // A missing QR must not blank the document; the rest of the sheet still prints.
-        if (!cancelled) setQr(undefined)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [doc.qrPayload])
+  const qr = useServerQr(doc.qrPayload)
 
   const columnLabel: Record<(typeof COLUMNS)[number], string> = {
     description: labels.description,

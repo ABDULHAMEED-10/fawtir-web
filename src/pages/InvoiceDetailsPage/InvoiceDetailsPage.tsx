@@ -29,6 +29,8 @@ import {
   loadHistory,
   loadInternalNote,
   loadDispatch,
+  loadReceiptQr,
+  receiptQrPath,
   releaseBuyerEmail,
   loadInvoice,
   loadPayments,
@@ -36,6 +38,7 @@ import {
   type InvoiceAttachmentDto,
   type InvoiceDetailDto,
   type InvoiceDispatchDto,
+  type InvoiceReceiptQrDto,
   type InvoiceLineWarningDto,
   type InvoiceHistoryDto,
   type InvoicePaymentDto,
@@ -73,6 +76,8 @@ import { editWaitsOnApproval, issueWaitsOnApproval } from '../../lib/salesApprov
 import { SendInvoiceModal } from '../../components/invoice/SendInvoiceModal'
 import { HeldHsCodesModal } from '../../components/invoice/HeldHsCodesModal'
 import { isHeldForHsCode, missingHsLines } from '../../lib/heldHsCodes'
+import { receiptQrShown } from '../../lib/invoiceReceiptQr'
+import { useServerQr } from '../../components/invoice/useServerQr'
 import type { HeldHsCodeAmendmentDto } from '../../api/invoices/detail'
 import {
   RELEASE_REFUSALS,
@@ -296,6 +301,15 @@ function InvoiceScreen() {
     document && !isDraft(document) ? `${invoicePath(id)}/dispatch` : null,
     () => loadDispatch(id),
   )
+  // QR E-3: only an issued invoice can carry a receipt QR. A credit or debit note answers
+  // NOT_AN_ISSUED_SALE until QR-D-5 is ruled, so a note is not asked.
+  const receiptQrAsked =
+    document !== null && document.authoringState === 'ISSUED' && document.type === 'INVOICE'
+  const receiptQr = useApiRead<InvoiceReceiptQrDto>(
+    receiptQrAsked ? receiptQrPath(id) : null,
+    () => loadReceiptQr(id),
+  )
+  const receiptQrView = receiptQrShown(receiptQrAsked ? receiptQr.read : null)
   // A Send's answer, or a newer read while the server was mid-step. Kept apart from the read so a
   // refresh does not blank the line with a loader every few seconds.
   const [dispatchLatest, setDispatchLatest] = useState<InvoiceDispatchDto | null>(null)
@@ -811,6 +825,7 @@ function InvoiceScreen() {
       lineTotals={totals}
       money={money}
       day={day}
+      qrPayload={receiptQrView.payload}
     />
   )
 
@@ -1319,7 +1334,7 @@ function InvoiceScreen() {
                 >
                   <img src={zoomInIcon} alt="" className="size-5" />
                 </button>
-                {/* TODO(backend): no PDF is rendered for a document yet; download and print wait for it. */}
+                {/* TODO(backend): no PDF is rendered for a document yet; download waits for it. */}
                 <button
                   type="button"
                   disabled
@@ -1329,12 +1344,17 @@ function InvoiceScreen() {
                 >
                   <img src={downloadIcon} alt="" className="size-5" />
                 </button>
+                {/* QR E-3: a consumer's invoice prints its preview with the server's receipt QR.
+                    Any other waits for the PDF, so no consumer sheet goes out without its QR. */}
                 <button
                   type="button"
-                  disabled
-                  title={t('invoiceDetails.pdf.unavailable')}
+                  disabled={receiptQrView.payload === null}
+                  onClick={() => window.print()}
+                  title={
+                    receiptQrView.payload === null ? t('invoiceDetails.pdf.unavailable') : undefined
+                  }
                   aria-label={t('invoiceDetails.print')}
-                  className="rounded-sm p-0.5 disabled:opacity-40"
+                  className="rounded-sm p-0.5 hover:bg-neutral-25 disabled:opacity-40 disabled:hover:bg-transparent"
                 >
                   <img src={printIcon} alt="" className="size-5" />
                 </button>
@@ -1381,6 +1401,11 @@ function InvoiceScreen() {
             >
               <div style={{ zoom }}>{preview}</div>
             </div>
+            {receiptQrView.noteKey ? (
+              <p className="mt-2 text-xs font-medium text-text-quaternary">
+                {t(receiptQrView.noteKey)}
+              </p>
+            ) : null}
           </section>
         </aside>
       </div>
@@ -2116,6 +2141,7 @@ function DocumentPreview({
   lineTotals: totals,
   money,
   day,
+  qrPayload,
 }: {
   data: InvoiceDetailDto
   status: string
@@ -2126,8 +2152,11 @@ function DocumentPreview({
   lineTotals: Map<number, number>
   money: (value: number | null | undefined) => string
   day: (value: string | null) => string
+  /** The server's receipt QR payload, drawn as given; null draws none. */
+  qrPayload: string | null
 }) {
   const { t } = useTranslation()
+  const qr = useServerQr(qrPayload)
   const kind =
     data.type === 'CREDIT_NOTE'
       ? 'creditNote'
@@ -2257,6 +2286,13 @@ function DocumentPreview({
       )}
       {data.details?.customerVisibleNote ? (
         <p className="mt-4 text-[8px] text-text-quaternary">{data.details.customerVisibleNote}</p>
+      ) : null}
+      {qr ? (
+        <img
+          src={qr}
+          alt={t('invoiceDetails.preview.qrAlt')}
+          className="ms-auto mt-3 block size-[78px]"
+        />
       ) : null}
     </div>
   )

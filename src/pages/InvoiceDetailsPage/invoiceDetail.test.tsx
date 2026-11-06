@@ -19,6 +19,12 @@ import { paymentProblems, paymentRows, statusOf, timelineOf } from '../../lib/in
 import { InvoiceDetailsPage } from './InvoiceDetailsPage'
 import { ApiError } from '../../api'
 import { dueDateFor, issueProblems, issueRefusalOf, muscatToday } from '../../lib/invoiceIssue'
+import QRCode from 'qrcode'
+
+// QR E-3: spied so a test can prove the encoder is fed the server's payload and nothing else.
+vi.mock('qrcode', () => ({
+  default: { toDataURL: vi.fn(async (payload: string) => `data:image/png;base64,${payload}`) },
+}))
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
 const ID = '11111111-1111-1111-1111-111111111111'
@@ -238,6 +244,8 @@ let notesResponse: () => Response
 let payResponse: () => Response
 let issueResponse: () => Response
 let dispatchResponse: () => Response
+/** `GET /authored-invoices/{id}/receipt-qr`; the business buyer here has none unless a test says so. */
+let receiptQrResponse: () => Response
 let sendResponse: () => Response
 let attachmentFiles: Array<{
   id: string
@@ -276,6 +284,8 @@ beforeEach(async () => {
   payResponse = () => json(200, PAYMENTS[0])
   issueResponse = () => json(200, invoice({ version: 5 }))
   dispatchResponse = () => json(200, NOT_SENT)
+  receiptQrResponse = () => json(200, { status: 'NOT_APPLICABLE', payload: null })
+  vi.mocked(QRCode.toDataURL).mockClear()
   sendResponse = () => json(200, DISPATCHED)
   attachmentFiles = [
     {
@@ -314,6 +324,7 @@ beforeEach(async () => {
     }
     if (url === `${URL_BASE}/history`) return json(200, HISTORY)
     if (url === `${URL_BASE}/dispatch`) return dispatchResponse()
+    if (url === `${URL_BASE}/receipt-qr`) return receiptQrResponse()
     if (url === `${URL_BASE}/send` && method === 'POST') return sendResponse()
     if (url === `${URL_BASE}/internal-note`)
       return json(200, { internalNote: 'Chase Hamed in September.' })
@@ -2923,5 +2934,94 @@ describe('adding the missing HS code to a held invoice', () => {
       expect(i18n.t(key, { number: 'INV-1', line: 1 })).not.toMatch(/[A-Za-z]{5,}/)
     }
     await i18n.changeLanguage('en')
+  })
+})
+
+describe('the receipt QR on the invoice preview (QR E-3)', () => {
+  const PAYLOAD = 'AQxBbCBOb29yIFRyYWRpbmcCDzMxMDEyMjM5MzUwMDAwMw=='
+  const qrImage = () => screen.queryByAltText(i18n.t('invoiceDetails.preview.qrAlt'))
+  const printButton = () => screen.getByRole('button', { name: 'Print' }) as HTMLButtonElement
+  const encoded = () => vi.mocked(QRCode.toDataURL).mock.calls.map(([payload]) => payload)
+
+  it('draws the server payload, and nothing else, for a consumer invoice and lets it be printed', async () => {
+    receiptQrResponse = () => json(200, { status: 'READY', payload: PAYLOAD })
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {})
+    renderInvoice()
+    await waitFor(() => expect(qrImage()).toBeTruthy())
+    expect(qrImage()!.getAttribute('src')).toBe(`data:image/png;base64,${PAYLOAD}`)
+    // The encoder sees exactly the string the server sent: no number, date or total of the page.
+    expect(new Set(encoded())).toEqual(new Set([PAYLOAD]))
+    expect(printButton().disabled).toBe(false)
+    fireEvent.click(printButton())
+    expect(print).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['PENDING', 'invoiceDetails.receiptQr.pending'],
+    ['NOT_APPLICABLE', 'invoiceDetails.receiptQr.notApplicable'],
+    ['NOT_AN_ISSUED_SALE', 'invoiceDetails.receiptQr.notAnIssuedSale'],
+  ])('draws no QR for %s, says why, and does not print', async (status, key) => {
+    // A payload beside a status that is not READY is still not drawn.
+    receiptQrResponse = () => json(200, { status, payload: PAYLOAD })
+    renderInvoice()
+    expect(await screen.findByText(i18n.t(key))).toBeTruthy()
+    expect(qrImage()).toBeNull()
+    expect(encoded()).toEqual([])
+    expect(printButton().disabled).toBe(true)
+  })
+
+  it('draws no QR when the answer cannot be read, and says so', async () => {
+    receiptQrResponse = () => json(500, { status: 500 })
+    renderInvoice()
+    expect(await screen.findByText(i18n.t('invoiceDetails.receiptQr.unavailable'))).toBeTruthy()
+    expect(qrImage()).toBeNull()
+    expect(encoded()).toEqual([])
+    expect(printButton().disabled).toBe(true)
+  })
+
+  it('does not ask for a draft or a credit note', async () => {
+    invoiceResponse = () => json(200, invoice({ authoringState: 'DRAFT', invoiceNumber: null }))
+    renderInvoice()
+    await screen.findByRole('heading', { level: 1 })
+    cleanup()
+    invoiceResponse = () =>
+      json(200, invoice({ type: 'CREDIT_NOTE', correctionOfInvoiceId: 'inv-0', invoiceNumber: 'CRN-1' }))
+    renderInvoice()
+    await screen.findByRole('heading', { level: 1, name: 'Credit note CRN-1' })
+    expect(calls().some((call) => call.endsWith('/receipt-qr'))).toBe(false)
+  })
+
+  it('has every sentence in both languages', async () => {
+    for (const key of [
+      'invoiceDetails.receiptQr.pending',
+      'invoiceDetails.receiptQr.notApplicable',
+      'invoiceDetails.receiptQr.notAnIssuedSale',
+      'invoiceDetails.receiptQr.unavailable',
+      'invoiceDetails.preview.qrAlt',
+    ]) {
+      expect(i18n.exists(key, { lng: 'en' })).toBe(true)
+      expect(i18n.exists(key, { lng: 'ar' })).toBe(true)
+      expect(i18n.t(key, { lng: 'ar' })).not.toBe(i18n.t(key, { lng: 'en' }))
+    }
+  })
+})
+
+describe('an invoice held because its printed QR differs (QR E-4, PRINTED_QR_DIFFERS)', () => {
+  it('reads as held for review with nothing filed, never as refused or failed', async () => {
+    dispatchResponse = () =>
+      json(200, {
+        ...NOT_SENT,
+        state: 'DEAD_LETTERED',
+        reasonCode: 'PRINTED_QR_DIFFERS',
+        sendable: false,
+      })
+    renderInvoice()
+    expect(await screen.findByText(i18n.t('invoiceDispatch.state.heldPrintedQr'))).toBeTruthy()
+    // The delivery line joins the state and its reason with a middle dot.
+    const reason = i18n.t('invoiceDispatch.reason.printedQrDiffers')
+    expect(screen.getByText((content) => content.includes(reason))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('invoiceDispatch.state.deadLettered'))).toBeNull()
+    expect(screen.queryByText(/PRINTED_QR_DIFFERS/)).toBeNull()
+    expect(screen.queryByText(/refused|rejected/i)).toBeNull()
   })
 })

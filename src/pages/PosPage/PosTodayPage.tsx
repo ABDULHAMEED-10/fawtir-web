@@ -7,6 +7,7 @@ import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNoti
 import { posSaleRowActions } from '../../lib/rowActions'
 import { muscatToday, omr, toBaisa } from '../../lib/pos'
 import { PosTillGate } from './PosTillGate'
+import { ReceiptReprint } from './PosReprint'
 import { saleCashierLabel } from '../../lib/posAttribution'
 import { useApiRead } from '../../hooks'
 import {
@@ -65,6 +66,7 @@ function Today({ till }: { till: Ready }) {
   const [tab, setTab] = useState<TodayTabId>('all')
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(1)
+  const [reprinting, setReprinting] = useState<string | null>(null)
 
   const apiTab = TODAY_TABS.find((entry) => entry.id === tab)?.api ?? 'ALL'
   const figures = useApiRead<PosTodayDto>(posTodayPath({ branchId: till.branchId, date }))
@@ -331,7 +333,12 @@ function Today({ till }: { till: Ready }) {
               </div>
               <ul>
                 {group.sales.map((sale) => (
-                  <SaleRow key={sale.saleId} sale={sale} canRefund={till.can.refund} />
+                  <SaleRow
+                    key={sale.saleId}
+                    sale={sale}
+                    canRefund={till.can.refund}
+                    onReprint={() => setReprinting(sale.saleId)}
+                  />
                 ))}
               </ul>
             </div>
@@ -354,11 +361,27 @@ function Today({ till }: { till: Ready }) {
       </section>
 
       {day.read.status === 'ready' ? <DaySummary day={day.read.data} /> : null}
+
+      {reprinting ? (
+        <ReceiptReprint
+          saleId={reprinting}
+          branchName={till.branchName}
+          onClose={() => setReprinting(null)}
+        />
+      ) : null}
     </div>
   )
 }
 
-function SaleRow({ sale, canRefund }: { sale: PosTodaySaleRow; canRefund: boolean }) {
+function SaleRow({
+  sale,
+  canRefund,
+  onReprint,
+}: {
+  sale: PosTodaySaleRow
+  canRefund: boolean
+  onReprint: () => void
+}) {
   const { t } = useTranslation()
   const detail = payDetail(sale)
   const note = amountNote(sale)
@@ -439,7 +462,12 @@ function SaleRow({ sale, canRefund }: { sale: PosTodaySaleRow; canRefund: boolea
         ) : null}
         {/* The ⋮ as a bordered square the height of the button beside it. */}
         <span className="[&>div>button]:size-9 [&>div>button]:border [&>div>button]:border-border-subtle [&>div>button]:bg-white [&>div>button>img]:size-5">
-          <ActionMenu items={posSaleRowActions(sale.invoiceId)} label={t('pos.today.rowMenu')} />
+          {/* A queued sale keeps the menu it had: its receipt printed a number and no QR that the
+              server's answer cannot restate (QR E-5; its printed QR waits for E-1). */}
+          <ActionMenu
+            items={posSaleRowActions(sale.invoiceId, sale.queuedOffline ? undefined : onReprint)}
+            label={t('pos.today.rowMenu')}
+          />
         </span>
       </span>
     </li>

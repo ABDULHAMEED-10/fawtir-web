@@ -457,6 +457,26 @@ export type InvoiceSendResultDto = {
   dispatch: InvoiceDispatchDto
 }
 
+/**
+ * `GET /authored-invoices/{id}/receipt-qr` (QR E-3). READY carries the payload to draw, read by the
+ * server as frozen at the receipt's first print, else as filed, else built from the issued invoice.
+ * PENDING: owed or maybe owed, not derivable yet. NOT_APPLICABLE: a business or government buyer, or
+ * any doubt. NOT_AN_ISSUED_SALE: not issued, a correction, or not an ordinary invoice.
+ */
+export type InvoiceReceiptQrDto = {
+  status: 'READY' | 'PENDING' | 'NOT_APPLICABLE' | 'NOT_AN_ISSUED_SALE'
+  /** Tenant data: never logged. */
+  payload?: string | null
+}
+
+export function receiptQrPath(invoiceId: string): string {
+  return `${path(invoiceId)}/receipt-qr`
+}
+
+export function loadReceiptQr(invoiceId: string): Promise<InvoiceReceiptQrDto> {
+  return apiRequest<InvoiceReceiptQrDto>(receiptQrPath(invoiceId))
+}
+
 export function loadDispatch(invoiceId: string): Promise<InvoiceDispatchDto> {
   return apiRequest<InvoiceDispatchDto>(`${path(invoiceId)}/dispatch`)
 }
