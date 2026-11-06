@@ -331,6 +331,9 @@ const FINAL = new Set([
   'POS_TILL_NUMBER_REPEATED',
   'POS_TILL_NUMBER_WRONG_SERIES',
   'POS_SALE_KEY_REUSED',
+  // RESEND-AUTH (backend 98c0066cb): the key was closed with nothing filed under it, so the same
+  // key is refused for good; only a person decides what becomes of the sale, never a backoff.
+  'POS_SALE_KEY_ABANDONED',
   'PRICE_RULE_STACKING_NOT_AVAILABLE',
   'SIMPLIFIED_INVOICE_LIMIT',
   'BUYER_IDENTIFIER_REQUIRED',
@@ -986,6 +989,17 @@ function reserveNumber(
     }
   }
   return { ok: true, rollback, prefix, value }
+}
+
+/**
+ * RA-1: a key this device's queue holds, or may hold, is resolved by the queue's own send only. Its
+ * number is printed (or its receipt withheld, QW4R-3) and it still has to file under that key, which
+ * the server's key lookup would close for good on NOT_RECORDED. A queue that cannot be read counts
+ * as holding it.
+ */
+export function keyMayBeQueued(key: string): boolean {
+  const entries = synced()
+  return queueReadFailure !== null || entries.some((entry) => entry.key === key)
 }
 
 export function queuedFor(tillId: string): QueuedSale[] {

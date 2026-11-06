@@ -338,6 +338,14 @@ export const settleUncertainSale = () => {
   notify()
 }
 
+/**
+ * The server decided this key (RESEND-AUTH): released only if it is still the hold on the till, so
+ * an answer that comes back after the hold changed releases nothing else.
+ */
+export const settleHeldKey = (key: string) => {
+  if (uncertain?.key === key) settleUncertainSale()
+}
+
 /** The first release's entry for this till, moved under the tenant and till and sealed. */
 function migrateLegacy(tenantId: string | null, tillId: string, tillLabel: string): boolean {
   let legacy: LegacyHold | null = null
@@ -467,40 +475,6 @@ function summaryOf(send: Pick<HeldSend, 'request' | 'printed'>): HeldSummary | n
   return typeof total === 'number' && typeof send.request?.soldAt === 'string'
     ? { total, currency: 'OMR', soldAt: send.request.soldAt }
     : null
-}
-
-/*
- * RBW3-1: a lock-only hold may be released by the cashier, but only once Today has been opened
- * for this till in this tab after the hold: the key that was on the till when Today opened is
- * noted, so a Today opened before the sale, or for another till, does not count.
- */
-const TODAY_PREFIX = 'fawtir.pos.todayOpened.'
-const todayKey = (tenantId: string | null, tillId: string) => `${TODAY_PREFIX}${tenantId ?? '-'}.${tillId}`
-const todayInMemory = new Map<string, string>()
-
-/** Today was opened for this till: note the key held on it, if any. */
-export function noteTodayOpened(tenantId: string | null, tillId: string): void {
-  const key =
-    uncertain?.tillId === tillId ? uncertain.key : (readEntry(tenantId, tillId)?.key ?? null)
-  if (!key) return
-  todayInMemory.set(todayKey(tenantId, tillId), key)
-  try {
-    window.sessionStorage.setItem(todayKey(tenantId, tillId), key)
-  } catch {
-    // The note in memory serves this tab.
-  }
-}
-
-/** Whether Today has been opened for this till since this hold was made. */
-export function todayOpenedFor(held: Pick<UncertainSale, 'tenantId' | 'tillId' | 'key'>): boolean {
-  const name = todayKey(held.tenantId, held.tillId)
-  let stored: string | null = null
-  try {
-    stored = window.sessionStorage.getItem(name)
-  } catch {
-    stored = null
-  }
-  return (stored ?? todayInMemory.get(name)) === held.key
 }
 
 /** This till's hold; a hold of another till is not this screen's (RBW2-4). */

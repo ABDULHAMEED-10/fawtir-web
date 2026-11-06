@@ -110,7 +110,7 @@ function stringOf(value: unknown): string | null {
   return typeof value === 'string' && value !== '' ? value : null
 }
 
-function retryAfterOf(headers: Headers): number | null {
+export function retryAfterOf(headers: Headers): number | null {
   const seconds = Number.parseInt(headers.get('Retry-After') ?? '', 10)
   return Number.isFinite(seconds) && seconds > 0 ? seconds : null
 }

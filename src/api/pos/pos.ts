@@ -1,4 +1,4 @@
-import { apiRequest } from '../client'
+import { apiRequest, apiRequestRetryAfter } from '../client'
 import { withQuery } from '../query'
 import type { DraftRequest } from '../invoices/drafts'
 import type { BuyerIdentifierScheme } from '../customers/customers'
@@ -432,6 +432,39 @@ export function createPosSale(body: PosSaleRequest, idempotencyKey: string): Pro
     body,
     headers: { 'Idempotency-Key': idempotencyKey },
   })
+}
+
+/**
+ * `POST /pos/tills/{tillId}/sales/by-key/{idempotencyKey}` (backend 98c0066cb, RESEND-AUTH, pos.sell):
+ * what became of a sale whose answer the till never got, decided under the sale's own key lock.
+ * RECORDED carries the sale as a replay would; NOT_RECORDED closes the key for good, so any later
+ * send under it is refused 409 POS_SALE_KEY_ABANDONED; IN_PROGRESS closes nothing and says when to
+ * ask again. A POST because NOT_RECORDED writes: it is only ever sent by a person's press.
+ */
+export type PosSaleKeyStatus = 'RECORDED' | 'NOT_RECORDED' | 'IN_PROGRESS'
+
+export type PosSaleKeyResolution = {
+  status: PosSaleKeyStatus
+  sale: PosSaleDto | null
+  abandonedAt: string | null
+  retryAfterSeconds: number | null
+}
+
+export async function resolvePosSaleKey(
+  tillId: string,
+  idempotencyKey: string,
+): Promise<PosSaleKeyResolution> {
+  const { body, retryAfterSeconds } = await apiRequestRetryAfter<{
+    status: PosSaleKeyStatus
+    sale?: PosSaleDto | null
+    abandonedAt?: string | null
+  }>(`${POS_TILLS_PATH}/${id(tillId)}/sales/by-key/${id(idempotencyKey)}`, { method: 'POST' })
+  return {
+    status: body.status,
+    sale: body.sale ?? null,
+    abandonedAt: body.abandonedAt ?? null,
+    retryAfterSeconds,
+  }
 }
 
 /** `wait` (0 to 15 s) answers as soon as the QR or the filing changes: the receipt's last steps. */

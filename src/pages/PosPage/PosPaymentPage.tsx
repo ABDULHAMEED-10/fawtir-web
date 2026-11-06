@@ -1,11 +1,11 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Rial, Select } from '../../components/ui'
 import { TillMoneyInput } from './TillMoneyInput'
 import {
   holdUncertainSale,
   setFinishedSale,
   settleUncertainSale,
-  todayOpenedFor,
+  startNewSale,
   useOpenSale,
   useUncertainSale,
   type NewHold,
@@ -42,9 +42,11 @@ import {
   type Taken,
   type TipChoice,
 } from '../../lib/posPayment'
+import { checkHeldWithServer } from '../../lib/posHeldCheck'
 import { posSaleBody, type TillBuyer } from '../../lib/posInvoice'
 import {
   PosTenantZoneUnavailable,
+  keyMayBeQueued,
   refusesTheSale,
   saleOutcomeUncertain,
   submitSale,
@@ -54,7 +56,13 @@ import { refusalCode, refusalSentence } from '../../lib/posRefusals'
 import { shrinkSlip, slipReading, type SlipReading } from '../../lib/posSlip'
 import { useReferenceData } from '../../lib/reference/referenceData'
 import { DESIGN_REFERENCE } from '../../lib/invoiceDraft'
-import { newPosKey, readPosSlip, uploadPosSlip, type PosSaleRequest } from '../../api/pos/pos'
+import {
+  newPosKey,
+  readPosSlip,
+  uploadPosSlip,
+  type PosSaleDto,
+  type PosSaleRequest,
+} from '../../api/pos/pos'
 import { ApiError, NetworkError } from '../../api'
 import { MAX_SLIP_BYTES } from '../../lib/posSlipOutbox'
 import { BUYER_IDENTIFIER_SCHEMES } from '../../api/customers/customers'
@@ -188,6 +196,10 @@ function Payment({ till }: { till: Ready }) {
   /** A retried sale is the same sale: same key, same time, same body (P.12). */
   const attempt = useRef<{ fingerprint: string; key: string; soldAt: string } | null>(null)
   const uncertain = useUncertainSale(till.till.id)
+  const [heldCheck, setHeldCheck] = useState<HeldCheckState>('idle')
+  /** What the server decided for a lock-only hold, shown once the hold is released. */
+  const [decided, setDecided] = useState<Decided | null>(null)
+  const retryCheck = useRef<number | null>(null)
 
   const tip = company ? 0 : tipFor(tipChoice, totals.sale)
   const owed = toPay(totals.sale, tip)
@@ -299,6 +311,10 @@ function Payment({ till }: { till: Ready }) {
       if (code === 'SIMPLIFIED_INVOICE_LIMIT' || code === 'BUYER_IDENTIFIER_REQUIRED') {
         setBuyerAsked(true)
       }
+      // RESEND-AUTH: the key is closed for good, so the same body must not be sent under it again
+      // by Finish; the next Finish is a new sale with a new key, and the sentence says to check the
+      // terminal first.
+      if (code === 'POS_SALE_KEY_ABANDONED') attempt.current = null
     }
   }
 
@@ -385,6 +401,38 @@ function Payment({ till }: { till: Ready }) {
     }
   }
 
+  /**
+   * A lock-only hold has no body to send again, so the server decides it (RESEND-AUTH). Only a
+   * person's press asks: NOT_RECORDED closes the key, which must never follow from a page load.
+   */
+  const checkHeld = async () => {
+    if (!uncertain || uncertain.send !== null || uncertain.restoring) return
+    const held = uncertain
+    setHeldCheck('checking')
+    const result = await checkHeldWithServer(held)
+    if (result.outcome === 'recorded' || result.outcome === 'notRecorded') {
+      attempt.current = null
+      setHeldCheck('idle')
+      setDecided(result.outcome === 'recorded' ? { sale: result.sale } : { sale: null })
+    } else if (result.outcome === 'inProgress') {
+      setHeldCheck('inProgress')
+      retryCheck.current = window.setTimeout(() => {
+        retryCheck.current = null
+        void checkAgain.current()
+      }, result.retryAfterSeconds * 1000)
+    } else {
+      setHeldCheck(result.outcome)
+    }
+  }
+  const checkAgain = useRef(checkHeld)
+  checkAgain.current = checkHeld
+  useEffect(
+    () => () => {
+      if (retryCheck.current !== null) window.clearTimeout(retryCheck.current)
+    },
+    [],
+  )
+
   const schemes =
     refusal instanceof ApiError && Array.isArray(refusal.problem.buyerIdentifierSchemes)
       ? (refusal.problem.buyerIdentifierSchemes as string[])
@@ -434,6 +482,19 @@ function Payment({ till }: { till: Ready }) {
       ? notEligiblePaths({ code: refusal.code, ...refusal.problem })
       : null
 
+  if (decided && !uncertain) {
+    return (
+      <HeldDecidedPanel
+        sale={decided.sale}
+        onNewSale={() => {
+          setDecided(null)
+          startNewSale()
+          navigate('/pos')
+        }}
+      />
+    )
+  }
+
   if (uncertain) {
     return (
       <UncertainSalePanel
@@ -441,6 +502,8 @@ function Payment({ till }: { till: Ready }) {
         refusal={refusal}
         busy={busy || sellingBlocked}
         onRetry={() => void retrySame()}
+        check={heldCheck}
+        onCheck={() => void checkHeld()}
       />
     )
   }
@@ -1046,28 +1109,37 @@ function Payment({ till }: { till: Ready }) {
   )
 }
 
+type HeldCheckState = 'idle' | 'checking' | 'inProgress' | 'queued' | 'failed'
+/** `sale` null: the server has no record and closed the key (NOT_RECORDED). */
+type Decided = { sale: PosSaleDto | null }
+
 /**
  * The sale was sent and its outcome is not known (E-01). Nothing here changes it: no basket, no
- * payment, no buyer, only the same sale again or today's sales, where a recorded sale shows.
+ * payment, no buyer, only the same sale again or the server's answer for its key.
  */
 function UncertainSalePanel({
   held,
   refusal,
   busy,
   onRetry,
+  check,
+  onCheck,
 }: {
   held: UncertainSale
   refusal: unknown
   busy: boolean
   onRetry: () => void
+  check: HeldCheckState
+  onCheck: () => void
 }) {
   const { t, i18n } = useTranslation()
   const cashier = held.send?.maker?.name ?? null
   // Only the lock came back (no sealed sale on this device): the sale cannot be sent again from
-  // here, so once Today has been checked the cashier may unlock the till.
+  // here, so the server is asked what became of its key (owner decision 5: a cashier's own word
+  // that Today was checked does not release it).
   const lockOnly = held.send === null && !held.restoring
-  // RBW3-1: unlocking without having looked could ring the sale twice.
-  const todayOpened = todayOpenedFor(held)
+  // RA-1: a key the queue holds is the queue's to send; the server is not asked about it here.
+  const queued = lockOnly && (check === 'queued' || keyMayBeQueued(held.key))
   const summary = held.summary
   return (
     <div className="mx-auto flex w-full max-w-[720px] flex-col gap-4 pb-10">
@@ -1112,11 +1184,11 @@ function UncertainSalePanel({
           {lockOnly ? (
             <button
               type="button"
-              disabled={busy || !todayOpened}
-              onClick={settleUncertainSale}
+              disabled={busy || queued || check === 'checking' || check === 'inProgress'}
+              onClick={onCheck}
               className="inline-flex h-11 items-center rounded-sm border border-border-subtle bg-white px-5 text-sm font-semibold text-text-primary disabled:opacity-40"
             >
-              {t('pos.pay.uncertain.checkedToday')}
+              {t('pos.pay.uncertain.checkServer')}
             </button>
           ) : (
             <button
@@ -1132,11 +1204,66 @@ function UncertainSalePanel({
             {t('pos.pay.uncertain.checkToday')}
           </Link>
         </div>
-        {lockOnly && !todayOpened ? (
-          <p className="text-xs font-medium text-text-tertiary">
-            {t('pos.pay.uncertain.openTodayFirst')}
+        {lockOnly && queued ? (
+          <p role="status" className="text-xs font-medium text-text-tertiary">
+            {t('pos.pay.uncertain.queuedKey')}
+          </p>
+        ) : lockOnly && check !== 'idle' ? (
+          <p
+            role={check === 'failed' ? 'alert' : 'status'}
+            className={`text-xs font-medium ${check === 'failed' ? 'text-danger-700' : 'text-text-tertiary'}`}
+          >
+            {t(
+              check === 'checking'
+                ? 'pos.pay.uncertain.checking'
+                : check === 'inProgress'
+                  ? 'pos.pay.uncertain.stillSaving'
+                  : 'pos.pay.uncertain.checkFailed',
+            )}
           </p>
         ) : null}
+      </section>
+    </div>
+  )
+}
+
+/**
+ * The server decided a lock-only hold and it is released (RESEND-AUTH). Recorded: the sale as the
+ * server has it, so it is not rung again. Not recorded: its key is closed, the customer may still
+ * have been charged on the terminal, and the sale goes again only as a new one with a new key.
+ */
+function HeldDecidedPanel({ sale, onNewSale }: { sale: PosSaleDto | null; onNewSale: () => void }) {
+  const { t, i18n } = useTranslation()
+  return (
+    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-4 pb-10">
+      <section className="flex flex-col gap-4 rounded-md bg-surface-card px-6 py-5">
+        <h1 className="text-xl font-semibold text-text-primary">
+          {t(sale ? 'pos.pay.uncertain.recordedTitle' : 'pos.pay.uncertain.notRecordedTitle')}
+        </h1>
+        {sale ? (
+          <p role="status" className="text-sm font-medium leading-[1.6] text-text-secondary">
+            {t('pos.pay.uncertain.recorded', {
+              invoice: sale.invoiceNumber,
+              amount: `OMR ${formatAmount(sale.totals.total, 'OMR', i18n.language)}`,
+            })}
+          </p>
+        ) : (
+          <p role="alert" className="text-sm font-medium leading-[1.6] text-danger-700">
+            {t('pos.pay.uncertain.notRecorded')}
+          </p>
+        )}
+        <div className="flex flex-wrap items-center gap-4">
+          <button
+            type="button"
+            onClick={onNewSale}
+            className="inline-flex h-11 items-center rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+          >
+            {t(sale ? 'pos.done.startNew' : 'pos.pay.uncertain.ringAgain')}
+          </button>
+          <Link to="/pos/today" className="text-sm font-semibold text-primary-700 hover:text-primary-800">
+            {t('pos.pay.uncertain.checkToday')}
+          </Link>
+        </div>
       </section>
     </div>
   )

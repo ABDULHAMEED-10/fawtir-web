@@ -4,14 +4,12 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { SAMPLE_SALE } from '../../lib/posTestSale'
 import { PosPaymentPage } from './PosPaymentPage'
-import { PosTodayPage } from './PosTodayPage'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import {
   forgetTabMemory,
   holdUncertainSale,
-  noteTodayOpened,
-  todayOpenedFor,
   restoreUncertainSale,
+  settleHeldKey,
   type NewHold,
   resetOpenSale,
   setSaleDiscount,
@@ -72,6 +70,8 @@ const SOLD = {
 let tillNow: typeof TILL | (Omit<typeof TILL, 'openShift'> & { openShift: null })
 let posts: { key: string; body: string }[]
 let replies: (() => Response)[]
+let lookups: { url: string; method: string | undefined }[]
+let lookupReplies: (() => Response | Promise<Response>)[]
 
 function Done() {
   const done = useFinishedSale()
@@ -97,6 +97,8 @@ beforeEach(async () => {
   tillNow = TILL
   posts = []
   replies = []
+  lookups = []
+  lookupReplies = []
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -104,6 +106,10 @@ beforeEach(async () => {
       if (url === '/api/v1/me/entitlements') return json(CASHIER)
       if (url === '/api/v1/branches') {
         return json([{ id: 'b-1', code: 'NZW', name: 'Nizwa', type: 'BRANCH', city: 'Nizwa' }])
+      }
+      if (url.includes('/sales/by-key/')) {
+        lookups.push({ url, method: init?.method })
+        return (lookupReplies.shift() ?? (() => Promise.reject(new TypeError('Failed to fetch'))))()
       }
       if (url === '/api/v1/pos/tills/till-1') return json(tillNow)
       if (url.startsWith('/api/v1/pos/tills')) return json([tillNow])
@@ -134,6 +140,8 @@ const renderPayment = () =>
   )
 
 const retry = () => screen.getByRole('button', { name: i18n.t('pos.pay.uncertain.retry') }) as HTMLButtonElement
+const checkServer = () =>
+  screen.getByRole('button', { name: i18n.t('pos.pay.uncertain.checkServer') }) as HTMLButtonElement
 
 async function sendIntoUnknown(status: number) {
   replies.push(() => new Response('', { status }))
@@ -487,8 +495,7 @@ describe('what a held sale keeps in clear (RBW2-2)', () => {
     expect(await screen.findByText(i18n.t('pos.pay.uncertain.lockOnly'))).toBeTruthy()
     expect(screen.queryByRole('button', { name: i18n.t('pos.pay.uncertain.retry') })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Finish the sale' })).toBeNull()
-    // RBW3-1, RBW3-1b: the sale's total, day and time are shown in clear, to find it on Today,
-    // and the till cannot be unlocked before Today has been opened for it.
+    // RBW3-1, RBW3-1b: the sale's total, day and time are shown in clear, to find it on Today.
     expect(screen.getByText('This sale: OMR 5.649, rung on 6 Nov 2026 at 01:30.')).toBeTruthy()
     expect(screen.queryByText(/OMR\s+OMR/)).toBeNull()
     expect(JSON.parse(window.sessionStorage.getItem(HELD)!).summary).toMatchObject({
@@ -496,63 +503,187 @@ describe('what a held sale keeps in clear (RBW2-2)', () => {
       currency: 'OMR',
       soldAt: JSON.parse(posts[0].body).soldAt,
     })
-    const unlock = () =>
-      screen.getByRole('button', { name: i18n.t('pos.pay.uncertain.checkedToday') }) as HTMLButtonElement
-    expect(unlock().disabled).toBe(true)
-    expect(screen.getByText(i18n.t('pos.pay.uncertain.openTodayFirst'))).toBeTruthy()
-    fireEvent.click(unlock())
+    // Owner decision 5: no unlock on the cashier's word; the server is asked, and only on a press.
+    expect(screen.queryByRole('button', { name: /I checked Today/ })).toBeNull()
+    expect(checkServer().disabled).toBe(false)
+    expect(lookups).toEqual([])
     expect(heldNames()).toEqual([HELD])
-    cleanup()
-    render(
-      <MemoryRouter initialEntries={['/pos/today']}>
-        <Routes>
-          <Route path="/pos/today" element={<PosTodayPage />} />
-        </Routes>
-      </MemoryRouter>,
-    )
-    await vi.waitFor(() => expect(todayOpenedFor({ tenantId: 't-1', tillId: 'till-1', key: posts[0].key })).toBe(true))
-    cleanup()
+  })
+})
+
+// RESEND-AUTH (owner decision 5, backend 98c0066cb): a lock-only hold has no body to send again,
+// so the server decides its key. Only a server answer releases the hold.
+describe('a lock-only hold decided by the server (RESEND-AUTH)', () => {
+  async function lockOnlyHold() {
+    setPosVault(memoryVault(false))
+    const view = await sendIntoUnknown(503)
+    await vi.waitFor(() => expect(screen.getByText(i18n.t('pos.pay.uncertain.lockOnly'))).toBeTruthy())
+    reload(view)
     renderPayment()
-    await vi.waitFor(() => expect(unlock().disabled).toBe(false))
-    expect(screen.queryByText(i18n.t('pos.pay.uncertain.openTodayFirst'))).toBeNull()
-    fireEvent.click(unlock())
-    expect(await screen.findByRole('button', { name: 'Finish the sale' })).toBeTruthy()
+    expect(await screen.findByText(i18n.t('pos.pay.uncertain.lockOnly'))).toBeTruthy()
+    return posts[0].key
+  }
+  const RECORDED = {
+    status: 'RECORDED',
+    sale: { ...SOLD, replayed: true, tillId: 'till-1', totals: { total: 5.649 } },
+    abandonedAt: null,
+  }
+
+  it('RECORDED: shows the sale by its number and total and releases the hold onto it', async () => {
+    const key = await lockOnlyHold()
+    lookupReplies.push(() => json(RECORDED))
+    fireEvent.click(checkServer())
+    expect(await screen.findByText(i18n.t('pos.pay.uncertain.recordedTitle'))).toBeTruthy()
+    expect(
+      screen.getByText(
+        i18n.t('pos.pay.uncertain.recorded', { invoice: 'NZW-T01-INV-2026-000049', amount: 'OMR 5.649' }),
+      ),
+    ).toBeTruthy()
+    // RA-3: the till and key of the hold's own lock entry, by POST.
+    expect(lookups).toEqual([{ url: `/api/v1/pos/tills/till-1/sales/by-key/${key}`, method: 'POST' }])
+    expect(heldNames()).toEqual([])
+    expect(posts).toHaveLength(1)
+  })
+
+  it('NOT_RECORDED: releases the hold, says to check the terminal, and rings again only under a new key', async () => {
+    const key = await lockOnlyHold()
+    lookupReplies.push(() => json({ status: 'NOT_RECORDED', sale: null, abandonedAt: '2026-11-06T10:00:00Z' }))
+    fireEvent.click(checkServer())
+    const said = await screen.findByText(i18n.t('pos.pay.uncertain.notRecorded'))
+    expect(said.getAttribute('role')).toBe('alert')
+    expect(screen.queryByText(i18n.t('pos.pay.uncertain.title'))).toBeNull()
+    expect(said.textContent).toBe(
+      'The server has no record of this sale. Before charging again, check the card terminal or slip: if the customer was charged, refund it or keep the approval for the new sale.',
+    )
+    expect(heldNames()).toEqual([])
+    expect(posts).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('pos.pay.uncertain.ringAgain') }))
+    cleanup()
+    act(() => setSaleLines(SAMPLE_SALE))
+    renderPayment()
+    fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+    expect(await screen.findByText('done NZW-T01-INV-2026-000049')).toBeTruthy()
+    expect(posts).toHaveLength(2)
+    expect(posts[1].key).not.toBe(key)
+  })
+
+  it('IN_PROGRESS: keeps the hold, says it is still being saved, and asks again after Retry-After', async () => {
+    await lockOnlyHold()
+    lookupReplies.push(
+      () =>
+        new Response(JSON.stringify({ status: 'IN_PROGRESS', sale: null, abandonedAt: null }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', 'Retry-After': '1' },
+        }),
+      () => json(RECORDED),
+    )
+    fireEvent.click(checkServer())
+    expect(await screen.findByText(i18n.t('pos.pay.uncertain.stillSaving'))).toBeTruthy()
+    expect(heldNames()).toEqual([HELD])
+    expect(checkServer().disabled).toBe(true)
+    expect(lookups).toHaveLength(1)
+    await new Promise((resolve) => setTimeout(resolve, 600))
+    // Not before the server's Retry-After.
+    expect(lookups).toHaveLength(1)
+    expect(await screen.findByText(i18n.t('pos.pay.uncertain.recordedTitle'), {}, { timeout: 3000 })).toBeTruthy()
+    expect(lookups).toHaveLength(2)
     expect(heldNames()).toEqual([])
   })
 
-  it('counts Today only for this till and this hold (RBW3-1)', async () => {
-    setPosVault(memoryVault(false))
-    // Today opened before the sale was held: nothing to note.
-    noteTodayOpened('t-1', 'till-1')
-    await sendIntoUnknown(503)
-    const key = posts[0].key
-    expect(todayOpenedFor({ tenantId: 't-1', tillId: 'till-1', key })).toBe(false)
-    noteTodayOpened('t-1', 'till-2')
-    expect(todayOpenedFor({ tenantId: 't-1', tillId: 'till-1', key })).toBe(false)
-    noteTodayOpened('t-1', 'till-1')
-    expect(todayOpenedFor({ tenantId: 't-1', tillId: 'till-1', key })).toBe(true)
-    // A later hold on the same till needs Today opened again.
-    expect(todayOpenedFor({ tenantId: 't-1', tillId: 'till-1', key: 'another-key' })).toBe(false)
-    // Today opened for another till with its own hold leaves this till's note as it was.
-    act(() =>
-      holdUncertainSale({
-        tenantId: 't-1',
-        tillId: 'till-2',
-        shiftId: null,
-        tillLabel: 'Till 2',
-        key: 'till-2-key',
-        send: {
-          request: { tillId: 'till-2', soldAt: '2026-11-06T10:00:00Z' } as never,
-          slipPhotos: [],
-          printed: { taxable: 1, vat: 0.05, total: 1.05 },
-          maker: null,
-          receipt: {} as never,
-        },
-      }),
+  it.each([
+    ['offline', () => Promise.reject(new TypeError('Failed to fetch'))],
+    ['a 500', () => json({ type: 'about:blank', status: 500 }, 500)],
+    ['a 404 POS_TILL_NOT_FOUND', () => json({ type: 'about:blank', status: 404, code: 'POS_TILL_NOT_FOUND' }, 404)],
+    ['a 403', () => json({ type: 'about:blank', status: 403, code: 'BRANCH_SCOPE_DENIED' }, 403)],
+    ['an unknown status', () => json({ status: 'MAYBE', sale: null, abandonedAt: null })],
+    ['RECORDED without its sale', () => json({ status: 'RECORDED', sale: null, abandonedAt: null })],
+  ])('after %s, the hold stays: nothing is released without a server answer', async (_case, answer) => {
+    await lockOnlyHold()
+    lookupReplies.push(answer as () => Response)
+    fireEvent.click(checkServer())
+    const said = await screen.findByText(i18n.t('pos.pay.uncertain.checkFailed'))
+    expect(said.getAttribute('role')).toBe('alert')
+    expect(heldNames()).toEqual([HELD])
+    expect(screen.getByText(i18n.t('pos.pay.uncertain.title'))).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Finish the sale' })).toBeNull()
+    expect(checkServer().disabled).toBe(false)
+    expect(lookups).toHaveLength(1)
+  })
+
+  it('RA-1: a key the till queue holds is never sent to the lookup', async () => {
+    const key = await lockOnlyHold()
+    cleanup()
+    window.localStorage.setItem(
+      'fawtir.pos.queue',
+      JSON.stringify([
+        { key, tillId: 'till-1', number: 'NZW-T01-INV-2026-000049', body: JSON.parse(posts[0].body), refusal: null },
+      ]),
     )
-    noteTodayOpened('t-1', 'till-2')
-    expect(todayOpenedFor({ tenantId: 't-1', tillId: 'till-2', key: 'till-2-key' })).toBe(true)
-    expect(todayOpenedFor({ tenantId: 't-1', tillId: 'till-1', key })).toBe(true)
+    renderPayment()
+    expect(await screen.findByText(i18n.t('pos.pay.uncertain.queuedKey'))).toBeTruthy()
+    expect(checkServer().disabled).toBe(true)
+    fireEvent.click(checkServer())
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(lookups).toEqual([])
+    expect(heldNames()).toEqual([HELD])
+  })
+
+  it('a sealed hold is sent again in full as before; the lookup is not offered or asked', async () => {
+    const view = await sendIntoUnknown(503)
+    await sealedEntry()
+    reload(view)
+    renderPayment()
+    await vi.waitFor(() => expect(retry().disabled).toBe(false))
+    expect(screen.queryByRole('button', { name: i18n.t('pos.pay.uncertain.checkServer') })).toBeNull()
+    fireEvent.click(retry())
+    expect(await screen.findByText('done NZW-T01-INV-2026-000049')).toBeTruthy()
+    expect(lookups).toEqual([])
+  })
+
+  it('a resend refused POS_SALE_KEY_ABANDONED is said, never sent again under that key, and Finish takes a new key', async () => {
+    await sendIntoUnknown(503)
+    replies.push(() => json({ type: 'about:blank', status: 409, code: 'POS_SALE_KEY_ABANDONED' }, 409))
+    fireEvent.click(retry())
+    expect(await screen.findByText(i18n.t('pos.refusal.POS_SALE_KEY_ABANDONED'))).toBeTruthy()
+    expect(i18n.t('pos.refusal.POS_SALE_KEY_ABANDONED')).toMatch(/check the card terminal or slip/)
+    expect(heldNames()).toEqual([])
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(posts).toHaveLength(2)
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+    expect(await screen.findByText('done NZW-T01-INV-2026-000049')).toBeTruthy()
+    expect(posts).toHaveLength(3)
+    expect(posts[2].key).not.toBe(posts[0].key)
+  })
+
+  it('an answer for another key releases nothing', async () => {
+    await sendIntoUnknown(503)
+    act(() => settleHeldKey('pos-sale-key-some-other-sale'))
+    expect(heldNames()).toEqual([HELD])
+    expect(screen.getByText(i18n.t('pos.pay.uncertain.title'))).toBeTruthy()
+    act(() => settleHeldKey(posts[0].key))
+    expect(heldNames()).toEqual([])
+  })
+
+  it('has its wording in both languages', () => {
+    for (const key of [
+      'pos.pay.uncertain.checkServer',
+      'pos.pay.uncertain.checking',
+      'pos.pay.uncertain.stillSaving',
+      'pos.pay.uncertain.checkFailed',
+      'pos.pay.uncertain.queuedKey',
+      'pos.pay.uncertain.recordedTitle',
+      'pos.pay.uncertain.recorded',
+      'pos.pay.uncertain.notRecordedTitle',
+      'pos.pay.uncertain.notRecorded',
+      'pos.pay.uncertain.ringAgain',
+      'pos.refusal.POS_SALE_KEY_ABANDONED',
+    ]) {
+      expect(i18n.exists(key, { lng: 'ar' })).toBe(true)
+      expect(i18n.t(key, { lng: 'ar' })).not.toBe(i18n.t(key, { lng: 'en' }))
+    }
+    expect(i18n.exists('pos.pay.uncertain.checkedToday')).toBe(false)
+    expect(i18n.exists('pos.pay.uncertain.openTodayFirst')).toBe(false)
   })
 })
 

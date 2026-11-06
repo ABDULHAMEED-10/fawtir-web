@@ -1,5 +1,5 @@
 import { API_BASE_URL } from '../config/api'
-import { ApiError, NetworkError, toApiError } from './errors'
+import { ApiError, NetworkError, retryAfterOf, toApiError } from './errors'
 import { endsSession, reportSessionExpired } from './sessionExpiry'
 
 /**
@@ -59,6 +59,21 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     const payload = await readBody(response)
     if (!response.ok) throw refused(response, payload, options.method)
     return payload as T
+  })
+}
+
+/**
+ * As {@link apiRequest}, for a success whose meaning also rides on `Retry-After` (a sale key the
+ * server is still deciding, RESEND-AUTH): the parsed body and the header's seconds, null if none.
+ */
+export async function apiRequestRetryAfter<T>(
+  path: string,
+  options: ApiRequestOptions = {},
+): Promise<{ body: T; retryAfterSeconds: number | null }> {
+  return send(path, options, 'application/json, application/problem+json', async (response) => {
+    const payload = await readBody(response)
+    if (!response.ok) throw refused(response, payload, options.method)
+    return { body: payload as T, retryAfterSeconds: retryAfterOf(response.headers) }
   })
 }
 

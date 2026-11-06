@@ -6,6 +6,7 @@ import {
   correctQueuedSale,
   flushQueue,
   isFinalRefusal,
+  keyMayBeQueued,
   numberPrefix,
   numbersBefore,
   queuedFor,
@@ -22,6 +23,7 @@ import {
   submitSale,
 } from './posQueue'
 import { heldSlipPhotos } from './posSlipOutbox'
+import { checkHeldWithServer } from './posHeldCheck'
 import { posRefusalKey } from './posRefusals'
 import { memoryVault, setPosVault, type PosVault } from './posVault'
 
@@ -1807,5 +1809,52 @@ describe('a queued sale too large to send (K30)', () => {
   it('an online sale refused as too large is final, so it is not queued for a retry', () => {
     const error = new ApiError({ status: 413, problemType: 'payload-too-large', code: null })
     expect(isFinalRefusal(error)).toBe(true)
+  })
+})
+
+// RESEND-AUTH (backend 98c0066cb): a key the server closed after finding nothing under it is refused
+// for good, and the server's key lookup never closes a key the queue still has to file under (RA-1).
+describe('a queued sale and the server key lookup (RESEND-AUTH)', () => {
+  const WALK_IN: PosSaleRequest = { ...BODY, customer: { kind: 'WALK_IN' } }
+  const closed = () =>
+    new Response(JSON.stringify({ type: 'about:blank', status: 409, code: 'POS_SALE_KEY_ABANDONED' }), {
+      status: 409,
+      headers: { 'Content-Type': 'application/problem+json' },
+    })
+  const posted = (key: string) =>
+    calls.filter(
+      (call) =>
+        call.init?.method === 'POST' && new Headers(call.init.headers).get('Idempotency-Key') === key,
+    ).length
+
+  it('keeps a sale refused POS_SALE_KEY_ABANDONED queued and final, and never sends it again by itself', async () => {
+    await submitSale(TILL, WALK_IN, 'pos-sale-key-closed')
+    online = true
+    saleReply = closed
+    await flushQueue('till-1')
+    const [held] = queuedFor('till-1')
+    expect(held).toMatchObject({ key: 'pos-sale-key-closed', refusal: 'POS_SALE_KEY_ABANDONED', final: true })
+    const sent = posted('pos-sale-key-closed')
+    await flushQueue('till-1')
+    expect(posted('pos-sale-key-closed')).toBe(sent)
+    const error = new ApiError({ status: 409, problemType: null, code: 'POS_SALE_KEY_ABANDONED' })
+    expect(isFinalRefusal(error)).toBe(true)
+    expect(posRefusalKey(error)).toBe('pos.refusal.POS_SALE_KEY_ABANDONED')
+  })
+
+  it('never asks the server about a key in the queue, nor while the queue cannot be read (RA-1)', async () => {
+    await submitSale(TILL, WALK_IN, 'pos-sale-key-queued')
+    online = true
+    expect(keyMayBeQueued('pos-sale-key-queued')).toBe(true)
+    expect(keyMayBeQueued('pos-sale-key-elsewhere')).toBe(false)
+    expect(await checkHeldWithServer({ tillId: 'till-1', key: 'pos-sale-key-queued' })).toEqual({
+      outcome: 'queued',
+    })
+    window.localStorage.setItem('fawtir.pos.queue', '{not json')
+    expect(keyMayBeQueued('pos-sale-key-elsewhere')).toBe(true)
+    expect(await checkHeldWithServer({ tillId: 'till-1', key: 'pos-sale-key-elsewhere' })).toEqual({
+      outcome: 'queued',
+    })
+    expect(calls.filter((call) => call.url.includes('/sales/by-key/'))).toEqual([])
   })
 })

@@ -28,6 +28,8 @@ const WORDED = new Set([
   'POS_TILL_NUMBER_GAP',
   'POS_TILL_NUMBER_REPEATED',
   'POS_SALE_KEY_REUSED',
+  // RESEND-AUTH (backend 98c0066cb): the server found no sale under the key and closed it.
+  'POS_SALE_KEY_ABANDONED',
   'POS_CONSUMER_CONTACT_INVALID',
   'POS_CARD_APPROVAL_REQUIRED',
   'POS_COUNT_REQUIRED',
