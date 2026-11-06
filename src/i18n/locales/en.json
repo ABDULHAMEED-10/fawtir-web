@@ -5016,7 +5016,10 @@
         "email": "That email address is not complete."
       },
       "onFile": "Matches customer on file: {{name}}",
-      "onFileWithId": "Matches customer on file: {{name}} ({{id}})"
+      "onFileWithId": "Matches customer on file: {{name}} ({{id}})",
+      "checking": "Checking this buyer… Payment can be taken; the sale is checked again when it is sent.",
+      "firstNeeded": "This sale needs a full invoice to a named buyer: type the buyer’s name, ID and phone below before taking payment.",
+      "chooseFull": "Full invoice to a named buyer"
     },
     "storage": {
       "blocked": "This device can't safely read or save its sales and invoice numbers, so selling is unavailable here, online or offline. Sales already waiting can still be sent. Check again, or use another registered till.",
@@ -5303,7 +5306,8 @@
       "offlineQrUnavailableAfterSend": "No receipt: the connection dropped while sending, and this till cannot issue an offline receipt because its QR settings are not available, so no number was printed. The sale may already have reached Fawtir. Keep the sale open and finish it again once the till is online: it goes with the same key, so it cannot be recorded twice.",
       "offlineQrUnavailableBehind": "This sale has to wait behind earlier sales that are not filed yet, and this till cannot issue a receipt for it without its QR settings. Nothing was numbered or printed. Keep the sale open and try again once the waiting sales are filed.",
       "outcomeUnknown": "The sale was sent, but no clear answer came back, so it may already be recorded. Do not take payment again and do not ring it up again: send the same sale again, or check today’s sales.",
-      "POS_SALE_QR_UNAVAILABLE_FOR_BUYER": "This sale type cannot be issued with a QR yet: a full tax invoice to this buyer is not available at the till for now. Nothing was charged, numbered or printed, and the sale is kept."
+      "POS_SALE_QR_UNAVAILABLE_FOR_BUYER": "This sale type cannot be issued with a QR yet: a full tax invoice to this buyer is not available at the till for now. Nothing was charged, numbered or printed, and the sale is kept.",
+      "qrUnavailableRefundCard": "This sale type cannot be issued with a QR yet: a full tax invoice to this buyer is not available at the till for now. Refund the card on the terminal; the sale was not recorded."
     },
     "warning": {
       "STOCK_BELOW_ZERO": "Line {{line}} took the stock below zero. Count it when you can.",

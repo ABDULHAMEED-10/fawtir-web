@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { matchPosConsumer, type PosConsumerMatch } from '../api/pos/pos'
 import { tillContact } from './posContact'
+import { toBaisa } from './pos'
 
 /**
  * "Matches customer on file": the customer a full invoice to the buyer typed at the till would be
@@ -23,6 +24,18 @@ export function matchRequest(tillId: string, buyer: BuyerTyped) {
   const contact = tillContact(buyer.contact)
   if (!name || identifierValue.length < MATCH_MIN_ID || !contact.ok) return null
   return { tillId, name, contact: contact.value, identifierScheme: buyer.scheme, identifierValue }
+}
+
+/**
+ * SIMPLIFIED_INVOICE_LIMIT as the backend contract states it (POST /pos/sales: taxable amount
+ * before VAT of 500.000 or more, ER Art. 146 as replaced by Decision 456/2022): such a sale can
+ * only be a full invoice to a named buyer. Read here only to ask for the buyer before payment
+ * (STUCKQR-1); the server judges the limit itself and its 422 stays the enforcement.
+ */
+export const SIMPLIFIED_LIMIT_BAISA = toBaisa(500)
+
+export function overSimplifiedLimit(beforeVatBaisa: number): boolean {
+  return beforeVatBaisa >= SIMPLIFIED_LIMIT_BAISA
 }
 
 /** The match worth saying: one stored under a name other than the one typed. */
@@ -61,5 +74,12 @@ export function useBuyerMatch(tillId: string, buyer: BuyerTyped, enabled: boolea
   // Read only for the buyer as typed now: an answer about an ID since changed says nothing, so a
   // refusal never outlives the ID it was about, nor a clearance the ID that replaced it.
   const found = answer && answer.key === key ? answer.found : null
-  return { hint: hintOf(found), qrRefused: qrRefusedOf(found) }
+  return {
+    hint: hintOf(found),
+    qrRefused: qrRefusedOf(found),
+    /** A whole buyer was typed, so the lookup goes (or went). */
+    asked: key !== '',
+    /** The lookup for the buyer as typed now has answered. */
+    answered: found !== null,
+  }
 }

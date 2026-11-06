@@ -58,7 +58,7 @@ import { ApiError, NetworkError } from '../../api'
 import { MAX_SLIP_BYTES } from '../../lib/posSlipOutbox'
 import { BUYER_IDENTIFIER_SCHEMES } from '../../api/customers/customers'
 import { tillContact } from '../../lib/posContact'
-import { useBuyerMatch } from '../../lib/posBuyerMatch'
+import { overSimplifiedLimit, useBuyerMatch } from '../../lib/posBuyerMatch'
 import { missingFieldsSentence, notEligiblePaths } from '../../lib/customerEligibility'
 import { useTillQrProfile, type TillState } from '../../lib/posTill'
 import { containsCardNumber } from '../../lib/cardNumbers'
@@ -394,11 +394,24 @@ function Payment({ till }: { till: Ready }) {
   // RB-1 STUCK-QR: a full tax sale this customer cannot get a QR on is refused here, before it is
   // sent, in the server's own words; the basket and the buyer stay as they are, and nothing else
   // (a simplified sale, another customer) is chosen for the cashier.
-  const { hint: onFile, qrRefused } = useBuyerMatch(
+  //
+  // STUCKQR-1 (owner: "refuse before payment capture"): a card is taken on the bank's terminal
+  // before Finish, so a named full tax sale (the cashier chose it, or the sale is over the
+  // simplified limit) asks for the buyer first, and no payment is taken until the buyer is typed
+  // and the lookup has not refused them. A lookup still waiting or failed does not block: it is
+  // said, and the server checks again when the sale is sent.
+  const buyerFirst = !company && (buyerAsked || overSimplifiedLimit(totals.beforeVat))
+  const {
+    hint: onFile,
+    qrRefused,
+    asked: buyerTyped,
+    answered: buyerChecked,
+  } = useBuyerMatch(
     till.till.id,
     { ...buyer, scheme: schemes.includes(buyer.scheme) ? buyer.scheme : schemes[0] },
-    buyerAsked && !company,
+    buyerFirst,
   )
+  const tenderLocked = buyerFirst && (!buyerTyped || qrRefused)
   /** The buyer's phone or email is checked before the full invoice goes (F-2). */
   const finishNamed = () => {
     const contact = tillContact(buyer.contact)
@@ -490,6 +503,20 @@ function Payment({ till }: { till: Ready }) {
               </p>
             </div>
 
+            {tenderLocked && !qrRefused ? (
+              <p role="status" className="mx-6 mt-4 rounded-sm bg-warning-100 px-4 py-3 text-sm font-medium text-text-primary">
+                {t('pos.buyer.firstNeeded')}
+              </p>
+            ) : null}
+            {!company && !buyerFirst && taken.length === 0 ? (
+              <button
+                type="button"
+                onClick={() => setBuyerAsked(true)}
+                className="mx-6 mt-4 self-start text-sm font-semibold text-primary-700"
+              >
+                {t('pos.buyer.chooseFull')}
+              </button>
+            ) : null}
             <div className="grid grid-cols-2 gap-3 px-6 py-4 sm:grid-cols-4">
               {METHODS.map((entry) => (
                 <MethodTile
@@ -553,7 +580,7 @@ function Payment({ till }: { till: Ready }) {
                   </p>
                   <button
                     type="button"
-                    disabled={cash <= 0}
+                    disabled={cash <= 0 || tenderLocked}
                     onClick={() =>
                       // Less than owed is part of a split; the rest is taken another way.
                       take({ method: 'cash', amount: Math.min(cash, left), handedOver: cash })
@@ -620,7 +647,7 @@ function Payment({ till }: { till: Ready }) {
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    disabled={partAmount <= 0 || approvalHoldsCard}
+                    disabled={partAmount <= 0 || approvalHoldsCard || tenderLocked}
                     onClick={() =>
                       take({
                         method,
@@ -890,7 +917,12 @@ function Payment({ till }: { till: Ready }) {
                   </>
                 ) : (
                   <>
-                    {refusalSentence(t, refusal)}
+                    {/* STUCKQR-2: an older server, or a race, refuses after the card was charged
+                        on the terminal: "nothing was charged" would be false. */}
+                    {refusalCode(refusal) === 'POS_SALE_QR_UNAVAILABLE_FOR_BUYER' &&
+                    taken.some((payment) => payment.method === 'card')
+                      ? t('pos.refusal.qrUnavailableRefundCard')
+                      : refusalSentence(t, refusal)}
                     {refusal instanceof ApiError && refusal.problemType === 'quota-exceeded' ? (
                       <PosQuotaNextStep />
                     ) : null}
@@ -900,7 +932,7 @@ function Payment({ till }: { till: Ready }) {
             </div>
           ) : null}
 
-          {buyerAsked && !company ? (
+          {buyerFirst ? (
             // The full-invoice offer (SIMPLIFIED_INVOICE_LIMIT, BUYER_IDENTIFIER_REQUIRED): the
             // buyer is named with their ID (IBR-016-OM), or the sale is put on a company.
             <div className="mx-5 mb-4 grid grid-cols-1 gap-3 rounded-sm bg-surface-background p-4">
@@ -953,6 +985,10 @@ function Payment({ till }: { till: Ready }) {
               {qrRefused ? (
                 <p role="alert" className="text-xs font-medium text-danger-700">
                   {t('pos.refusal.POS_SALE_QR_UNAVAILABLE_FOR_BUYER')}
+                </p>
+              ) : buyerTyped && !buyerChecked ? (
+                <p role="status" className="text-xs font-medium text-text-tertiary">
+                  {t('pos.buyer.checking')}
                 </p>
               ) : null}
               <Field label={t('pos.buyer.contact')}>

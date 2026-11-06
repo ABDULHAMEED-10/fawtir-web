@@ -9,7 +9,7 @@ import { resetOpenSale } from '../../lib/posSale'
 import { resetPosQueue } from '../../lib/posQueue'
 import { resetSharedRequests } from '../../api'
 import { forgetWorkingBranch } from '../../lib/workingBranch'
-import { hintOf, matchRequest } from '../../lib/posBuyerMatch'
+import { hintOf, matchRequest, overSimplifiedLimit } from '../../lib/posBuyerMatch'
 
 /**
  * "Matches customer on file": the full-invoice buyer's ID (and phone) matches a customer stored
@@ -62,6 +62,7 @@ const json = (body: unknown, status = 200) =>
 
 let calls: { url: string; init?: RequestInit }[]
 let matchAnswer: () => Response | Promise<Response>
+let saleAnswer: (() => Response) | null
 
 beforeEach(async () => {
   await i18n.changeLanguage('en')
@@ -73,6 +74,7 @@ beforeEach(async () => {
   window.localStorage.clear()
   calls = []
   matchAnswer = () => json(ON_FILE)
+  saleAnswer = null
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -85,6 +87,7 @@ beforeEach(async () => {
       if (url.startsWith('/api/v1/pos/tills')) return json([TILL])
       if (url === '/api/v1/pos/customers/match') return matchAnswer()
       if (url === '/api/v1/pos/sales' && init?.method === 'POST') {
+        if (saleAnswer) return saleAnswer()
         return json(
           {
             type: 'https://api.fawtir.om/problems/simplified-invoice-limit',
@@ -179,6 +182,10 @@ describe('the lookup', () => {
     expect(matchRequest('t', { ...typed, value: '123' })).toBeNull()
     expect(matchRequest('t', { ...typed, contact: '12' })).toBeNull()
   })
+  it('reads the simplified limit as the server states it: 500.000 or more before VAT', () => {
+    expect(overSimplifiedLimit(499_999)).toBe(false)
+    expect(overSimplifiedLimit(500_000)).toBe(true)
+  })
   it('is said only for a match under another name', () => {
     expect(hintOf(ON_FILE as never)).not.toBeNull()
     expect(hintOf({ ...ON_FILE, sameName: true } as never)).toBeNull()
@@ -246,5 +253,164 @@ describe('a full tax sale the buyer cannot get a QR on', () => {
     expect(makeFull().disabled).toBe(false)
     await waitFor(() => expect(matches()).toHaveLength(2), { timeout: 2000 })
     expect(screen.queryByText(new RegExp(REFUSED))).toBeNull()
+  })
+})
+
+// STUCKQR-1 (owner: "refuse before payment capture"): a card is charged on the bank's terminal
+// before Finish, so a named full tax sale asks for the buyer, and is checked, before any payment.
+describe('a named full tax sale is checked before payment (STUCKQR-1)', () => {
+  // 600.000 before VAT: over the simplified limit, so only a full invoice to a named buyer.
+  const BIG = [
+    {
+      ...SAMPLE_SALE[2],
+      id: 'big',
+      productId: 'p-tv',
+      productCode: 'TV-1',
+      name: 'Television',
+      price: 600000,
+    },
+  ]
+  const SAME_NAME = { ...ON_FILE, sameName: true }
+  const salePosts = () =>
+    calls.filter((call) => call.url === '/api/v1/pos/sales' && call.init?.method === 'POST')
+  const takeCash = () =>
+    screen.getByRole('button', { name: /^Take .* in cash$/ }) as HTMLButtonElement
+
+  function renderPayment() {
+    render(
+      <MemoryRouter initialEntries={['/pos/payment']}>
+        <Routes>
+          <Route path="/pos/payment" element={<PosPaymentPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+  }
+  function typeBuyer(id = '12345678') {
+    fireEvent.change(screen.getByLabelText("Buyer's name"), { target: { value: 'Hamed Al Rawahi' } })
+    fireEvent.change(screen.getByLabelText('Phone or email'), { target: { value: '9234 5678' } })
+    fireEvent.change(screen.getByLabelText('ID number'), { target: { value: id } })
+  }
+
+  it('over the simplified limit, asks for the buyer and takes no payment until one is typed', async () => {
+    resetOpenSale(BIG)
+    matchAnswer = () => json({ ...SAME_NAME, qrIssuableOnFullTax: true })
+    renderPayment()
+    expect(await screen.findByText(i18n.t('pos.buyer.firstNeeded'))).toBeTruthy()
+    expect(screen.getByLabelText("Buyer's name")).toBeTruthy()
+    expect(takeCash().disabled).toBe(true)
+    typeBuyer()
+    await waitFor(() => expect(matches()).toHaveLength(1), { timeout: 2000 })
+    await waitFor(() => expect(takeCash().disabled).toBe(false))
+    expect(screen.queryByText(i18n.t('pos.buyer.firstNeeded'))).toBeNull()
+    expect(salePosts()).toHaveLength(0)
+  })
+
+  it('refuses a buyer the server cannot give a QR before any payment, keeping the sale and the buyer', async () => {
+    resetOpenSale(BIG)
+    matchAnswer = () => json({ ...SAME_NAME, qrIssuableOnFullTax: false })
+    renderPayment()
+    await screen.findByLabelText("Buyer's name")
+    typeBuyer()
+    expect(
+      await screen.findByText(i18n.t('pos.refusal.POS_SALE_QR_UNAVAILABLE_FOR_BUYER'), {}, { timeout: 2000 }),
+    ).toBeTruthy()
+    expect(takeCash().disabled).toBe(true)
+    fireEvent.click(takeCash())
+    // Nor by card: the terminal is not to be used for this buyer.
+    fireEvent.click(screen.getByRole('button', { name: /^Card/ }))
+    expect((screen.getByRole('button', { name: /^Paid · / }) as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.queryByRole('button', { name: i18n.t('pos.pay.remove') })).toBeNull()
+    expect(salePosts()).toHaveLength(0)
+    expect((screen.getByLabelText("Buyer's name") as HTMLInputElement).value).toBe('Hamed Al Rawahi')
+    // The basket is kept: the sale still reads its 630.000 to pay.
+    expect(screen.getAllByText(/630\.000/).length).toBeGreaterThan(0)
+  })
+
+  it('says the check is still waiting, and does not block payment on it', async () => {
+    resetOpenSale(BIG)
+    matchAnswer = () => new Promise<Response>(() => undefined)
+    renderPayment()
+    await screen.findByLabelText("Buyer's name")
+    typeBuyer()
+    expect(screen.getByText(i18n.t('pos.buyer.checking'))).toBeTruthy()
+    expect(takeCash().disabled).toBe(false)
+    await waitFor(() => expect(matches()).toHaveLength(1), { timeout: 2000 })
+    expect(screen.getByText(i18n.t('pos.buyer.checking'))).toBeTruthy()
+  })
+
+  it('does not block payment when the check failed, and says it is unchecked', async () => {
+    resetOpenSale(BIG)
+    matchAnswer = () => Promise.reject(new TypeError('Failed to fetch'))
+    renderPayment()
+    await screen.findByLabelText("Buyer's name")
+    typeBuyer()
+    await waitFor(() => expect(matches()).toHaveLength(1), { timeout: 2000 })
+    expect(screen.getByText(i18n.t('pos.buyer.checking'))).toBeTruthy()
+    expect(takeCash().disabled).toBe(false)
+  })
+
+  it('lets the cashier choose a full invoice before payment, with the same check', async () => {
+    matchAnswer = () => json({ ...SAME_NAME, qrIssuableOnFullTax: false })
+    renderPayment()
+    fireEvent.click(await screen.findByRole('button', { name: i18n.t('pos.buyer.chooseFull') }))
+    expect(takeCash().disabled).toBe(true)
+    typeBuyer()
+    await screen.findByText(i18n.t('pos.refusal.POS_SALE_QR_UNAVAILABLE_FOR_BUYER'), {}, { timeout: 2000 })
+    expect(takeCash().disabled).toBe(true)
+    typeBuyer('87654321')
+    matchAnswer = () => json({ ...SAME_NAME, qrIssuableOnFullTax: true })
+    expect(takeCash().disabled).toBe(false)
+  })
+
+  it('leaves a walk-in sale under the limit as it was: no buyer asked, payment open', async () => {
+    renderPayment()
+    expect((await screen.findByRole('button', { name: /Take 5.649 in cash/ }) as HTMLButtonElement).disabled).toBe(false)
+    expect(screen.queryByLabelText("Buyer's name")).toBeNull()
+    expect(screen.queryByText(i18n.t('pos.buyer.firstNeeded'))).toBeNull()
+  })
+})
+
+// STUCKQR-2: an older server, or a race, refuses after a card was charged on the terminal.
+describe('a QR refusal after a card was taken (STUCKQR-2)', () => {
+  const qrRefused = () =>
+    json({ type: 'about:blank', status: 422, code: 'POS_SALE_QR_UNAVAILABLE_FOR_BUYER' }, 422)
+
+  it('tells the cashier to refund the card on the terminal; the sale was not recorded', async () => {
+    saleAnswer = qrRefused
+    render(
+      <MemoryRouter initialEntries={['/pos/payment']}>
+        <Routes>
+          <Route path="/pos/payment" element={<PosPaymentPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    fireEvent.click(await screen.findByRole('button', { name: /^Card/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Paid · 5\.649/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+    const said = await screen.findByText(/Refund the card on the terminal/)
+    expect(said.textContent).toBe(i18n.t('pos.refusal.qrUnavailableRefundCard'))
+    expect(screen.queryByText(/Nothing was charged/)).toBeNull()
+  })
+
+  it('keeps the plain sentence when only cash was taken', async () => {
+    saleAnswer = qrRefused
+    render(
+      <MemoryRouter initialEntries={['/pos/payment']}>
+        <Routes>
+          <Route path="/pos/payment" element={<PosPaymentPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+    expect(await screen.findByText(i18n.t('pos.refusal.POS_SALE_QR_UNAVAILABLE_FOR_BUYER'))).toBeTruthy()
+    expect(screen.queryByText(/Refund the card/)).toBeNull()
+  })
+
+  it('is worded in Arabic too', async () => {
+    await i18n.changeLanguage('ar')
+    for (const key of ['pos.refusal.qrUnavailableRefundCard', 'pos.buyer.firstNeeded', 'pos.buyer.checking', 'pos.buyer.chooseFull']) {
+      expect(i18n.t(key)).not.toBe(i18n.t(key, { lng: 'en' }))
+    }
   })
 })
