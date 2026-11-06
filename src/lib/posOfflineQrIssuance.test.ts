@@ -11,6 +11,7 @@ import {
   submitSale,
 } from './posQueue'
 import { memoryVault, setPosVault } from './posVault'
+import { posRefusalKey } from './posRefusals'
 
 // The builder is replaced so the build after the number is claimed can be made to fail: past a
 // passing dry run that is otherwise unreachable (owner directive 2026-11-06 item C).
@@ -40,6 +41,8 @@ const BODY: PosSaleRequest = {
 
 let online: boolean
 let sent: string[]
+/** The server's answer to a sale; a NetworkError when it throws. */
+let answer: (() => Response) | null
 
 beforeEach(() => {
   window.localStorage.clear()
@@ -51,12 +54,14 @@ beforeEach(() => {
   vi.mocked(offlinePrintedQr).mockReset()
   online = false
   sent = []
+  answer = null
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       if (!online) throw new TypeError('Failed to fetch')
       if (String(input) === '/api/v1/pos/sales' && init?.method === 'POST') {
         sent.push(String(init.body))
+        if (answer) return answer()
         return new Response(
           JSON.stringify({
             saleId: 'sale-9',
@@ -88,6 +93,8 @@ describe('issuing an offline consumer receipt (owner directive 2026-11-06)', () 
     expect(numbers).toEqual([NUMBER, NUMBER])
     expect(queuedFor('till-1')[0].body.printedQr).toEqual(QR)
     expect(queuedFor('till-1')[0].receiptWithheld).toBeUndefined()
+    // QW4R-3: the mark goes on the wire only when true; a printed receipt sends no member at all.
+    expect('receiptWithheld' in queuedFor('till-1')[0].body).toBe(false)
   })
 
   it('a dry run that fails claims no number: the next sale takes it', async () => {
@@ -115,11 +122,21 @@ describe('issuing an offline consumer receipt (owner directive 2026-11-06)', () 
     vi.mocked(offlinePrintedQr).mockResolvedValue(QR)
     const next = await submitSale(TILL, BODY, 'pos-sale-key-iss-5', [], PRINTED)
     expect('queued' in next && next.queued.number).toBe('NZW-T01-INV-2026-000050')
-    // Kept and filed with its number; the mark is this device's and never goes on the wire.
+    // Kept and filed with its number. QW4R-3 (backend f598aa39b): the mark is in the body the till
+    // queued, so it is signed with it, and every send of the entry carries it unchanged.
+    expect(entry.body.receiptWithheld).toBe(true)
     online = true
+    answer = () => new Response('', { status: 503 })
     await flushQueue('till-1')
-    expect(sent.map((body) => JSON.parse(body).invoiceNumber)).toEqual([NUMBER, 'NZW-T01-INV-2026-000050'])
-    expect(sent[0]).not.toContain('receiptWithheld')
+    answer = null
+    await flushQueue('till-1')
+    const bodies = sent.map((body) => JSON.parse(body) as PosSaleRequest)
+    const ours = bodies.filter((body) => body.invoiceNumber === NUMBER)
+    expect(ours.length).toBeGreaterThanOrEqual(2)
+    for (const body of ours) expect(body.receiptWithheld).toBe(true)
+    expect(bodies.find((body) => body.invoiceNumber === 'NZW-T01-INV-2026-000050')).not.toHaveProperty(
+      'receiptWithheld',
+    )
   })
 
   it('a correction and its resend carry the printed QR as it was built, never a new one', async () => {
@@ -138,6 +155,69 @@ describe('issuing an offline consumer receipt (owner directive 2026-11-06)', () 
     expect('queued' in result && result.queued.number).toBe(NUMBER)
     expect(offlinePrintedQr).not.toHaveBeenCalled()
     expect(queuedFor('till-1')[0].receiptWithheld).toBeUndefined()
+  })
+
+  // QW4R-1: the request went out, the connection dropped, and the fallback cannot make the QR. The
+  // server may have filed the sale, so the refusal says so (as XW-2), and the same key retries it.
+  it('an online sale whose request went out is refused as sent, not as "nothing was numbered"', async () => {
+    online = true
+    answer = () => {
+      throw new TypeError('Failed to fetch')
+    }
+    vi.mocked(offlinePrintedQr).mockResolvedValue(null)
+    const refused = await submitSale(TILL, BODY, 'pos-sale-key-iss-9', [], PRINTED).catch((error: unknown) => error)
+    expect(refused).toMatchObject({ name: 'PosOfflineQrUnavailable', requested: true, behind: false })
+    expect(posRefusalKey(refused)).toBe('pos.refusal.offlineQrUnavailableAfterSend')
+    expect(sent).toHaveLength(1)
+    expect(queuedFor('till-1')).toEqual([])
+    answer = null
+    const again = await submitSale(TILL, BODY, 'pos-sale-key-iss-9', [], PRINTED)
+    expect('sale' in again).toBe(true)
+    expect(sent).toEqual([sent[0], sent[0]])
+  })
+
+  // With a queue waiting and no connection the sale goes straight to the queue: its own request
+  // never left, so "nothing was numbered or printed" is the whole truth. (With an empty queue the
+  // till tries the server first, so an offline till takes the sent wording above, as XW-2 does.)
+  it('a sale queued behind waiting sales while offline is refused as never sent', async () => {
+    const company = { ...BODY, customer: { kind: 'BUSINESS' as const, customerId: 'c-1' } }
+    await submitSale(TILL, company, 'pos-sale-key-iss-10a', [], PRINTED)
+    vi.mocked(offlinePrintedQr).mockResolvedValue(null)
+    const refused = await submitSale(TILL, BODY, 'pos-sale-key-iss-10', [], PRINTED).catch((error: unknown) => error)
+    expect(refused).toMatchObject({ name: 'PosOfflineQrUnavailable', requested: false, behind: false })
+    expect(posRefusalKey(refused)).toBe('pos.refusal.offlineQrUnavailable')
+    expect(queuedFor('till-1').map((entry) => entry.key)).toEqual(['pos-sale-key-iss-10a'])
+  })
+
+  // QW4R-8: online, but behind an unfiled sale; "reconnect" would be the wrong advice.
+  it('a sale that has to queue behind an unfiled one, online, is refused with the waiting wording', async () => {
+    const company = { ...BODY, customer: { kind: 'BUSINESS' as const, customerId: 'c-1' } }
+    await submitSale(TILL, company, 'pos-sale-key-iss-11', [], PRINTED)
+    online = true
+    answer = () =>
+      new Response(
+        JSON.stringify({ type: 'https://api.fawtir.om/problems/x', status: 422, code: 'SIMPLIFIED_INVOICE_LIMIT' }),
+        { status: 422, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+    vi.mocked(offlinePrintedQr).mockResolvedValue(null)
+    const refused = await submitSale(TILL, BODY, 'pos-sale-key-iss-12', [], PRINTED).catch((error: unknown) => error)
+    expect(refused).toMatchObject({ name: 'PosOfflineQrUnavailable', requested: false, behind: true })
+    expect(posRefusalKey(refused)).toBe('pos.refusal.offlineQrUnavailableBehind')
+    expect(queuedFor('till-1').map((entry) => entry.key)).toEqual(['pos-sale-key-iss-11'])
+  })
+
+  // QW4R-4: something notes a number while the dry run awaits; the number is read again and the QR
+  // proved with the new one, so the number claimed is the one the QR was proved with.
+  it('a number noted during the dry run is read again and the QR proved with it', async () => {
+    vi.mocked(offlinePrintedQr).mockImplementationOnce(async () => {
+      window.localStorage.setItem('fawtir.pos.next.till-1.NZW-T01-INV-2026', '52')
+      return QR
+    })
+    vi.mocked(offlinePrintedQr).mockResolvedValue(QR)
+    const result = await submitSale(TILL, BODY, 'pos-sale-key-iss-13', [], PRINTED)
+    const numbers = vi.mocked(offlinePrintedQr).mock.calls.map(([, sale]) => sale.invoiceNumber)
+    expect(numbers).toEqual([NUMBER, 'NZW-T01-INV-2026-000052', 'NZW-T01-INV-2026-000052'])
+    expect('queued' in result && result.queued.number).toBe('NZW-T01-INV-2026-000052')
   })
 
   it('an online sale neither dry-runs nor builds a QR', async () => {

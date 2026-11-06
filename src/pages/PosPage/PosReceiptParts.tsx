@@ -121,12 +121,7 @@ export function ReceiptQr({
       </>
     )
   }
-  if (status === 'PENDING') {
-    return (
-      <p className="text-[11px] font-medium leading-[1.5] text-text-quaternary">
-        {t('pos.done.qrPending')}
-      </p>
-    )
-  }
+  // Nothing for PENDING either: a consumer's receipt is not printed without its QR (QW4R-2), so no
+  // paper says the QR is to follow.
   return null
 }

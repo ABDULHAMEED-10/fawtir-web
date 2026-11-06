@@ -162,7 +162,7 @@ function Payment({ till }: { till: Ready }) {
   // The till's notices say why (PosTabLockNotice, PosStorageNotice); the sell controls are off for
   // as long as any of them blocks selling, online or offline (DES43 rev 4.7 D.9).
   const sellingBlocked = useSellingBlock(till.till.id) !== null
-  const qrProfile = useTillQrProfile(till.till.id)
+  const qrProfileNow = useTillQrProfile(till.till.id)
   const [refusal, setRefusal] = useState<unknown>(null)
   const [buyerAsked, setBuyerAsked] = useState(false)
   const [buyer, setBuyer] = useState({ name: '', scheme: 'CID', value: '', contact: '' })
@@ -259,6 +259,7 @@ function Payment({ till }: { till: Ready }) {
       attempt.current = { fingerprint, key: newPosKey('sale'), soldAt: new Date().toISOString() }
     }
     try {
+      const qrProfile = await qrProfileNow()
       const result = await submitSale(
         // Only a sale the till queues reads the profile (`offlinePrintedQr`); an online one never does.
         qrProfile ? { ...till.till, qrProfile } : till.till,

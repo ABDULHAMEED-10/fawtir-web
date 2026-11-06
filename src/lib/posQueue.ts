@@ -707,12 +707,20 @@ export class PosTenantZoneUnavailable extends Error {
  * switch off, seller unverified, a zone other than Asia/Muscat, a malformed profile version), or a
  * dry run of the QR with the number the till would claim fails. Owner directive 2026-11-06 items A
  * and B: nothing is numbered, kept or printed, and the cart stays as it is for the cashier to sell
- * online once the connection is back. Online sales never reach it.
+ * online once the connection is back. An online sale reaches it only through its NetworkError
+ * fallback, after its own request went out (`requested`): the server may then have filed it, so
+ * the cashier is not told nothing was sent (review QW4R-1, as XW-2). `behind`: the till is online
+ * but the sale had to queue behind unfiled ones, so "reconnect" is not the advice (QW4R-8).
  */
 export class PosOfflineQrUnavailable extends Error {
-  constructor() {
+  readonly requested: boolean
+  readonly behind: boolean
+
+  constructor(requested = false, behind = false) {
     super('This till cannot issue an offline receipt with its QR now')
     this.name = 'PosOfflineQrUnavailable'
+    this.requested = requested
+    this.behind = behind
   }
 }
 
@@ -1307,9 +1315,9 @@ export async function submitSale(
     void dropSlipPhotos(key)
     throw new PosTenantZoneUnavailable()
   }
-  const refuseQr = (): never => {
+  const refuseQr = (behind: boolean): never => {
     void dropSlipPhotos(key)
-    throw new PosOfflineQrUnavailable()
+    throw new PosOfflineQrUnavailable(requested, behind)
   }
   const qrFor = (number: string) =>
     offlinePrintedQr(
@@ -1317,7 +1325,7 @@ export async function submitSale(
       { invoiceNumber: number, soldAt: body.soldAt, customer: body.customer },
       printed,
     )
-  const enqueue = () => span('offline', () => numberAndKeep())
+  const enqueue = (behind = false) => span('offline', () => numberAndKeep(behind))
   const sendOnline = () =>
     span('online', async () => {
       // Checked before the report, whose unreadable year would otherwise read as a storage fault.
@@ -1341,19 +1349,28 @@ export async function submitSale(
         throw error
       }
     })
-  const numberAndKeep = async (): Promise<SubmitResult> => {
+  const numberAndKeep = async (behind = false): Promise<SubmitResult> => {
     const blocked = offlineBlock(till.id)
     if (blocked) return refuseOffline(blocked)
     if (tillZoneUnreadable(till, body.soldAt)) return refuseZone()
-    const numbering = tillNumber(till, body.soldAt)
+    let numbering = tillNumber(till, body.soldAt)
     if ('blocked' in numbering) return refuseOffline(numbering.blocked)
-    const number = numbering.number
-    if (!number) throw new NetworkError('offline')
     const receiptQr = takesReceiptQr(body)
     // Directive item A: the QR is proved with the number the till is about to claim before anything
     // is claimed, so a till that cannot make it leaves no number, entry or receipt behind (item B).
-    // The await sits inside this sale's span, as the online path's own fallback does.
-    if (receiptQr && !(await qrFor(number))) return refuseQr()
+    // The await sits inside this sale's span, as the online path's own fallback does, but it breaks
+    // the synchronous run from reading the number to reserving it: the number is read again after
+    // it and, if something noted one meanwhile, proved again with the new one (review QW4R-4).
+    for (let proved = 0; receiptQr && numbering.number !== null; proved++) {
+      if (proved === 3) return refuseQr(behind)
+      const tried: string = numbering.number
+      if (!(await qrFor(tried))) return refuseQr(behind)
+      numbering = tillNumber(till, body.soldAt)
+      if ('blocked' in numbering) return refuseOffline(numbering.blocked)
+      if (numbering.number === tried) break
+    }
+    const number = numbering.number
+    if (!number) throw new NetworkError('offline')
     const reservation = reserveNumber(till.id, number)
     if (!reservation.ok) return refuseOffline(reservation.reason)
     let saved = 'denied' as StorageWrite
@@ -1364,6 +1381,11 @@ export async function submitSale(
       // is changed to make a QR. Before signing, so the proof covers it. Kept in the entry and sent
       // as it is by every retry, correction and resend: never built again (directive item E).
       printedQr = receiptQr ? await qrFor(number) : null
+      // Directive item C: past the dry run this is not expected. The number is claimed, so the sale
+      // is kept and filed with it, but no receipt is printed. The mark goes in the body before it
+      // is signed, and only when true (QW4R-3, backend f598aa39b), so every send of this entry
+      // carries the same signed value and the server records it for a manager.
+      const withheld = receiptQr && !printedQr
       // Signed before the buyer is sealed, so the signed body is the body `bodyToSend` rebuilds (WEB-3).
       entry = await sealed({
         key,
@@ -1371,14 +1393,19 @@ export async function submitSale(
         number,
         body: await signedIfPossible(
           till,
-          { ...body, queuedOffline: true, invoiceNumber: number, ...(printedQr ? { printedQr } : {}) },
+          {
+            ...body,
+            queuedOffline: true,
+            invoiceNumber: number,
+            ...(printedQr ? { printedQr } : {}),
+            ...(withheld ? { receiptWithheld: true as const } : {}),
+          },
           key,
           printed,
         ),
         refusal: null,
-        // Directive item C: past the dry run this is not expected. The number is claimed, so the
-        // sale is kept and filed with it, but no receipt is printed and the till marks it.
-        ...(receiptQr && !printedQr ? { receiptWithheld: true as const } : {}),
+        // The device's own mark, which the Done page and the queue read without opening the body.
+        ...(withheld ? { receiptWithheld: true as const } : {}),
         ...(maker
           ? { madeBy: maker }
           : deviceSender
@@ -1432,7 +1459,7 @@ export async function submitSale(
     void dropSlipPhotos(key)
     throw outcome.error
   }
-  const queued = await enqueue()
+  const queued = await enqueue(true)
   return { ...queued, behind: true }
 }
 

@@ -3,11 +3,11 @@ import { Modal, Rial } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import { loadPosSale, POS_SALES_PATH, type PosMethod, type PosSaleDto } from '../../api/pos/pos'
-import { omr, omrSigned, receiptStamp, toBaisa } from '../../lib/pos'
+import { omr, omrOfRials, omrSigned, receiptStamp, toBaisa } from '../../lib/pos'
 import { receiptSellerHeader } from '../../lib/posReceiptSeller'
 import { saleCashierLabel } from '../../lib/posAttribution'
 import { ReceiptMasthead, ReceiptQr, ReceiptRow } from './PosReceiptParts'
-import { reprintReady } from '../../lib/posReprint'
+import { receiptNotKept, reprintReady } from '../../lib/posReprint'
 import { maskedIdentifier } from '../../lib/posSale'
 import { PRINT_SHEET_CLASS } from '../../components/print/printSheet'
 
@@ -25,8 +25,8 @@ const METHOD_KEYS: Record<PosMethod, string> = {
  * recorded, never from the live profile, because a reprint after a profile change would otherwise
  * name today's seller on yesterday's sale. The QR is the server's image, frozen at issue for an
  * online consumer sale. Nothing is printed unless the answer also carries the issued lines and, on a
- * full invoice, the buyer (`reprintReady`, ruling QW2R-1); no server sends them yet, so today the
- * dialog only says the reprint is not available. The sheet says COPY on paper, not only in the title.
+ * full invoice, the buyer (`reprintReady`, ruling QW2R-1); while the reprint gate is off
+ * (`REPRINT_LINES_SETTLED`) the dialog only says the reprint is not available. The sheet says COPY on paper, not only in the title.
  */
 export function ReceiptReprint({
   saleId,
@@ -70,7 +70,9 @@ export function ReceiptReprint({
       ) : ready ? (
         <ReprintPaper sale={ready} branchName={branchName} locale={locale} />
       ) : answered ? (
-        <p className="text-sm font-medium text-text-tertiary">{t('pos.today.reprintUnavailable')}</p>
+        <p className="text-sm font-medium text-text-tertiary">
+          {t(receiptNotKept(answered) ? 'pos.today.reprintNotKept' : 'pos.today.reprintUnavailable')}
+        </p>
       ) : null}
     </Modal>
   )
@@ -131,7 +133,7 @@ function ReprintPaper({
           <ReceiptRow
             key={index}
             label={`${line.quantity} × ${line.description}`}
-            value={omr(toBaisa(line.lineTotal))}
+            value={omrOfRials(line.amount)}
           />
         ))}
       </div>

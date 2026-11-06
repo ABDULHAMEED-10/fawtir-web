@@ -184,6 +184,57 @@ describe('the held-sales screen', () => {
     expect(badge.className).toContain('text-danger-700')
   })
 
+  // QB8R-6 (backend f598aa39b): a WITHHELD item is a filed sale with no receipt printed, for review.
+  it('words a WITHHELD item as a receipt for manager review, never as a hold or overdue', async () => {
+    list = () =>
+      json({
+        items: [
+          item({
+            kind: 'WITHHELD',
+            reason: 'POS_RECEIPT_WITHHELD',
+            lines: [],
+            reHeldCount: 1,
+            overdue: true,
+          }),
+        ],
+        truncated: false,
+      })
+    await open()
+    expect(await screen.findByText(i18n.t('pos.heldSales.withheld'))).toBeTruthy()
+    expect(text()).toContain('Marked first 04/11/2026, 09:00:00 GMT+4, last 04/11/2026, 10:30:00 GMT+4.')
+    expect(text()).not.toContain(i18n.t('pos.heldSales.overdue'))
+    expect(document.querySelector('.text-danger-700')).toBeNull()
+    expect(text()).not.toContain('Held:')
+    expect(text()).not.toContain('Held first')
+    expect(text()).not.toContain(i18n.t('pos.heldSales.reason.other'))
+    expect(text()).not.toContain('POS_RECEIPT_WITHHELD')
+  })
+
+  it('shows a kind this build does not know neutrally: no reason, hold wording or overdue', async () => {
+    list = () => json({ items: [item({ kind: 'SOMETHING_NEW', overdue: true })], truncated: false })
+    await open()
+    expect(await screen.findByText(i18n.t('pos.heldSales.otherKind'))).toBeTruthy()
+    expect(text()).not.toContain('Held:')
+    expect(text()).not.toContain('Held first')
+    expect(text()).not.toContain(i18n.t('pos.heldSales.reason.other'))
+    expect(text()).not.toContain(i18n.t('pos.heldSales.overdue'))
+    expect(document.querySelector('.text-danger-700')).toBeNull()
+  })
+
+  it('an item marked HELD reads as before, overdue included', async () => {
+    list = () => json({ items: [item({ kind: 'HELD', overdue: true })], truncated: false })
+    await open()
+    expect(await screen.findByText(i18n.t('pos.heldSales.overdue'))).toBeTruthy()
+    expect(text()).toContain('Held: a goods line has no HS code. Lines: 2, 5.')
+  })
+
+  it('has the review wording in both languages', () => {
+    for (const key of ['withheld', 'withheldTimes', 'otherKind'] as const) {
+      expect(ar.pos.heldSales[key]).toBeTruthy()
+      expect(ar.pos.heldSales[key]).not.toBe(en.pos.heldSales[key])
+    }
+  })
+
   it('says when more held sales exist than shown', async () => {
     list = () => json({ items: [item()], truncated: true })
     await open()

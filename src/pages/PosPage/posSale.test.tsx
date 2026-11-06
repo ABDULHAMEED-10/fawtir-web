@@ -426,13 +426,80 @@ describe('taking the payment (P.12)', () => {
     ['a malformed profile version', { ...TILL, qrProfile: { ...QR_PROFILE, profileVersion: 'stale' } }],
   ])('offline with %s: no number, no receipt, nothing kept, the cart stays, and the cashier is told', async (_why, detail) => {
     await sellOffline(detail)
-    expect(await screen.findByText(i18n.t('pos.refusal.offlineQrUnavailable'))).toBeTruthy()
+    // The till tried the server first, so the server may have the sale (QW4R-1, as XW-2).
+    expect(await screen.findByText(i18n.t('pos.refusal.offlineQrUnavailableAfterSend'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('pos.refusal.offlineQrUnavailable'))).toBeNull()
     expect(screen.queryByText(/^done/)).toBeNull()
     expect(screen.queryByText(/NZW-T01-INV-2026-000049/)).toBeNull()
     expect(JSON.parse(window.localStorage.getItem('fawtir.pos.queue') ?? '[]')).toEqual([])
     // The cart is as it was, ready to finish once the till is online again.
     expect(screen.getAllByText(/5\.649/).length).toBeGreaterThan(0)
     expect(screen.getByRole('button', { name: 'Finish the sale' })).toBeTruthy()
+  })
+
+  // QW4R-1: the refusal after the request went out keeps the sale's key, so finishing the same cart
+  // once the till is back online is the same sale to the server, never a second one.
+  it('after a sent request is refused for want of a QR, finishing the same cart again reuses its key', async () => {
+    let up = false
+    vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      calls.push({ url, init })
+      if (url === '/api/v1/me/entitlements') return json(CASHIER)
+      if (url === '/api/v1/branches') {
+        return json([{ id: 'b-1', code: 'NZW', name: 'Nizwa', type: 'BRANCH', city: 'Nizwa' }])
+      }
+      if (url === '/api/v1/pos/tills/till-1') return json({ ...TILL })
+      if (url.startsWith('/api/v1/pos/tills')) return json([TILL])
+      if (url === '/api/v1/pos/sales') {
+        if (!up) throw new TypeError('Failed to fetch')
+        return saleReply()
+      }
+      return new Response('', { status: 404 })
+    })
+    renderPayment()
+    fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+    expect(await screen.findByText(i18n.t('pos.refusal.offlineQrUnavailableAfterSend'))).toBeTruthy()
+    up = true
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+    expect(await screen.findByText('done NZW-T01-INV-2026-000049')).toBeTruthy()
+    const keys = calls
+      .filter((call) => call.url === '/api/v1/pos/sales')
+      .map((call) => (call.init?.headers as Record<string, string>)['Idempotency-Key'])
+    expect(keys).toHaveLength(2)
+    expect(keys[1]).toBe(keys[0])
+  })
+
+  // QW4R-9: the cause of the intermittent posTillFixes failure. Finish pressed before the till's
+  // profile read has answered must wait for it, not sell as if the till had none.
+  it('a sale finished before the QR profile read answers waits for it and is queued with its QR', async () => {
+    let answerDetail: (() => void) | null = null
+    vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      calls.push({ url, init })
+      if (url === '/api/v1/me/entitlements') return json(CASHIER)
+      if (url === '/api/v1/branches') {
+        return json([{ id: 'b-1', code: 'NZW', name: 'Nizwa', type: 'BRANCH', city: 'Nizwa' }])
+      }
+      if (url === '/api/v1/pos/tills/till-1') {
+        await new Promise<void>((resolve) => {
+          answerDetail = resolve
+        })
+        return json({ ...TILL, qrProfile: QR_PROFILE })
+      }
+      if (url.startsWith('/api/v1/pos/tills')) return json([TILL])
+      if (url === '/api/v1/pos/sales') throw new TypeError('Failed to fetch')
+      return new Response('', { status: 404 })
+    })
+    renderPayment()
+    fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
+    await waitFor(() => expect(answerDetail).not.toBeNull())
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+    expect(screen.queryByText(/^done/)).toBeNull()
+    answerDetail!()
+    expect(await screen.findByText('done NZW-T01-INV-2026-000049')).toBeTruthy()
+    const [queued] = JSON.parse(window.localStorage.getItem('fawtir.pos.queue') ?? '[]')
+    expect(queued.body.printedQr).toMatchObject({ profileVersion: QR_PROFILE.profileVersion })
   })
 
   it('offline with storage that cannot keep the sale: "Not sold", no receipt, and no number until Check again (POS-MEMQ S8)', async () => {

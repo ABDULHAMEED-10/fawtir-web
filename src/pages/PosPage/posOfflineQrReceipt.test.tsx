@@ -216,11 +216,11 @@ describe('"QR to follow" is gone from the offline receipt', () => {
     }
   })
 
-  it('qrAfterFiling is named once, after every queued case has its own wording', () => {
-    const done = source('PosDonePage.tsx')
-    expect(done.match(/qrAfterFiling/g)).toHaveLength(1)
-    for (const file of ['PosReceiptParts.tsx', 'PosReprint.tsx', 'PosPaymentPage.tsx']) {
+  // QW4R-2: online too, a consumer's receipt never says its QR is to follow or not ready on paper.
+  it('no receipt screen names qrAfterFiling or qrPending', () => {
+    for (const file of ['PosDonePage.tsx', 'PosReceiptParts.tsx', 'PosReprint.tsx', 'PosPaymentPage.tsx']) {
       expect(source(file)).not.toContain('qrAfterFiling')
+      expect(source(file)).not.toContain('qrPending')
     }
   })
 })

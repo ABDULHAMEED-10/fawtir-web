@@ -269,8 +269,13 @@ export function posRefusalKey(error: unknown): string {
     return 'pos.refusal.tenantZoneUnavailable'
   }
   // Same name match. Nothing was numbered or printed and the cart is kept (owner directive
-  // 2026-11-06 item B), so the sentence says that, not a storage or zone fault.
+  // 2026-11-06 item B), so the sentence says that, not a storage or zone fault. After the sale's own
+  // request went out the server may have filed it (QW4R-1, as XW-2); behind unfiled sales the till
+  // is online, so "reconnect" would mislead (QW4R-8).
   if (error instanceof Error && error.name === 'PosOfflineQrUnavailable') {
+    const refused = error as { requested?: unknown; behind?: unknown }
+    if (refused.requested === true) return 'pos.refusal.offlineQrUnavailableAfterSend'
+    if (refused.behind === true) return 'pos.refusal.offlineQrUnavailableBehind'
     return 'pos.refusal.offlineQrUnavailable'
   }
   // POS-TABLOCK refused the offline sale before it had a number: the cashier must know no receipt

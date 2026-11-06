@@ -4564,7 +4564,9 @@
       "queuedBehindTitle": "Sold, filing after an earlier sale",
       "queuedBehindSummary": "Invoice {{invoice}} is numbered and will be filed after an earlier sale the till is holding. See the till screen for what it needs. There is {{change}} change to hand back.",
       "sentAfterEarlier": "it is filed once the earlier sale has gone",
-      "receiptWithheld": "No receipt was printed: this sale’s QR could not be made on this till. The sale is kept as {{invoice}} and is sent when the till is back online. Ask a manager to review it before the customer is given a receipt."
+      "receiptWithheld": "No receipt was printed: this sale’s QR could not be made on this till. The sale is kept as {{invoice}} and is sent when the till is back online. Ask a manager to review it before the customer is given a receipt.",
+      "receiptQrNotReady": "Recorded as {{invoice}}, but its QR is not ready, so no receipt was printed: a tax invoice to a consumer must carry its QR. Reprint the receipt with its QR from today’s sales once it is ready.",
+      "openToday": "Open today’s sales"
     },
     "company": {
       "whose": "Whose company is it?",
@@ -4687,7 +4689,8 @@
       "plusTip": "+ {{amount}} tip",
       "reprintTitle": "Reprint receipt",
       "reprintUnavailable": "Reprint is not available yet.",
-      "reprintCopy": "COPY"
+      "reprintCopy": "COPY",
+      "reprintNotKept": "This receipt cannot be reprinted: when the queued sale was sent again, the till presented a different receipt from the one on file. A manager should review this sale."
     },
     "close": {
       "title": "Closing it",
@@ -5278,7 +5281,9 @@
       "CREDIT_NOTE_EXCEEDS_CORRECTABLE_AMOUNT": "This refund asks to credit more than the amount still available to credit on this sale. Give back less, or review the sale's existing credit notes. Nothing was refunded.",
       "tooLarge": "This sale is too large to send, so nothing was recorded. Contact Fawtir support.",
       "TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE": "This company's time zone is not set to Oman time, so e-invoices can't be issued and nothing was recorded. Contact Fawtir support to set it to Asia/Muscat.",
-      "offlineQrUnavailable": "This till cannot issue an offline receipt now: the QR settings are not available. Nothing was numbered or printed. Reconnect to sell online, or keep the sale open until the connection is back."
+      "offlineQrUnavailable": "This till cannot issue an offline receipt now: the QR settings are not available. Nothing was numbered or printed. Reconnect to sell online, or keep the sale open until the connection is back.",
+      "offlineQrUnavailableAfterSend": "No receipt: the connection dropped while sending, and this till cannot issue an offline receipt because its QR settings are not available, so no number was printed. The sale may already have reached Fawtir. Keep the sale open and finish it again once the till is online: it goes with the same key, so it cannot be recorded twice.",
+      "offlineQrUnavailableBehind": "This sale has to wait behind earlier sales that are not filed yet, and this till cannot issue a receipt for it without its QR settings. Nothing was numbered or printed. Keep the sale open and try again once the waiting sales are filed."
     },
     "warning": {
       "STOCK_BELOW_ZERO": "Line {{line}} took the stock below zero. Count it when you can.",
@@ -5473,7 +5478,10 @@
       "reHeld": "Held again since: {{times}}.",
       "blockedTimes": "Later sales refused behind it: first {{first}}, last {{last}}.",
       "queueWaits": "The till waits for number {{number}}.",
-      "timeUnknown": "not recorded"
+      "timeUnknown": "not recorded",
+      "withheld": "Receipt not printed — manager review. The sale is filed under this number, but the till printed no tax receipt for it.",
+      "withheldTimes": "Marked first {{first}}, last {{last}}.",
+      "otherKind": "Listed by the server for review."
     }
   },
   "orderDetail": {

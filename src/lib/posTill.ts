@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { useApiRead } from '../hooks'
-import { NetworkError } from '../api'
+import { NetworkError, sharedRequest } from '../api'
 import { loadOrRecall, recallOffline } from './posOffline'
 import { useEntitlements } from '../hooks/useEntitlements'
 import { useWorkingBranch } from '../components/branch/useWorkingBranch'
@@ -139,15 +139,34 @@ export function usePosTill(): TillState {
 /**
  * QR E-1: the till's `qrProfile`, which only `GET /pos/tills/{id}` carries. Kept with the till's
  * other offline copies (`lib/posOffline`), read again whenever the screen opens online, as they
- * are; a stale `profileVersion` is the server's to audit. Null when there is none to use.
+ * are; a stale `profileVersion` is the server's to audit. The read starts when the screen opens.
+ *
+ * A promise, awaited when the sale is finished, not a value read at render: a cashier who finishes
+ * before the read has settled would otherwise sell with no profile, and a consumer sale queued
+ * offline would be refused for want of a QR the till could make (review QW4R-9: the cause of the
+ * intermittent posTillFixes failure). Null when there is none to use.
  */
-export function useTillQrProfile(tillId: string): PosQrProfile | null {
-  const detail = useApiRead<PosTillDto>(`${POS_TILLS_PATH}/${encodeURIComponent(tillId)}`, () =>
-    loadOrRecall(`till.${tillId}`, () => loadPosTill(tillId)),
-  )
-  if (detail.read.status !== 'ready') return null
-  const profile = (detail.read.data as Partial<PosTillDto> | null)?.qrProfile
-  return profile && typeof profile === 'object' ? profile : null
+export function useTillQrProfile(tillId: string): () => Promise<PosQrProfile | null> {
+  const read = useRef<{ tillId: string; profile: Promise<PosQrProfile | null> } | null>(null)
+  const profileNow = useCallback(() => {
+    if (read.current?.tillId !== tillId) {
+      const profile = sharedRequest(`${POS_TILLS_PATH}/${encodeURIComponent(tillId)}#qrProfile`, () =>
+        loadOrRecall(`till.${tillId}`, () => loadPosTill(tillId)),
+      ).then(
+        (detail) => {
+          const stated = (detail as Partial<PosTillDto> | null)?.qrProfile
+          return stated && typeof stated === 'object' ? stated : null
+        },
+        () => null,
+      )
+      read.current = { tillId, profile }
+    }
+    return read.current.profile
+  }, [tillId])
+  useEffect(() => {
+    void profileNow()
+  }, [profileNow])
+  return profileNow
 }
 
 /** Two letters for the round badge: "Nasser Al Habsi" is NA. */

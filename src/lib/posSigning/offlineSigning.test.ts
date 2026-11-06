@@ -348,6 +348,23 @@ describe('signing a queued sale (WEB-3, WEB-4, WEB-14)', () => {
     expect(await verifies(tampered, 'sale-key-6')).toBe(false)
   })
 
+  // QW4R-3 (backend f598aa39b): the server signs receiptWithheld when present; dropping it from a
+  // signed body must break the proof, or a resend could lose the mark unnoticed.
+  it('the withheld-receipt mark is signed with the sale, and a body without it no longer verifies', async () => {
+    await ensureSigningKey({ shiftId: SHIFT, userId: USER, tenantId: TENANT })
+    const signed = await signQueuedSale(
+      { ...BODY, queuedOffline: true, invoiceNumber: 'NZW-T01-INV-2026-000049', receiptWithheld: true, printed: PRINTED },
+      'sale-key-8',
+      { shiftId: SHIFT, cashierUserId: USER },
+    )
+    const body = { ...signed!.body, offlineProof: signed!.offlineProof }
+    expect(canonicalSale(bodyForSigning(body))).toContain('"receiptWithheld":true')
+    expect(await verifies(body, 'sale-key-8')).toBe(true)
+    const stripped = { ...body }
+    delete stripped.receiptWithheld
+    expect(await verifies(stripped, 'sale-key-8')).toBe(false)
+  })
+
   it('a company sale, without a profile, has no printedQr member and verifies as before', async () => {
     await ensureSigningKey({ shiftId: SHIFT, userId: USER, tenantId: TENANT })
     const company: PosSaleRequest = { ...BODY, customer: { kind: 'BUSINESS', customerId: 'c-1' } }

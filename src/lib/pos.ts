@@ -246,6 +246,15 @@ export function omr(baisa: number): string {
   })
 }
 
+/**
+ * Rials the server wrote, to three places, rounded once from the decimal it sent. Not through
+ * `toBaisa`: 0.5025 times 1000 is 502.4999… in floating point, so a reprint row would print 0.502
+ * where the till printed 0.503 (FU2R-4; the till rounds its baisa product the same way as this).
+ */
+export function omrOfRials(rials: number): string {
+  return rials.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+}
+
 /** A signed amount, for the lines that take money off. */
 export function omrSigned(baisa: number): string {
   return `${baisa < 0 ? '−' : ''}${omr(Math.abs(baisa))}`

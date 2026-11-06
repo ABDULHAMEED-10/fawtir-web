@@ -760,12 +760,20 @@ describe('the receipt QR as the server states it (B2C only, owner batch 33 Q5)',
     expect(screen.queryByAltText(i18n.t('pos.done.qrAlt'))).toBeNull()
   })
 
+  // QW4R-2: nor is it handed a receipt that says its QR is to come; once the waits end without the
+  // QR no receipt prints and the cashier is sent to the reprint.
   it('a walk-in whose QR is not ready yet is not told it is on the screen', async () => {
     finish(sold('NZW-T01-INV-2026-000009'), false)
     renderAt('/pos/receipt')
-    expect(await screen.findByText(i18n.t('pos.done.qrPending'))).toBeTruthy()
-    expect(screen.getByText(i18n.t('pos.done.qrNotReadyShort'))).toBeTruthy()
+    expect(
+      await screen.findByText(
+        i18n.t('pos.done.receiptQrNotReady', { invoice: 'NZW-T01-INV-2026-000009' }),
+        { exact: false },
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText('The QR code is not ready yet.')).toBeNull()
     expect(screen.queryByText(i18n.t('pos.done.qrAlreadyUp'))).toBeNull()
+    expect(screen.queryByRole('button', { name: i18n.t('pos.done.printAgain') })).toBeNull()
   })
 
   it('says nothing on the receipt that claims a check with the Tax Authority', () => {

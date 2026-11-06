@@ -61,7 +61,7 @@ function HeldSales() {
           ) : (
             <ul className="flex flex-col gap-2">
               {list.read.data.items.map((item) => (
-                <li key={`${item.tillId}-${item.heldNumber}`} className={card}>
+                <li key={`${item.tillId}-${item.heldNumber}-${item.kind ?? 'HELD'}`} className={card}>
                   <HeldRow item={item} />
                 </li>
               ))}
@@ -74,6 +74,36 @@ function HeldSales() {
 }
 
 function HeldRow({ item }: { item: PosHeldSale }) {
+  const kind = item.kind ?? 'HELD'
+  if (kind === 'HELD') return <HoldRow item={item} />
+  return <ReviewRow item={item} withheld={kind === 'WITHHELD'} />
+}
+
+/**
+ * Not a hold: nothing at the till resolves it, so it is never shown as overdue, whatever the flag
+ * says. WITHHELD is a filed sale whose receipt was not printed (QW4R-3, QB8R-6); any other kind,
+ * REFUSED included until it is worded, is only said to be listed for review, with no reason, hold
+ * or block wording that might not apply to it.
+ */
+function ReviewRow({ item, withheld }: { item: PosHeldSale; withheld: boolean }) {
+  const { t } = useTranslation()
+  const at = (instant: string | null) => when(instant) || t('pos.heldSales.timeUnknown')
+  return (
+    <div className="flex flex-col gap-2 text-sm text-text-secondary">
+      <p className="text-base font-semibold text-text-primary">
+        {t('pos.heldSales.row', { till: item.tillNumber, number: item.heldNumber })}
+      </p>
+      <p className="font-medium text-text-primary">
+        {t(withheld ? 'pos.heldSales.withheld' : 'pos.heldSales.otherKind')}
+      </p>
+      {withheld && (item.firstHeldAt || item.lastHeldAt) ? (
+        <p>{t('pos.heldSales.withheldTimes', { first: at(item.firstHeldAt), last: at(item.lastHeldAt) })}</p>
+      ) : null}
+    </div>
+  )
+}
+
+function HoldRow({ item }: { item: PosHeldSale }) {
   const { t } = useTranslation()
   const blockedOnly = item.reason === null
   // Either end of a hold or block span may be null (H4R-7); a missing end says so rather than

@@ -517,7 +517,8 @@ const SOLD = {
   transactionType: 'FULL_TAX',
   receivedAt: '2026-11-01T10:00:00Z',
   cashier: { userId: 'u-1', name: 'Maryam' },
-  receipt: { invoiceTotal: 5.649, tip: 0, qr: { status: 'NONE' } },
+  // READY: a consumer receipt prints only with its QR (QW4R-2).
+  receipt: { invoiceTotal: 5.649, tip: 0, qr: { status: 'READY', payload: 'AQ==' } },
   filing: { dispatchState: 'SENT', acceptedAt: null },
   warnings: [],
 }

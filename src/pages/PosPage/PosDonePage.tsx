@@ -78,9 +78,20 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
   // (review QW3R-3). With no QR to draw, or one that cannot be drawn, no receipt is shown or printed
   // and the cashier is told why (item C); there is no "QR to follow" receipt (item D).
   const offlineQr = useServerQrImage(!done.sale && !done.company ? done.queuedQr : null)
-  const receiptWithheld =
+  const offlineWithheld =
     !done.sale && !done.company && (offlineQr.status === 'none' || offlineQr.status === 'failed')
-  const printHeld = offlineQr.status === 'encoding' || receiptWithheld
+  // The same holds online (coordinator ruling QW4R-2): a consumer's receipt prints only with the
+  // server's READY QR. While it is PENDING and the waits below still run, Print is held; once they
+  // end without it, or for a status this build does not know, no receipt is printed and the cashier
+  // is sent to the reprint. NOT_APPLICABLE is the server's own finding that no QR is due.
+  const [waitsEnded, setWaitsEnded] = useState(!done.sale || settled(done.sale))
+  const onlineConsumer = !!sale && !done.company
+  const serverQr = sale?.receipt.qr.status
+  const onlineQrWaiting = onlineConsumer && serverQr === 'PENDING' && !waitsEnded
+  const onlineWithheld =
+    onlineConsumer && !onlineQrWaiting && serverQr !== 'READY' && serverQr !== 'NOT_APPLICABLE'
+  const receiptWithheld = offlineWithheld || onlineWithheld
+  const printHeld = offlineQr.status === 'encoding' || onlineQrWaiting || receiptWithheld
 
   // Waits (up to 15 s a time, three times) for the filed and accepted steps and the QR.
   useEffect(() => {
@@ -88,15 +99,19 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
     let active = true
     const id = done.sale.saleId
     ;(async () => {
-      for (let round = 0; round < 3 && active; round++) {
-        try {
-          const next = await loadPosSale(id, 15)
-          if (!active) return
-          setSale(next)
-          if (settled(next)) return
-        } catch {
-          return
+      try {
+        for (let round = 0; round < 3 && active; round++) {
+          try {
+            const next = await loadPosSale(id, 15)
+            if (!active) return
+            setSale(next)
+            if (settled(next)) return
+          } catch {
+            return
+          }
         }
+      } finally {
+        if (active) setWaitsEnded(true)
       }
     })()
     return () => {
@@ -285,23 +300,28 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
               <h2 className="text-base font-medium leading-[1.2] text-text-primary">
                 {t('pos.done.giveReceipt')}
               </h2>
-              {receiptWithheld ? (
+              {onlineWithheld ? (
+                <p role="alert" className="mt-2 text-sm font-medium leading-[1.6] text-danger-700">
+                  {t('pos.done.receiptQrNotReady', { invoice })}{' '}
+                  <Link to="/pos/today" className="font-semibold text-primary-700 hover:text-primary-800">
+                    {t('pos.done.openToday')}
+                  </Link>
+                </p>
+              ) : receiptWithheld ? (
                 <p role="alert" className="mt-2 text-sm font-medium leading-[1.6] text-danger-700">
                   {t('pos.done.receiptWithheld', { invoice })}
                 </p>
               ) : !sale && !company && offlineQr.status === 'encoding' ? null : (
                 <p className="mt-1 text-xs font-medium text-text-quaternary">
                   {/* The server decides the QR (receipt.qr.status): B2C only, so a business or
-                      government buyer never gets one. A queued consumer sale shows it once drawn. The
-                      last wording is left for an online sale whose status this build does not know. */}
+                      government buyer never gets one. A queued consumer sale shows it once drawn; any
+                      consumer receipt without one is withheld above, so what is left has none due. */}
                   {t(
                     qrStatus === 'READY' || (!sale && !company && offlineQr.status === 'drawn')
                       ? 'pos.done.qrAlreadyUp'
                       : qrStatus === 'PENDING'
                         ? 'pos.done.qrNotReadyShort'
-                        : qrStatus === 'NOT_APPLICABLE' || company
-                          ? 'pos.done.qrNone'
-                          : 'pos.done.qrAfterFiling',
+                        : 'pos.done.qrNone',
                   )}
                 </p>
               )}

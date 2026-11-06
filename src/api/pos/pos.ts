@@ -245,6 +245,12 @@ export type PosSaleRequest = {
   /** Queued sales only: the QR the offline receipt printed from `qrProfile` (QR E-1). */
   printedQr?: PosPrintedQr
   /**
+   * Queued sales only, and only when true: the till numbered the sale but printed no tax receipt,
+   * because it could not build the QR (QW4R-3). Signed with the sale, outside the server's stored
+   * request hashes; the server records it for a manager and files the sale as usual.
+   */
+  receiptWithheld?: true
+  /**
    * Who was signed in on this device when the sale was queued, as the device says (owner Round 13,
    * L-2). UNTRUSTED: the server records it in the audit as a claim and decides nothing on it. Only on
    * an unsigned queued sale, to a server with `takesMakerClaim`; outside the stored request hashes.
@@ -350,7 +356,11 @@ export type PosSaleDto = {
     totalPaid: number
     onAccount: number
     qr: {
-      status: 'PENDING' | 'READY' | 'NOT_APPLICABLE'
+      /**
+       * RECEIPT_NOT_KEPT (backend f598aa39b): a replay of this queued sale presented a printed QR
+       * other than the one on file, so the server stands by no receipt for it; no payload, lines null.
+       */
+      status: 'PENDING' | 'READY' | 'NOT_APPLICABLE' | 'RECEIPT_NOT_KEPT'
       payload: string | null
       pngUrl: string | null
     }
@@ -378,7 +388,19 @@ export type PosSaleDto = {
 
 export type PosAttribution = 'ONLINE' | 'VERIFIED' | 'PENDING_REVIEW' | 'LEGACY'
 
-export type PosReceiptLineDto = { description: string; quantity: number; lineTotal: number }
+/**
+ * One row of the original till receipt (backend PosReceiptRows): "Name (Size)", the item's price with
+ * its priced add-ons, and that times the quantity, before VAT and discounts. Rial amounts as the server
+ * writes them, at up to ten places.
+ */
+export type PosReceiptLineDto = {
+  description: string
+  quantity: number
+  unitPrice: number
+  amount: number
+  vatCategory: string
+  vatRate: number
+}
 
 export type PosReceiptBuyerDto = {
   name: string | null
@@ -1097,6 +1119,13 @@ export type PosHeldSale = {
   lastBlockedAt: string | null
   expectedNumber: string | null
   overdue: boolean
+  /**
+   * HELD when absent (a server from before REFUSED). WITHHELD (backend f598aa39b, QW4R-3): a filed
+   * sale for which the till printed no tax receipt, for a manager to follow up; its reason is
+   * POS_RECEIPT_WITHHELD and its held times are the times it was marked; never overdue. Typed as a
+   * string so a kind this build does not know is shown neutrally rather than as a hold.
+   */
+  kind?: string
 }
 
 export type PosHeldSales = { items: PosHeldSale[]; truncated: boolean }
