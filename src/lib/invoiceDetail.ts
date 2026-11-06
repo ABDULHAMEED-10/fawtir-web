@@ -276,6 +276,18 @@ export function paymentProblems(
 }
 
 /**
+ * D-26 (owner, 6 Nov 2026): an issued debit note is not cancelled, deleted, edited or reversed from
+ * the web. A legally valid, traceable correction workflow is an open PINT-OM/OTA requirement, so no
+ * such workflow is offered either. Cancel and Delete keep their place on an issued debit note and
+ * only say so: no request is sent that the server would have to refuse. A draft is not locked.
+ */
+export const ISSUED_DEBIT_NOTE_LOCKED = 'salesNote.detail.debitLocked'
+
+export function issuedDebitNoteLocked(type: string | null | undefined, issued: boolean): boolean {
+  return issued && type === 'DEBIT_NOTE'
+}
+
+/**
  * The server's refusals of cancelling a credit or debit note, by code, and the sentence for each
  * kind. Shared by the note's own page and the documents list, so a note refused from either reads
  * the same instead of the list's "reload and try again", which cannot help with any of these.

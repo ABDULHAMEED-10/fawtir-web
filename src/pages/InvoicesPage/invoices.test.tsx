@@ -1255,3 +1255,29 @@ describe('the read-model fields of backend #824, each optional', () => {
     }
   })
 })
+
+// D-26 (owner, 6 Nov 2026): an issued debit note is not cancelled from the list either. Its Delete
+// says why and sends nothing; a credit note's Delete still opens the cancel (D-3, above).
+describe('an issued debit note from the list (D-26)', () => {
+  const debit = issued({
+    id: 'dn-1',
+    type: 'DEBIT_NOTE',
+    invoiceNumber: 'DBN-2026-0001',
+    customerName: 'Debit Customer',
+  })
+
+  it.each(['en', 'ar'])('its Delete explains, opens no dialog and sends no cancel (%s)', async (lang) => {
+    await i18n.changeLanguage(lang)
+    who = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.cancel'] }
+    listResponses = [() => json(200, springPage([debit], 1))]
+    renderInvoices()
+    const row = (await screen.findByText('DBN-2026-0001')).closest('tr')!
+    fireEvent.click(within(row).getByRole('button', { name: i18n.t('invoicesPage.rowMenu') }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: i18n.t('rowActions.delete') }))
+    expect(await screen.findByText(i18n.t('salesNote.detail.debitLocked'))).toBeTruthy()
+    expect(screen.queryByRole('textbox')).toBeNull()
+    expect(
+      fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/dn-1/cancel')),
+    ).toHaveLength(0)
+  })
+})

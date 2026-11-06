@@ -63,7 +63,11 @@ import {
   type PeriodId,
 } from '../../lib/invoiceList'
 import { NOTE_ROUTES, type NoteListStatus } from '../../lib/salesNote'
-import { noteCancelRefusalKey } from '../../lib/invoiceDetail'
+import {
+  ISSUED_DEBIT_NOTE_LOCKED,
+  issuedDebitNoteLocked,
+  noteCancelRefusalKey,
+} from '../../lib/invoiceDetail'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatCount, formatDate } from '../../lib/format'
 import { can, mayRequest, useSession } from '../../lib/session/session'
@@ -1116,6 +1120,13 @@ function InvoiceTable({
         icon: deleteIcon,
         danger: true,
         onSelect: () => onDiscard(row),
+      })
+    } else if (issuedDebitNoteLocked(row.type, row.authoring === 'issued') && can(session, 'invoice.cancel')) {
+      items.push({
+        id: 'delete',
+        labelKey: 'rowActions.delete',
+        icon: deleteIcon,
+        onSelect: () => onUnavailable(ISSUED_DEBIT_NOTE_LOCKED),
       })
     } else if (row.authoring === 'issued' && can(session, 'invoice.cancel')) {
       items.push({

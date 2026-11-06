@@ -105,8 +105,10 @@ import {
 import { dueDateFor, muscatToday } from '../../lib/invoiceIssue'
 import {
   PAYMENT_REFUSALS,
+  ISSUED_DEBIT_NOTE_LOCKED,
   attachmentsEditable,
   cancelBlockOf,
+  issuedDebitNoteLocked,
   dueNote,
   isDraft,
   isSelfBilled,
@@ -797,11 +799,17 @@ function InvoiceScreen() {
     })
   }
   const cancelBlock = cancelBlockOf(receivable.read, notesPath ? notes.read : null)
+  const debitLocked = issuedDebitNoteLocked(data.type, data.authoringState === 'ISSUED')
   if (
     data.authoringState === 'ISSUED' &&
     can(session, 'invoice.cancel') &&
-    cancelBlock !== 'unknown'
+    (debitLocked || cancelBlock !== 'unknown')
   ) {
+    const blockedKey = debitLocked
+      ? ISSUED_DEBIT_NOTE_LOCKED
+      : cancelBlock === null || cancelBlock === 'unknown'
+        ? null
+        : cancelBlockedKey(cancelBlock, noteType)
     // A settled document keeps the item, so the reader who looks for Cancel learns why it cannot
     // be done instead of finding it gone; it no longer opens the confirmation.
     moreActions.push({
@@ -810,11 +818,8 @@ function InvoiceScreen() {
         ? `salesNote.detail.cancelAction.${noteType}`
         : 'invoiceDetails.actions.cancel',
       icon: deleteIcon,
-      danger: cancelBlock === null,
-      onSelect: () =>
-        cancelBlock === null
-          ? setCancelling(true)
-          : setNotice({ key: cancelBlockedKey(cancelBlock, noteType) }),
+      danger: blockedKey === null,
+      onSelect: () => (blockedKey === null ? setCancelling(true) : setNotice({ key: blockedKey })),
     })
   }
 

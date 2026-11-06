@@ -2576,18 +2576,25 @@ describe('Cancel when the page cannot tell, and on a note (A-0 review)', () => {
     expect(screen.queryByText(/cannot be cancelled/)).toBeNull()
   })
 
-  it('says a paid debit note cannot be cancelled in its own words', async () => {
+  // D-26 (owner, 6 Nov 2026): an issued debit note is never cancelled here, paid, unpaid, or with
+  // its receivable unread. Until then a paid one explained its payments.
+  it.each([
+    ['paid', () => json(200, { ...UNSETTLED, paidAmount: 5, outstandingAmount: 51.7 })],
+    ['unpaid', () => json(200, UNSETTLED)],
+    ['unread', () => json(500, { status: 500 })],
+  ])('says an issued debit note (%s) cannot be cancelled here, and sends nothing', async (_, owed) => {
     invoiceResponse = () =>
       json(200, invoice({ type: 'DEBIT_NOTE', correctionOfInvoiceId: 'inv-0', invoiceNumber: 'DBN-2026-0001' }))
-    receivableResponse = () => json(200, { ...UNSETTLED, paidAmount: 5, outstandingAmount: 51.7 })
+    receivableResponse = owed
     renderInvoice()
     await screen.findByRole('heading', { level: 1, name: 'Debit note DBN-2026-0001' })
     fireEvent.click(await screen.findByRole('button', { name: 'More actions' }))
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel debit note' }))
-    expect(
-      await screen.findByText('This note cannot be cancelled: payments are recorded against it.'),
-    ).toBeTruthy()
+    expect(await screen.findByText(i18n.t('salesNote.detail.debitLocked'))).toBeTruthy()
     expect(screen.queryByRole('dialog')).toBeNull()
+    expect(calls().some((call) => call.startsWith('POST') && call.endsWith('/cancel'))).toBe(false)
+    // Credit notes against a debit note stay disallowed (D-26): none is offered from it.
+    expect(screen.queryByRole('button', { name: i18n.t('invoiceDetails.actions.creditNote') })).toBeNull()
   })
 
   it.each([
@@ -2595,19 +2602,20 @@ describe('Cancel when the page cannot tell, and on a note (A-0 review)', () => {
     ['ar', 'لا يمكن إلغاء هذا الإشعار: صدرت عليه إشعارات دائنة أو مدينة.'],
   ])('reads a corrections refusal on a note page as the note’s (%s)', async (lang, sentence) => {
     await i18n.changeLanguage(lang)
+    // A credit note: an issued debit note no longer sends its cancel at all (D-26).
     invoiceResponse = () =>
-      json(200, invoice({ type: 'DEBIT_NOTE', correctionOfInvoiceId: 'inv-0', invoiceNumber: 'DBN-2026-0001' }))
+      json(200, invoice({ type: 'CREDIT_NOTE', correctionOfInvoiceId: 'inv-0', invoiceNumber: 'CRN-2026-0001' }))
     receivableResponse = () => json(200, UNSETTLED)
     cancelResponse = () =>
       json(409, { status: 409, code: 'INVOICE_CANCEL_HAS_CORRECTIONS', detail: 'no' })
     renderInvoice()
     fireEvent.click(await screen.findByRole('button', { name: i18n.t('invoiceDetails.actions.more') }))
     fireEvent.click(
-      await screen.findByRole('menuitem', { name: i18n.t('salesNote.detail.cancelAction.DEBIT_NOTE') }),
+      await screen.findByRole('menuitem', { name: i18n.t('salesNote.detail.cancelAction.CREDIT_NOTE') }),
     )
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Raised twice' } })
     fireEvent.click(
-      screen.getByRole('button', { name: i18n.t('salesNote.detail.cancelConfirm.DEBIT_NOTE') }),
+      screen.getByRole('button', { name: i18n.t('salesNote.detail.cancelConfirm.CREDIT_NOTE') }),
     )
     expect(await screen.findByText(sentence)).toBeTruthy()
   })

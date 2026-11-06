@@ -2131,21 +2131,18 @@ describe('a debit note with payments, and a stale payment on it (DA-2, DA-12 rev
   const moreMenu = async () =>
     fireEvent.click(await screen.findByRole('button', { name: i18n.t('invoiceDetails.actions.more') }))
 
-  it('explains instead of cancelling a debit note with a payment', async () => {
-    await open(() => json(200, owedOnNote(4)))
+  // D-26 (owner, 6 Nov 2026): an issued debit note is never cancelled from the web, paid or not.
+  // Until then a paid one explained its payments and an unpaid one opened the confirmation.
+  it.each([
+    ['with a payment', 4],
+    ['unpaid', 0],
+  ])('explains instead of cancelling an issued debit note %s', async (_, paid) => {
+    await open(() => json(200, owedOnNote(paid)))
     await moreMenu()
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel debit note' }))
-    expect(
-      await screen.findByText('This note cannot be cancelled: payments are recorded against it.'),
-    ).toBeTruthy()
+    expect(await screen.findByText(i18n.t('salesNote.detail.debitLocked'))).toBeTruthy()
     expect(screen.queryByRole('dialog')).toBeNull()
-  })
-
-  it('opens the confirmation for an unpaid debit note', async () => {
-    await open(() => json(200, owedOnNote(0)))
-    await moreMenu()
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel debit note' }))
-    expect(await screen.findByRole('dialog', { name: 'Cancel this debit note?' })).toBeTruthy()
+    expect(calls('POST', `/api/v1/authored-invoices/${NOTE_ID}/cancel`)).toHaveLength(0)
   })
 
   it('reads the note again when the payment dialog closes after the balance moved', async () => {
@@ -2318,7 +2315,24 @@ describe('the cap sentences name each category without repeating a word (DA-1 re
   })
 })
 
+// D-26 (owner, 6 Nov 2026): the page no longer sends an issued debit note's cancel, so the server's
+// refusal is not reached from it. The wording stays mapped for a refusal from anywhere else.
 describe('cancelling a debit note that issued credits rely on (backend #834)', () => {
+  it.each([
+    ['en', 'This debit note cannot be cancelled: credit notes already issued on the invoice use what it added. Cancel those credit notes first.'],
+    ['ar', 'لا يمكن إلغاء هذا الإشعار المدين: الإشعارات الدائنة الصادرة على الفاتورة تستخدم ما أضافه. ألغِ تلك الإشعارات الدائنة أولاً.'],
+  ])('still words the refusal, never "reload and try again" (%s)', (lang, sentence) => {
+    const refusal = new ApiError({
+      status: 409,
+      problemType: 'resource-conflict',
+      code: 'DEBIT_NOTE_CANCEL_CREDITED',
+      problem: {},
+    })
+    const key = noteCancelRefusalKey(refusal, 'DEBIT_NOTE')
+    expect(key).toBe('salesNote.detail.cancelBlocked.debitCredited')
+    expect(i18n.getFixedT(lang)(key!)).toBe(sentence)
+  })
+
   const debitNote: InvoiceDetailDto = {
     ...INVOICE,
     id: NOTE_ID,
@@ -2328,9 +2342,9 @@ describe('cancelling a debit note that issued credits rely on (backend #834)', (
   }
 
   it.each([
-    ['en', 'This debit note cannot be cancelled: credit notes already issued on the invoice use what it added. Cancel those credit notes first.'],
-    ['ar', 'لا يمكن إلغاء هذا الإشعار المدين: الإشعارات الدائنة الصادرة على الفاتورة تستخدم ما أضافه. ألغِ تلك الإشعارات الدائنة أولاً.'],
-  ])('says which notes to cancel first instead of "reload and try again" (%s)', async (lang, sentence) => {
+    ['en', 'An issued debit note cannot be cancelled, deleted, edited or reversed here. A correction workflow for issued debit notes is not available in this release.'],
+    ['ar', 'لا يمكن إلغاء الإشعار المدين الصادر أو حذفه أو تعديله أو عكسه هنا. سير عمل تصحيح الإشعارات المدينة الصادرة غير متاح في هذا الإصدار.'],
+  ])('sends no cancel from the page, and says why in its own words (%s)', async (lang, sentence) => {
     await i18n.changeLanguage(lang)
     entitlements = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.cancel'] }
     override = (url, init) => {
@@ -2374,10 +2388,9 @@ describe('cancelling a debit note that issued credits rely on (backend #834)', (
     fireEvent.click(
       await screen.findByRole('menuitem', { name: i18n.t('salesNote.detail.cancelAction.DEBIT_NOTE') }),
     )
-    fireEvent.change(await screen.findByRole('textbox'), { target: { value: 'Raised twice' } })
-    fireEvent.click(screen.getByRole('button', { name: i18n.t('salesNote.detail.cancelConfirm.DEBIT_NOTE') }))
     expect(await screen.findByText(sentence)).toBeTruthy()
-    expect(screen.queryByText(i18n.t('apiErrors.conflict'))).toBeNull()
+    expect(screen.queryByRole('textbox')).toBeNull()
+    expect(calls('POST', `/api/v1/authored-invoices/${NOTE_ID}/cancel`)).toHaveLength(0)
   })
 })
 

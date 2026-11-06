@@ -50,6 +50,7 @@ import {
 import { buyerParty, sellerParty } from '../../lib/documentParties'
 import { RecordPaymentModal } from '../InvoiceDetailsPage/RecordPaymentModal'
 import {
+  ISSUED_DEBIT_NOTE_LOCKED,
   PAYMENT_REFUSALS,
   isDraft,
   lineTotals,
@@ -422,9 +423,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
     ? refunded > 0
       ? 'salesNote.detail.cancelBlocked.refunded'
       : null
-    : (owed?.paidAmount ?? 0) > 0
-      ? 'invoiceDetails.cancelBlocked.paymentsOnNote'
-      : null
+    : ISSUED_DEBIT_NOTE_LOCKED
 
   const cancel = async () => {
     const text = reason.trim()
@@ -525,12 +524,12 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
           },
         ]
       : []),
-    // A credit note's refunds decide, a debit note's payments (its own receivable, already read);
-    // until the deciding read answers Cancel is not offered. A blocked note keeps the item and
-    // says why instead of opening the confirmation the server would refuse (DA-2).
+    // A credit note's refunds decide; until that read answers Cancel is not offered. An issued
+    // debit note is never cancelled here (D-26). A blocked note keeps the item and says why
+    // instead of opening the confirmation the server would refuse (DA-2).
     ...(data.authoringState === 'ISSUED' &&
     can(session, 'invoice.cancel') &&
-    (credit ? originalPayments.read.status === 'ready' : receivable.read.status === 'ready')
+    (!credit || originalPayments.read.status === 'ready')
       ? [
           cancelBlockedKey !== null
             ? {
