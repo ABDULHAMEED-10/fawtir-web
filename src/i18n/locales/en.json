@@ -4518,7 +4518,7 @@
         "reattachSlip": "This sale had a card slip photo, which this device did not keep. Once the sale is confirmed, attach the slip photo to it again.",
         "checkedToday": "I checked Today: unlock the till",
         "otherTill": "{{till}} has a sale whose outcome is not known yet. Check Today on {{till}} before anything is rung there again.",
-        "saleFigures": "This sale: {{amount}}, rung at {{time}}.",
+        "saleFigures": "This sale: {{amount}}, rung on {{date}} at {{time}}.",
         "openTodayFirst": "Open Today for this till and look for this sale there before unlocking the till."
       }
     },

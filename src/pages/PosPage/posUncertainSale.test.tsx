@@ -117,6 +117,7 @@ beforeEach(async () => {
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
   setPosVault(null)
 })
@@ -471,6 +472,9 @@ describe('what a held sale keeps in clear (RBW2-2)', () => {
   })
 
   it('keeps only the key and the lock where the device cannot seal, and says so', async () => {
+    // 01:30 on 6 Nov in Muscat but still 5 Nov in UTC: the summary must give the business day.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-05T21:30:00Z'))
     setPosVault(memoryVault(false))
     const view = await sendIntoUnknown(503)
     await vi.waitFor(() => expect(screen.getByText(i18n.t('pos.pay.uncertain.lockOnly'))).toBeTruthy())
@@ -483,9 +487,10 @@ describe('what a held sale keeps in clear (RBW2-2)', () => {
     expect(await screen.findByText(i18n.t('pos.pay.uncertain.lockOnly'))).toBeTruthy()
     expect(screen.queryByRole('button', { name: i18n.t('pos.pay.uncertain.retry') })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Finish the sale' })).toBeNull()
-    // RBW3-1: the sale's total and time are shown in clear, to find it on Today, and the till
-    // cannot be unlocked before Today has been opened for it.
-    expect(screen.getByText(/^This sale: OMR 5\.649, rung at \d\d:\d\d\.$/)).toBeTruthy()
+    // RBW3-1, RBW3-1b: the sale's total, day and time are shown in clear, to find it on Today,
+    // and the till cannot be unlocked before Today has been opened for it.
+    expect(screen.getByText('This sale: OMR 5.649, rung on 6 Nov 2026 at 01:30.')).toBeTruthy()
+    expect(screen.queryByText(/OMR\s+OMR/)).toBeNull()
     expect(JSON.parse(window.sessionStorage.getItem(HELD)!).summary).toMatchObject({
       total: 5.649,
       currency: 'OMR',

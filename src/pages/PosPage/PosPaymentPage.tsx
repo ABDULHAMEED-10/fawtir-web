@@ -13,7 +13,7 @@ import {
 } from '../../lib/posSale'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
-import { BUSINESS_TIME_ZONE, formatAmount } from '../../lib/format'
+import { BUSINESS_TIME_ZONE, formatAmount, formatInstantDay } from '../../lib/format'
 import { AppShell } from '../../layouts/AppShell'
 import { PosFootNote } from './PosFootNote'
 import { PosQuotaNextStep } from './PosQuotaNextStep'
@@ -1087,6 +1087,9 @@ function UncertainSalePanel({
           <p className="text-sm font-medium text-text-secondary">
             {t('pos.pay.uncertain.saleFigures', {
               amount: `${summary.currency} ${formatAmount(summary.total, summary.currency, i18n.language)}`,
+              // RBW3-1b: Today opens on the current day; a sale held from an earlier day is
+              // found only by its date, so the time alone would send the cashier to the wrong list.
+              date: formatInstantDay(summary.soldAt, i18n.language),
               time: heldTime(summary.soldAt, i18n.language),
             })}
           </p>
