@@ -1012,9 +1012,22 @@ export function keyMayBeQueued(key: string): boolean {
  */
 const filedInTab = new Map<string, PosSaleDto>()
 
-/** The server's sale for a filed key, or the queued entry it refused for good; else null. */
+/**
+ * The server's sale for a filed key, or the queued entry it refused for good; else null. A too-large
+ * refusal (K30) is final for the queue but says nothing about the key: the server never read the
+ * sale, so it decides nothing here (RW7-1).
+ */
 export function queueDecision(key: string): PosSaleDto | QueuedSale | null {
-  return filedInTab.get(key) ?? queue.find((entry) => entry.key === key && entry.final === true) ?? null
+  return (
+    filedInTab.get(key) ??
+    queue.find(
+      (entry) =>
+        entry.key === key &&
+        entry.final === true &&
+        !isTooLarge(entry.refusal, entry.refusalType ?? null),
+    ) ??
+    null
+  )
 }
 
 export function useQueueDecision(key: string | null): PosSaleDto | QueuedSale | null {
@@ -1695,8 +1708,12 @@ export async function flushQueue(
       if (senderGeneration !== generation) return 'done'
       try {
         const sale = await sendNumbered(body, entry.key, canSkip, generation)
-        filedInTab.set(entry.key, sale)
-        listeners.forEach((listener) => listener())
+        // RW7-2: only an answer that is a sale proves the key was filed; a 2xx with any other body
+        // releases no hold, and the server's key lookup decides it once the entry has left the queue.
+        if (typeof sale?.saleId === 'string') {
+          filedInTab.set(entry.key, sale)
+          listeners.forEach((listener) => listener())
+        }
         noteForNextSale(entry, sale)
         // The entry is this device's record that its number was used; it goes only once the counter
         // is confirmed past both the printed and the filed number, or a later offline sale could

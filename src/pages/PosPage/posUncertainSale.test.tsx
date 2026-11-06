@@ -752,6 +752,55 @@ describe('a held key the queue decides (RW6-1)', () => {
     expect(heldNames()).toEqual([])
     expect(JSON.parse(window.localStorage.getItem('fawtir.pos.queue')!)).toHaveLength(1)
     expect(lookups).toEqual([])
+    // RW7-3: what to do with the money taken.
+    expect(i18n.t('pos.pay.uncertain.queueRefused', { number: 'N' })).toMatch(
+      /Keep the payment until a manager decides on this sale in Today's waiting sales/,
+    )
+  })
+
+  // RW7-1: POS_SALE_KEY_REUSED says a sale is recorded under the key, so it is not called refused.
+  it('a final POS_SALE_KEY_REUSED: released, and said as a sale already recorded under the key', async () => {
+    await queuedHold(() => json({ type: 'about:blank', status: 409, code: 'POS_SALE_KEY_REUSED' }, 409))
+    expect(await screen.findByText(i18n.t('pos.pay.uncertain.keyReusedTitle'))).toBeTruthy()
+    expect(
+      screen.getByText(i18n.t('pos.pay.uncertain.keyReused', { number: 'NZW-T01-INV-2026-000049' })),
+    ).toBeTruthy()
+    expect(i18n.t('pos.pay.uncertain.keyReused', { number: 'N' })).toMatch(
+      /^A sale is already recorded under this key with different contents; check Today\./,
+    )
+    expect(screen.queryByText(i18n.t('pos.pay.uncertain.queueRefusedTitle'))).toBeNull()
+    expect(heldNames()).toEqual([])
+  })
+
+  // RW7-1: a too-large answer is final for the queue (K30) but the server never read the sale.
+  it.each([
+    ['an uncoded 413', () => new Response('', { status: 413 })],
+    [
+      'a payload-too-large problem',
+      () => json({ type: 'https://api.fawtir.om/problems/payload-too-large', status: 413 }, 413),
+    ],
+  ])('after %s the hold stays', async (_case, answer) => {
+    await queuedHold(answer)
+    await vi.waitFor(() =>
+      expect(JSON.parse(window.localStorage.getItem('fawtir.pos.queue')!)[0]).toMatchObject({ final: true }),
+    )
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(heldNames()).toEqual([HELD])
+    expect(screen.getByText(i18n.t('pos.pay.uncertain.title'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('pos.pay.uncertain.queueRefusedTitle'))).toBeNull()
+  })
+
+  // RW7-2: only a sale proves a key filed.
+  it.each([
+    ['an empty object', {}],
+    ['a saleId that is not a string', { saleId: 42 }],
+  ])('a 2xx whose body is not a sale (%s) releases nothing', async (_case, body) => {
+    await queuedHold(() => json(body, 201))
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(heldNames()).toEqual([HELD])
+    expect(screen.getByText(i18n.t('pos.pay.uncertain.title'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('pos.pay.uncertain.recordedTitle'))).toBeNull()
+    expect(screen.queryByText(i18n.t('pos.pay.uncertain.queueRefusedTitle'))).toBeNull()
   })
 
   it.each([
@@ -806,6 +855,8 @@ describe('a held key the queue decides (RW6-1)', () => {
       'pos.pay.uncertain.reprintFromToday',
       'pos.pay.uncertain.queueRefusedTitle',
       'pos.pay.uncertain.queueRefused',
+      'pos.pay.uncertain.keyReusedTitle',
+      'pos.pay.uncertain.keyReused',
       'pos.refusal.qrUnavailableTaken',
       'pos.refusal.qrGiveBack.cash',
     ]) {

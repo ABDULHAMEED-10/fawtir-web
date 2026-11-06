@@ -1866,6 +1866,22 @@ describe('a queued sale and the server key lookup (RESEND-AUTH)', () => {
     expect(queueDecision('pos-sale-key-never-sent')).toBeNull()
   })
 
+  // RW7-1, RW7-2: neither a too-large answer nor a 2xx that is not a sale decides a key.
+  it('leaves a key undecided after a too-large refusal or a 2xx with no sale in it', async () => {
+    await submitSale(TILL, WALK_IN, 'pos-sale-key-large-2')
+    online = true
+    const reply = saleReply
+    saleReply = () => new Response('', { status: 413 })
+    await flushQueue('till-1')
+    expect(queuedFor('till-1')[0]).toMatchObject({ key: 'pos-sale-key-large-2', final: true })
+    expect(queueDecision('pos-sale-key-large-2')).toBeNull()
+    saleReply = () =>
+      new Response('{}', { status: 201, headers: { 'Content-Type': 'application/json' } })
+    await retryQueuedSale('till-1', 'pos-sale-key-large-2')
+    expect(queueDecision('pos-sale-key-large-2')).toBeNull()
+    saleReply = reply
+  })
+
   it('never asks the server about a key in the queue, nor while the queue cannot be read (RA-1)', async () => {
     await submitSale(TILL, WALK_IN, 'pos-sale-key-queued')
     online = true

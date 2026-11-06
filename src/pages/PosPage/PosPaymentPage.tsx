@@ -439,12 +439,21 @@ function Payment({ till }: { till: Ready }) {
   const queueDecided = useQueueDecision(uncertain?.key ?? null)
   useEffect(() => {
     if (!uncertain || !queueDecided) return
+    // RW7-2: refused only on the entry's own final mark, filed only on a real sale; anything else
+    // decides nothing and the hold stays.
+    const refused = 'key' in queueDecided && queueDecided.final === true ? queueDecided : null
+    const filed =
+      !refused && 'saleId' in queueDecided && typeof queueDecided.saleId === 'string' ? queueDecided : null
+    if (!refused && !filed) return
     if (!settleHeldKey(uncertain.key)) return
     attempt.current = null
     setDecided(
-      'saleId' in queueDecided
-        ? { kind: 'recorded', sale: queueDecided }
-        : { kind: 'queueRefused', number: queueDecided.number },
+      filed
+        ? { kind: 'recorded', sale: filed }
+        : // RW7-1: a sale is already recorded under the key, with other contents: not a refusal.
+          refused!.refusal === 'POS_SALE_KEY_REUSED'
+          ? { kind: 'keyReused', number: refused!.number }
+          : { kind: 'queueRefused', number: refused!.number },
     )
   }, [uncertain, queueDecided])
   useEffect(
@@ -1138,6 +1147,7 @@ type Decided =
   | { kind: 'recorded'; sale: PosSaleDto }
   | { kind: 'notRecorded' }
   | { kind: 'queueRefused'; number: string }
+  | { kind: 'keyReused'; number: string }
 
 /**
  * The sale was sent and its outcome is not known (E-01). Nothing here changes it: no basket, no
@@ -1271,7 +1281,9 @@ function HeldDecidedPanel({ decided, onNewSale }: { decided: Decided; onNewSale:
               ? 'pos.pay.uncertain.recordedTitle'
               : decided.kind === 'queueRefused'
                 ? 'pos.pay.uncertain.queueRefusedTitle'
-                : 'pos.pay.uncertain.notRecordedTitle',
+                : decided.kind === 'keyReused'
+                  ? 'pos.pay.uncertain.keyReusedTitle'
+                  : 'pos.pay.uncertain.notRecordedTitle',
           )}
         </h1>
         {sale ? (
@@ -1288,9 +1300,9 @@ function HeldDecidedPanel({ decided, onNewSale }: { decided: Decided; onNewSale:
               {t('pos.pay.uncertain.reprintFromToday')}
             </p>
           </>
-        ) : decided.kind === 'queueRefused' ? (
+        ) : decided.kind === 'queueRefused' || decided.kind === 'keyReused' ? (
           <p role="status" className="text-sm font-medium leading-[1.6] text-text-secondary">
-            {t('pos.pay.uncertain.queueRefused', { number: decided.number })}
+            {t(`pos.pay.uncertain.${decided.kind}`, { number: decided.number })}
           </p>
         ) : (
           <p role="alert" className="text-sm font-medium leading-[1.6] text-danger-700">
