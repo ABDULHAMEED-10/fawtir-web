@@ -52,6 +52,20 @@ export type Taken = {
   slipPhoto?: { blob: Blob; name: string }
 }
 
+/**
+ * The QR refusal's sentence once money has moved outside the till (STUCKQR-2, STQ-1, STQ-1b): a card
+ * is charged on the bank's terminal and a transfer is made by the customer, so "nothing was charged"
+ * would be false for either. Cash is still in hand, and on account takes nothing.
+ */
+export function qrRefusalKey(taken: Pick<Taken, 'method'>[]): string {
+  const card = taken.some((payment) => payment.method === 'card')
+  const transfer = taken.some((payment) => payment.method === 'transfer')
+  if (card && transfer) return 'pos.refusal.qrUnavailableRefundCardAndTransfer'
+  if (card) return 'pos.refusal.qrUnavailableRefundCard'
+  if (transfer) return 'pos.refusal.qrUnavailableRefundTransfer'
+  return 'pos.refusal.POS_SALE_QR_UNAVAILABLE_FOR_BUYER'
+}
+
 /** The tip sits on top of the sale and carries no VAT, which the design says twice. */
 export type TipChoice = 'none' | 'p5' | 'p10' | 'p15' | 'roundUp'
 

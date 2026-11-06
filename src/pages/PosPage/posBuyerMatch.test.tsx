@@ -10,6 +10,7 @@ import { resetPosQueue } from '../../lib/posQueue'
 import { resetSharedRequests } from '../../api'
 import { forgetWorkingBranch } from '../../lib/workingBranch'
 import { hintOf, matchRequest, overSimplifiedLimit } from '../../lib/posBuyerMatch'
+import { qrRefusalKey } from '../../lib/posPayment'
 
 /**
  * "Matches customer on file": the full-invoice buyer's ID (and phone) matches a customer stored
@@ -426,9 +427,52 @@ describe('a QR refusal after a card was taken (STUCKQR-2)', () => {
     expect(screen.queryByText(/Refund the card/)).toBeNull()
   })
 
+  // STQ-1b: the customer made a bank transfer, so "nothing was charged" is false there too.
+  it('tells the cashier to return a bank transfer already taken; the sale was not recorded', async () => {
+    saleAnswer = qrRefused
+    render(
+      <MemoryRouter initialEntries={['/pos/payment']}>
+        <Routes>
+          <Route path="/pos/payment" element={<PosPaymentPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    fireEvent.click(await screen.findByRole('button', { name: /^Bank transfer/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Paid · 5\.649/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+    const said = await screen.findByText(/Return the bank transfer/)
+    expect(said.textContent).toBe(i18n.t('pos.refusal.qrUnavailableRefundTransfer'))
+    expect(screen.queryByText(/Nothing was charged/)).toBeNull()
+    expect(screen.queryByText(/Refund the card/)).toBeNull()
+  })
+
+  it('names every way money left the till, and nothing for cash or on account', () => {
+    expect(qrRefusalKey([{ method: 'card' }, { method: 'transfer' }])).toBe(
+      'pos.refusal.qrUnavailableRefundCardAndTransfer',
+    )
+    expect(qrRefusalKey([{ method: 'cash' }, { method: 'transfer' }])).toBe(
+      'pos.refusal.qrUnavailableRefundTransfer',
+    )
+    expect(qrRefusalKey([{ method: 'cash' }, { method: 'card' }])).toBe('pos.refusal.qrUnavailableRefundCard')
+    expect(qrRefusalKey([{ method: 'cash' }, { method: 'account' }])).toBe(
+      'pos.refusal.POS_SALE_QR_UNAVAILABLE_FOR_BUYER',
+    )
+    for (const key of ['pos.refusal.qrUnavailableRefundTransfer', 'pos.refusal.qrUnavailableRefundCardAndTransfer']) {
+      expect(i18n.t(key)).not.toMatch(/Nothing was charged/)
+      expect(i18n.t(key)).toMatch(/bank transfer/)
+    }
+  })
+
   it('is worded in Arabic too', async () => {
     await i18n.changeLanguage('ar')
-    for (const key of ['pos.refusal.qrUnavailableRefundCard', 'pos.buyer.firstNeeded', 'pos.buyer.checking', 'pos.buyer.chooseFull']) {
+    for (const key of [
+      'pos.refusal.qrUnavailableRefundCard',
+      'pos.refusal.qrUnavailableRefundTransfer',
+      'pos.refusal.qrUnavailableRefundCardAndTransfer',
+      'pos.buyer.firstNeeded',
+      'pos.buyer.checking',
+      'pos.buyer.chooseFull',
+    ]) {
       expect(i18n.t(key)).not.toBe(i18n.t(key, { lng: 'en' }))
     }
   })

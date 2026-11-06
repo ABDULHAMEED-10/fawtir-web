@@ -5307,7 +5307,9 @@
       "offlineQrUnavailableBehind": "This sale has to wait behind earlier sales that are not filed yet, and this till cannot issue a receipt for it without its QR settings. Nothing was numbered or printed. Keep the sale open and try again once the waiting sales are filed.",
       "outcomeUnknown": "The sale was sent, but no clear answer came back, so it may already be recorded. Do not take payment again and do not ring it up again: send the same sale again, or check today’s sales.",
       "POS_SALE_QR_UNAVAILABLE_FOR_BUYER": "This sale type cannot be issued with a QR yet: a full tax invoice to this buyer is not available at the till for now. Nothing was charged, numbered or printed, and the sale is kept.",
-      "qrUnavailableRefundCard": "This sale type cannot be issued with a QR yet: a full tax invoice to this buyer is not available at the till for now. Refund the card on the terminal; the sale was not recorded."
+      "qrUnavailableRefundCard": "This sale type cannot be issued with a QR yet: a full tax invoice to this buyer is not available at the till for now. Refund the card on the terminal; the sale was not recorded.",
+      "qrUnavailableRefundTransfer": "This sale type cannot be issued with a QR yet: a full tax invoice to this buyer is not available at the till for now. Return the bank transfer to the customer; the sale was not recorded.",
+      "qrUnavailableRefundCardAndTransfer": "This sale type cannot be issued with a QR yet: a full tax invoice to this buyer is not available at the till for now. Refund the card on the terminal and return the bank transfer to the customer; the sale was not recorded."
     },
     "warning": {
       "STOCK_BELOW_ZERO": "Line {{line}} took the stock below zero. Count it when you can.",
