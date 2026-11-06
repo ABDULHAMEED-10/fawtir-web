@@ -3,22 +3,38 @@
  * the side panels and, under a dialog, the list behind it. Gated on :has() so a page without a
  * sheet (the till's own receipt screen, any other print) prints exactly as before, and nothing
  * here applies on screen.
+ *
+ * Whatever is neither the sheet, inside it, nor one of its ancestors leaves the layout
+ * (display: none), and the ancestors drop what clips, fixes or limits them on screen, so the sheet
+ * flows in the normal page and paginates. A position: fixed sheet printed once per page of a long
+ * hidden page and was cut at one page when long itself (review QW3R-1, headless Chromium).
  */
 @media print {
-  body:has(.fawtir-print-sheet) * {
-    visibility: hidden;
+  body:has(.fawtir-print-sheet)
+    *:not(.fawtir-print-sheet, .fawtir-print-sheet *, :has(.fawtir-print-sheet)) {
+    display: none !important;
   }
 
-  body:has(.fawtir-print-sheet) .fawtir-print-sheet,
-  body:has(.fawtir-print-sheet) .fawtir-print-sheet * {
-    visibility: visible;
+  html:has(.fawtir-print-sheet),
+  body:has(.fawtir-print-sheet),
+  body:has(.fawtir-print-sheet) :has(.fawtir-print-sheet) {
+    display: block !important;
+    position: static !important;
+    inset: auto !important;
+    transform: none !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: none !important;
+    box-shadow: none !important;
   }
 
-  /* Fixed, so a scrolling or clipped container on screen does not cut the sheet on paper. */
   body:has(.fawtir-print-sheet) .fawtir-print-sheet {
-    position: fixed;
-    inset: 0 auto auto 0;
-    width: 100%;
     /* The invoice pane sets its on-screen zoom inline; paper prints at full size. */
     zoom: 1 !important;
   }

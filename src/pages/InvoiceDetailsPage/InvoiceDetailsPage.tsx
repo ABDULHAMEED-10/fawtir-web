@@ -1400,8 +1400,13 @@ function InvoiceScreen() {
               title={t('invoiceDetails.pdf.previewNote')}
               className="max-h-[560px] overflow-auto rounded-sm bg-surface-background p-3"
             >
-              {/* The pane's copy is the one Print puts on paper; the full-screen one is not marked. */}
-              <div style={{ zoom }} className={PRINT_SHEET_CLASS}>
+              {/* The pane's copy is the one Print puts on paper; the full-screen one is not marked.
+                  Marked only while Print is enabled, so any other invoice prints as it did before
+                  the sheet (review QW3R-2). */}
+              <div
+                style={{ zoom }}
+                className={receiptQrView.payload === null ? undefined : PRINT_SHEET_CLASS}
+              >
                 {preview}
               </div>
             </div>

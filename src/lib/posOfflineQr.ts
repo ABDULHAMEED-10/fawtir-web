@@ -30,7 +30,10 @@ export async function offlinePrintedQr(
     const vat = atScale(printed.vat, scale)
     if (taxable === null || vat === null) return null
     const amounts = qrAmounts(taxable, vat, scale)
-    // qrIssueMoment answers only for Asia/Muscat, so any other zone gives no QR (E-2, T-X6).
+    // qrIssueMoment answers only for Asia/Muscat, so any other zone gives no QR (E-2, T-X6). The
+    // server states a zone that merely shares Muscat's rules (e.g. Asia/Dubai, sharesMuscatRules)
+    // under its own id, so such a tenant prints "QR to follow" until the profile carries one
+    // canonical zone (review QW3R-5, recorded by the coordinator). Literal on purpose: fails safe.
     const day = qrIssueMoment(sale.soldAt, profile.issueDateZone)
     const clock = qrIssueMoment(sale.soldAt, profile.issueTimeZone)
     if (!amounts || !day || !clock) return null

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import QRCode from 'qrcode'
 import i18n from '../../i18n'
@@ -128,6 +128,39 @@ describe('the receipt of a sale queued offline', () => {
     expect(screen.getByText(i18n.t('pos.done.qrAfterFiling'))).toBeTruthy()
     expect(screen.queryByAltText(i18n.t('pos.done.qrAlt'))).toBeNull()
     expect(QRCode.toDataURL).not.toHaveBeenCalled()
+  })
+
+  // Review QW3R-3: a QR that cannot be drawn is never claimed; the receipt reads as it did before E-1.
+  it('a payload the encoder refuses says "QR to follow", and the heading does not claim a QR', async () => {
+    vi.mocked(QRCode.toDataURL).mockRejectedValueOnce(new Error('too long') as never)
+    queued({ queuedQr: PAYLOAD })
+    renderReceipt()
+    expect(await screen.findByText(i18n.t('pos.done.qrComing'))).toBeTruthy()
+    expect(screen.getByText(i18n.t('pos.done.qrAfterFiling'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('pos.done.qrAlreadyUp'))).toBeNull()
+    expect(screen.queryByAltText(i18n.t('pos.done.qrAlt'))).toBeNull()
+    expect(vi.mocked(QRCode.toDataURL).mock.calls.map(([payload]) => payload)).toEqual([PAYLOAD])
+    const again = screen.getByRole('button', { name: i18n.t('pos.done.printAgain') }) as HTMLButtonElement
+    expect(again.disabled).toBe(false)
+  })
+
+  it('prints nothing and claims nothing while the QR is still being drawn', async () => {
+    vi.mocked(QRCode.toDataURL).mockImplementationOnce((() => new Promise(() => {})) as never)
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {})
+    try {
+      queued({ queuedQr: PAYLOAD })
+      renderReceipt()
+      const again = (await screen.findByRole('button', {
+        name: i18n.t('pos.done.printAgain'),
+      })) as HTMLButtonElement
+      expect(again.disabled).toBe(true)
+      fireEvent.click(again)
+      expect(print).not.toHaveBeenCalled()
+      expect(screen.queryByText(i18n.t('pos.done.qrAlreadyUp'))).toBeNull()
+      expect(screen.queryByText(i18n.t('pos.done.qrComing'))).toBeNull()
+    } finally {
+      print.mockRestore()
+    }
   })
 
   it('a company buyer never gets one, even if a payload were present', async () => {

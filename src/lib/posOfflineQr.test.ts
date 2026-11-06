@@ -5,7 +5,14 @@ import { resetSharedRequests } from '../api'
 import type { PosPrintedTotals, PosQrProfile, PosSaleRequest, PosTillDto } from '../api/pos/pos'
 import { offlinePrintedQr } from './posOfflineQr'
 import { encodeQr, sellerUuid } from './posQr'
-import { flushQueue, noteQueueSender, queuedFor, resetPosQueue, submitSale } from './posQueue'
+import {
+  correctQueuedSale,
+  flushQueue,
+  noteQueueSender,
+  queuedFor,
+  resetPosQueue,
+  submitSale,
+} from './posQueue'
 import { memoryVault, setPosVault } from './posVault'
 
 /** QR-W3 (QR E-1): the offline receipt QR built from the till's qrProfile and sent as printedQr. */
@@ -202,6 +209,21 @@ describe('the queued sale it rides on', () => {
     const body = JSON.parse(sent.at(-1)!)
     expect(body.printedQr).toEqual(expected)
     expect(body).toMatchObject({ queuedOffline: true, invoiceNumber: NUMBER, soldAt: SOLD_AT })
+  })
+
+  // Review QW3R-4: a correction changes only the payments, so the QR the customer holds still
+  // matches the server's tags 8 and 9 and stays with the sale for the server to compare.
+  it('a corrected queued sale keeps the QR it printed, and sends it', async () => {
+    await submitSale({ ...TILL, qrProfile: PROFILE }, BODY, 'pos-sale-key-qr-06', [], PRINTED)
+    const printed = queuedFor('till-1')[0].body.printedQr
+    expect(printed).toBeTruthy()
+    await correctQueuedSale('till-1', 'pos-sale-key-qr-06', [{ method: 'CARD', amount: 10.51 }])
+    const [entry] = queuedFor('till-1')
+    expect(entry.body.payments).toEqual([{ method: 'CARD', amount: 10.51 }])
+    expect(entry.body.printedQr).toEqual(printed)
+    online = true
+    await flushQueue('till-1')
+    expect(JSON.parse(sent.at(-1)!).printedQr).toEqual(printed)
   })
 
   it('a company sale gets none, profile or not', async () => {

@@ -2971,6 +2971,8 @@ describe('the receipt QR on the invoice preview (QR E-3)', () => {
     expect(qrImage()).toBeNull()
     expect(encoded()).toEqual([])
     expect(printButton().disabled).toBe(true)
+    // Review QW3R-2: with Print off nothing is marked, so the browser's own print is as before.
+    expect(document.querySelectorAll('.fawtir-print-sheet')).toHaveLength(0)
   })
 
   it('draws no QR when the answer cannot be read, and says so', async () => {
@@ -2980,6 +2982,7 @@ describe('the receipt QR on the invoice preview (QR E-3)', () => {
     expect(qrImage()).toBeNull()
     expect(encoded()).toEqual([])
     expect(printButton().disabled).toBe(true)
+    expect(document.querySelectorAll('.fawtir-print-sheet')).toHaveLength(0)
   })
 
   it('does not ask for a draft or a credit note', async () => {

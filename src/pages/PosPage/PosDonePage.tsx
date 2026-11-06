@@ -25,6 +25,7 @@ import { OfflineReceiptQr, ReceiptMasthead, ReceiptQr, ReceiptRow } from './PosR
 import { receiptSellerHeader } from '../../lib/posReceiptSeller'
 import type { TillState } from '../../lib/posTill'
 import { saleCashierLabel } from '../../lib/posAttribution'
+import { useServerQrImage } from '../../components/invoice/useServerQr'
 
 type Ready = Extract<TillState, { status: 'ready' }>
 
@@ -72,6 +73,10 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
   const { entitlements } = useEntitlements()
   const profile = useApiRead<CompanyProfileDto>(COMPANY_PROFILE_PATH, loadCompanyProfile)
   const business = profile.read.status === 'ready' ? profile.read.data : null
+  // QR E-1: only a consumer's queued sale carries one. The receipt says it holds a QR, and prints,
+  // only once the image is drawn; one that cannot be drawn reads "QR to follow" (review QW3R-3).
+  const offlineQr = useServerQrImage(!done.sale && !done.company ? done.queuedQr : null)
+  const printHeld = offlineQr.status === 'encoding'
 
   // Waits (up to 15 s a time, three times) for the filed and accepted steps and the QR.
   useEffect(() => {
@@ -281,7 +286,7 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
                     government buyer never gets one. A queued sale has one only when the till held the
                     server's QR profile (QR E-1); otherwise it comes once filed (retest N-6). */}
                 {t(
-                  qrStatus === 'READY' || (!sale && !company && done.queuedQr)
+                  qrStatus === 'READY' || (!sale && !company && offlineQr.status === 'drawn')
                     ? 'pos.done.qrAlreadyUp'
                     : qrStatus === 'PENDING'
                       ? 'pos.done.qrNotReadyShort'
@@ -303,7 +308,7 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
                     type="button"
                     onClick={() => {
                       setWay(option.id)
-                      if (option.id === 'print') window.print()
+                      if (option.id === 'print' && !printHeld) window.print()
                     }}
                     aria-pressed={chosen}
                     className={[
@@ -394,7 +399,8 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
             <button
               type="button"
               onClick={() => window.print()}
-              className="text-sm font-semibold text-primary-700"
+              disabled={printHeld}
+              className="text-sm font-semibold text-primary-700 disabled:opacity-40"
             >
               {t('pos.done.printAgain')}
             </button>
@@ -515,9 +521,9 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
               <div className="mt-5 flex flex-col items-center gap-2">
                 {sale ? (
                   <ReceiptQr saleId={sale.saleId} status={sale.receipt.qr.status} />
-                ) : !company && done.queuedQr ? (
-                  <OfflineReceiptQr payload={done.queuedQr} />
-                ) : !company ? (
+                ) : !company && offlineQr.status === 'drawn' ? (
+                  <OfflineReceiptQr image={offlineQr.image} />
+                ) : !company && offlineQr.status !== 'encoding' ? (
                   <p className="text-[11px] font-medium leading-[1.5] text-text-quaternary">
                     {t('pos.done.qrComing')}
                   </p>

@@ -3,7 +3,6 @@ import { posSaleQrPath, type PosSaleDto } from '../../api/pos/pos'
 import { API_BASE_URL } from '../../config/api'
 import { initialsOf } from '../../lib/posTill'
 import type { ReceiptSellerHeader } from '../../lib/posReceiptSeller'
-import { useServerQr } from '../../components/invoice/useServerQr'
 
 /**
  * The parts of a till receipt that the receipt after a sale and its reprint share (QR E-5), so a
@@ -79,13 +78,12 @@ export function ReceiptMasthead({
 }
 
 /**
- * The QR a sale queued offline printed (QR E-1): the `printedQr.payload` sent with it, drawn as it
- * is. Nothing is drawn until it is encoded, and nothing if encoding fails.
+ * The QR a sale queued offline printed (QR E-1): the image of the `printedQr.payload` sent with it,
+ * drawn as it is. The page encodes it (`useServerQrImage`) so its heading and Print can wait for
+ * the image and fall back to "QR to follow" when it cannot be drawn (review QW3R-3).
  */
-export function OfflineReceiptQr({ payload }: { payload: string }) {
+export function OfflineReceiptQr({ image }: { image: string }) {
   const { t } = useTranslation()
-  const image = useServerQr(payload)
-  if (!image) return null
   return (
     <>
       <img src={image} alt={t('pos.done.qrAlt')} className="size-[132px]" />
