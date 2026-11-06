@@ -6,12 +6,14 @@ import { SAMPLE_SALE } from '../../lib/posTestSale'
 import { PosPaymentPage } from './PosPaymentPage'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import {
+  forgetTabMemory,
   resetOpenSale,
   setSaleDiscount,
   setSaleLines,
   startNewSale,
   useFinishedSale,
   useOpenSale,
+  useUncertainSale,
 } from '../../lib/posSale'
 import { noteQueueSender, resetPosQueue } from '../../lib/posQueue'
 import { resetSharedRequests } from '../../api'
@@ -80,6 +82,7 @@ beforeEach(async () => {
   resetSharedRequests()
   forgetEntitlements()
   window.localStorage.clear()
+  window.sessionStorage.clear()
   posts = []
   replies = []
   vi.stubGlobal(
@@ -118,10 +121,11 @@ const retry = () => screen.getByRole('button', { name: i18n.t('pos.pay.uncertain
 
 async function sendIntoUnknown(status: number) {
   replies.push(() => new Response('', { status }))
-  renderPayment()
+  const view = renderPayment()
   fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
   fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
   expect(await screen.findByText(i18n.t('pos.pay.uncertain.title'))).toBeTruthy()
+  return view
 }
 
 describe('a sale whose outcome is unknown (E-01)', () => {
@@ -203,5 +207,81 @@ describe('a sale the server cannot issue with a QR (STUCK-QR)', () => {
     const key = 'pos.refusal.POS_SALE_QR_UNAVAILABLE_FOR_BUYER'
     expect(i18n.exists(key, { lng: 'ar' })).toBe(true)
     expect(i18n.t(key, { lng: 'ar' })).not.toBe(i18n.t(key, { lng: 'en' }))
+  })
+})
+
+// Review E01R-1: the hold lived only in the tab's memory, so a reload, a re-login or a restored tab
+// lost it with the basket, and the next Finish minted a new key for a sale that may be recorded.
+describe('a held sale after a reload (E01R-1)', () => {
+  it('comes back locked with its basket, and is sent again under the same key and body', async () => {
+    const view = await sendIntoUnknown(503)
+    view.unmount()
+    act(() => forgetTabMemory())
+    renderPayment()
+    expect(await screen.findByText(i18n.t('pos.pay.uncertain.title'))).toBeTruthy()
+    expect(screen.getByText(/^lines /).textContent).toContain(`lines ${SAMPLE_SALE.length}`)
+    expect(screen.queryByRole('button', { name: 'Finish the sale' })).toBeNull()
+    act(() => setSaleLines([]))
+    expect(screen.getByText(/^lines /).textContent).toContain(`lines ${SAMPLE_SALE.length}`)
+    fireEvent.click(retry())
+    expect(await screen.findByText('done NZW-T01-INV-2026-000049')).toBeTruthy()
+    expect(posts).toHaveLength(2)
+    expect(posts[1].key).toBe(posts[0].key)
+    expect(posts[1].body).toBe(posts[0].body)
+    // Settled: nothing is restored after the next reload.
+    expect(Object.keys(window.sessionStorage).filter((key) => key.startsWith('fawtir.pos.uncertainSale.'))).toEqual([])
+  })
+
+  it('says a reload would forget it when it cannot be stored', async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('full', 'QuotaExceededError')
+    })
+    try {
+      await sendIntoUnknown(503)
+      expect(screen.getByText(i18n.t('pos.pay.uncertain.unsaved'))).toBeTruthy()
+    } finally {
+      vi.mocked(Storage.prototype.setItem).mockRestore()
+    }
+  })
+
+  it('shows no such banner when the hold is stored', async () => {
+    await sendIntoUnknown(503)
+    expect(screen.queryByText(i18n.t('pos.pay.uncertain.unsaved'))).toBeNull()
+  })
+})
+
+// Review E01R-3: a coded 401 or 403 on the retry refuses the session or its branch scope, not the
+// sale, so the first send's outcome is still unknown and the sale stays held.
+function HeldProbe() {
+  const held = useUncertainSale()
+  const { lines } = useOpenSale()
+  return <p>{`held ${held?.key ?? 'none'} lines ${lines.length}`}</p>
+}
+
+describe('a retry refused for the session, not the sale (E01R-3)', () => {
+  it.each([
+    [401, 'AUTH_SESSION_EXPIRED'],
+    [403, 'BRANCH_SCOPE_DENIED'],
+  ])('a coded %i keeps the sale held under its key', async (status, code) => {
+    await sendIntoUnknown(503)
+    replies.push(() => json({ type: 'about:blank', status, code }, status))
+    fireEvent.click(retry())
+    await vi.waitFor(() => expect(posts).toHaveLength(2))
+    expect(posts[1].key).toBe(posts[0].key)
+    // A 401 also sends the reader to sign in (DA-16), so the hold is read where the next screen
+    // reads it: in this tab's memory and stored for the till and shift.
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    render(<HeldProbe />)
+    expect(screen.getByText(/^held /).textContent).toBe(`held ${posts[0].key} lines ${SAMPLE_SALE.length}`)
+    act(() => setSaleLines([]))
+    expect(screen.getByText(/^held /).textContent).toBe(`held ${posts[0].key} lines ${SAMPLE_SALE.length}`)
+    expect(
+      Object.keys(window.sessionStorage).filter((key) => key.startsWith('fawtir.pos.uncertainSale.')),
+    ).toEqual(['fawtir.pos.uncertainSale.till-1.sh-1'])
+  })
+
+  it('has the banner wording in both languages', () => {
+    expect(i18n.exists('pos.pay.uncertain.unsaved', { lng: 'ar' })).toBe(true)
+    expect(i18n.t('pos.pay.uncertain.unsaved', { lng: 'ar' })).not.toBe(i18n.t('pos.pay.uncertain.unsaved', { lng: 'en' }))
   })
 })

@@ -4515,6 +4515,7 @@
       "uncertain": {
         "title": "The outcome of this sale is not known yet",
         "locked": "Until it is, the basket, the payment and the buyer cannot be changed: a changed sale would be a new one, and the customer could be charged twice.",
+        "unsaved": "This sale could not be kept on this device, so a reload would forget it. A sale may already be recorded: check Today before ringing it again.",
         "retry": "Send the same sale again",
         "checkToday": "Check today’s sales"
       }

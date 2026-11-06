@@ -1,10 +1,11 @@
-import { useState, type ReactNode } from 'react'
+import { useLayoutEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { registerPosTill } from '../../api/pos/pos'
 import { usePosTill, type TillState } from '../../lib/posTill'
 import { refusalSentence } from '../../lib/posRefusals'
 import { noteTillServer, usePosQueue } from '../../lib/posQueue'
+import { restoreUncertainSale } from '../../lib/posSale'
 import { useOfflineSigningKey } from '../../lib/posSigning/useOfflineSigningKey'
 import { PosQueuePanel } from './PosQueuePanel'
 import { PosStorageNotice } from './PosStorageNotice'
@@ -32,6 +33,7 @@ export function PosTillGate({
   if (state.status === 'noTill') return <NoTill state={state} />
   return (
     <>
+      <HeldSaleRestorer tillId={state.till.id} shiftId={state.till.openShift?.shiftId ?? null} />
       <QueueSender till={state.till} userId={state.userId} />
       <OfflineSigningKey state={state} />
       <PosTabLockNotice tillId={state.till.id} />
@@ -40,6 +42,15 @@ export function PosTillGate({
       {children(state)}
     </>
   )
+}
+
+/**
+ * Brings back a sale held with an unknown outcome on this till and shift (E01R-1) before the
+ * screen paints, so after a reload the till offers only the same sale again. Draws nothing.
+ */
+function HeldSaleRestorer({ tillId, shiftId }: { tillId: string; shiftId: string | null }) {
+  useLayoutEffect(() => restoreUncertainSale(tillId, shiftId), [tillId, shiftId])
+  return null
 }
 
 /**

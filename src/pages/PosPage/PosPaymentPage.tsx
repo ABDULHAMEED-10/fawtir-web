@@ -285,7 +285,15 @@ function Payment({ till }: { till: Ready }) {
       if (saleOutcomeUncertain(error)) holdUncertainSale(held)
       // The server answered this key with its own code: nothing is recorded under it, so the sale
       // may be changed again. A refusal made here before anything was sent leaves it held.
-      else if (error instanceof ApiError && serverCode(error) !== null) settleUncertainSale()
+      // A coded 401 or 403 refuses the session or its branch scope, not the sale (E01R-3): the
+      // outcome of the first send is still unknown, so the sale stays held.
+      else if (
+        error instanceof ApiError &&
+        serverCode(error) !== null &&
+        error.status !== 401 &&
+        error.status !== 403
+      )
+        settleUncertainSale()
       // The till's zone came from the till as last read: read it again, so a zone restored in the
       // company settings is verified on the next press (XT2-ZONE-UNREADABLE).
       if (error instanceof PosTenantZoneUnavailable) till.retry()
@@ -320,6 +328,8 @@ function Payment({ till }: { till: Ready }) {
     }
     try {
       await send({
+        tillId: till.till.id,
+        shiftId: till.till.openShift?.shiftId ?? null,
         key: attempt.current.key,
         request: { ...body, soldAt: attempt.current.soldAt },
         slipPhotos,
@@ -407,6 +417,7 @@ function Payment({ till }: { till: Ready }) {
     return (
       <UncertainSalePanel
         refusal={refusal}
+        unsaved={uncertain.unsaved === true}
         busy={busy || sellingBlocked}
         onRetry={() => void retrySame()}
       />
@@ -992,10 +1003,12 @@ function Payment({ till }: { till: Ready }) {
  */
 function UncertainSalePanel({
   refusal,
+  unsaved,
   busy,
   onRetry,
 }: {
   refusal: unknown
+  unsaved: boolean
   busy: boolean
   onRetry: () => void
 }) {
@@ -1008,6 +1021,11 @@ function UncertainSalePanel({
           {refusal ? refusalSentence(t, refusal) : t('pos.refusal.outcomeUnknown')}
         </p>
         <p className="text-sm leading-[1.6] text-text-secondary">{t('pos.pay.uncertain.locked')}</p>
+        {unsaved ? (
+          <p role="status" className="rounded-sm bg-warning-100 px-4 py-3 text-sm font-semibold text-text-primary">
+            {t('pos.pay.uncertain.unsaved')}
+          </p>
+        ) : null}
         <div className="flex flex-wrap items-center gap-4">
           <button
             type="button"

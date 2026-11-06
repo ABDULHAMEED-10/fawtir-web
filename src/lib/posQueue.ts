@@ -1376,10 +1376,10 @@ export async function submitSale(
           try {
             return await numberAndKeep()
           } catch (kept) {
-            // The fallback could not number it (no offline numbers on this till): still the same
-            // sale under the same key, whose outcome is unknown, never "could not reach Fawtir".
-            if (kept instanceof NetworkError) throw new PosSaleOutcomeUnknown()
-            throw kept
+            // The request already went out, so nothing the fallback throws can say the sale was not
+            // recorded: an error that does not already say "sent, outcome unknown" becomes that, and
+            // the sale stays held under its key (E01R-2), never "could not reach Fawtir".
+            throw saleOutcomeUncertain(kept) ? kept : new PosSaleOutcomeUnknown()
           }
         }
         noteNumberingRefusal(error)

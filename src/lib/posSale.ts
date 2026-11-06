@@ -80,15 +80,20 @@ export type FinishedSale = {
  * so it can only be sent again as it was, under the same key, and what its receipt prints if it
  * then succeeds. While it is held the open sale cannot be changed, since a changed basket or
  * payment is a new sale with a new key, and a customer whose first sale was recorded would be
- * charged twice. Kept for the tab, as the open sale is: a reload loses both together.
+ * charged twice. Kept in sessionStorage per till and shift with the basket it was sent from, so a
+ * reload, a re-login or a restored tab still offers only the same sale (review E01R-1).
  */
 export type UncertainSale = {
+  tillId: string
+  shiftId: string | null
   key: string
   request: PosSaleRequest
   slipPhotos: SlipPhoto[]
   printed: PosPrintedTotals
   maker: PosPerson | null
   receipt: Omit<FinishedSale, 'sale' | 'queuedNumber' | 'queuedQr' | 'queuedBehind' | 'finishedAt'>
+  /** Set when the hold could not be stored: a reload would forget it, so the screen says so. */
+  unsaved?: boolean
 }
 
 const START: OpenSale = {
@@ -138,9 +143,24 @@ export const startNewSale = () => {
   notify()
 }
 
-/** For tests. */
+/** For tests: also drops any stored hold, so one test's held sale never reaches the next. */
 export const resetOpenSale = (lines: SaleLine[] = []) => {
   sale = { ...START, lines, startedAt: lines.length ? '2026-09-04T10:26:00Z' : null }
+  finished = null
+  uncertain = null
+  try {
+    for (const key of Object.keys(window.sessionStorage)) {
+      if (key.startsWith(HELD_PREFIX)) window.sessionStorage.removeItem(key)
+    }
+  } catch {
+    // No storage, nothing stored.
+  }
+  notify()
+}
+
+/** For tests: what a reload loses, the tab's memory, while sessionStorage stays. */
+export const forgetTabMemory = () => {
+  sale = START
   finished = null
   uncertain = null
   notify()
@@ -159,14 +179,82 @@ export function useFinishedSale(): FinishedSale | null {
   return useSyncExternalStore(subscribe, () => finished)
 }
 
+/*
+ * Tab-scoped on purpose, as a paid-out's attempt is (posPaidOut.ts, review W4-2): another tab is
+ * another attempt. Slip photos are not stored (a scanned slip can outgrow the quota); a restored
+ * hold sends the sale again without them. Storage may be absent or refuse (private mode, quota):
+ * the hold then lives in memory and says that a reload would forget it.
+ */
+const HELD_PREFIX = 'fawtir.pos.uncertainSale.'
+const heldKey = (tillId: string, shiftId: string | null) => `${HELD_PREFIX}${tillId}.${shiftId ?? '-'}`
+
+type StoredHold = { held: Omit<UncertainSale, 'slipPhotos' | 'unsaved'>; basket: OpenSale }
+
 export const holdUncertainSale = (held: UncertainSale) => {
-  uncertain = held
+  let unsaved = false
+  try {
+    const stored: StoredHold = {
+      held: {
+        tillId: held.tillId,
+        shiftId: held.shiftId,
+        key: held.key,
+        request: held.request,
+        printed: held.printed,
+        maker: held.maker,
+        receipt: held.receipt,
+      },
+      basket: sale,
+    }
+    window.sessionStorage.setItem(heldKey(held.tillId, held.shiftId), JSON.stringify(stored))
+  } catch {
+    unsaved = true
+  }
+  uncertain = { ...held, unsaved }
   notify()
 }
 
 /** The outcome is known: the sale was recorded, kept, or definitely refused under its key. */
 export const settleUncertainSale = () => {
+  if (uncertain) {
+    try {
+      window.sessionStorage.removeItem(heldKey(uncertain.tillId, uncertain.shiftId))
+    } catch {
+      // Nothing could be stored either.
+    }
+  }
   uncertain = null
+  notify()
+}
+
+/**
+ * After a reload, a re-login or a restored tab: the stored hold of this till and shift comes back
+ * with the basket it was sent from, and the till again offers only the same sale (E01R-1). A hold
+ * already in memory is kept as it is.
+ */
+export function restoreUncertainSale(tillId: string, shiftId: string | null): void {
+  if (uncertain) return
+  let stored: StoredHold
+  try {
+    const raw = window.sessionStorage.getItem(heldKey(tillId, shiftId))
+    if (!raw) return
+    stored = JSON.parse(raw) as StoredHold
+  } catch {
+    return
+  }
+  const held = stored?.held
+  if (
+    !held ||
+    typeof held.key !== 'string' ||
+    !held.request ||
+    held.request.tillId !== tillId ||
+    !held.receipt ||
+    !Array.isArray(stored.basket?.lines)
+  ) {
+    return
+  }
+  uncertain = { ...held, tillId, shiftId, slipPhotos: [] }
+  sale = stored.basket
+  finished = null
   notify()
 }
 

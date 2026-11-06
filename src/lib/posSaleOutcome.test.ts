@@ -132,3 +132,16 @@ describe('an online sale whose outcome is unknown (E-01)', () => {
     expect(offlinePrintedQr).not.toHaveBeenCalled()
   })
 })
+
+// Review E01R-2: after the request went out, an unexpected error from the fallback said nothing about
+// the first send either, and reached the cashier as a plain failure that released the sale.
+describe('the fallback failing in an unexpected way after the request went out (E01R-2)', () => {
+  it('is an unknown outcome under the same key, so the sale stays held', async () => {
+    answer = async () => new Response('', { status: 503 })
+    vi.mocked(offlinePrintedQr).mockRejectedValue(new TypeError('unexpected'))
+    const refused = await submitSale(TILL, BODY, 'pos-sale-key-e01r2', [], PRINTED).catch((error) => error)
+    expect(refused).toBeInstanceOf(PosSaleOutcomeUnknown)
+    expect(saleOutcomeUncertain(refused)).toBe(true)
+    expect(sent.map((request) => request.key)).toEqual(['pos-sale-key-e01r2'])
+  })
+})
