@@ -3140,3 +3140,32 @@ describe('the read-model fields of backend #824 on an invoice, each optional', (
     expect(screen.queryByText(/Sohar Port Logistics/)).toBeNull()
   })
 })
+
+describe('Credit an over-credited or overpaid invoice holds (D-30(a))', () => {
+  it('shows the credit on its own line under a balance floored at zero, never folded into it', async () => {
+    receivableResponse = () =>
+      json(200, {
+        ...RECEIVABLE,
+        paidAmount: 56.7,
+        creditedAmount: 5,
+        outstandingAmount: 0,
+        unappliedCredit: -5,
+        paymentState: 'PAID',
+      })
+    renderInvoice()
+    const heading = await screen.findByRole('heading', { name: 'Outstanding balance' })
+    const card = heading.closest('section')!
+    const credit = within(card).getByTestId('unapplied-credit')
+    expect(within(credit).getByText('Unapplied credit')).toBeTruthy()
+    expect(within(credit).getByText('-5.000')).toBeTruthy()
+    expect(credit.textContent).toContain('not set against any other invoice')
+    // The balance itself stays the server's floored figure.
+    expect(within(card).getAllByText('0.000').length).toBeGreaterThan(0)
+  })
+
+  it('draws no credit line when the server sends none', async () => {
+    renderInvoice()
+    await screen.findByRole('heading', { name: 'Outstanding balance' })
+    expect(screen.queryByTestId('unapplied-credit')).toBeNull()
+  })
+})

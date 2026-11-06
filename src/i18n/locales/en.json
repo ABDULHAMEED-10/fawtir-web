@@ -26104,5 +26104,11 @@
         "any": "A goods line still has no HS code, so nothing was changed. Give every goods line a code."
       }
     }
+  },
+  "receivableCredit": {
+    "unapplied": "Unapplied credit",
+    "net": "Net balance",
+    "customers": "Customers holding credit: {{customers}}",
+    "hint": "Credit notes or payments above this document’s total. It is held for the customer and is not set against any other invoice."
   }
 }

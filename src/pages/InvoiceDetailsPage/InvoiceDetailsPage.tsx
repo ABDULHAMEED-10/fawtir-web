@@ -155,6 +155,8 @@ import uploadIcon from '../../assets/create-invoice/upload.svg'
 import editIcon from '../../assets/actions/edit.svg'
 import debitNoteIcon from '../../assets/actions/invoice.svg'
 import deleteIcon from '../../assets/actions/delete.svg'
+import { UnappliedCredit } from '../../components/invoice/UnappliedCredit'
+import { creditHeld } from '../../lib/unappliedCredit'
 
 type Tone = ReturnType<typeof statusOf>['tone']
 
@@ -417,6 +419,8 @@ function InvoiceScreen() {
   // The reminder banner (Figma 154:163981): what would go out for an issued, unsettled invoice.
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' }).format(new Date())
   const owed = receivable.read.status === 'ready' ? receivable.read.data : null
+  // D-30(a): credit notes or payments above the document's total; held, never set against it.
+  const heldCredit = creditHeld(owed?.unappliedCredit)
   const chaseable =
     document !== null &&
     document.authoringState === 'ISSUED' &&
@@ -1195,6 +1199,14 @@ function InvoiceScreen() {
                   />
                 </div>
               </div>
+              {heldCredit !== null ? (
+                <UnappliedCredit
+                  credit={heldCredit}
+                  currency={owed.currency}
+                  hint
+                  className="mt-4"
+                />
+              ) : null}
 
               {/* `peppolResponse` and `deliveredAt` are TODO(backend) and never answered, so nothing here reads them: a delivery is claimed only from the dispatch the server reports, never from a field whose meaning the API has not defined. */}
               <div className="mt-4 flex items-center gap-2 rounded-sm bg-surface-background px-3 py-2.5">

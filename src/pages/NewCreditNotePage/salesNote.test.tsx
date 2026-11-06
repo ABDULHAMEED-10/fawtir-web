@@ -2736,6 +2736,44 @@ describe('a debit note is owed apart from its invoice (D-24)', () => {
     expect(screen.queryByText('Balance increased')).toBeNull()
   }, 30_000)
 
+  it('the detail page shows credit an overpaid debit note holds on its own line, never set against the invoice (D-30(a))', async () => {
+    receivable = OWED_ON_INVOICE
+    override = (url) => {
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}`) return json(200, debitNote)
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}/receivable`)
+        return json(200, {
+          ...owedOnNote,
+          paidAmount: 12,
+          outstandingAmount: 0,
+          unappliedCredit: -1.5,
+          paymentState: 'PAID',
+        })
+      if (url.startsWith(`/api/v1/authored-invoices/${NOTE_ID}/`))
+        return json(
+          200,
+          url.endsWith('/history')
+            ? { entries: [], truncated: false, limit: 200 }
+            : url.endsWith('/internal-note')
+              ? { internalNote: null }
+              : [],
+        )
+      return undefined
+    }
+    render(
+      <MemoryRouter initialEntries={[`/income/debit-notes/${NOTE_ID}`]}>
+        <Routes>
+          <Route path="/income/debit-notes/:id" element={<SalesNoteDetailPage kind="DEBIT_NOTE" />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await screen.findByRole('heading', { name: 'DBN-9' })
+    const credit = await screen.findByTestId('unapplied-credit')
+    expect(within(credit).getByText('-1.500')).toBeTruthy()
+    expect(within(credit).getByText('Unapplied credit')).toBeTruthy()
+    // What is due on the note stays the server's floored figure.
+    expect(figureBy('Now due on this debit note')).toContain('0.000')
+  }, 30_000)
+
   it('has no sentence left, in either language, that adds a debit note to an invoice’s balance', () => {
     for (const language of ['en', 'ar']) {
       const t = i18n.getFixedT(language)

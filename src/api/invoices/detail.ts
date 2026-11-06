@@ -220,6 +220,8 @@ export type InvoiceReceivableDto = {
   paidAmount: number
   creditedAmount: number
   outstandingAmount: number | null
+  /** D-30(a), from 0c2d034d4: what lies below the floor of `outstandingAmount`, at or below zero. */
+  unappliedCredit?: number
   currency: string
   paymentState: 'UNPAID' | 'PARTIALLY_PAID' | 'PAID' | 'NOT_APPLICABLE'
   overdue: boolean

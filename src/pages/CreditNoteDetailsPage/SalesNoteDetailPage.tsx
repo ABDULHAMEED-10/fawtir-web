@@ -94,6 +94,8 @@ import editIcon from '../../assets/actions/edit.svg'
 import invoiceActionIcon from '../../assets/actions/invoice.svg'
 import deleteIcon from '../../assets/actions/delete.svg'
 import uploadIcon from '../../assets/create-invoice/upload.svg'
+import { UnappliedCredit } from '../../components/invoice/UnappliedCredit'
+import { creditHeld } from '../../lib/unappliedCredit'
 
 type Chip = { bg: string; text: string }
 const STATUS_STYLES: Record<NoteListStatus, Chip> = {
@@ -381,6 +383,8 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
   // never takes it in (D-24, owner 6 Nov 2026). What is due here is the note's own outstanding
   // amount, never the invoice's added to it.
   const nowDue = !credit && total !== null ? (owed?.outstandingAmount ?? total) : null
+  // D-30(a): credit notes or payments above the debit note's total; held, never set against it.
+  const heldCredit = credit ? null : creditHeld(owed?.unappliedCredit)
 
   const blockerKey = deliveryBlockerKey(data.deliveryBlocker)
   // Manual delivery only: a detail page never reads `peppolResponse` (api/invoices/detail.ts).
@@ -804,6 +808,9 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
                 )}
               </div>
             </div>
+            {heldCredit !== null && owed ? (
+              <UnappliedCredit credit={heldCredit} currency={owed.currency} hint className="mx-4 mb-4" />
+            ) : null}
             {credit && refunding ? (
               <div className="mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 rounded-sm bg-success-100 px-4 py-3">
                 <div>
