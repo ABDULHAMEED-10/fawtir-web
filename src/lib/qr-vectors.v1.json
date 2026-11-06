@@ -1,7 +1,7 @@
 {
   "name": "qr-vectors",
   "version": 1,
-  "note": "Shared by the web (posQr.ts) and the backend (PintOmQrPayloadFactory, PintOmSellerUuid, PintOmQrTlvCodec); both repos keep identical bytes and pin the SHA-256 of the LF form. ASCII only: non-ASCII text is written as JSON escapes. SA v1.0.3 is the authority; every row without \"side\" holds the output of today's certified code, including review R-2. Rows marked \"side\": \"web\" pin only the web encoder's own fail-closed checks on input the backend never receives in that form (a negative or exponent amount, unknown minor units, a non-Muscat or unknown zone, a soldAt that is not a real instant); the backend skips them.",
+  "note": "Shared by the web (posQr.ts) and the backend (PintOmQrPayloadFactory, PintOmSellerUuid, PintOmQrTlvCodec); both repos keep identical bytes and pin the SHA-256 of the LF form. ASCII only: non-ASCII text is written as JSON escapes. SA v1.0.3 is the authority; every row without \"side\" holds the output of today's certified code, including review R-2. Rows marked \"side\": \"web\" pin only the web encoder's own fail-closed checks on input the backend never receives in that form (a negative or exponent amount, unknown minor units, a non-Muscat or unknown zone, a soldAt that is not a real instant); the backend skips them. An amount row with \"lines\" runs on the backend through the calculation engine, its projection, the authored mapper and the factory: the header allowance is allocated to the lines (the mapper emits no document-level allowance), and \"subtotals\", \"taxable\" and \"vat\" are that projection, which is what the web passes to its encoder.",
   "uuidNamespace": "e0bc4ac8-b025-46e5-a76d-0c893fc3027e",
   "payloads": [
     {
@@ -268,6 +268,40 @@
       "minorUnits": 2,
       "totalWithVat": "1.06",
       "vatTotal": "0.051"
+    },
+    {
+      "id": "T-X3 two VAT categories, S 5% and Z 0%: tag 9 is the sum of the breakdown, tag 8 from the 2-dp parts",
+      "lines": [
+        { "category": "S", "rate": "5", "net": "1.010" },
+        { "category": "Z", "rate": "0", "net": "2.000" }
+      ],
+      "headerAllowance": "0.000",
+      "minorUnits": 3,
+      "subtotals": [
+        { "category": "S", "rate": "5", "taxable": "1.010", "vat": "0.051" },
+        { "category": "Z", "rate": "0", "taxable": "2.000", "vat": "0.000" }
+      ],
+      "taxable": "3.010",
+      "vat": "0.051",
+      "totalWithVat": "3.060",
+      "vatTotal": "0.051"
+    },
+    {
+      "id": "T-X3 a header allowance of 1.000 over S 5% and Z 0% is allocated to the lines, never subtracted again",
+      "lines": [
+        { "category": "S", "rate": "5", "net": "10.000" },
+        { "category": "Z", "rate": "0", "net": "5.000" }
+      ],
+      "headerAllowance": "1.000",
+      "minorUnits": 3,
+      "subtotals": [
+        { "category": "S", "rate": "5", "taxable": "9.333", "vat": "0.467" },
+        { "category": "Z", "rate": "0", "taxable": "4.667", "vat": "0.000" }
+      ],
+      "taxable": "14.000",
+      "vat": "0.467",
+      "totalWithVat": "14.470",
+      "vatTotal": "0.467"
     },
     {
       "id": "T-X3 a negative amount gives no QR",

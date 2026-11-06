@@ -16,7 +16,7 @@ import {
 // bytes and pins the same hash, so a change on either side fails both. .gitattributes keeps it LF
 // in the working tree; the CRLF fold is only a guard for a checkout made before that.
 const FIXTURE = readFileSync(join(process.cwd(), 'src/lib/qr-vectors.v1.json'), 'utf8').replace(/\r\n/g, '\n')
-const FIXTURE_SHA256 = '02c3d32332354ad0b15378c13aa2cdfa94909bb7baa1d8e8d3ba09279667901b'
+const FIXTURE_SHA256 = 'd61894ff998bcfbe947d52c8df17a49b8afeeba8f7d269145a0ffc5e20ad50b2'
 
 interface PayloadRow {
   id: string
@@ -27,6 +27,13 @@ interface PayloadRow {
 }
 interface AmountRow {
   id: string
+  /**
+   * QB1R-3: the backend runs these through its calculation engine and mapper; the web gets the
+   * projection (subtotals, taxable, vat) and encodes from taxable and vat only.
+   */
+  lines?: { category: string; rate: string; net: string }[]
+  headerAllowance?: string
+  subtotals?: { category: string; rate: string; taxable: string; vat: string }[]
   taxable: string
   vat: string
   minorUnits: number | null
@@ -147,6 +154,16 @@ describe('the QR payload and Seller UUID (T-X1, T-X2, T-X5)', () => {
 })
 
 describe('the QR amounts (T-X3, review R-1)', () => {
+  it('reads the projection rows as their subtotals add up, so taxable and vat are what the web is given', () => {
+    const projected = vectors.amounts.filter((each) => each.subtotals)
+    expect(projected.length).toBeGreaterThan(0)
+    const units = (text: string) => BigInt(text.replace('.', ''))
+    for (const vector of projected) {
+      expect(vector.subtotals!.reduce((sum, part) => sum + units(part.taxable), 0n)).toBe(units(vector.taxable))
+      expect(vector.subtotals!.reduce((sum, part) => sum + units(part.vat), 0n)).toBe(units(vector.vat))
+    }
+  })
+
   it.each(vectors.amounts.map((each) => [each.id, each] as const))('%s', (_id, vector) => {
     const amounts = qrAmounts(vector.taxable, vector.vat, vector.minorUnits as number)
     if (vector.refused) expect(amounts).toBeNull()
