@@ -1,0 +1,25 @@
+/*
+ * Print only the document sheet (review QW2R-2): window.print() otherwise prints the app shell,
+ * the side panels and, under a dialog, the list behind it. Gated on :has() so a page without a
+ * sheet (the till's own receipt screen, any other print) prints exactly as before, and nothing
+ * here applies on screen.
+ */
+@media print {
+  body:has(.fawtir-print-sheet) * {
+    visibility: hidden;
+  }
+
+  body:has(.fawtir-print-sheet) .fawtir-print-sheet,
+  body:has(.fawtir-print-sheet) .fawtir-print-sheet * {
+    visibility: visible;
+  }
+
+  /* Fixed, so a scrolling or clipped container on screen does not cut the sheet on paper. */
+  body:has(.fawtir-print-sheet) .fawtir-print-sheet {
+    position: fixed;
+    inset: 0 auto auto 0;
+    width: 100%;
+    /* The invoice pane sets its on-screen zoom inline; paper prints at full size. */
+    zoom: 1 !important;
+  }
+}

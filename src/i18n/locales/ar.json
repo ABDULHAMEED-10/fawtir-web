@@ -4959,7 +4959,9 @@
       "soldNote_few": "{{count}} عمليات · بمتوسط {{average}}",
       "soldNote_many": "{{count}} عملية · بمتوسط {{average}}",
       "soldNote_other": "{{count}} عملية · بمتوسط {{average}}",
-      "reprintTitle": "إعادة طباعة الإيصال"
+      "reprintTitle": "إعادة طباعة الإيصال",
+      "reprintUnavailable": "إعادة الطباعة غير متاحة بعد.",
+      "reprintCopy": "نسخة"
     },
     "close": {
       "title": "الإغلاق",

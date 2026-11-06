@@ -8,6 +8,7 @@ import { posSaleRowActions } from '../../lib/rowActions'
 import { muscatToday, omr, toBaisa } from '../../lib/pos'
 import { PosTillGate } from './PosTillGate'
 import { ReceiptReprint } from './PosReprint'
+import { reprintOffered } from '../../lib/posReprint'
 import { saleCashierLabel } from '../../lib/posAttribution'
 import { useApiRead } from '../../hooks'
 import {
@@ -462,10 +463,9 @@ function SaleRow({
         ) : null}
         {/* The ⋮ as a bordered square the height of the button beside it. */}
         <span className="[&>div>button]:size-9 [&>div>button]:border [&>div>button]:border-border-subtle [&>div>button]:bg-white [&>div>button>img]:size-5">
-          {/* A queued sale keeps the menu it had: its receipt printed a number and no QR that the
-              server's answer cannot restate (QR E-5; its printed QR waits for E-1). */}
+          {/* Any sale but a filed online one keeps the menu it had (reprintOffered, QW2R-3). */}
           <ActionMenu
-            items={posSaleRowActions(sale.invoiceId, sale.queuedOffline ? undefined : onReprint)}
+            items={posSaleRowActions(sale.invoiceId, reprintOffered(sale) ? onReprint : undefined)}
             label={t('pos.today.rowMenu')}
           />
         </span>

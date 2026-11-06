@@ -2949,6 +2949,9 @@ describe('the receipt QR on the invoice preview (QR E-3)', () => {
     renderInvoice()
     await waitFor(() => expect(qrImage()).toBeTruthy())
     expect(qrImage()!.getAttribute('src')).toBe(`data:image/png;base64,${PAYLOAD}`)
+    // The pane's sheet, with its QR, is the one element marked to print (QW2R-2); the shell is not.
+    expect(qrImage()!.closest('.fawtir-print-sheet')).toBeTruthy()
+    expect(document.querySelectorAll('.fawtir-print-sheet')).toHaveLength(1)
     // The encoder sees exactly the string the server sent: no number, date or total of the page.
     expect(new Set(encoded())).toEqual(new Set([PAYLOAD]))
     expect(printButton().disabled).toBe(false)

@@ -7,6 +7,9 @@ import { omr, omrSigned, receiptStamp, toBaisa } from '../../lib/pos'
 import { receiptSellerHeader } from '../../lib/posReceiptSeller'
 import { saleCashierLabel } from '../../lib/posAttribution'
 import { ReceiptMasthead, ReceiptQr, ReceiptRow } from './PosReceiptParts'
+import { reprintReady } from '../../lib/posReprint'
+import { maskedIdentifier } from '../../lib/posSale'
+import { PRINT_SHEET_CLASS } from '../../components/print/printSheet'
 
 const METHOD_KEYS: Record<PosMethod, string> = {
   CASH: 'pos.pay.cash',
@@ -21,10 +24,9 @@ const METHOD_KEYS: Record<PosMethod, string> = {
  * The seller is the one frozen on the issued invoice and nothing else: a missing value prints as not
  * recorded, never from the live profile, because a reprint after a profile change would otherwise
  * name today's seller on yesterday's sale. The QR is the server's image, frozen at issue for an
- * online consumer sale. That response carries no item lines and no buyer, so the reprint has neither.
- * Offered only for a sale made online: a queued sale's receipt printed its own number, which can
- * differ from the filed one (POS_PRINTED_NUMBER_DIFFERS) and is not in the response, and its printed
- * QR is not stored yet (E-1).
+ * online consumer sale. Nothing is printed unless the answer also carries the issued lines and, on a
+ * full invoice, the buyer (`reprintReady`, ruling QW2R-1); no server sends them yet, so today the
+ * dialog only says the reprint is not available. The sheet says COPY on paper, not only in the title.
  */
 export function ReceiptReprint({
   saleId,
@@ -40,7 +42,8 @@ export function ReceiptReprint({
   const sale = useApiRead<PosSaleDto>(`${POS_SALES_PATH}/${encodeURIComponent(saleId)}`, () =>
     loadPosSale(saleId),
   )
-  const ready = sale.read.status === 'ready' ? sale.read.data : null
+  const answered = sale.read.status === 'ready' ? sale.read.data : null
+  const ready = answered && reprintReady(answered) ? answered : null
   return (
     <Modal
       open
@@ -66,6 +69,8 @@ export function ReceiptReprint({
         <ApiReadFailure error={sale.read.error} retry={sale.retry} />
       ) : ready ? (
         <ReprintPaper sale={ready} branchName={branchName} locale={locale} />
+      ) : answered ? (
+        <p className="text-sm font-medium text-text-tertiary">{t('pos.today.reprintUnavailable')}</p>
       ) : null}
     </Modal>
   )
@@ -85,14 +90,20 @@ function ReprintPaper({
   const seller = receiptSellerHeader(sale.receipt.seller ?? null, null, null)
   const totals = sale.totals
   const change = sale.payments.reduce((sum, payment) => sum + toBaisa(payment.change ?? 0), 0)
+  const buyer = sale.receipt.buyer
   return (
-    <div className="rounded-sm bg-white px-5 py-6 text-center shadow-sm">
+    <div className={`${PRINT_SHEET_CLASS} rounded-sm bg-white px-5 py-6 text-center shadow-sm`}>
       <ReceiptMasthead
         seller={seller}
         liveVatNumber={null}
         fullInvoice={sale.transactionType === 'FULL_TAX'}
         locale={locale}
       />
+      {/* On the sheet itself: the modal's title does not reach the paper. */}
+      <p className="mt-2 text-sm font-bold uppercase tracking-[0.12em] text-text-primary">
+        {t('pos.today.reprintCopy')}
+      </p>
+      {locale === 'ar' ? null : <p className="font-arabic text-sm font-bold text-text-primary">نسخة</p>}
 
       <div className="mt-4 border-t border-dashed border-border-subtle pt-3 text-start">
         <ReceiptRow label={sale.invoiceNumber} value={receiptStamp(sale.soldAt, locale)} />
@@ -100,6 +111,29 @@ function ReprintPaper({
           label={t('pos.done.till', { number: sale.tillNumber, who: saleCashierLabel(sale, t) })}
           value={branchName ?? ''}
         />
+        {buyer?.name ? (
+          <>
+            <ReceiptRow label={buyer.name} value="" />
+            {buyer.vatNumber ? (
+              <ReceiptRow label={t('pos.done.vat')} value={buyer.vatNumber} />
+            ) : buyer.identifierScheme && buyer.identifierValue ? (
+              <ReceiptRow
+                label={t(`customerForm.identifier.schemes.${buyer.identifierScheme}`)}
+                value={maskedIdentifier(buyer.identifierScheme, buyer.identifierValue)}
+              />
+            ) : null}
+          </>
+        ) : null}
+      </div>
+
+      <div className="mt-3 border-t border-dashed border-border-subtle pt-3 text-start">
+        {(sale.receipt.lines ?? []).map((line, index) => (
+          <ReceiptRow
+            key={index}
+            label={`${line.quantity} × ${line.description}`}
+            value={omr(toBaisa(line.lineTotal))}
+          />
+        ))}
       </div>
 
       <div className="mt-3 border-t border-dashed border-border-subtle pt-3 text-start">

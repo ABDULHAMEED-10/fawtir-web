@@ -335,6 +335,14 @@ export type PosSaleDto = {
      * server before S-A; on a server with it, always present, a value null when not recorded.
      */
     seller?: PosReceiptSellerDto | null
+    /**
+     * NOT SERVED YET: proposed for backend QRW2-BE-1, names to be confirmed there. The issued lines
+     * as the receipt printed them; until a response carries them the till offers no reprint
+     * (coordinator ruling QW2R-1).
+     */
+    lines?: PosReceiptLineDto[] | null
+    /** NOT SERVED YET (QRW2-BE-1): the buyer frozen on the issued invoice, for a full invoice. */
+    buyer?: PosReceiptBuyerDto | null
   }
   filing: PosFiling
   warnings: PosWarning[]
@@ -345,6 +353,15 @@ export type PosSaleDto = {
 }
 
 export type PosAttribution = 'ONLINE' | 'VERIFIED' | 'PENDING_REVIEW' | 'LEGACY'
+
+export type PosReceiptLineDto = { description: string; quantity: number; lineTotal: number }
+
+export type PosReceiptBuyerDto = {
+  name: string | null
+  vatNumber: string | null
+  identifierScheme: string | null
+  identifierValue: string | null
+}
 
 export type PosReceiptSellerDto = {
   legalName: string | null

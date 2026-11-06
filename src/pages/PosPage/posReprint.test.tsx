@@ -93,6 +93,8 @@ function sale(overrides: Partial<PosSaleDto> = {}): PosSaleDto {
       totalPaid: 5.649,
       onAccount: 0,
       qr: { status: 'READY', payload: 'AQxBbCBOb29yIFRyYWRpbmc=', pngUrl: null },
+      // Not served by any backend yet (QRW2-BE-1): the shape the reprint waits for.
+      lines: [{ description: 'Flat white', quantity: 2, lineTotal: 5.38 }],
       seller: {
         legalName: 'Al Noor Trading LLC',
         vatNumber: 'OM1100012345',
@@ -142,10 +144,14 @@ function row(overrides: Partial<PosTodaySaleRow>): PosTodaySaleRow {
   }
 }
 
-const ROWS = [
-  row({}),
-  row({ saleId: 's-2', invoiceId: 'inv-2', invoiceNumber: 'NZW-T01-INV-2026-000050', queuedOffline: true }),
-]
+const QUEUED_ROW = row({
+  saleId: 's-2',
+  invoiceId: 'inv-2',
+  invoiceNumber: 'NZW-T01-INV-2026-000050',
+  queuedOffline: true,
+})
+
+let rows: PosTodaySaleRow[]
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -167,6 +173,7 @@ beforeEach(async () => {
   window.localStorage.clear()
   vi.mocked(QRCode.toDataURL).mockClear()
   saleAnswer = sale()
+  rows = [row({}), QUEUED_ROW]
   fetchMock = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input)
     if (url === '/api/v1/me/entitlements') return json(CASHIER)
@@ -176,7 +183,7 @@ beforeEach(async () => {
     }
     if (url.startsWith('/api/v1/pos/tills')) return json([TILL])
     if (url.startsWith('/api/v1/pos/sales?')) {
-      return json({ branchId: 'b-1', businessDate: '2026-10-29', page: 0, size: 50, totalElements: 2, content: ROWS })
+      return json({ branchId: 'b-1', businessDate: '2026-10-29', page: 0, size: 50, totalElements: rows.length, content: rows })
     }
     if (url.startsWith('/api/v1/pos/sales/s-1')) return json(saleAnswer)
     return json({ type: 'about:blank', status: 404 }, 404)
@@ -199,7 +206,7 @@ async function renderToday() {
       </Routes>
     </MemoryRouter>,
   )
-  await waitFor(() => expect(screen.getAllByRole('button', { name: i18n.t('pos.today.rowMenu') })).toHaveLength(2))
+  await waitFor(() => expect(screen.getAllByRole('button', { name: i18n.t('pos.today.rowMenu') })).toHaveLength(rows.length))
 }
 
 /** Opens a row's ⋮ menu and presses "Print the receipt". */
@@ -230,6 +237,14 @@ describe('reprinting a filed online sale from the day', () => {
     expect(await within(dialog).findByText('Al Noor Trading LLC')).toBeTruthy()
     expect(within(dialog).getByText('OM1100012345')).toBeTruthy()
     expect(numberRow(dialog, 'NZW-T01-INV-2026-000049')).toContain(receiptStamp(SOLD_AT, 'en-GB'))
+    // Pinned, not only compared with itself: 10:00 UTC is 14:00 in Muscat (QW2R-4).
+    expect(numberRow(dialog, 'NZW-T01-INV-2026-000049')).toBe('NZW-T01-INV-2026-000049 | 29 Oct, 14:00')
+    // COPY is on the sheet that prints, in both languages, and the sheet is the one marked for print.
+    const sheet = dialog.querySelector('.fawtir-print-sheet') as HTMLElement
+    expect(sheet).toBeTruthy()
+    expect(within(sheet).getByText('COPY')).toBeTruthy()
+    expect(within(sheet).getByText('نسخة')).toBeTruthy()
+    expect(within(sheet).getByText('2 × Flat white')).toBeTruthy()
     expect(qrSrc(dialog)).toBe('/api/v1/pos/sales/s-1/qr')
     // Never the live profile, though this reader may see it.
     expect(within(dialog).queryByText(LIVE_PROFILE.legalName)).toBeNull()
@@ -300,5 +315,123 @@ describe('a reprint equals the receipt printed after the sale', () => {
     expect(numberRow(dialog, answered.invoiceNumber)).toBe(originalRow)
     expect(qrSrc(dialog)).toBe(originalQr)
     expect(QRCode.toDataURL).not.toHaveBeenCalled()
+  })
+})
+
+describe('the reprint waits for the lines and buyer (ruling QW2R-1)', () => {
+  const unavailable = () => i18n.t('pos.today.reprintUnavailable')
+  const printButton = (dialog: HTMLElement) =>
+    within(dialog).getByRole('button', { name: i18n.t('pos.done.printAgain') }) as HTMLButtonElement
+
+  it("prints nothing for today's answer, which carries no lines, and says so", async () => {
+    saleAnswer = sale({ receipt: { ...sale().receipt, lines: undefined } })
+    await renderToday()
+    printFromRow(0)
+    const dialog = await screen.findByRole('dialog', { name: i18n.t('pos.today.reprintTitle') })
+    expect(await within(dialog).findByText(unavailable())).toBeTruthy()
+    expect(dialog.querySelector('.fawtir-print-sheet')).toBeNull()
+    expect(within(dialog).queryByAltText(i18n.t('pos.done.qrAlt'))).toBeNull()
+    expect(printButton(dialog).disabled).toBe(true)
+  })
+
+  it('prints nothing for a full invoice whose answer has lines but no buyer', async () => {
+    saleAnswer = sale({ transactionType: 'FULL_TAX', customerKind: 'CONSUMER' })
+    await renderToday()
+    printFromRow(0)
+    const dialog = await screen.findByRole('dialog', { name: i18n.t('pos.today.reprintTitle') })
+    expect(await within(dialog).findByText(unavailable())).toBeTruthy()
+    expect(printButton(dialog).disabled).toBe(true)
+  })
+
+  it('prints a full invoice with its buyer once the answer carries one', async () => {
+    saleAnswer = sale({
+      transactionType: 'FULL_TAX',
+      customerKind: 'BUSINESS',
+      receipt: {
+        ...sale().receipt,
+        qr: { status: 'NOT_APPLICABLE', payload: null, pngUrl: null },
+        buyer: { name: 'Sohar Port Logistics', vatNumber: 'OM1100999001', identifierScheme: null, identifierValue: null },
+      },
+    })
+    await renderToday()
+    printFromRow(0)
+    const dialog = await screen.findByRole('dialog', { name: i18n.t('pos.today.reprintTitle') })
+    const sheet = await waitFor(() => {
+      const found = dialog.querySelector('.fawtir-print-sheet') as HTMLElement | null
+      if (!found) throw new Error('no sheet yet')
+      return found
+    })
+    expect(within(sheet).getByText('Sohar Port Logistics')).toBeTruthy()
+    expect(within(sheet).getByText('OM1100999001')).toBeTruthy()
+    expect(within(sheet).getByText(i18n.t('pos.done.taxInvoice'))).toBeTruthy()
+    expect(within(sheet).getByText('COPY')).toBeTruthy()
+    expect(printButton(dialog).disabled).toBe(false)
+  })
+
+  it('has both sentences in both languages', () => {
+    for (const key of ['pos.today.reprintUnavailable', 'pos.today.reprintCopy']) {
+      expect(i18n.exists(key, { lng: 'ar' })).toBe(true)
+      expect(i18n.t(key, { lng: 'ar' })).not.toBe(i18n.t(key, { lng: 'en' }))
+    }
+  })
+})
+
+describe('only a filed sale is offered (QW2R-3)', () => {
+  it.each([
+    ['fully credited', { displayState: 'credited', credit: { state: 'FULLY', credited: 5.649, creditNoteNumbers: ['CN-1'] } }],
+    ['partly credited', { credit: { state: 'PARTLY', credited: 1, creditNoteNumbers: ['CN-1'] } }],
+    ['failed', { displayState: 'failed' }],
+    ['waiting', { displayState: 'waiting' }],
+    [
+      'still queued for filing',
+      { filing: { dispatchState: 'QUEUED', tddStatus: null, acceptedAt: null, channel: 'TAX_AUTHORITY' } },
+    ],
+    ['held for review', { attribution: 'PENDING_REVIEW', cashier: null }],
+  ] as [string, Partial<PosTodaySaleRow>][])('not for a sale %s', async (_, overrides) => {
+    rows = [row(overrides)]
+    await renderToday()
+    printFromRow(0)
+    expect(screen.queryByRole('dialog', { name: i18n.t('pos.today.reprintTitle') })).toBeNull()
+    expect(requested().some((url) => url.startsWith('/api/v1/pos/sales/s-1'))).toBe(false)
+  })
+})
+
+describe('the reprint QR and seller, case by case (QW2R-5)', () => {
+  async function reprint() {
+    await renderToday()
+    printFromRow(0)
+    const dialog = await screen.findByRole('dialog', { name: i18n.t('pos.today.reprintTitle') })
+    await waitFor(() => expect(dialog.querySelector('.fawtir-print-sheet')).toBeTruthy())
+    return dialog
+  }
+
+  it('says the QR is not ready for PENDING, and draws none', async () => {
+    saleAnswer = sale({ receipt: { ...sale().receipt, qr: { status: 'PENDING', payload: null, pngUrl: null } } })
+    const dialog = await reprint()
+    expect(within(dialog).getByText(i18n.t('pos.done.qrPending'))).toBeTruthy()
+    expect(within(dialog).queryByAltText(i18n.t('pos.done.qrAlt'))).toBeNull()
+    expect(QRCode.toDataURL).not.toHaveBeenCalled()
+  })
+
+  it('draws no QR for NOT_APPLICABLE even with a payload beside it', async () => {
+    saleAnswer = sale({
+      receipt: { ...sale().receipt, qr: { status: 'NOT_APPLICABLE', payload: 'AQxBbCBOb29y', pngUrl: '/x.png' } },
+    })
+    const dialog = await reprint()
+    expect(within(dialog).queryByAltText(i18n.t('pos.done.qrAlt'))).toBeNull()
+    expect(QRCode.toDataURL).not.toHaveBeenCalled()
+  })
+
+  it('an answer with no seller key prints the seller as not recorded, never the live one', async () => {
+    const receipt: Partial<PosSaleDto['receipt']> = { ...sale().receipt }
+    delete receipt.seller
+    saleAnswer = sale({ receipt: receipt as PosSaleDto['receipt'] })
+    const dialog = await reprint()
+    expect(within(dialog).getByText(i18n.t('pos.done.sellerNameNotRecorded'))).toBeTruthy()
+    expect(
+      within(dialog).getByText(`${i18n.t('pos.done.vat')} ${i18n.t('pos.done.notRecorded')}`),
+    ).toBeTruthy()
+    expect(within(dialog).queryByText(LIVE_PROFILE.legalName)).toBeNull()
+    expect(within(dialog).queryByText('Workspace Display Name')).toBeNull()
   })
 })

@@ -78,6 +78,7 @@ import { HeldHsCodesModal } from '../../components/invoice/HeldHsCodesModal'
 import { isHeldForHsCode, missingHsLines } from '../../lib/heldHsCodes'
 import { receiptQrShown } from '../../lib/invoiceReceiptQr'
 import { useServerQr } from '../../components/invoice/useServerQr'
+import { PRINT_SHEET_CLASS } from '../../components/print/printSheet'
 import type { HeldHsCodeAmendmentDto } from '../../api/invoices/detail'
 import {
   RELEASE_REFUSALS,
@@ -1399,7 +1400,10 @@ function InvoiceScreen() {
               title={t('invoiceDetails.pdf.previewNote')}
               className="max-h-[560px] overflow-auto rounded-sm bg-surface-background p-3"
             >
-              <div style={{ zoom }}>{preview}</div>
+              {/* The pane's copy is the one Print puts on paper; the full-screen one is not marked. */}
+              <div style={{ zoom }} className={PRINT_SHEET_CLASS}>
+                {preview}
+              </div>
             </div>
             {receiptQrView.noteKey ? (
               <p className="mt-2 text-xs font-medium text-text-quaternary">

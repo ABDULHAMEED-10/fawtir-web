@@ -4684,7 +4684,9 @@
       "approval": "Approval {{code}}",
       "partlyCredited": "{{amount}} credited",
       "plusTip": "+ {{amount}} tip",
-      "reprintTitle": "Reprint receipt"
+      "reprintTitle": "Reprint receipt",
+      "reprintUnavailable": "Reprint is not available yet.",
+      "reprintCopy": "COPY"
     },
     "close": {
       "title": "Closing it",
