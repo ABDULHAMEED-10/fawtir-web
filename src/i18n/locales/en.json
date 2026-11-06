@@ -4526,7 +4526,7 @@
         "recordedTitle": "The server recorded this sale",
         "recorded": "Invoice {{invoice}}, {{amount}}. It is recorded once: do not ring it or charge for it again.",
         "notRecordedTitle": "The server has no record of this sale",
-        "notRecorded": "The server has no record of this sale. Before charging again, check the card terminal or slip: if the customer was charged, refund it or keep the approval for the new sale.",
+        "notRecorded": "The server has no record of this sale. Before taking payment again, check everything already taken: the card terminal or slip, any bank transfer, and the cash handed over. Give back what was taken, or keep it for the new sale (for a card, keep the approval).",
         "ringAgain": "Ring it again as a new sale"
       }
     },
@@ -5200,7 +5200,7 @@
       "POS_TILL_NUMBER_GAP": "A sale made offline is missing before this one. The till expected number {{expectedNumber}}.",
       "POS_TILL_NUMBER_REPEATED": "This invoice number was already used.",
       "POS_SALE_KEY_REUSED": "This sale was already sent with different contents.",
-      "POS_SALE_KEY_ABANDONED": "The server has no record of this sale and has closed it, so it can never be sent again as it was. Before charging again, check the card terminal or slip: if the customer was charged, refund it or keep the approval for the new sale.",
+      "POS_SALE_KEY_ABANDONED": "The server has no record of this sale and has closed it, so it can never be sent again as it was. Before taking payment again, check everything already taken: the card terminal or slip, any bank transfer, and the cash handed over. Give back what was taken, or keep it for the new sale (for a card, keep the approval).",
       "POS_CONSUMER_CONTACT_INVALID": "The contact must be a phone number or an email address.",
       "POS_CARD_APPROVAL_REQUIRED": "Type the approval code from the bank slip.",
       "POS_COUNT_REQUIRED": "Count the drawer before closing.",

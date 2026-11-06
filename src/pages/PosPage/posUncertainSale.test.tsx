@@ -558,7 +558,7 @@ describe('a lock-only hold decided by the server (RESEND-AUTH)', () => {
     expect(said.getAttribute('role')).toBe('alert')
     expect(screen.queryByText(i18n.t('pos.pay.uncertain.title'))).toBeNull()
     expect(said.textContent).toBe(
-      'The server has no record of this sale. Before charging again, check the card terminal or slip: if the customer was charged, refund it or keep the approval for the new sale.',
+      'The server has no record of this sale. Before taking payment again, check everything already taken: the card terminal or slip, any bank transfer, and the cash handed over. Give back what was taken, or keep it for the new sale (for a card, keep the approval).',
     )
     expect(heldNames()).toEqual([])
     expect(posts).toHaveLength(1)
@@ -651,7 +651,9 @@ describe('a lock-only hold decided by the server (RESEND-AUTH)', () => {
     replies.push(() => json({ type: 'about:blank', status: 409, code: 'POS_SALE_KEY_ABANDONED' }, 409))
     fireEvent.click(retry())
     expect(await screen.findByText(i18n.t('pos.refusal.POS_SALE_KEY_ABANDONED'))).toBeTruthy()
-    expect(i18n.t('pos.refusal.POS_SALE_KEY_ABANDONED')).toMatch(/check the card terminal or slip/)
+    expect(i18n.t('pos.refusal.POS_SALE_KEY_ABANDONED')).toMatch(
+      /the card terminal or slip, any bank transfer, and the cash handed over/,
+    )
     expect(heldNames()).toEqual([])
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(posts).toHaveLength(2)
