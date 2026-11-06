@@ -432,9 +432,11 @@ describe('taking the payment (P.12)', () => {
     expect(screen.queryByText(/^done/)).toBeNull()
     expect(screen.queryByText(/NZW-T01-INV-2026-000049/)).toBeNull()
     expect(JSON.parse(window.localStorage.getItem('fawtir.pos.queue') ?? '[]')).toEqual([])
-    // The cart is as it was, ready to finish once the till is online again.
-    expect(screen.getAllByText(/5\.649/).length).toBeGreaterThan(0)
-    expect(screen.getByRole('button', { name: 'Finish the sale' })).toBeTruthy()
+    // E-01: the request went out, so the sale is held as sent: only the same sale again, or today's
+    // sales, never a changed one under a new key.
+    expect(screen.getByRole('button', { name: i18n.t('pos.pay.uncertain.retry') })).toBeTruthy()
+    expect(screen.getByRole('link', { name: i18n.t('pos.pay.uncertain.checkToday') })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Finish the sale' })).toBeNull()
   })
 
   // QW4R-1: the refusal after the request went out keeps the sale's key, so finishing the same cart
@@ -461,7 +463,7 @@ describe('taking the payment (P.12)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
     expect(await screen.findByText(i18n.t('pos.refusal.offlineQrUnavailableAfterSend'))).toBeTruthy()
     up = true
-    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('pos.pay.uncertain.retry') }))
     expect(await screen.findByText('done NZW-T01-INV-2026-000049')).toBeTruthy()
     const keys = calls
       .filter((call) => call.url === '/api/v1/pos/sales')
@@ -531,16 +533,18 @@ describe('taking the payment (P.12)', () => {
     expect(JSON.parse(window.localStorage.getItem('fawtir.pos.queue') ?? '[]')).toEqual([])
 
     // Storage works again but nothing has proved it: the sell control stays off, online or
-    // offline, while the notice shows (DES43 rev 4.7 D.9).
-    const finishButton = screen.getByRole('button', { name: 'Finish the sale' }) as HTMLButtonElement
-    expect(finishButton.disabled).toBe(true)
-    fireEvent.click(finishButton)
+    // offline, while the notice shows (DES43 rev 4.7 D.9). The request went out, so the control is
+    // the held sale's own (E-01).
+    const retry = () =>
+      screen.getByRole('button', { name: i18n.t('pos.pay.uncertain.retry') }) as HTMLButtonElement
+    expect(retry().disabled).toBe(true)
+    fireEvent.click(retry())
     expect(screen.queryByText(/^done/)).toBeNull()
 
     // Check again proves storage; the next try takes the number that was never printed, once.
     fireEvent.click(screen.getByRole('button', { name: i18n.t('pos.storage.checkAgain') }))
     await waitFor(() => expect(screen.queryByText(i18n.t('pos.storage.blocked'))).toBeNull())
-    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+    fireEvent.click(retry())
     expect(await screen.findByText('done NZW-T01-INV-2026-000049')).toBeTruthy()
     const queued = JSON.parse(window.localStorage.getItem('fawtir.pos.queue') ?? '[]')
     expect(queued).toHaveLength(1)

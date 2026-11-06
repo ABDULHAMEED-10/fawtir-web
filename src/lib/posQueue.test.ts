@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, NetworkError, resetSharedRequests } from '../api'
+import { ApiError, resetSharedRequests } from '../api'
 import type { PosSaleRequest, PosTillDto } from '../api/pos/pos'
 import {
   checkStorageAgain,
@@ -12,6 +12,7 @@ import {
   noteQueueSender,
   noteTillServer,
   offlineBlock,
+  PosSaleOutcomeUnknown,
   PosStorageUnavailable,
   PosTenantZoneUnavailable,
   resetPosQueue,
@@ -1106,7 +1107,8 @@ describe('offline numbers across a new year (B36 OFF-1)', () => {
   it('prints no number for a new-year sale on a till last read in the old year, and keeps nothing', async () => {
     await expect(
       submitSale(TILL, { ...BODY, soldAt: JUST_AFTER_MIDNIGHT }, 'pos-sale-key-ny01'),
-    ).rejects.toBeInstanceOf(NetworkError)
+      // E-01: its request went out first, so the outcome is unknown rather than "offline".
+    ).rejects.toBeInstanceOf(PosSaleOutcomeUnknown)
     expect(queuedFor('till-1')).toEqual([])
   })
 
@@ -1176,7 +1178,7 @@ describe('offline numbering in the tenant zone (B37 OFF-6)', () => {
   it("prints nothing when the till was read before the zone's new year and the sale is after it", async () => {
     await expect(
       submitSale(tillIn(2026, 49, KIRITIMATI), { ...BODY, soldAt: THERE_NEW_YEAR }, 'pos-sale-key-tz02'),
-    ).rejects.toBeInstanceOf(NetworkError)
+    ).rejects.toBeInstanceOf(PosSaleOutcomeUnknown)
     expect(queuedFor('till-1')).toEqual([])
   })
 

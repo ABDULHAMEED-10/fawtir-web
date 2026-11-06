@@ -4502,7 +4502,13 @@
       "slipCheck": "Check the marked field before you press Paid.",
       "slipDiffers": "The slip says {{slip}}, the payment is {{payment}}.",
       "slipKeptOffline": "The till is offline. The slip photo is kept with this sale and sent once the connection is back. Type the approval code if you need it now.",
-      "approvalIsCardNumber": "That looks like the card number. Type the approval code from the bank slip, never the card number."
+      "approvalIsCardNumber": "That looks like the card number. Type the approval code from the bank slip, never the card number.",
+      "uncertain": {
+        "title": "The outcome of this sale is not known yet",
+        "locked": "Until it is, the basket, the payment and the buyer cannot be changed: a changed sale would be a new one, and the customer could be charged twice.",
+        "retry": "Send the same sale again",
+        "checkToday": "Check today’s sales"
+      }
     },
     "done": {
       "title": "Paid and filed",
@@ -5282,7 +5288,9 @@
       "TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE": "This company's time zone is not set to Oman time, so e-invoices can't be issued and nothing was recorded. Contact Fawtir support to set it to Asia/Muscat.",
       "offlineQrUnavailable": "This till cannot issue an offline receipt now: the QR settings are not available. Nothing was numbered or printed. Reconnect to sell online, or keep the sale open until the connection is back.",
       "offlineQrUnavailableAfterSend": "No receipt: the connection dropped while sending, and this till cannot issue an offline receipt because its QR settings are not available, so no number was printed. The sale may already have reached Fawtir. Keep the sale open and finish it again once the till is online: it goes with the same key, so it cannot be recorded twice.",
-      "offlineQrUnavailableBehind": "This sale has to wait behind earlier sales that are not filed yet, and this till cannot issue a receipt for it without its QR settings. Nothing was numbered or printed. Keep the sale open and try again once the waiting sales are filed."
+      "offlineQrUnavailableBehind": "This sale has to wait behind earlier sales that are not filed yet, and this till cannot issue a receipt for it without its QR settings. Nothing was numbered or printed. Keep the sale open and try again once the waiting sales are filed.",
+      "outcomeUnknown": "The sale was sent, but no clear answer came back, so it may already be recorded. Do not take payment again and do not ring it up again: send the same sale again, or check today’s sales.",
+      "POS_SALE_QR_UNAVAILABLE_FOR_BUYER": "This sale type cannot be issued with a QR yet: a full tax invoice to this buyer is not available at the till for now. Nothing was charged, numbered or printed, and the sale is kept."
     },
     "warning": {
       "STOCK_BELOW_ZERO": "Line {{line}} took the stock below zero. Count it when you can.",

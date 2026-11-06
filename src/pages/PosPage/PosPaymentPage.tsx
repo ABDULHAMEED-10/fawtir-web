@@ -1,7 +1,14 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { Rial, Select } from '../../components/ui'
 import { TillMoneyInput } from './TillMoneyInput'
-import { setFinishedSale, useOpenSale } from '../../lib/posSale'
+import {
+  holdUncertainSale,
+  setFinishedSale,
+  settleUncertainSale,
+  useOpenSale,
+  useUncertainSale,
+  type UncertainSale,
+} from '../../lib/posSale'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
@@ -32,13 +39,18 @@ import {
   type TipChoice,
 } from '../../lib/posPayment'
 import { posSaleBody, type TillBuyer } from '../../lib/posInvoice'
-import { PosTenantZoneUnavailable, submitSale, useSellingBlock } from '../../lib/posQueue'
+import {
+  PosTenantZoneUnavailable,
+  saleOutcomeUncertain,
+  submitSale,
+  useSellingBlock,
+} from '../../lib/posQueue'
 import { refusalCode, refusalSentence } from '../../lib/posRefusals'
 import { shrinkSlip, slipReading, type SlipReading } from '../../lib/posSlip'
 import { useReferenceData } from '../../lib/reference/referenceData'
 import { DESIGN_REFERENCE } from '../../lib/invoiceDraft'
 import { newPosKey, readPosSlip, uploadPosSlip, type PosSaleRequest } from '../../api/pos/pos'
-import { ApiError, NetworkError } from '../../api'
+import { ApiError, NetworkError, serverCode } from '../../api'
 import { MAX_SLIP_BYTES } from '../../lib/posSlipOutbox'
 import { BUYER_IDENTIFIER_SCHEMES } from '../../api/customers/customers'
 import { tillContact } from '../../lib/posContact'
@@ -170,6 +182,7 @@ function Payment({ till }: { till: Ready }) {
   const [contactError, setContactError] = useState<'phone' | 'email' | null>(null)
   /** A retried sale is the same sale: same key, same time, same body (P.12). */
   const attempt = useRef<{ fingerprint: string; key: string; soldAt: string } | null>(null)
+  const uncertain = useUncertainSale()
 
   const tip = company ? 0 : tipFor(tipChoice, totals.sale)
   const owed = toPay(totals.sale, tip)
@@ -236,8 +249,55 @@ function Payment({ till }: { till: Ready }) {
           }
         : { kind: 'walkIn' }
 
+  /**
+   * Sends the sale and shows its receipt, or says why not. An answer that leaves the outcome
+   * unknown holds the sale exactly as sent (E-01): the screen then offers only the same sale again,
+   * under the same key, or today's sales, until an answer is definite.
+   */
+  const send = async (held: UncertainSale) => {
+    try {
+      const qrProfile = await qrProfileNow()
+      const result = await submitSale(
+        // Only a sale the till queues reads the profile (`offlinePrintedQr`); an online one never does.
+        qrProfile ? { ...till.till, qrProfile } : till.till,
+        held.request,
+        held.key,
+        held.slipPhotos,
+        held.printed,
+        held.maker,
+      )
+      settleUncertainSale()
+      setFinishedSale({
+        ...held.receipt,
+        sale: 'sale' in result ? result.sale : null,
+        queuedNumber: 'queued' in result ? result.queued.number : null,
+        ...('queued' in result && result.queued.body.printedQr
+          ? { queuedQr: result.queued.body.printedQr.payload }
+          : {}),
+        queuedBehind: 'queued' in result && result.behind === true,
+        finishedAt: held.request.soldAt,
+      })
+      attempt.current = null
+      till.retry()
+      navigate('/pos/done')
+    } catch (error) {
+      setRefusal(error)
+      if (saleOutcomeUncertain(error)) holdUncertainSale(held)
+      // The server answered this key with its own code: nothing is recorded under it, so the sale
+      // may be changed again. A refusal made here before anything was sent leaves it held.
+      else if (error instanceof ApiError && serverCode(error) !== null) settleUncertainSale()
+      // The till's zone came from the till as last read: read it again, so a zone restored in the
+      // company settings is verified on the next press (XT2-ZONE-UNREADABLE).
+      if (error instanceof PosTenantZoneUnavailable) till.retry()
+      const code = refusalCode(error)
+      if (code === 'SIMPLIFIED_INVOICE_LIMIT' || code === 'BUYER_IDENTIFIER_REQUIRED') {
+        setBuyerAsked(true)
+      }
+    }
+  }
+
   const finish = async (named = false) => {
-    if (busy) return
+    if (busy || uncertain) return
     setBusy(true)
     setRefusal(null)
     const { payments, tip: tipPart, slipPhotos } = paymentsRequest(taken, tip)
@@ -259,66 +319,55 @@ function Payment({ till }: { till: Ready }) {
       attempt.current = { fingerprint, key: newPosKey('sale'), soldAt: new Date().toISOString() }
     }
     try {
-      const qrProfile = await qrProfileNow()
-      const result = await submitSale(
-        // Only a sale the till queues reads the profile (`offlinePrintedQr`); an online one never does.
-        qrProfile ? { ...till.till, qrProfile } : till.till,
-        { ...body, soldAt: attempt.current.soldAt },
-        attempt.current.key,
+      await send({
+        key: attempt.current.key,
+        request: { ...body, soldAt: attempt.current.soldAt },
         slipPhotos,
         // What the receipt prints, signed with a queued sale (V530 `printed`).
-        {
+        printed: {
           taxable: toRials(totals.beforeVat),
           vat: toRials(totals.vat),
           total: toRials(totals.sale),
         },
         // Kept on this device only, so only this person's session sends it by itself (P3b).
-        till.userId
+        maker: till.userId
           ? {
               userId: till.userId,
               name: (till.mine ? till.till.openShift?.cashier.name : null) ?? till.userName ?? null,
             }
           : null,
-      )
-      setFinishedSale({
-        lines,
-        totals,
-        tip,
-        change,
-        company,
-        buyer:
-          named && !company
-            ? {
-                name: buyer.name.trim(),
-                identifierScheme: schemes.includes(buyer.scheme) ? buyer.scheme : schemes[0],
-                identifierValue: buyer.value.trim(),
-              }
-            : null,
-        payments: taken.map((entry) => ({
-          method: entry.method,
-          amount: entry.amount,
-          approvalCode: entry.approvalCode,
-        })),
-        sale: 'sale' in result ? result.sale : null,
-        queuedNumber: 'queued' in result ? result.queued.number : null,
-        ...('queued' in result && result.queued.body.printedQr
-          ? { queuedQr: result.queued.body.printedQr.payload }
-          : {}),
-        queuedBehind: 'queued' in result && result.behind === true,
-        finishedAt: attempt.current.soldAt,
+        receipt: {
+          lines,
+          totals,
+          tip,
+          change,
+          company,
+          buyer:
+            named && !company
+              ? {
+                  name: buyer.name.trim(),
+                  identifierScheme: schemes.includes(buyer.scheme) ? buyer.scheme : schemes[0],
+                  identifierValue: buyer.value.trim(),
+                }
+              : null,
+          payments: taken.map((entry) => ({
+            method: entry.method,
+            amount: entry.amount,
+            approvalCode: entry.approvalCode,
+          })),
+        },
       })
-      attempt.current = null
-      till.retry()
-      navigate('/pos/done')
-    } catch (error) {
-      setRefusal(error)
-      // The till's zone came from the till as last read: read it again, so a zone restored in the
-      // company settings is verified on the next press (XT2-ZONE-UNREADABLE).
-      if (error instanceof PosTenantZoneUnavailable) till.retry()
-      const code = refusalCode(error)
-      if (code === 'SIMPLIFIED_INVOICE_LIMIT' || code === 'BUYER_IDENTIFIER_REQUIRED') {
-        setBuyerAsked(true)
-      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const retrySame = async () => {
+    if (busy || !uncertain) return
+    setBusy(true)
+    setRefusal(null)
+    try {
+      await send(uncertain)
     } finally {
       setBusy(false)
     }
@@ -353,6 +402,16 @@ function Payment({ till }: { till: Ready }) {
     refusal instanceof ApiError
       ? notEligiblePaths({ code: refusal.code, ...refusal.problem })
       : null
+
+  if (uncertain) {
+    return (
+      <UncertainSalePanel
+        refusal={refusal}
+        busy={busy || sellingBlocked}
+        onRetry={() => void retrySame()}
+      />
+    )
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
@@ -923,6 +982,46 @@ function Payment({ till }: { till: Ready }) {
           <PosFootNote>{t('pos.pay.finishNote', { change: omr(change) })}</PosFootNote>
         </aside>
       </div>
+    </div>
+  )
+}
+
+/**
+ * The sale was sent and its outcome is not known (E-01). Nothing here changes it: no basket, no
+ * payment, no buyer, only the same sale again or today's sales, where a recorded sale shows.
+ */
+function UncertainSalePanel({
+  refusal,
+  busy,
+  onRetry,
+}: {
+  refusal: unknown
+  busy: boolean
+  onRetry: () => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-4 pb-10">
+      <section className="flex flex-col gap-4 rounded-md bg-surface-card px-6 py-5">
+        <h1 className="text-xl font-semibold text-text-primary">{t('pos.pay.uncertain.title')}</h1>
+        <p role="alert" className="text-sm font-medium leading-[1.6] text-danger-700">
+          {refusal ? refusalSentence(t, refusal) : t('pos.refusal.outcomeUnknown')}
+        </p>
+        <p className="text-sm leading-[1.6] text-text-secondary">{t('pos.pay.uncertain.locked')}</p>
+        <div className="flex flex-wrap items-center gap-4">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onRetry}
+            className="inline-flex h-11 items-center rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-40"
+          >
+            {t('pos.pay.uncertain.retry')}
+          </button>
+          <Link to="/pos/today" className="text-sm font-semibold text-primary-700 hover:text-primary-800">
+            {t('pos.pay.uncertain.checkToday')}
+          </Link>
+        </div>
+      </section>
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
-import type { PosSaleDto } from '../api/pos/pos'
+import type { PosPerson, PosPrintedTotals, PosSaleDto, PosSaleRequest } from '../api/pos/pos'
+import type { SlipPhoto } from './posSlipOutbox'
 import { NO_SALE_DISCOUNT, type SaleDiscount, type SaleLine, type SaleTotals } from './pos'
 
 /**
@@ -74,6 +75,22 @@ export type FinishedSale = {
   finishedAt: string
 }
 
+/**
+ * A sale whose own request went out with no definite answer (Stage B E-01): exactly what was sent,
+ * so it can only be sent again as it was, under the same key, and what its receipt prints if it
+ * then succeeds. While it is held the open sale cannot be changed, since a changed basket or
+ * payment is a new sale with a new key, and a customer whose first sale was recorded would be
+ * charged twice. Kept for the tab, as the open sale is: a reload loses both together.
+ */
+export type UncertainSale = {
+  key: string
+  request: PosSaleRequest
+  slipPhotos: SlipPhoto[]
+  printed: PosPrintedTotals
+  maker: PosPerson | null
+  receipt: Omit<FinishedSale, 'sale' | 'queuedNumber' | 'queuedQr' | 'queuedBehind' | 'finishedAt'>
+}
+
 const START: OpenSale = {
   lines: [],
   saleDiscount: NO_SALE_DISCOUNT,
@@ -83,6 +100,7 @@ const START: OpenSale = {
 
 let sale: OpenSale = START
 let finished: FinishedSale | null = null
+let uncertain: UncertainSale | null = null
 const listeners = new Set<() => void>()
 
 function notify() {
@@ -90,6 +108,9 @@ function notify() {
 }
 
 function update(next: Partial<OpenSale>) {
+  // Refused here as well as hidden on the screens, so no path changes a sale whose outcome is
+  // unknown (E-01).
+  if (uncertain) return
   sale = { ...sale, ...next }
   notify()
 }
@@ -111,6 +132,7 @@ export const setSaleCompany = (company: SaleCompany | null) => update({ company 
 
 /** After the receipt: an empty till, ready for the next customer. */
 export const startNewSale = () => {
+  if (uncertain) return
   sale = START
   finished = null
   notify()
@@ -120,6 +142,7 @@ export const startNewSale = () => {
 export const resetOpenSale = (lines: SaleLine[] = []) => {
   sale = { ...START, lines, startedAt: lines.length ? '2026-09-04T10:26:00Z' : null }
   finished = null
+  uncertain = null
   notify()
 }
 
@@ -134,4 +157,19 @@ export function useOpenSale(): OpenSale {
 
 export function useFinishedSale(): FinishedSale | null {
   return useSyncExternalStore(subscribe, () => finished)
+}
+
+export const holdUncertainSale = (held: UncertainSale) => {
+  uncertain = held
+  notify()
+}
+
+/** The outcome is known: the sale was recorded, kept, or definitely refused under its key. */
+export const settleUncertainSale = () => {
+  uncertain = null
+  notify()
+}
+
+export function useUncertainSale(): UncertainSale | null {
+  return useSyncExternalStore(subscribe, () => uncertain)
 }

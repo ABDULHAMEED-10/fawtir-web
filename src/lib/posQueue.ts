@@ -21,6 +21,7 @@ import { isTooLarge, refusalValues } from './posRefusals'
 import { BUSINESS_TIME_ZONE } from './format'
 import { forgetBuyer, openBuyer, sealBuyer } from './posVault'
 import { offlinePrintedQr } from './posOfflineQr'
+import { outcomeUnknown } from './posPaidOut'
 import {
   beginNumbering,
   ensureTillLock,
@@ -724,6 +725,31 @@ export class PosOfflineQrUnavailable extends Error {
   }
 }
 
+/**
+ * Thrown when this sale's own request went out, no definite answer came back (no answer, or a
+ * gateway or server fault without the server's code), and the till could not keep it offline. The
+ * server may have recorded it: the till must only send the same sale again under the same key, or
+ * have it checked on today's sales (Stage B E-01).
+ */
+export class PosSaleOutcomeUnknown extends Error {
+  readonly requested = true
+
+  constructor() {
+    super('The sale was sent and its outcome is not known')
+    this.name = 'PosSaleOutcomeUnknown'
+  }
+}
+
+/**
+ * The sale's own request went out and whether the server recorded it is not known. Until it is,
+ * the sale is the one sent: the same body under the same key, with no basket or payment change
+ * that would mint a new key and could charge the customer twice (Stage B E-01).
+ */
+export function saleOutcomeUncertain(error: unknown): boolean {
+  if (error instanceof PosSaleOutcomeUnknown) return true
+  return (error instanceof PosStorageUnavailable || error instanceof PosOfflineQrUnavailable) && error.requested
+}
+
 /** A walk-in or named consumer: the buyers whose receipt carries a QR (B2C). */
 function takesReceiptQr(body: PosSaleRequest): boolean {
   const kind = body.customer?.kind
@@ -1342,8 +1368,20 @@ export async function submitSale(
         void sendSlipPhotos(key, sale.saleId, till.id)
         return { sale: withNumberNotes(till.id, sale) }
       } catch (error) {
-        // Kept inside the same span, so the fallback number is taken under the same lock.
-        if (error instanceof NetworkError) return numberAndKeep()
+        // Kept inside the same span, so the fallback number is taken under the same lock. Any answer
+        // that says nothing about whether the sale was recorded goes this way, not only a dropped
+        // connection: an uncoded 502/503/504 was shown as a refusal, a basket edit then minted a new
+        // key, and a sale the server had committed could be rung and paid twice (Stage B E-01).
+        if (outcomeUnknown(error)) {
+          try {
+            return await numberAndKeep()
+          } catch (kept) {
+            // The fallback could not number it (no offline numbers on this till): still the same
+            // sale under the same key, whose outcome is unknown, never "could not reach Fawtir".
+            if (kept instanceof NetworkError) throw new PosSaleOutcomeUnknown()
+            throw kept
+          }
+        }
         noteNumberingRefusal(error)
         void dropSlipPhotos(key)
         throw error

@@ -10,6 +10,10 @@ const WORDED = new Set([
   // Backend 073d5261c (QR-E2): an online sale or refund, refused before a number is taken, because the
   // company's zone does not keep Muscat time. Fixed by an administrator, not by trying again.
   'TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE',
+  // RB-1 STUCK-QR, TEMPORARY until a compliant implementation exists (owner, 6 Nov 2026, Option 1):
+  // a consumer's full tax invoice the server cannot issue with a receipt QR, refused with 422 before
+  // anything is charged, numbered or recorded. The buyer is not made a business; the cart is kept.
+  'POS_SALE_QR_UNAVAILABLE_FOR_BUYER',
   'SIMPLIFIED_INVOICE_LIMIT',
   'BUYER_IDENTIFIER_REQUIRED',
   'POS_PAYMENTS_DO_NOT_MATCH_TOTAL',
@@ -253,6 +257,7 @@ export function previewRefusalMessage(error: unknown): RefusalMessage {
 
 export function posRefusalKey(error: unknown): string {
   if (error instanceof NetworkError) return 'pos.refusal.offline'
+  if (error instanceof Error && error.name === 'PosSaleOutcomeUnknown') return 'pos.refusal.outcomeUnknown'
   // Matched by name, not instanceof: posQueue imports this module, so importing its class back
   // would make the two a cycle. No number was printed for the sale (POS-MEMQ S8), so the
   // general failure is not enough: the cashier must know no receipt number exists.

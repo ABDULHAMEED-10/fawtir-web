@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { setSaleLines, useOpenSale } from '../../lib/posSale'
+import { setSaleLines, useOpenSale, useUncertainSale } from '../../lib/posSale'
 import { Trans, useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
 import { PosArt } from './PosArt'
 import { PosSalePanel } from './PosSalePanel'
@@ -368,6 +368,10 @@ function Shelf({
   const scanRef = useRef(scan)
   scanRef.current = scan
   useEffect(() => captureScans((code) => void scanRef.current(code)), [])
+  // A sale whose outcome is unknown cannot be changed (E-01): its screen offers only the same sale
+  // again or today's sales.
+  const uncertain = useUncertainSale()
+  if (uncertain) return <Navigate to="/pos/payment" replace />
 
   return (
     <div
