@@ -22554,7 +22554,8 @@
         "tillRefund": "This credit note cannot be cancelled: it was issued by a refund at the till, and cancelling it would not undo the refund.",
         "stockReturn": "This credit note cannot be cancelled: it put goods back on the shelf, and cancelling it would not take them off again. Correct the stock with a count, or issue a debit note."
       },
-      "debitLocked": "An issued debit note cannot be cancelled, deleted, edited or reversed here. A correction workflow for issued debit notes is not available in this release."
+      "debitLocked": "An issued debit note cannot be cancelled, deleted, edited or reversed here. A correction workflow for issued debit notes is not available in this release.",
+      "creditOnDebitRefused": "A credit note cannot be issued against a debit note. Credit the original invoice instead. A correction workflow for issued debit notes is not available in this release."
     },
     "status": {
       "draft": "Draft",

@@ -2,6 +2,7 @@ import { ApiError } from '../api'
 import type { ReferenceDataDto } from '../api/reference/referenceData'
 import { netDaysFor } from './reference/referenceData'
 import { TAX_REASON_REFUSALS } from './taxReasonRefusals'
+import { DEBIT_NOTE_REFUSALS } from './debitNoteRefusals'
 
 /**
  * Issuing a draft: the dates it is issued with, what the server would refuse about them, and the
@@ -108,6 +109,10 @@ export const ISSUE_REFUSALS: Record<string, { field: IssueField | null; key: str
   // A zero-rated or exempt line with no reason, or the wrong list's reason: fixed on the draft.
   ...Object.fromEntries(
     Object.entries(TAX_REASON_REFUSALS).map(([code, key]) => [code, { field: null, key }]),
+  ),
+  // D-26: named here, or the readiness fallback below would print the bare code.
+  ...Object.fromEntries(
+    Object.entries(DEBIT_NOTE_REFUSALS).map(([code, key]) => [code, { field: null, key }]),
   ),
 }
 

@@ -28,6 +28,7 @@ import {
 } from './invoiceMath'
 import { issueProblems, muscatToday, plusDays } from './invoiceIssue'
 import { netDaysFor } from './reference/referenceData'
+import { DEBIT_NOTE_REFUSALS } from './debitNoteRefusals'
 import type { ReferenceDataDto } from '../api/reference/referenceData'
 
 /**
@@ -961,6 +962,8 @@ export const NOTE_REFUSALS: Record<string, string> = {
   TAX_CATEGORY_METADATA_CONFLICT: CATEGORY_REASON_CONFLICT,
   TAX_CATEGORY_REASON_CONFLICT: CATEGORY_REASON_CONFLICT,
   BACK_ON_SHELF_ONLY_ON_CREDIT_NOTES: 'salesNote.backOnShelf.onlyOnCreditNotes',
+  // D-26: a credit note naming a debit note, or any route that reaches an issued one.
+  ...DEBIT_NOTE_REFUSALS,
 }
 
 /* ---------------------------------------------------------------------------------------------

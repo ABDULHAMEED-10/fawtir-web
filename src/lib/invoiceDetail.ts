@@ -9,6 +9,7 @@ import type { NoteKind } from '../api/invoices/drafts'
 import { ApiError } from '../api'
 import { calculateInvoice, projectInvoice } from './invoiceMath'
 import { minorUnitsOf } from './format'
+import { DEBIT_NOTE_REFUSALS, debitNoteRefusalKey } from './debitNoteRefusals'
 
 /**
  * One authored invoice, opened, written only from what the API holds.
@@ -281,7 +282,7 @@ export function paymentProblems(
  * such workflow is offered either. Cancel and Delete keep their place on an issued debit note and
  * only say so: no request is sent that the server would have to refuse. A draft is not locked.
  */
-export const ISSUED_DEBIT_NOTE_LOCKED = 'salesNote.detail.debitLocked'
+export const ISSUED_DEBIT_NOTE_LOCKED = DEBIT_NOTE_REFUSALS.ISSUED_DEBIT_NOTE_IMMUTABLE
 
 export function issuedDebitNoteLocked(type: string | null | undefined, issued: boolean): boolean {
   return issued && type === 'DEBIT_NOTE'
@@ -302,7 +303,8 @@ const NOTE_CANCEL_REFUSALS: Record<string, Record<NoteKind, string>> = {
     DEBIT_NOTE: 'invoiceDetails.cancelBlocked.correctionsOnNote',
   },
   // Backend #834: credit notes on the invoice already use what this debit note added. Only a debit
-  // note is refused this way; the credit-note entry is never reached.
+  // note is refused this way; the credit-note entry is never reached. Removed from the server by
+  // D-26 (0c2d034d4, now ISSUED_DEBIT_NOTE_IMMUTABLE); kept for a server that predates it.
   DEBIT_NOTE_CANCEL_CREDITED: {
     CREDIT_NOTE: 'salesNote.detail.cancelBlocked.debitCredited',
     DEBIT_NOTE: 'salesNote.detail.cancelBlocked.debitCredited',
@@ -323,8 +325,8 @@ const NOTE_CANCEL_REFUSALS: Record<string, Record<NoteKind, string>> = {
 
 /** The sentence for a note's cancel refusal, or null when the code is not one of them. */
 export function noteCancelRefusalKey(error: unknown, kind: NoteKind): string | null {
-  if (!(error instanceof ApiError) || !error.code || !Object.hasOwn(NOTE_CANCEL_REFUSALS, error.code))
-    return null
+  if (!(error instanceof ApiError) || !error.code) return null
+  if (!Object.hasOwn(NOTE_CANCEL_REFUSALS, error.code)) return debitNoteRefusalKey(error)
   return NOTE_CANCEL_REFUSALS[error.code][kind]
 }
 

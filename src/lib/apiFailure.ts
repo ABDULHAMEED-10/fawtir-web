@@ -6,6 +6,7 @@ import { subscriptionRestrictedMessageKey } from './subscriptionRestricted'
 import { PLAN_FEATURE_NOT_INCLUDED, planFeatureMessageKey } from './planFeatureRefusal'
 import { salesApprovalMessageKey } from './salesApproval'
 import { taxReasonRefusalKey } from './taxReasonRefusals'
+import { debitNoteRefusalKey } from './debitNoteRefusals'
 import { refusalValues } from './posRefusals'
 
 /**
@@ -36,6 +37,9 @@ export function describeApiFailure(error: unknown): FormMessage & { reference: s
     // A line's no-VAT reason: answered 400 by code, which would otherwise read "check the form".
     const taxReason = taxReasonRefusalKey(error)
     if (taxReason !== null) return { key: taxReason, reference }
+    // D-26 answers 409 by name: "reload and try again" can never unlock an issued debit note.
+    const debitNote = debitNoteRefusalKey(error)
+    if (debitNote !== null) return { key: debitNote, reference }
     // Before the 409 branch on purpose: seven self-billing refusals answer Conflict, and telling
     // someone with no agreement to "reload to see the latest version" is false, not merely vague.
     const selfBilling = selfBillingMessageKey(error)
