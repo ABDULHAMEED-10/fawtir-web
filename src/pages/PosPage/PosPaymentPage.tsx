@@ -5,6 +5,7 @@ import {
   holdUncertainSale,
   setFinishedSale,
   settleUncertainSale,
+  todayOpenedFor,
   useOpenSale,
   useUncertainSale,
   type NewHold,
@@ -12,6 +13,7 @@ import {
 } from '../../lib/posSale'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
+import { BUSINESS_TIME_ZONE, formatAmount } from '../../lib/format'
 import { AppShell } from '../../layouts/AppShell'
 import { PosFootNote } from './PosFootNote'
 import { PosQuotaNextStep } from './PosQuotaNextStep'
@@ -1020,11 +1022,14 @@ function UncertainSalePanel({
   busy: boolean
   onRetry: () => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const cashier = held.send?.maker?.name ?? null
   // Only the lock came back (no sealed sale on this device): the sale cannot be sent again from
   // here, so once Today has been checked the cashier may unlock the till.
   const lockOnly = held.send === null && !held.restoring
+  // RBW3-1: unlocking without having looked could ring the sale twice.
+  const todayOpened = todayOpenedFor(held)
+  const summary = held.summary
   return (
     <div className="mx-auto flex w-full max-w-[720px] flex-col gap-4 pb-10">
       <section className="flex flex-col gap-4 rounded-md bg-surface-card px-6 py-5">
@@ -1036,6 +1041,14 @@ function UncertainSalePanel({
         {cashier ? (
           <p className="text-sm font-medium text-text-secondary">
             {t('pos.pay.uncertain.rungBy', { name: cashier })}
+          </p>
+        ) : null}
+        {summary ? (
+          <p className="text-sm font-medium text-text-secondary">
+            {t('pos.pay.uncertain.saleFigures', {
+              amount: `${summary.currency} ${formatAmount(summary.total, summary.currency, i18n.language)}`,
+              time: heldTime(summary.soldAt, i18n.language),
+            })}
           </p>
         ) : null}
         {held.restoring ? (
@@ -1057,7 +1070,7 @@ function UncertainSalePanel({
           {lockOnly ? (
             <button
               type="button"
-              disabled={busy}
+              disabled={busy || !todayOpened}
               onClick={settleUncertainSale}
               className="inline-flex h-11 items-center rounded-sm border border-border-subtle bg-white px-5 text-sm font-semibold text-text-primary disabled:opacity-40"
             >
@@ -1077,9 +1090,23 @@ function UncertainSalePanel({
             {t('pos.pay.uncertain.checkToday')}
           </Link>
         </div>
+        {lockOnly && !todayOpened ? (
+          <p className="text-xs font-medium text-text-tertiary">
+            {t('pos.pay.uncertain.openTodayFirst')}
+          </p>
+        ) : null}
       </section>
     </div>
   )
+}
+
+/** When the held sale was rung, in the business's time zone (where Today lists it). */
+function heldTime(soldAt: string, language: string): string {
+  return new Intl.DateTimeFormat(language.startsWith('ar') ? 'ar-u-nu-latn' : 'en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: BUSINESS_TIME_ZONE,
+  }).format(new Date(soldAt))
 }
 
 /** What Scan slip found, or why it found nothing; never a reason to stop. */

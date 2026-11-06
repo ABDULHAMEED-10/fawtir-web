@@ -1,13 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { SAMPLE_SALE } from '../../lib/posTestSale'
 import { PosPaymentPage } from './PosPaymentPage'
+import { PosTodayPage } from './PosTodayPage'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import {
   forgetTabMemory,
   holdUncertainSale,
+  noteTodayOpened,
+  todayOpenedFor,
   restoreUncertainSale,
   type NewHold,
   resetOpenSale,
@@ -334,14 +337,52 @@ describe('a held sale is its till’s, whatever shift reads it (RBW2-1)', () => 
       }),
     )
     tillNow = { ...TILL, openShift: { ...TILL.openShift, shiftId: 'sh-2' } }
+    const removedWhileLocked: boolean[] = []
+    const remove = Storage.prototype.removeItem
+    const spy = vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(function (this: Storage, name: string) {
+      if (name.startsWith('fawtir.pos.uncertainSale.')) removedWhileLocked.push(this.getItem(HELD) !== null)
+      remove.call(this, name)
+    })
     renderPayment()
     await vi.waitFor(() => expect(retry().disabled).toBe(false))
+    spy.mockRestore()
     expect(window.sessionStorage.getItem('fawtir.pos.uncertainSale.till-1.sh-1')).toBeNull()
+    // RBW3-4: the old entry went only once the new lock was in place.
+    expect(removedWhileLocked).toEqual([true])
     expect(await sealedEntry()).not.toContain('Maryam')
     fireEvent.click(retry())
     await vi.waitFor(() => expect(posts).toHaveLength(2))
     expect(posts[1].key).toBe(posts[0].key)
     expect(posts[1].body).toBe(posts[0].body)
+  })
+
+  it('keeps the first release’s entry when the new lock cannot be written (RBW3-4)', () => {
+    const legacy = JSON.stringify({
+      held: {
+        tillId: 'till-1',
+        shiftId: 'sh-1',
+        key: 'legacy-key',
+        request: { tillId: 'till-1', soldAt: '2026-11-06T10:00:00Z' },
+        printed: { taxable: 5.38, vat: 0.269, total: 5.649 },
+        maker: null,
+        receipt: { lines: [], totals: {}, tip: 0, change: 0, company: null, payments: [] },
+      },
+      basket: { lines: SAMPLE_SALE, saleDiscount: { type: 'PERCENTAGE', value: '0' }, company: null, startedAt: null },
+    })
+    window.sessionStorage.setItem('fawtir.pos.uncertainSale.till-1.sh-1', legacy)
+    const set = Storage.prototype.setItem
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, name: string, value: string) {
+      if (name.startsWith('fawtir.pos.heldSale.')) throw new DOMException('full', 'QuotaExceededError')
+      set.call(this, name, value)
+    })
+    try {
+      render(<HeldProbe />)
+      act(() => restoreUncertainSale('t-1', 'till-1', 'Till 1'))
+      expect(screen.getByText(/^held /).textContent).toContain('held legacy-key')
+      expect(window.sessionStorage.getItem('fawtir.pos.uncertainSale.till-1.sh-1')).toBe(legacy)
+    } finally {
+      spy.mockRestore()
+    }
   })
 })
 
@@ -442,10 +483,71 @@ describe('what a held sale keeps in clear (RBW2-2)', () => {
     expect(await screen.findByText(i18n.t('pos.pay.uncertain.lockOnly'))).toBeTruthy()
     expect(screen.queryByRole('button', { name: i18n.t('pos.pay.uncertain.retry') })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Finish the sale' })).toBeNull()
-    // Once Today has been checked, the cashier may unlock the till.
-    fireEvent.click(screen.getByRole('button', { name: i18n.t('pos.pay.uncertain.checkedToday') }))
+    // RBW3-1: the sale's total and time are shown in clear, to find it on Today, and the till
+    // cannot be unlocked before Today has been opened for it.
+    expect(screen.getByText(/^This sale: OMR 5\.649, rung at \d\d:\d\d\.$/)).toBeTruthy()
+    expect(JSON.parse(window.sessionStorage.getItem(HELD)!).summary).toMatchObject({
+      total: 5.649,
+      currency: 'OMR',
+      soldAt: JSON.parse(posts[0].body).soldAt,
+    })
+    const unlock = () =>
+      screen.getByRole('button', { name: i18n.t('pos.pay.uncertain.checkedToday') }) as HTMLButtonElement
+    expect(unlock().disabled).toBe(true)
+    expect(screen.getByText(i18n.t('pos.pay.uncertain.openTodayFirst'))).toBeTruthy()
+    fireEvent.click(unlock())
+    expect(heldNames()).toEqual([HELD])
+    cleanup()
+    render(
+      <MemoryRouter initialEntries={['/pos/today']}>
+        <Routes>
+          <Route path="/pos/today" element={<PosTodayPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await vi.waitFor(() => expect(todayOpenedFor({ tenantId: 't-1', tillId: 'till-1', key: posts[0].key })).toBe(true))
+    cleanup()
+    renderPayment()
+    await vi.waitFor(() => expect(unlock().disabled).toBe(false))
+    expect(screen.queryByText(i18n.t('pos.pay.uncertain.openTodayFirst'))).toBeNull()
+    fireEvent.click(unlock())
     expect(await screen.findByRole('button', { name: 'Finish the sale' })).toBeTruthy()
     expect(heldNames()).toEqual([])
+  })
+
+  it('counts Today only for this till and this hold (RBW3-1)', async () => {
+    setPosVault(memoryVault(false))
+    // Today opened before the sale was held: nothing to note.
+    noteTodayOpened('t-1', 'till-1')
+    await sendIntoUnknown(503)
+    const key = posts[0].key
+    expect(todayOpenedFor({ tenantId: 't-1', tillId: 'till-1', key })).toBe(false)
+    noteTodayOpened('t-1', 'till-2')
+    expect(todayOpenedFor({ tenantId: 't-1', tillId: 'till-1', key })).toBe(false)
+    noteTodayOpened('t-1', 'till-1')
+    expect(todayOpenedFor({ tenantId: 't-1', tillId: 'till-1', key })).toBe(true)
+    // A later hold on the same till needs Today opened again.
+    expect(todayOpenedFor({ tenantId: 't-1', tillId: 'till-1', key: 'another-key' })).toBe(false)
+    // Today opened for another till with its own hold leaves this till's note as it was.
+    act(() =>
+      holdUncertainSale({
+        tenantId: 't-1',
+        tillId: 'till-2',
+        shiftId: null,
+        tillLabel: 'Till 2',
+        key: 'till-2-key',
+        send: {
+          request: { tillId: 'till-2', soldAt: '2026-11-06T10:00:00Z' } as never,
+          slipPhotos: [],
+          printed: { taxable: 1, vat: 0.05, total: 1.05 },
+          maker: null,
+          receipt: {} as never,
+        },
+      }),
+    )
+    noteTodayOpened('t-1', 'till-2')
+    expect(todayOpenedFor({ tenantId: 't-1', tillId: 'till-2', key: 'till-2-key' })).toBe(true)
+    expect(todayOpenedFor({ tenantId: 't-1', tillId: 'till-1', key })).toBe(true)
   })
 })
 
@@ -458,6 +560,9 @@ describe('a retry refused for the session, not the sale (E01R-3, RBW2-3)', () =>
     [408, 'REQUEST_TIMEOUT'],
     [429, 'TOO_MANY_REQUESTS'],
     [503, 'POS_SALES_UNAVAILABLE'],
+    // RBW3-2: both say a sale is recorded under the key.
+    [404, 'POS_TILL_NOT_FOUND'],
+    [409, 'POS_SALE_KEY_REUSED'],
   ])('a coded %i keeps the sale held under its key', async (status, code) => {
     await sendIntoUnknown(503)
     replies.push(() => json({ type: 'about:blank', status, code }, status))

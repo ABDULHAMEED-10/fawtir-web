@@ -757,8 +757,12 @@ export function saleOutcomeUncertain(error: unknown): boolean {
  */
 export function refusesTheSale(error: unknown): boolean {
   if (!(error instanceof ApiError) || serverCode(error) === null) return false
+  // RBW3-2: these two say a sale is recorded under the key, not that it was refused.
+  if (KEY_HOLDS_A_SALE.has(serverCode(error)!)) return false
   return error.status >= 400 && error.status < 500 && ![401, 403, 408, 429].includes(error.status)
 }
+
+const KEY_HOLDS_A_SALE = new Set(['POS_TILL_NOT_FOUND', 'POS_SALE_KEY_REUSED'])
 
 /** A walk-in or named consumer: the buyers whose receipt carries a QR (B2C). */
 function takesReceiptQr(body: PosSaleRequest): boolean {

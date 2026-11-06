@@ -111,10 +111,17 @@ export type UncertainSale = {
   restoring: boolean
   /** The sale carried a card slip photo, which is never stored (RBW2-5). */
   hadSlips: boolean
+  /**
+   * What the cashier matches the sale by on Today when only the lock came back (RBW3-1): its
+   * total, currency and time. Not personal, so kept in clear. Null for an entry from before it.
+   */
+  summary: HeldSummary | null
 }
 
+export type HeldSummary = { total: number; currency: string; soldAt: string }
+
 /** A hold as the payment screen makes it, before it is stored. */
-export type NewHold = Omit<UncertainSale, 'send' | 'kept' | 'restoring' | 'hadSlips'> & {
+export type NewHold = Omit<UncertainSale, 'send' | 'kept' | 'restoring' | 'hadSlips' | 'summary'> & {
   send: HeldSend
   hadSlips?: boolean
 }
@@ -231,6 +238,7 @@ type StoredEntry = {
   tillLabel: string
   key: string
   hadSlips: boolean
+  summary?: HeldSummary | null
   sealed: SealedText | null
 }
 type SealedHold = { send: Omit<HeldSend, 'slipPhotos'>; basket: OpenSale }
@@ -279,6 +287,7 @@ const entryOf = (hold: UncertainSale, sealed: SealedText | null): StoredEntry =>
   tillLabel: hold.tillLabel,
   key: hold.key,
   hadSlips: hold.hadSlips,
+  summary: hold.summary,
   sealed,
 })
 
@@ -312,6 +321,7 @@ export const holdUncertainSale = (held: NewHold) => {
       kept: 'pending',
       restoring: false,
       hadSlips: held.hadSlips === true || held.send.slipPhotos.length > 0,
+      summary: summaryOf(held.send),
     },
     sale,
   )
@@ -331,11 +341,11 @@ export const settleUncertainSale = () => {
 /** The first release's entry for this till, moved under the tenant and till and sealed. */
 function migrateLegacy(tenantId: string | null, tillId: string, tillLabel: string): boolean {
   let legacy: LegacyHold | null = null
+  const legacyNames: string[] = []
   try {
     for (const name of Object.keys(window.sessionStorage)) {
       if (!name.startsWith(`${LEGACY_PREFIX}${tillId}.`)) continue
       const raw = window.sessionStorage.getItem(name)
-      window.sessionStorage.removeItem(name)
       const parsed = raw ? (JSON.parse(raw) as LegacyHold) : null
       if (
         parsed?.held &&
@@ -345,6 +355,9 @@ function migrateLegacy(tenantId: string | null, tillId: string, tillLabel: strin
         Array.isArray(parsed.basket?.lines)
       ) {
         legacy = parsed
+        legacyNames.push(name)
+      } else {
+        window.sessionStorage.removeItem(name)
       }
     }
   } catch {
@@ -371,9 +384,19 @@ function migrateLegacy(tenantId: string | null, tillId: string, tillLabel: strin
       kept: 'pending',
       restoring: false,
       hadSlips: false,
+      summary: summaryOf(held),
     },
     basket,
   )
+  // RBW3-4: the old entry goes only once the new lock is written, so a tab that dies in between
+  // still comes back locked; if the lock could not be written, the old entry stays as the lock.
+  if (uncertain.kept !== 'none') {
+    try {
+      for (const name of legacyNames) window.sessionStorage.removeItem(name)
+    } catch {
+      // Storage refused: the old entry stays, and the next restore migrates it again.
+    }
+  }
   return true
 }
 
@@ -419,6 +442,7 @@ export function restoreUncertainSale(
     kept: entry.sealed ? 'sealed' : 'lock',
     restoring: entry.sealed !== null,
     hadSlips: entry.hadSlips === true,
+    summary: entry.summary ?? null,
   }
   uncertain = hold
   sale = START
@@ -435,6 +459,48 @@ export function restoreUncertainSale(
     }
     notify()
   })
+}
+
+// The till sells in rials only: every figure it prints and sends is formatted as OMR.
+function summaryOf(send: Pick<HeldSend, 'request' | 'printed'>): HeldSummary | null {
+  const total = send.printed?.total
+  return typeof total === 'number' && typeof send.request?.soldAt === 'string'
+    ? { total, currency: 'OMR', soldAt: send.request.soldAt }
+    : null
+}
+
+/*
+ * RBW3-1: a lock-only hold may be released by the cashier, but only once Today has been opened
+ * for this till in this tab after the hold: the key that was on the till when Today opened is
+ * noted, so a Today opened before the sale, or for another till, does not count.
+ */
+const TODAY_PREFIX = 'fawtir.pos.todayOpened.'
+const todayKey = (tenantId: string | null, tillId: string) => `${TODAY_PREFIX}${tenantId ?? '-'}.${tillId}`
+const todayInMemory = new Map<string, string>()
+
+/** Today was opened for this till: note the key held on it, if any. */
+export function noteTodayOpened(tenantId: string | null, tillId: string): void {
+  const key =
+    uncertain?.tillId === tillId ? uncertain.key : (readEntry(tenantId, tillId)?.key ?? null)
+  if (!key) return
+  todayInMemory.set(todayKey(tenantId, tillId), key)
+  try {
+    window.sessionStorage.setItem(todayKey(tenantId, tillId), key)
+  } catch {
+    // The note in memory serves this tab.
+  }
+}
+
+/** Whether Today has been opened for this till since this hold was made. */
+export function todayOpenedFor(held: Pick<UncertainSale, 'tenantId' | 'tillId' | 'key'>): boolean {
+  const name = todayKey(held.tenantId, held.tillId)
+  let stored: string | null = null
+  try {
+    stored = window.sessionStorage.getItem(name)
+  } catch {
+    stored = null
+  }
+  return (stored ?? todayInMemory.get(name)) === held.key
 }
 
 /** This till's hold; a hold of another till is not this screen's (RBW2-4). */

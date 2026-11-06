@@ -4517,7 +4517,9 @@
         "lockOnly": "This sale’s details could not be kept safely on this device, so it cannot be sent again from here. A sale may already be recorded: check Today before ringing it again.",
         "reattachSlip": "This sale had a card slip photo, which this device did not keep. Once the sale is confirmed, attach the slip photo to it again.",
         "checkedToday": "I checked Today: unlock the till",
-        "otherTill": "{{till}} has a sale whose outcome is not known yet. Check Today on {{till}} before anything is rung there again."
+        "otherTill": "{{till}} has a sale whose outcome is not known yet. Check Today on {{till}} before anything is rung there again.",
+        "saleFigures": "This sale: {{amount}}, rung at {{time}}.",
+        "openTodayFirst": "Open Today for this till and look for this sale there before unlocking the till."
       }
     },
     "done": {

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
@@ -32,6 +32,7 @@ import {
   type TodayTabId,
 } from '../../lib/posToday'
 import type { TillState } from '../../lib/posTill'
+import { noteTodayOpened } from '../../lib/posSale'
 
 type Ready = Extract<TillState, { status: 'ready' }>
 
@@ -60,6 +61,8 @@ export function PosTodayPage() {
 
 function Today({ till }: { till: Ready }) {
   const { t, i18n } = useTranslation()
+  // RBW3-1: a lock-only hold on this till may be released once Today has been seen for it.
+  useEffect(() => noteTodayOpened(till.tenantId ?? null, till.till.id), [till.tenantId, till.till.id])
   const locale = i18n.language.startsWith('ar') ? 'ar' : 'en-GB'
   const today = muscatToday()
   const [date, setDate] = useState(today)
