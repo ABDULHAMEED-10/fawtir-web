@@ -221,6 +221,37 @@ describe('the held-sales screen', () => {
     expect(document.querySelector('.text-danger-700')).toBeNull()
   })
 
+  // Coordinator ruling on QB8R-6: REFUSED has its own wording, never a hold and never overdue.
+  it('words a REFUSED item as refused by the server, blocking the till, and never overdue', async () => {
+    list = () =>
+      json({
+        items: [
+          item({
+            kind: 'REFUSED',
+            reason: 'POS_SOMETHING_REFUSED',
+            lines: [],
+            firstHeldAt: null,
+            lastHeldAt: null,
+            reHeldCount: 0,
+            firstRefusedAt: '2026-11-04T05:00:00Z',
+            lastRefusedAt: '2026-11-04T06:30:00Z',
+            reRefusedCount: 1,
+            overdue: true,
+          }),
+        ],
+        truncated: false,
+      })
+    await open()
+    expect(await screen.findByText(i18n.t('pos.heldSales.refused', { number: 'T3-000041' }))).toBeTruthy()
+    expect(text()).toContain('Refused first 04/11/2026, 09:00:00 GMT+4, last 04/11/2026, 10:30:00 GMT+4.')
+    expect(text()).toContain('Refused again since: 1.')
+    expect(text()).not.toContain(i18n.t('pos.heldSales.overdue'))
+    expect(document.querySelector('.text-danger-700')).toBeNull()
+    expect(text()).not.toContain('Held:')
+    expect(text()).not.toContain(i18n.t('pos.heldSales.otherKind'))
+    expect(text()).not.toContain('POS_SOMETHING_REFUSED')
+  })
+
   it('an item marked HELD reads as before, overdue included', async () => {
     list = () => json({ items: [item({ kind: 'HELD', overdue: true })], truncated: false })
     await open()
@@ -229,7 +260,7 @@ describe('the held-sales screen', () => {
   })
 
   it('has the review wording in both languages', () => {
-    for (const key of ['withheld', 'withheldTimes', 'otherKind'] as const) {
+    for (const key of ['withheld', 'withheldTimes', 'otherKind', 'refused', 'refusedTimes', 'reRefused'] as const) {
       expect(ar.pos.heldSales[key]).toBeTruthy()
       expect(ar.pos.heldSales[key]).not.toBe(en.pos.heldSales[key])
     }

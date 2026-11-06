@@ -544,7 +544,8 @@ describe('the full invoice receipt (F-6)', () => {
       payments: [{ method: 'card', amount: totals.sale }],
       sale: sold('NZW-T01-INV-2026-000006', {
         transactionType: 'FULL_TAX',
-        receipt: { invoiceTotal: 5.649, tip: 0, qr: { status: 'NOT_APPLICABLE' } },
+        // A named consumer is B2C: its receipt prints only with the READY QR (ruling on QW4R-2).
+        receipt: { invoiceTotal: 5.649, tip: 0, qr: { status: 'READY', payload: 'AQ==' } },
         filing: { dispatchState: 'DISPATCHED', acceptedAt: null },
         warnings: [{ code: 'ZR_FOOD_CHARGED_STANDARD', line: 3 }],
       }) as never,

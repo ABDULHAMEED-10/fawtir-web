@@ -5481,7 +5481,10 @@
       "timeUnknown": "not recorded",
       "withheld": "Receipt not printed — manager review. The sale is filed under this number, but the till printed no tax receipt for it.",
       "withheldTimes": "Marked first {{first}}, last {{last}}.",
-      "otherKind": "Listed by the server for review."
+      "otherKind": "Listed by the server for review.",
+      "refused": "Refused by the server: this sale was not filed, and the till’s later sales are blocked behind number {{number}}. It is not overdue itself.",
+      "refusedTimes": "Refused first {{first}}, last {{last}}.",
+      "reRefused": "Refused again since: {{times}}."
     }
   },
   "orderDetail": {

@@ -126,7 +126,8 @@ function finish(seller: PosReceiptSellerDto | 'absent') {
   const receipt: Record<string, unknown> = {
     invoiceTotal: 5.649,
     tip: 0,
-    qr: { status: 'NOT_APPLICABLE' },
+    // A walk-in receipt prints only with its READY QR (coordinator ruling on QW4R-2).
+    qr: { status: 'READY', payload: 'AQ==', pngUrl: null },
   }
   if (seller !== 'absent') receipt.seller = seller
   setFinishedSale({

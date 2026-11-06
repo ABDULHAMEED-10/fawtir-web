@@ -83,13 +83,14 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
   // The same holds online (coordinator ruling QW4R-2): a consumer's receipt prints only with the
   // server's READY QR. While it is PENDING and the waits below still run, Print is held; once they
   // end without it, or for a status this build does not know, no receipt is printed and the cashier
-  // is sent to the reprint. NOT_APPLICABLE is the server's own finding that no QR is due.
+  // is sent to the reprint. NOT_APPLICABLE fails safe the same way: QR E-3 gives it only to business
+  // buyers, so on a consumer sale it contradicts the buyer (coordinator ruling on QW4R-2).
   const [waitsEnded, setWaitsEnded] = useState(!done.sale || settled(done.sale))
   const onlineConsumer = !!sale && !done.company
   const serverQr = sale?.receipt.qr.status
   const onlineQrWaiting = onlineConsumer && serverQr === 'PENDING' && !waitsEnded
   const onlineWithheld =
-    onlineConsumer && !onlineQrWaiting && serverQr !== 'READY' && serverQr !== 'NOT_APPLICABLE'
+    onlineConsumer && !onlineQrWaiting && serverQr !== 'READY'
   const receiptWithheld = offlineWithheld || onlineWithheld
   const printHeld = offlineQr.status === 'encoding' || onlineQrWaiting || receiptWithheld
 

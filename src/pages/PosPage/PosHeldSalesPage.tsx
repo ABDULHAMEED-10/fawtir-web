@@ -76,14 +76,40 @@ function HeldSales() {
 function HeldRow({ item }: { item: PosHeldSale }) {
   const kind = item.kind ?? 'HELD'
   if (kind === 'HELD') return <HoldRow item={item} />
+  if (kind === 'REFUSED') return <RefusedRow item={item} />
   return <ReviewRow item={item} withheld={kind === 'WITHHELD'} />
 }
 
 /**
+ * A queued sale the server refused at issue (QB1R-5, coordinator ruling on QB8R-6): the till's later
+ * numbers are blocked behind it, but it is not a hold, so it is never shown as overdue. Its refusal
+ * code is not worded here; it is not one of the hold reasons above.
+ */
+function RefusedRow({ item }: { item: PosHeldSale }) {
+  const { t } = useTranslation()
+  const at = (instant: string | null | undefined) => when(instant ?? null) || t('pos.heldSales.timeUnknown')
+  const again = item.reRefusedCount ?? 0
+  return (
+    <div className="flex flex-col gap-2 text-sm text-text-secondary">
+      <p className="text-base font-semibold text-text-primary">
+        {t('pos.heldSales.row', { till: item.tillNumber, number: item.heldNumber })}
+      </p>
+      <p className="font-medium text-text-primary">{t('pos.heldSales.refused', { number: item.heldNumber })}</p>
+      {item.firstRefusedAt || item.lastRefusedAt ? (
+        <p>
+          {t('pos.heldSales.refusedTimes', { first: at(item.firstRefusedAt), last: at(item.lastRefusedAt) })}
+          {again > 0 ? ` ${t('pos.heldSales.reRefused', { times: again })}` : ''}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
+/**
  * Not a hold: nothing at the till resolves it, so it is never shown as overdue, whatever the flag
- * says. WITHHELD is a filed sale whose receipt was not printed (QW4R-3, QB8R-6); any other kind,
- * REFUSED included until it is worded, is only said to be listed for review, with no reason, hold
- * or block wording that might not apply to it.
+ * says. WITHHELD is a filed sale whose receipt was not printed (QW4R-3, QB8R-6); a kind this build
+ * does not know is only said to be listed for review, with no reason, hold or block wording that
+ * might not apply to it.
  */
 function ReviewRow({ item, withheld }: { item: PosHeldSale; withheld: boolean }) {
   const { t } = useTranslation()

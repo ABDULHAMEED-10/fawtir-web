@@ -44,6 +44,7 @@ const TILL = {
 
 const NUMBER = 'NZW-T01-INV-2026-000049'
 const COMPANY: SaleCompany = { id: 'c-1', name: 'Gulf Supplies SAOC', kind: 'BUSINESS', vat: 'OM1100055555' }
+const MINISTRY: SaleCompany = { id: 'c-2', name: 'Ministry of Health', kind: 'GOVERNMENT', vat: 'OM1100066666' }
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -188,18 +189,26 @@ describe('an online consumer receipt and its server QR', () => {
     expect(screen.queryByText(notReady(), { exact: false })).toBeNull()
   })
 
-  it('a consumer the server finds owes no QR (NOT_APPLICABLE) keeps the receipt with the no-QR wording', async () => {
+  // Coordinator ruling: QR E-3 gives NOT_APPLICABLE only to business buyers, so on a consumer sale
+  // it contradicts the buyer and fails safe like any status other than READY.
+  it('prints no tax receipt for a consumer the server answers NOT_APPLICABLE, and sends the cashier to the reprint', async () => {
     polls = ['NOT_APPLICABLE']
     finish('NOT_APPLICABLE')
     renderReceipt()
-    expect(await screen.findByText(i18n.t('pos.done.qrNone'))).toBeTruthy()
-    expect(printAgain()!.disabled).toBe(false)
-    expect(screen.queryByText(notReady(), { exact: false })).toBeNull()
+    expect(await screen.findByText(notReady(), { exact: false })).toBeTruthy()
+    expect(printAgain()).toBeNull()
+    expect(screen.queryByText(i18n.t('pos.done.theirReceipt'))).toBeNull()
+    expect(screen.queryByText(i18n.t('pos.done.qrNone'))).toBeNull()
+    expect(screen.getByRole('link', { name: i18n.t('pos.done.openToday') })).toBeTruthy()
   })
 
-  it.each(['NOT_APPLICABLE', 'LATER'])('a company receipt (%s) keeps its wording and prints', async (status) => {
+  it.each([
+    ['NOT_APPLICABLE', COMPANY],
+    ['LATER', COMPANY],
+    ['NOT_APPLICABLE', MINISTRY],
+  ] as const)('a company or government receipt (%s) keeps its wording and prints', async (status, company) => {
     polls = [status]
-    finish(status, COMPANY)
+    finish(status, company)
     renderReceipt()
     expect(await screen.findByText(i18n.t('pos.done.qrNone'))).toBeTruthy()
     expect(screen.getByText(i18n.t('pos.done.theirReceipt'))).toBeTruthy()

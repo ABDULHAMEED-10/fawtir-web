@@ -1123,9 +1123,16 @@ export type PosHeldSale = {
    * HELD when absent (a server from before REFUSED). WITHHELD (backend f598aa39b, QW4R-3): a filed
    * sale for which the till printed no tax receipt, for a manager to follow up; its reason is
    * POS_RECEIPT_WITHHELD and its held times are the times it was marked; never overdue. Typed as a
-   * string so a kind this build does not know is shown neutrally rather than as a hold.
+   * string so a kind this build does not know is shown neutrally rather than as a hold. REFUSED
+   * (backend 58e98b2ed, QB1R-5): a queued sale invoice authoring refused at issue; nothing at the till
+   * corrects it, the till's later numbers wait behind it, and it is never overdue itself.
    */
   kind?: string
+  /** REFUSED only, else null or absent. */
+  firstRefusedAt?: string | null
+  lastRefusedAt?: string | null
+  /** REFUSED only: refused again after the first; 0 or absent otherwise. */
+  reRefusedCount?: number
 }
 
 export type PosHeldSales = { items: PosHeldSale[]; truncated: boolean }
