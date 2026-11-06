@@ -37,7 +37,7 @@ import {
   stillToCollect,
   tipFor,
   toPay,
-  qrRefusalKey,
+  qrRefusalKeys,
   type MethodId,
   type Taken,
   type TipChoice,
@@ -463,7 +463,9 @@ function Payment({ till }: { till: Ready }) {
   const tenderLocked = buyerFirst && (!buyerTyped || qrRefused)
   // STUCKQR-2 / STQ-1: wherever the QR refusal is said, the inline alert as much as the refusal
   // after Finish, it says what to give back for the payments already taken.
-  const qrRefusal = qrRefusalKey(taken)
+  const qrRefusal = qrRefusalKeys(taken)
+    .map((key) => t(key))
+    .join(' ')
   /** The buyer's phone or email is checked before the full invoice goes (F-2). */
   const finishNamed = () => {
     const contact = tillContact(buyer.contact)
@@ -987,7 +989,7 @@ function Payment({ till }: { till: Ready }) {
                     {/* STUCKQR-2: an older server, or a race, refuses after the card was charged
                         on the terminal: "nothing was charged" would be false. */}
                     {refusalCode(refusal) === 'POS_SALE_QR_UNAVAILABLE_FOR_BUYER'
-                      ? t(qrRefusal)
+                      ? qrRefusal
                       : refusalSentence(t, refusal)}
                     {refusal instanceof ApiError && refusal.problemType === 'quota-exceeded' ? (
                       <PosQuotaNextStep />
@@ -1050,7 +1052,7 @@ function Payment({ till }: { till: Ready }) {
               {/* Beside the field, not in its label, so the ID input keeps its own name. */}
               {qrRefused ? (
                 <p role="alert" className="text-xs font-medium text-danger-700">
-                  {t(qrRefusal)}
+                  {qrRefusal}
                 </p>
               ) : buyerTyped && !buyerChecked ? (
                 <p role="status" className="text-xs font-medium text-text-tertiary">

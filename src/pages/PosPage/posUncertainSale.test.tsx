@@ -219,7 +219,12 @@ describe('a sale the server cannot issue with a QR (STUCK-QR)', () => {
     renderPayment()
     fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
-    expect(await screen.findByText(i18n.t('pos.refusal.POS_SALE_QR_UNAVAILABLE_FOR_BUYER'))).toBeTruthy()
+    // RW6-5: the cash taken is handed back; "nothing was charged" is kept for when nothing was.
+    expect(
+      await screen.findByText(
+        `${i18n.t('pos.refusal.qrUnavailableTaken')} ${i18n.t('pos.refusal.qrGiveBack.cash')}`,
+      ),
+    ).toBeTruthy()
     expect(i18n.t('pos.refusal.POS_SALE_QR_UNAVAILABLE_FOR_BUYER')).toMatch(/Nothing was charged, numbered or printed/)
     expect(screen.getByRole('button', { name: 'Finish the sale' })).toBeTruthy()
     expect(screen.queryByText(i18n.t('pos.pay.uncertain.title'))).toBeNull()

@@ -53,17 +53,18 @@ export type Taken = {
 }
 
 /**
- * The QR refusal's sentence once money has moved outside the till (STUCKQR-2, STQ-1, STQ-1b): a card
- * is charged on the bank's terminal and a transfer is made by the customer, so "nothing was charged"
- * would be false for either. Cash is still in hand, and on account takes nothing.
+ * The QR refusal's sentences for the payments already taken (STUCKQR-2, STQ-1, STQ-1b, RW6-5):
+ * "nothing was charged" is said only when nothing was, and otherwise each way of paying taken says
+ * what to give back: the card refunded on the terminal, the transfer returned, the cash handed back.
+ * On account takes nothing from the customer, so it adds no sentence.
  */
-export function qrRefusalKey(taken: Pick<Taken, 'method'>[]): string {
-  const card = taken.some((payment) => payment.method === 'card')
-  const transfer = taken.some((payment) => payment.method === 'transfer')
-  if (card && transfer) return 'pos.refusal.qrUnavailableRefundCardAndTransfer'
-  if (card) return 'pos.refusal.qrUnavailableRefundCard'
-  if (transfer) return 'pos.refusal.qrUnavailableRefundTransfer'
-  return 'pos.refusal.POS_SALE_QR_UNAVAILABLE_FOR_BUYER'
+export function qrRefusalKeys(taken: Pick<Taken, 'method'>[]): string[] {
+  const giveBack = (['card', 'transfer', 'cash'] as const)
+    .filter((method) => taken.some((payment) => payment.method === method))
+    .map((method) => `pos.refusal.qrGiveBack.${method}`)
+  return giveBack.length === 0
+    ? ['pos.refusal.POS_SALE_QR_UNAVAILABLE_FOR_BUYER']
+    : ['pos.refusal.qrUnavailableTaken', ...giveBack]
 }
 
 /** The tip sits on top of the sale and carries no VAT, which the design says twice. */

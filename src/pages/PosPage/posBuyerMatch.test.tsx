@@ -10,7 +10,10 @@ import { resetPosQueue } from '../../lib/posQueue'
 import { resetSharedRequests } from '../../api'
 import { forgetWorkingBranch } from '../../lib/workingBranch'
 import { hintOf, matchRequest, overSimplifiedLimit } from '../../lib/posBuyerMatch'
-import { qrRefusalKey } from '../../lib/posPayment'
+import { qrRefusalKeys } from '../../lib/posPayment'
+
+/** The QR refusal as the till says it for the payments taken (RW6-5): one sentence per tender. */
+const saidFor = (...keys: string[]) => keys.map((key) => i18n.t(key)).join(' ')
 
 /**
  * "Matches customer on file": the full-invoice buyer's ID (and phone) matches a customer stored
@@ -210,7 +213,8 @@ describe('a full tax sale the buyer cannot get a QR on', () => {
     matchAnswer = () => json({ ...ON_FILE, sameName: true, qrIssuableOnFullTax: false })
     await buyerForm()
     const alert = await screen.findByText(new RegExp(REFUSED), {}, { timeout: 2000 })
-    expect(alert.textContent).toBe(i18n.t('pos.refusal.POS_SALE_QR_UNAVAILABLE_FOR_BUYER'))
+    // The cash was taken before Finish asked for the buyer, so it is handed back (RW6-5).
+    expect(alert.textContent).toBe(saidFor('pos.refusal.qrUnavailableTaken', 'pos.refusal.qrGiveBack.cash'))
     expect(makeFull().disabled).toBe(true)
     const sent = salePosts().length
     fireEvent.click(makeFull())
@@ -364,7 +368,7 @@ describe('a named full tax sale is checked before payment (STUCKQR-1)', () => {
     matchAnswer = () => json({ ...SAME_NAME, qrIssuableOnFullTax: false })
     typeBuyer('87654321')
     const said = await screen.findByRole('alert', {}, { timeout: 2000 })
-    expect(said.textContent).toBe(i18n.t('pos.refusal.qrUnavailableRefundCard'))
+    expect(said.textContent).toBe(saidFor('pos.refusal.qrUnavailableTaken', 'pos.refusal.qrGiveBack.card'))
     expect(screen.queryByText(/Nothing was charged/)).toBeNull()
     expect(salePosts()).toHaveLength(0)
   })
@@ -408,11 +412,12 @@ describe('a QR refusal after a card was taken (STUCKQR-2)', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Paid · 5\.649/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
     const said = await screen.findByText(/Refund the card on the terminal/)
-    expect(said.textContent).toBe(i18n.t('pos.refusal.qrUnavailableRefundCard'))
+    expect(said.textContent).toBe(saidFor('pos.refusal.qrUnavailableTaken', 'pos.refusal.qrGiveBack.card'))
     expect(screen.queryByText(/Nothing was charged/)).toBeNull()
   })
 
-  it('keeps the plain sentence when only cash was taken', async () => {
+  // RW6-5: the cash is in the drawer, so it is handed back; "nothing was charged" is not said.
+  it('tells the cashier to give back the cash taken; the sale was not recorded', async () => {
     saleAnswer = qrRefused
     render(
       <MemoryRouter initialEntries={['/pos/payment']}>
@@ -423,7 +428,10 @@ describe('a QR refusal after a card was taken (STUCKQR-2)', () => {
     )
     fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
-    expect(await screen.findByText(i18n.t('pos.refusal.POS_SALE_QR_UNAVAILABLE_FOR_BUYER'))).toBeTruthy()
+    expect(
+      await screen.findByText(saidFor('pos.refusal.qrUnavailableTaken', 'pos.refusal.qrGiveBack.cash')),
+    ).toBeTruthy()
+    expect(screen.queryByText(/Nothing was charged/)).toBeNull()
     expect(screen.queryByText(/Refund the card/)).toBeNull()
   })
 
@@ -441,34 +449,37 @@ describe('a QR refusal after a card was taken (STUCKQR-2)', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Paid · 5\.649/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
     const said = await screen.findByText(/Return the bank transfer/)
-    expect(said.textContent).toBe(i18n.t('pos.refusal.qrUnavailableRefundTransfer'))
+    expect(said.textContent).toBe(saidFor('pos.refusal.qrUnavailableTaken', 'pos.refusal.qrGiveBack.transfer'))
     expect(screen.queryByText(/Nothing was charged/)).toBeNull()
     expect(screen.queryByText(/Refund the card/)).toBeNull()
   })
 
-  it('names every way money left the till, and nothing for cash or on account', () => {
-    expect(qrRefusalKey([{ method: 'card' }, { method: 'transfer' }])).toBe(
-      'pos.refusal.qrUnavailableRefundCardAndTransfer',
-    )
-    expect(qrRefusalKey([{ method: 'cash' }, { method: 'transfer' }])).toBe(
-      'pos.refusal.qrUnavailableRefundTransfer',
-    )
-    expect(qrRefusalKey([{ method: 'cash' }, { method: 'card' }])).toBe('pos.refusal.qrUnavailableRefundCard')
-    expect(qrRefusalKey([{ method: 'cash' }, { method: 'account' }])).toBe(
-      'pos.refusal.POS_SALE_QR_UNAVAILABLE_FOR_BUYER',
-    )
-    for (const key of ['pos.refusal.qrUnavailableRefundTransfer', 'pos.refusal.qrUnavailableRefundCardAndTransfer']) {
-      expect(i18n.t(key)).not.toMatch(/Nothing was charged/)
-      expect(i18n.t(key)).toMatch(/bank transfer/)
-    }
+  it('names what to give back for every way of paying taken, and says nothing was charged only when nothing was', () => {
+    const giveBack = (method: string) => `pos.refusal.qrGiveBack.${method}`
+    expect(qrRefusalKeys([{ method: 'transfer' }, { method: 'cash' }, { method: 'card' }])).toEqual([
+      'pos.refusal.qrUnavailableTaken',
+      giveBack('card'),
+      giveBack('transfer'),
+      giveBack('cash'),
+    ])
+    expect(qrRefusalKeys([{ method: 'cash' }, { method: 'account' }])).toEqual([
+      'pos.refusal.qrUnavailableTaken',
+      giveBack('cash'),
+    ])
+    expect(qrRefusalKeys([{ method: 'account' }])).toEqual(['pos.refusal.POS_SALE_QR_UNAVAILABLE_FOR_BUYER'])
+    expect(qrRefusalKeys([])).toEqual(['pos.refusal.POS_SALE_QR_UNAVAILABLE_FOR_BUYER'])
+    expect(i18n.t('pos.refusal.qrUnavailableTaken')).not.toMatch(/Nothing was charged/)
+    expect(i18n.t(giveBack('cash'))).toMatch(/cash back/)
+    expect(i18n.t(giveBack('transfer'))).toMatch(/bank transfer/)
   })
 
   it('is worded in Arabic too', async () => {
     await i18n.changeLanguage('ar')
     for (const key of [
-      'pos.refusal.qrUnavailableRefundCard',
-      'pos.refusal.qrUnavailableRefundTransfer',
-      'pos.refusal.qrUnavailableRefundCardAndTransfer',
+      'pos.refusal.qrUnavailableTaken',
+      'pos.refusal.qrGiveBack.card',
+      'pos.refusal.qrGiveBack.transfer',
+      'pos.refusal.qrGiveBack.cash',
       'pos.buyer.firstNeeded',
       'pos.buyer.checking',
       'pos.buyer.chooseFull',
