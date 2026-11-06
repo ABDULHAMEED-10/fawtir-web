@@ -187,6 +187,7 @@ export function PosPage() {
       <PosTillGate showQueue>
         {(till) => (
           <Shelf
+            tillId={till.till.id}
             branchId={till.branchId}
             canSell={till.can.sell}
             tillCtl={<CashierPicker till={till.till} mine={till.mine} />}
@@ -198,10 +199,12 @@ export function PosPage() {
 }
 
 function Shelf({
+  tillId,
   branchId,
   canSell,
   tillCtl,
 }: {
+  tillId: string
   branchId: string
   canSell: boolean
   tillCtl: ReactNode
@@ -370,7 +373,7 @@ function Shelf({
   useEffect(() => captureScans((code) => void scanRef.current(code)), [])
   // A sale whose outcome is unknown cannot be changed (E-01): its screen offers only the same sale
   // again or today's sales.
-  const uncertain = useUncertainSale()
+  const uncertain = useUncertainSale(tillId)
   if (uncertain) return <Navigate to="/pos/payment" replace />
 
   return (

@@ -7,6 +7,7 @@ import {
   settleUncertainSale,
   useOpenSale,
   useUncertainSale,
+  type NewHold,
   type UncertainSale,
 } from '../../lib/posSale'
 import { useTranslation } from 'react-i18next'
@@ -41,6 +42,7 @@ import {
 import { posSaleBody, type TillBuyer } from '../../lib/posInvoice'
 import {
   PosTenantZoneUnavailable,
+  refusesTheSale,
   saleOutcomeUncertain,
   submitSale,
   useSellingBlock,
@@ -50,7 +52,7 @@ import { shrinkSlip, slipReading, type SlipReading } from '../../lib/posSlip'
 import { useReferenceData } from '../../lib/reference/referenceData'
 import { DESIGN_REFERENCE } from '../../lib/invoiceDraft'
 import { newPosKey, readPosSlip, uploadPosSlip, type PosSaleRequest } from '../../api/pos/pos'
-import { ApiError, NetworkError, serverCode } from '../../api'
+import { ApiError, NetworkError } from '../../api'
 import { MAX_SLIP_BYTES } from '../../lib/posSlipOutbox'
 import { BUYER_IDENTIFIER_SCHEMES } from '../../api/customers/customers'
 import { tillContact } from '../../lib/posContact'
@@ -182,7 +184,7 @@ function Payment({ till }: { till: Ready }) {
   const [contactError, setContactError] = useState<'phone' | 'email' | null>(null)
   /** A retried sale is the same sale: same key, same time, same body (P.12). */
   const attempt = useRef<{ fingerprint: string; key: string; soldAt: string } | null>(null)
-  const uncertain = useUncertainSale()
+  const uncertain = useUncertainSale(till.till.id)
 
   const tip = company ? 0 : tipFor(tipChoice, totals.sale)
   const owed = toPay(totals.sale, tip)
@@ -254,28 +256,29 @@ function Payment({ till }: { till: Ready }) {
    * unknown holds the sale exactly as sent (E-01): the screen then offers only the same sale again,
    * under the same key, or today's sales, until an answer is definite.
    */
-  const send = async (held: UncertainSale) => {
+  const send = async (held: NewHold) => {
+    const sending = held.send
     try {
       const qrProfile = await qrProfileNow()
       const result = await submitSale(
         // Only a sale the till queues reads the profile (`offlinePrintedQr`); an online one never does.
         qrProfile ? { ...till.till, qrProfile } : till.till,
-        held.request,
+        sending.request,
         held.key,
-        held.slipPhotos,
-        held.printed,
-        held.maker,
+        sending.slipPhotos,
+        sending.printed,
+        sending.maker,
       )
       settleUncertainSale()
       setFinishedSale({
-        ...held.receipt,
+        ...sending.receipt,
         sale: 'sale' in result ? result.sale : null,
         queuedNumber: 'queued' in result ? result.queued.number : null,
         ...('queued' in result && result.queued.body.printedQr
           ? { queuedQr: result.queued.body.printedQr.payload }
           : {}),
         queuedBehind: 'queued' in result && result.behind === true,
-        finishedAt: held.request.soldAt,
+        finishedAt: sending.request.soldAt,
       })
       attempt.current = null
       till.retry()
@@ -285,15 +288,7 @@ function Payment({ till }: { till: Ready }) {
       if (saleOutcomeUncertain(error)) holdUncertainSale(held)
       // The server answered this key with its own code: nothing is recorded under it, so the sale
       // may be changed again. A refusal made here before anything was sent leaves it held.
-      // A coded 401 or 403 refuses the session or its branch scope, not the sale (E01R-3): the
-      // outcome of the first send is still unknown, so the sale stays held.
-      else if (
-        error instanceof ApiError &&
-        serverCode(error) !== null &&
-        error.status !== 401 &&
-        error.status !== 403
-      )
-        settleUncertainSale()
+      else if (refusesTheSale(error)) settleUncertainSale()
       // The till's zone came from the till as last read: read it again, so a zone restored in the
       // company settings is verified on the next press (XT2-ZONE-UNREADABLE).
       if (error instanceof PosTenantZoneUnavailable) till.retry()
@@ -328,43 +323,47 @@ function Payment({ till }: { till: Ready }) {
     }
     try {
       await send({
+        tenantId: till.tenantId ?? null,
         tillId: till.till.id,
         shiftId: till.till.openShift?.shiftId ?? null,
+        tillLabel: till.till.name || till.till.code,
         key: attempt.current.key,
-        request: { ...body, soldAt: attempt.current.soldAt },
-        slipPhotos,
-        // What the receipt prints, signed with a queued sale (V530 `printed`).
-        printed: {
-          taxable: toRials(totals.beforeVat),
-          vat: toRials(totals.vat),
-          total: toRials(totals.sale),
-        },
-        // Kept on this device only, so only this person's session sends it by itself (P3b).
-        maker: till.userId
-          ? {
-              userId: till.userId,
-              name: (till.mine ? till.till.openShift?.cashier.name : null) ?? till.userName ?? null,
-            }
-          : null,
-        receipt: {
-          lines,
-          totals,
-          tip,
-          change,
-          company,
-          buyer:
-            named && !company
-              ? {
-                  name: buyer.name.trim(),
-                  identifierScheme: schemes.includes(buyer.scheme) ? buyer.scheme : schemes[0],
-                  identifierValue: buyer.value.trim(),
-                }
-              : null,
-          payments: taken.map((entry) => ({
-            method: entry.method,
-            amount: entry.amount,
-            approvalCode: entry.approvalCode,
-          })),
+        send: {
+          request: { ...body, soldAt: attempt.current.soldAt },
+          slipPhotos,
+          // What the receipt prints, signed with a queued sale (V530 `printed`).
+          printed: {
+            taxable: toRials(totals.beforeVat),
+            vat: toRials(totals.vat),
+            total: toRials(totals.sale),
+          },
+          // Kept on this device only, so only this person's session sends it by itself (P3b).
+          maker: till.userId
+            ? {
+                userId: till.userId,
+                name: (till.mine ? till.till.openShift?.cashier.name : null) ?? till.userName ?? null,
+              }
+            : null,
+          receipt: {
+            lines,
+            totals,
+            tip,
+            change,
+            company,
+            buyer:
+              named && !company
+                ? {
+                    name: buyer.name.trim(),
+                    identifierScheme: schemes.includes(buyer.scheme) ? buyer.scheme : schemes[0],
+                    identifierValue: buyer.value.trim(),
+                  }
+                : null,
+            payments: taken.map((entry) => ({
+              method: entry.method,
+              amount: entry.amount,
+              approvalCode: entry.approvalCode,
+            })),
+          },
         },
       })
     } finally {
@@ -373,11 +372,11 @@ function Payment({ till }: { till: Ready }) {
   }
 
   const retrySame = async () => {
-    if (busy || !uncertain) return
+    if (busy || !uncertain?.send) return
     setBusy(true)
     setRefusal(null)
     try {
-      await send(uncertain)
+      await send({ ...uncertain, send: uncertain.send })
     } finally {
       setBusy(false)
     }
@@ -416,8 +415,8 @@ function Payment({ till }: { till: Ready }) {
   if (uncertain) {
     return (
       <UncertainSalePanel
+        held={uncertain}
         refusal={refusal}
-        unsaved={uncertain.unsaved === true}
         busy={busy || sellingBlocked}
         onRetry={() => void retrySame()}
       />
@@ -1002,17 +1001,21 @@ function Payment({ till }: { till: Ready }) {
  * payment, no buyer, only the same sale again or today's sales, where a recorded sale shows.
  */
 function UncertainSalePanel({
+  held,
   refusal,
-  unsaved,
   busy,
   onRetry,
 }: {
+  held: UncertainSale
   refusal: unknown
-  unsaved: boolean
   busy: boolean
   onRetry: () => void
 }) {
   const { t } = useTranslation()
+  const cashier = held.send?.maker?.name ?? null
+  // Only the lock came back (no sealed sale on this device): the sale cannot be sent again from
+  // here, so once Today has been checked the cashier may unlock the till.
+  const lockOnly = held.send === null && !held.restoring
   return (
     <div className="mx-auto flex w-full max-w-[720px] flex-col gap-4 pb-10">
       <section className="flex flex-col gap-4 rounded-md bg-surface-card px-6 py-5">
@@ -1021,20 +1024,46 @@ function UncertainSalePanel({
           {refusal ? refusalSentence(t, refusal) : t('pos.refusal.outcomeUnknown')}
         </p>
         <p className="text-sm leading-[1.6] text-text-secondary">{t('pos.pay.uncertain.locked')}</p>
-        {unsaved ? (
+        {cashier ? (
+          <p className="text-sm font-medium text-text-secondary">
+            {t('pos.pay.uncertain.rungBy', { name: cashier })}
+          </p>
+        ) : null}
+        {held.restoring ? (
+          <p role="status" className="text-sm font-medium text-text-tertiary">
+            {t('pos.pay.uncertain.restoring')}
+          </p>
+        ) : null}
+        {held.kept === 'none' || held.kept === 'lock' ? (
           <p role="status" className="rounded-sm bg-warning-100 px-4 py-3 text-sm font-semibold text-text-primary">
-            {t('pos.pay.uncertain.unsaved')}
+            {t(held.kept === 'none' ? 'pos.pay.uncertain.unsaved' : 'pos.pay.uncertain.lockOnly')}
+          </p>
+        ) : null}
+        {held.hadSlips ? (
+          <p role="status" className="text-sm font-medium text-text-secondary">
+            {t('pos.pay.uncertain.reattachSlip')}
           </p>
         ) : null}
         <div className="flex flex-wrap items-center gap-4">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onRetry}
-            className="inline-flex h-11 items-center rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-40"
-          >
-            {t('pos.pay.uncertain.retry')}
-          </button>
+          {lockOnly ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={settleUncertainSale}
+              className="inline-flex h-11 items-center rounded-sm border border-border-subtle bg-white px-5 text-sm font-semibold text-text-primary disabled:opacity-40"
+            >
+              {t('pos.pay.uncertain.checkedToday')}
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={busy || held.send === null}
+              onClick={onRetry}
+              className="inline-flex h-11 items-center rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-40"
+            >
+              {t('pos.pay.uncertain.retry')}
+            </button>
+          )}
           <Link to="/pos/today" className="text-sm font-semibold text-primary-700 hover:text-primary-800">
             {t('pos.pay.uncertain.checkToday')}
           </Link>

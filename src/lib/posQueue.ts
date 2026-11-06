@@ -750,6 +750,16 @@ export function saleOutcomeUncertain(error: unknown): boolean {
   return (error instanceof PosStorageUnavailable || error instanceof PosOfflineQrUnavailable) && error.requested
 }
 
+/**
+ * A definite refusal of a held sale under its key, which releases the hold: a coded 4xx (review
+ * RBW2-3). Not a 401 or 403 (the session or its branch scope, E01R-3), a 408 or a 429 (the request
+ * was not judged), nor any 5xx, coded or not: none says the first send was not recorded.
+ */
+export function refusesTheSale(error: unknown): boolean {
+  if (!(error instanceof ApiError) || serverCode(error) === null) return false
+  return error.status >= 400 && error.status < 500 && ![401, 403, 408, 429].includes(error.status)
+}
+
 /** A walk-in or named consumer: the buyers whose receipt carries a QR (B2C). */
 function takesReceiptQr(body: PosSaleRequest): boolean {
   const kind = body.customer?.kind

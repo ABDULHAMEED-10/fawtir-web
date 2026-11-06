@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react'
 import type { PosPerson, PosPrintedTotals, PosSaleDto, PosSaleRequest } from '../api/pos/pos'
 import type { SlipPhoto } from './posSlipOutbox'
 import { NO_SALE_DISCOUNT, type SaleDiscount, type SaleLine, type SaleTotals } from './pos'
+import { openHeld, sealHeld, type SealedText } from './posVault'
 
 /**
  * The sale on the till, shared by the sale, company, payment and receipt screens, so a quantity
@@ -80,20 +81,42 @@ export type FinishedSale = {
  * so it can only be sent again as it was, under the same key, and what its receipt prints if it
  * then succeeds. While it is held the open sale cannot be changed, since a changed basket or
  * payment is a new sale with a new key, and a customer whose first sale was recorded would be
- * charged twice. Kept in sessionStorage per till and shift with the basket it was sent from, so a
- * reload, a re-login or a restored tab still offers only the same sale (review E01R-1).
+ * charged twice. It belongs to its till: kept per tenant and till across a reload, a re-login, a
+ * take-over or a restored tab (E01R-1, RBW2-1, RBW2-6), and never shown on another till (RBW2-4).
  */
-export type UncertainSale = {
-  tillId: string
-  shiftId: string | null
-  key: string
+export type HeldSend = {
   request: PosSaleRequest
   slipPhotos: SlipPhoto[]
   printed: PosPrintedTotals
   maker: PosPerson | null
   receipt: Omit<FinishedSale, 'sale' | 'queuedNumber' | 'queuedQr' | 'queuedBehind' | 'finishedAt'>
-  /** Set when the hold could not be stored: a reload would forget it, so the screen says so. */
-  unsaved?: boolean
+}
+
+export type UncertainSale = {
+  tenantId: string | null
+  tillId: string
+  /** Data only: a reload or a take-over may read the till under a new shift (RBW2-1). */
+  shiftId: string | null
+  /** The till's name, for the warning another till shows; never personal. */
+  tillLabel: string
+  key: string
+  /** Null while a stored hold is opened, and when only its lock could be kept (RBW2-2 b). */
+  send: HeldSend | null
+  /**
+   * What a reload would find: `sealed` the whole sale, `lock` the key and the lock only, `none`
+   * nothing (no storage), `pending` the lock while the sale is being sealed.
+   */
+  kept: 'pending' | 'sealed' | 'lock' | 'none'
+  /** A stored hold whose sealed sale is still being opened: locked, nothing can be sent yet. */
+  restoring: boolean
+  /** The sale carried a card slip photo, which is never stored (RBW2-5). */
+  hadSlips: boolean
+}
+
+/** A hold as the payment screen makes it, before it is stored. */
+export type NewHold = Omit<UncertainSale, 'send' | 'kept' | 'restoring' | 'hadSlips'> & {
+  send: HeldSend
+  hadSlips?: boolean
 }
 
 const START: OpenSale = {
@@ -107,8 +130,11 @@ let sale: OpenSale = START
 let finished: FinishedSale | null = null
 let uncertain: UncertainSale | null = null
 const listeners = new Set<() => void>()
+/** Counts every change, for readers that compute from storage (useOtherTillHolds). */
+let changes = 0
 
 function notify() {
+  changes += 1
   listeners.forEach((listener) => listener())
 }
 
@@ -148,9 +174,10 @@ export const resetOpenSale = (lines: SaleLine[] = []) => {
   sale = { ...START, lines, startedAt: lines.length ? '2026-09-04T10:26:00Z' : null }
   finished = null
   uncertain = null
+  parked.clear()
   try {
     for (const key of Object.keys(window.sessionStorage)) {
-      if (key.startsWith(HELD_PREFIX)) window.sessionStorage.removeItem(key)
+      if (key.startsWith(HELD_PREFIX) || key.startsWith(LEGACY_PREFIX)) window.sessionStorage.removeItem(key)
     }
   } catch {
     // No storage, nothing stored.
@@ -163,6 +190,7 @@ export const forgetTabMemory = () => {
   sale = START
   finished = null
   uncertain = null
+  parked.clear()
   notify()
 }
 
@@ -181,83 +209,263 @@ export function useFinishedSale(): FinishedSale | null {
 
 /*
  * Tab-scoped on purpose, as a paid-out's attempt is (posPaidOut.ts, review W4-2): another tab is
- * another attempt. Slip photos are not stored (a scanned slip can outgrow the quota); a restored
- * hold sends the sale again without them. Storage may be absent or refuse (private mode, quota):
- * the hold then lives in memory and says that a reload would forget it.
+ * another attempt. Keyed by tenant and till only (RBW2-1): a hold made before a shift was read, or
+ * taken over under a new shift, is still this till's. Signing out does not clear it (RBW2-6): the
+ * next person on the till gets the same lock, since clearing it would let the sale be rung twice.
+ *
+ * The entry in clear holds no personal data: ids, the till's name, the key and whether a slip photo
+ * was taken. The request, the receipt and the basket are sealed with the device's vault key
+ * (RBW2-2); a device that cannot seal keeps the lock alone, which after a reload offers only
+ * Today. Slip photos are never stored (quota): the cashier is told to attach them again (RBW2-5).
  */
-const HELD_PREFIX = 'fawtir.pos.uncertainSale.'
-const heldKey = (tillId: string, shiftId: string | null) => `${HELD_PREFIX}${tillId}.${shiftId ?? '-'}`
+const HELD_PREFIX = 'fawtir.pos.heldSale.'
+/** The first release's entries, keyed by till and shift and in clear (b2fb881a); read once, moved. */
+const LEGACY_PREFIX = 'fawtir.pos.uncertainSale.'
+const heldKey = (tenantId: string | null, tillId: string) => `${HELD_PREFIX}${tenantId ?? '-'}.${tillId}`
 
-type StoredHold = { held: Omit<UncertainSale, 'slipPhotos' | 'unsaved'>; basket: OpenSale }
+type StoredEntry = {
+  v: 2
+  tenantId: string | null
+  tillId: string
+  shiftId: string | null
+  tillLabel: string
+  key: string
+  hadSlips: boolean
+  sealed: SealedText | null
+}
+type SealedHold = { send: Omit<HeldSend, 'slipPhotos'>; basket: OpenSale }
+type LegacyHold = {
+  held: Omit<HeldSend, 'slipPhotos'> & { tillId: string; shiftId: string | null; key: string }
+  basket: OpenSale
+}
 
-export const holdUncertainSale = (held: UncertainSale) => {
-  let unsaved = false
+/** Holds of other tills this tab left with the sidebar, so coming back finds them as they were. */
+const parked = new Map<string, { hold: UncertainSale; basket: OpenSale }>()
+
+function writeEntry(entry: StoredEntry): boolean {
   try {
-    const stored: StoredHold = {
-      held: {
-        tillId: held.tillId,
-        shiftId: held.shiftId,
-        key: held.key,
-        request: held.request,
-        printed: held.printed,
-        maker: held.maker,
-        receipt: held.receipt,
-      },
-      basket: sale,
-    }
-    window.sessionStorage.setItem(heldKey(held.tillId, held.shiftId), JSON.stringify(stored))
+    window.sessionStorage.setItem(heldKey(entry.tenantId, entry.tillId), JSON.stringify(entry))
+    return true
   } catch {
-    unsaved = true
+    return false
   }
-  uncertain = { ...held, unsaved }
+}
+
+function readEntry(tenantId: string | null, tillId: string): StoredEntry | null {
+  try {
+    const raw = window.sessionStorage.getItem(heldKey(tenantId, tillId))
+    const entry = raw ? (JSON.parse(raw) as StoredEntry) : null
+    return entry && entry.v === 2 && entry.tillId === tillId && typeof entry.key === 'string'
+      ? entry
+      : null
+  } catch {
+    return null
+  }
+}
+
+function removeEntry(tenantId: string | null, tillId: string): void {
+  try {
+    window.sessionStorage.removeItem(heldKey(tenantId, tillId))
+  } catch {
+    // Nothing could be stored either.
+  }
+}
+
+const entryOf = (hold: UncertainSale, sealed: SealedText | null): StoredEntry => ({
+  v: 2,
+  tenantId: hold.tenantId,
+  tillId: hold.tillId,
+  shiftId: hold.shiftId,
+  tillLabel: hold.tillLabel,
+  key: hold.key,
+  hadSlips: hold.hadSlips,
+  sealed,
+})
+
+/**
+ * The lock is written first, in the same call, so a tab that dies while the sale is being sealed
+ * still comes back locked; the sealed sale replaces it once sealing answers, unless the hold was
+ * settled in the meantime.
+ */
+function keep(hold: UncertainSale, basket: OpenSale): UncertainSale {
+  if (!writeEntry(entryOf(hold, null))) return { ...hold, kept: 'none' }
+  const { request, printed, maker, receipt } = hold.send!
+  const send = { request, printed, maker, receipt }
+  void sealHeld({ send, basket } satisfies SealedHold).then((sealed) => {
+    const stored = readEntry(hold.tenantId, hold.tillId)
+    if (stored?.key !== hold.key) return
+    const kept = sealed !== null && writeEntry(entryOf(hold, sealed)) ? 'sealed' : 'lock'
+    const held = parked.get(hold.tillId)
+    if (held?.hold.key === hold.key) held.hold = { ...held.hold, kept }
+    if (uncertain?.key === hold.key) {
+      uncertain = { ...uncertain, kept }
+      notify()
+    }
+  })
+  return { ...hold, kept: 'pending' }
+}
+
+export const holdUncertainSale = (held: NewHold) => {
+  uncertain = keep(
+    {
+      ...held,
+      kept: 'pending',
+      restoring: false,
+      hadSlips: held.hadSlips === true || held.send.slipPhotos.length > 0,
+    },
+    sale,
+  )
   notify()
 }
 
 /** The outcome is known: the sale was recorded, kept, or definitely refused under its key. */
 export const settleUncertainSale = () => {
   if (uncertain) {
-    try {
-      window.sessionStorage.removeItem(heldKey(uncertain.tillId, uncertain.shiftId))
-    } catch {
-      // Nothing could be stored either.
-    }
+    removeEntry(uncertain.tenantId, uncertain.tillId)
+    parked.delete(uncertain.tillId)
   }
   uncertain = null
   notify()
 }
 
-/**
- * After a reload, a re-login or a restored tab: the stored hold of this till and shift comes back
- * with the basket it was sent from, and the till again offers only the same sale (E01R-1). A hold
- * already in memory is kept as it is.
- */
-export function restoreUncertainSale(tillId: string, shiftId: string | null): void {
-  if (uncertain) return
-  let stored: StoredHold
+/** The first release's entry for this till, moved under the tenant and till and sealed. */
+function migrateLegacy(tenantId: string | null, tillId: string, tillLabel: string): boolean {
+  let legacy: LegacyHold | null = null
   try {
-    const raw = window.sessionStorage.getItem(heldKey(tillId, shiftId))
-    if (!raw) return
-    stored = JSON.parse(raw) as StoredHold
+    for (const name of Object.keys(window.sessionStorage)) {
+      if (!name.startsWith(`${LEGACY_PREFIX}${tillId}.`)) continue
+      const raw = window.sessionStorage.getItem(name)
+      window.sessionStorage.removeItem(name)
+      const parsed = raw ? (JSON.parse(raw) as LegacyHold) : null
+      if (
+        parsed?.held &&
+        typeof parsed.held.key === 'string' &&
+        parsed.held.request?.tillId === tillId &&
+        parsed.held.receipt &&
+        Array.isArray(parsed.basket?.lines)
+      ) {
+        legacy = parsed
+      }
+    }
   } catch {
-    return
+    return false
   }
-  const held = stored?.held
-  if (
-    !held ||
-    typeof held.key !== 'string' ||
-    !held.request ||
-    held.request.tillId !== tillId ||
-    !held.receipt ||
-    !Array.isArray(stored.basket?.lines)
-  ) {
-    return
-  }
-  uncertain = { ...held, tillId, shiftId, slipPhotos: [] }
-  sale = stored.basket
+  if (!legacy) return false
+  const { held, basket } = legacy
+  sale = basket
   finished = null
-  notify()
+  uncertain = keep(
+    {
+      tenantId,
+      tillId,
+      shiftId: held.shiftId,
+      tillLabel,
+      key: held.key,
+      send: {
+        request: held.request,
+        slipPhotos: [],
+        printed: held.printed,
+        maker: held.maker,
+        receipt: held.receipt,
+      },
+      kept: 'pending',
+      restoring: false,
+      hadSlips: false,
+    },
+    basket,
+  )
+  return true
 }
 
-export function useUncertainSale(): UncertainSale | null {
-  return useSyncExternalStore(subscribe, () => uncertain)
+/**
+ * Every till screen calls this with its till. A hold of another till is put aside, never shown or
+ * sent here (RBW2-4); this till's hold comes back from the tab's memory, or from storage: locked at
+ * once, then opened, so nothing can be rung while the sealed sale is read (RBW2-2).
+ */
+export function restoreUncertainSale(
+  tenantId: string | null,
+  tillId: string,
+  tillLabel: string,
+): void {
+  if (uncertain?.tillId === tillId) return
+  if (uncertain) {
+    parked.set(uncertain.tillId, { hold: uncertain, basket: sale })
+    uncertain = null
+    sale = START
+    finished = null
+  }
+  const left = parked.get(tillId)
+  if (left) {
+    parked.delete(tillId)
+    uncertain = left.hold
+    sale = left.basket
+    finished = null
+    notify()
+    return
+  }
+  const entry = readEntry(tenantId, tillId)
+  if (!entry) {
+    migrateLegacy(tenantId, tillId, tillLabel)
+    notify()
+    return
+  }
+  const hold: UncertainSale = {
+    tenantId,
+    tillId,
+    shiftId: entry.shiftId,
+    tillLabel: entry.tillLabel,
+    key: entry.key,
+    send: null,
+    kept: entry.sealed ? 'sealed' : 'lock',
+    restoring: entry.sealed !== null,
+    hadSlips: entry.hadSlips === true,
+  }
+  uncertain = hold
+  sale = START
+  finished = null
+  notify()
+  if (!entry.sealed) return
+  void openHeld<SealedHold>(entry.sealed).then((opened) => {
+    if (uncertain?.key !== hold.key || uncertain.tillId !== tillId) return
+    if (opened?.send?.request?.tillId === tillId && Array.isArray(opened.basket?.lines)) {
+      uncertain = { ...uncertain, send: { ...opened.send, slipPhotos: [] }, restoring: false }
+      sale = opened.basket
+    } else {
+      uncertain = { ...uncertain, restoring: false, kept: 'lock' }
+    }
+    notify()
+  })
+}
+
+/** This till's hold; a hold of another till is not this screen's (RBW2-4). */
+export function useUncertainSale(tillId: string): UncertainSale | null {
+  return useSyncExternalStore(subscribe, () => (uncertain?.tillId === tillId ? uncertain : null))
+}
+
+/**
+ * The other tills of this tenant with a held sale, stored or put aside in this tab, so the till in
+ * use says to check Today on them before anything is rung there again (RBW2-4).
+ */
+export function otherTillHolds(tenantId: string | null, tillId: string): string[] {
+  const labels = new Map<string, string>()
+  try {
+    const prefix = `${HELD_PREFIX}${tenantId ?? '-'}.`
+    for (const name of Object.keys(window.sessionStorage)) {
+      if (!name.startsWith(prefix)) continue
+      const entry = readEntry(tenantId, name.slice(prefix.length))
+      if (entry && entry.tillId !== tillId) labels.set(entry.tillId, entry.tillLabel)
+    }
+  } catch {
+    // Without storage only the tab's own holds are known.
+  }
+  for (const [id, { hold }] of parked) {
+    if (id !== tillId && hold.tenantId === tenantId) labels.set(id, hold.tillLabel)
+  }
+  if (uncertain && uncertain.tillId !== tillId) labels.set(uncertain.tillId, uncertain.tillLabel)
+  return [...labels.values()].sort()
+}
+
+export function useOtherTillHolds(tenantId: string | null, tillId: string): string[] {
+  useSyncExternalStore(subscribe, () => changes)
+  return otherTillHolds(tenantId, tillId)
 }

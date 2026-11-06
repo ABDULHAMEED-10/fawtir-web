@@ -4511,7 +4511,13 @@
         "locked": "Until it is, the basket, the payment and the buyer cannot be changed: a changed sale would be a new one, and the customer could be charged twice.",
         "unsaved": "This sale could not be kept on this device, so a reload would forget it. A sale may already be recorded: check Today before ringing it again.",
         "retry": "Send the same sale again",
-        "checkToday": "Check today’s sales"
+        "checkToday": "Check today’s sales",
+        "rungBy": "Rung by {{name}}.",
+        "restoring": "Reading the held sale on this device…",
+        "lockOnly": "This sale’s details could not be kept safely on this device, so it cannot be sent again from here. A sale may already be recorded: check Today before ringing it again.",
+        "reattachSlip": "This sale had a card slip photo, which this device did not keep. Once the sale is confirmed, attach the slip photo to it again.",
+        "checkedToday": "I checked Today: unlock the till",
+        "otherTill": "{{till}} has a sale whose outcome is not known yet. Check Today on {{till}} before anything is rung there again."
       }
     },
     "done": {
@@ -4884,7 +4890,8 @@
       "cardNote_other": "{{count}} sales",
       "notCounted": "Not counted yet",
       "countFirst": "Type what is actually in the drawer, then close the till.",
-      "terminalNetNote": "Card taken {{gross}} across {{payments}} payments, tips included; paid back to cards {{refunds}}. Fawtir's net card figure is {{net}}. Type the total from the bank machine's end-of-day report. The machine may print sales and refunds separately, so its figure may not be this net."
+      "terminalNetNote": "Card taken {{gross}} across {{payments}} payments, tips included; paid back to cards {{refunds}}. Fawtir's net card figure is {{net}}. Type the total from the bank machine's end-of-day report. The machine may print sales and refunds separately, so its figure may not be this net.",
+      "heldSale": "The shift cannot be closed while a sale’s outcome is not known. Send the same sale again, or check Today, first."
     },
     "refund": {
       "title": "Putting something right",

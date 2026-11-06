@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { SAMPLE_SALE } from '../../lib/posTestSale'
-import { resetOpenSale } from '../../lib/posSale'
+import { holdUncertainSale, resetOpenSale } from '../../lib/posSale'
 import {
   flushQueue,
   noteQueueSender,
@@ -373,5 +373,30 @@ describe('closing the till with sales still on this device (OFF-4)', () => {
       expect(i18n.t('pos.pendingSync.signOutLeft', { count })).not.toContain('pos.pendingSync')
     }
     await i18n.changeLanguage('en')
+  })
+})
+
+// RBW2-6: a sale whose outcome is unknown may be recorded in this shift, and its hold outlives the
+// shift, so the till is not closed until it is settled.
+describe('closing the till while a sale is held (RBW2-6)', () => {
+  it('is refused with words, and nothing is closed', async () => {
+    holdUncertainSale({
+      tenantId: 't-1',
+      tillId: 'till-1',
+      shiftId: 'sh-1',
+      tillLabel: 'Till 1',
+      key: 'pos-sale-key-held',
+      send: {
+        request: { tillId: 'till-1' } as never,
+        slipPhotos: [],
+        printed: { taxable: 1, vat: 0.05, total: 1.05 },
+        maker: null,
+        receipt: { lines: [], totals: {} as never, tip: 0, change: 0, company: null, payments: [] },
+      },
+    })
+    renderClose()
+    expect(await screen.findByText(i18n.t('pos.close.heldSale'))).toBeTruthy()
+    expect(screen.queryByRole('button', { name: i18n.t('pos.close.closeTill') })).toBeNull()
+    expect(closes()).toEqual([])
   })
 })

@@ -65,6 +65,8 @@ export type TillState =
       userId: string | null
       /** Their sign-in name, for a queued sale they make; absent where a test builds the state. */
       userName?: string | null
+      /** Optional for older fixtures; a held sale is keyed by it (RBW2-1). */
+      tenantId?: string | null
       /** Their shift is the till's open one. */
       mine: boolean
       can: {
@@ -123,6 +125,8 @@ export function usePosTill(): TillState {
     branchName: name,
     userId,
     userName: entitlements?.username ?? null,
+    // Keys a held sale with its till (posSale, RBW2-1): one tab may sign in to another company.
+    tenantId: entitlements?.tenantId ?? null,
     mine: !!userId && till.openShift?.cashier.userId === userId,
     can: {
       sell: can('pos.sell'),

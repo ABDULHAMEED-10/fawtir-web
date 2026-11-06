@@ -44,6 +44,7 @@ import {
   type PosShiftCloseDto,
 } from '../../api/pos/pos'
 import type { TillState } from '../../lib/posTill'
+import { useUncertainSale } from '../../lib/posSale'
 import {
   PAID_OUT_CATEGORIES,
   choosableClasses,
@@ -386,6 +387,9 @@ function CloseForm({
   const [closed, setClosed] = useState<PosShiftCloseDto | null>(null)
   const key = useRef<{ fingerprint: string; key: string } | null>(null)
   const waiting = useQueuedSales(till.till.id)
+  // A sale whose outcome is unknown may be recorded in this shift: closing now would count the cash
+  // without it, and the hold outlives the shift (RBW2-6). The close waits until it is settled.
+  const held = useUncertainSale(till.till.id)
   const [sending, setSending] = useState(false)
   const [unsent, setUnsent] = useState<ShiftEndFlush | null>(null)
   const warned = unsent !== null && waiting.length > 0
@@ -457,6 +461,7 @@ function CloseForm({
   }
 
   const close = async () => {
+    if (held) return
     setBusy(true)
     setRefusal(null)
     // A queued sale that reaches the server after this close is not in its count, and a signed one
@@ -1047,6 +1052,10 @@ function CloseForm({
               <p className="flex items-center gap-2 rounded-sm bg-success-100 px-3 py-3 text-sm font-medium text-success-700">
                 <CheckIcon className="size-4 shrink-0" />
                 {t('pos.close.closedAt', { time: tillTime(closed.closedAt, locale) })}
+              </p>
+            ) : held ? (
+              <p role="alert" className="rounded-sm bg-warning-100 px-3 py-3 text-sm font-semibold text-text-primary">
+                {t('pos.close.heldSale')}
               </p>
             ) : (
               <button
