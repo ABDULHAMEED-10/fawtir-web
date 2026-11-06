@@ -2050,7 +2050,10 @@
       "overdueNone": "Nothing overdue",
       "settled": "Settled",
       "settledLive_one": "{{invoices}} document settled by payment or credit",
-      "settledLive_other": "{{invoices}} documents settled by payment or credit"
+      "settledLive_other": "{{invoices}} documents settled by payment or credit",
+      "paid": "Paid",
+      "paidLive_one": "{{invoices}} invoice collected",
+      "paidLive_other": "{{invoices}} invoices collected"
     },
     "tabs": {
       "all": "All",
@@ -2170,7 +2173,13 @@
     },
     "delivery": {
       "sentManually": "Sent manually",
-      "notSent": "Not sent"
+      "notSent": "Not sent",
+      "queued": "Queued",
+      "sending": "Sending",
+      "sent": "Sent",
+      "delivered": "Delivered",
+      "deliveredUnconfirmed": "Delivered, unconfirmed",
+      "undeliverable": "Not delivered"
     },
     "amountNote": {
       "estimate": "Estimate · priced at issue",

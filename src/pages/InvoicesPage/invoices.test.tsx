@@ -1158,3 +1158,100 @@ describe('cancelling a credit note from the list (D-3)', () => {
     ).toHaveLength(1)
   })
 })
+
+describe('the read-model fields of backend #824, each optional', () => {
+  const unpaid = (overrides: Partial<InvoiceRowDto> = {}) =>
+    issued({
+      payment: {
+        state: 'UNPAID',
+        overdue: false,
+        daysOverdue: null,
+        paidAmount: 0,
+        creditedAmount: 0,
+        outstandingAmount: 845.125,
+      },
+      ...overrides,
+    })
+
+  it('titles the cash card "Paid" with the collected figure when the server sends it (ACC-10)', async () => {
+    const collected = { collectedTotal: { count: 9, total: 4321.75 } }
+    summaryResponse = () => json(200, { ...SUMMARY, ...collected })
+    salesSummaryResponse = () =>
+      json(200, { ...SUMMARY, awaiting: 6, overdue: 4, paid: 17, ...collected })
+    renderInvoices()
+    expect(await screen.findByText('4,321.750')).toBeTruthy()
+    const card = screen.getByText('4,321.750').closest('article') as HTMLElement
+    expect(within(card).getByText('Paid')).toBeTruthy()
+    expect(within(card).getByText('9 invoices collected')).toBeTruthy()
+    // paidTotal is not cash in: it never stands in for the collected figure.
+    expect(screen.queryByText('9,876.125')).toBeNull()
+    expect(screen.queryByText('Settled')).toBeNull()
+  })
+
+  it('keeps the card "Settled" over paidTotal when the server sends no collected figure', async () => {
+    renderInvoices()
+    const card = (await screen.findByText('9,876.125')).closest('article') as HTMLElement
+    expect(within(card).getByText('Settled')).toBeTruthy()
+    expect(within(card).queryByText('Paid')).toBeNull()
+    expect(screen.queryByText(/invoices collected/)).toBeNull()
+  })
+
+  it('maps each ledger state to its pill, and a delivered one to awaiting payment (A-4b)', () => {
+    expect(toInvoiceListItem(unpaid({ deliveryState: 'QUEUED' }))).toMatchObject({
+      ledger: 'queued',
+      payment: 'toSend',
+    })
+    expect(toInvoiceListItem(unpaid({ deliveryState: 'SENDING' })).ledger).toBe('sending')
+    // SENT is only the receiving access point's receipt: still to be sent as far as owing goes.
+    expect(toInvoiceListItem(unpaid({ deliveryState: 'SENT' }))).toMatchObject({
+      ledger: 'sent',
+      payment: 'toSend',
+    })
+    expect(toInvoiceListItem(unpaid({ deliveryState: 'DELIVERED' }))).toMatchObject({
+      ledger: 'delivered',
+      payment: 'awaiting',
+    })
+    expect(toInvoiceListItem(unpaid({ deliveryState: 'DELIVERED_UNCONFIRMED' }))).toMatchObject({
+      ledger: 'deliveredUnconfirmed',
+      payment: 'awaiting',
+    })
+    expect(toInvoiceListItem(unpaid({ deliveryState: 'UNDELIVERABLE' })).ledger).toBe(
+      'undeliverable',
+    )
+  })
+
+  it('says nothing about delivery from NOT_SUBMITTED, a blocker or a state it does not know', () => {
+    // A server before #824 sends NOT_SUBMITTED and the handoff blocker on every issued row.
+    expect(
+      toInvoiceListItem(
+        unpaid({ deliveryState: 'NOT_SUBMITTED', deliveryBlocker: 'CANONICAL_HANDOFF_NOT_ENABLED' }),
+      ),
+    ).toMatchObject({ ledger: null, payment: 'toSend', sentManually: false })
+    expect(toInvoiceListItem(unpaid({ deliveryState: 'SENT_MANUALLY' })).ledger).toBeNull()
+    expect(toInvoiceListItem(unpaid({ deliveryState: 'SOMETHING_NEW' })).ledger).toBeNull()
+    expect(toInvoiceListItem(draft({ deliveryState: 'QUEUED' })).ledger).toBeNull()
+  })
+
+  it('prints the ledger pill in the PEPPOL/OTA column with the detail page sentence (A-4b)', async () => {
+    listResponses = [
+      () =>
+        json(
+          200,
+          springPage([
+            unpaid({ deliveryState: 'QUEUED' }),
+            unpaid({ id: 'inv-2', invoiceNumber: 'INV-2026-0043', deliveryBlocker: 'CANONICAL_HANDOFF_NOT_ENABLED' }),
+          ]),
+        ),
+    ]
+    renderInvoices()
+    const queued = (await screen.findByText('INV-2026-0042')).closest('tr') as HTMLElement
+    const pill = within(queued).getByText('Queued')
+    expect(pill.closest('span[title]')?.getAttribute('title')).toBe(
+      'Validated and queued for sending',
+    )
+    const blocked = screen.getByText('INV-2026-0043').closest('tr') as HTMLElement
+    for (const word of ['Queued', 'Not sent', 'Sent', 'Delivered']) {
+      expect(within(blocked).queryByText(word)).toBeNull()
+    }
+  })
+})

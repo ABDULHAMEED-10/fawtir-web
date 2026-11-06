@@ -314,15 +314,18 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
   const owed = receivable.read.status === 'ready' ? receivable.read.data : null
   const orig = original.read.status === 'ready' ? original.read.data : null
   const origOwed = originalOwed.read.status === 'ready' ? originalOwed.read.data : null
+  // The note's own customerName and correctionOfInvoiceNumber (C-5, backend #824) stand in while
+  // the customer or the original invoice is unread or refused; a server before #824 sends null.
   const customerName =
     customer.read.status === 'ready'
       ? customer.read.data.displayName
-      : t('salesNote.compose.customerUnknown')
+      : (data.customerName ?? t('salesNote.compose.customerUnknown'))
   // A placeholder while the original invoice is still being read: the raw UUID fallback flashed
   // into every "Reverses ..." sentence before the number arrived (TEST verification 2026-10-29).
   // A failed read keeps the id, the only handle left on the invoice.
   const invoiceNumber =
     orig?.invoiceNumber ??
+    data.correctionOfInvoiceNumber ??
     (originalId && original.read.status === 'loading' ? '…' : (originalId ?? '—'))
   const money = (value: number | null | undefined) =>
     value === null || value === undefined ? '—' : formatAmount(value, data.currency, language)

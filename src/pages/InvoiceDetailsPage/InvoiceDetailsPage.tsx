@@ -514,8 +514,12 @@ function InvoiceScreen() {
       ? branches.read.data.find((branch) => branch.id === data.branchId)
       : undefined
   const branchName = issuingBranch ? branchLabel.label(issuingBranch) : undefined
+  // The document's own customerName (C-5, backend #824) stands in while the customer record is
+  // unread or refused; a server before #824 sends null, and the page says it does not know.
   const customerName =
-    customer.read.status === 'ready' ? customer.read.data.displayName : t(party.unknown)
+    customer.read.status === 'ready'
+      ? customer.read.data.displayName
+      : (data.customerName ?? t(party.unknown))
   const onPeppol =
     customer.read.status === 'ready' && customer.read.data.peppolDelivery === 'ACTIVE'
   const due = dueNote(owed, today)
@@ -529,6 +533,15 @@ function InvoiceScreen() {
         defaultValue: data.lines[0].taxCategoryCode,
       })
     : ''
+  // Its own words: Arabic needs the definite, agreeing form after "الضريبة" ("الضريبة · القياسية"),
+  // which the header's "نسبة قياسية" does not take.
+  const vatRowLabel = (category: string, code: string, rate: number) =>
+    t('invoiceDetails.totals.vatRate', {
+      category: t(`invoiceDetails.totals.category.${category}`, {
+        defaultValue: t(`invoiceDetails.category.${category}`, { defaultValue: code }),
+      }),
+      rate,
+    })
   const vatTreatment =
     data.lines.length === 0
       ? '—'
@@ -1505,22 +1518,30 @@ function InvoiceScreen() {
                 'text-success-700',
               ],
               ['invoiceDetails.totals.net', money(data.totals.taxableAmount), 'text-text-primary'],
-              [
-                vatRates.length === 1 && data.lines[0]
-                  ? t('invoiceDetails.totals.vatRate', {
-                      // Its own words: Arabic needs the definite, agreeing form after "الضريبة"
-                      // ("الضريبة · القياسية"), which the header's "نسبة قياسية" does not take.
-                      category: t(`invoiceDetails.totals.category.${data.lines[0].en16931Category}`, {
-                        defaultValue: vatCategory,
-                      }),
-                      rate: data.lines[0].taxRate ?? 0,
-                    })
-                  : t('invoiceDetails.totals.vatOnly'),
-                money(data.totals.vatAmount),
-                'text-text-primary',
-              ],
-            ].map(([key, value, tone]) => (
-              <div key={key} className="flex items-center justify-between gap-4 text-sm">
+              // One VAT row per category and rate, each the server's own figure (A-8b, backend
+              // #824). A server before it sends no subtotals: one row, named only when every line
+              // shares one category and rate, since splitting the VAT here would invent figures.
+              ...(data.totals.taxSubtotals?.length
+                ? data.totals.taxSubtotals.map((subtotal) => [
+                    vatRowLabel(subtotal.en16931Category, subtotal.taxCategoryCode, subtotal.rate),
+                    money(subtotal.vatAmount),
+                    'text-text-primary',
+                  ])
+                : [
+                    [
+                      vatRates.length === 1 && data.lines[0]
+                        ? vatRowLabel(
+                            data.lines[0].en16931Category,
+                            data.lines[0].taxCategoryCode,
+                            data.lines[0].taxRate ?? 0,
+                          )
+                        : t('invoiceDetails.totals.vatOnly'),
+                      money(data.totals.vatAmount),
+                      'text-text-primary',
+                    ],
+                  ]),
+            ].map(([key, value, tone], index) => (
+              <div key={`${index}-${key}`} className="flex items-center justify-between gap-4 text-sm">
                 <span className="font-medium text-text-tertiary">
                   {key.startsWith('invoiceDetails.') ? t(key) : key}
                 </span>

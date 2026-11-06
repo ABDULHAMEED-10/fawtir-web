@@ -59,9 +59,25 @@ export type InvoiceTotalsDto = {
   totalAmount: number
   payableRoundingAmount: number
   outputScale: number
+  /**
+   * One row per VAT category and rate, from the projection the other totals come from (A-8b,
+   * backend #824). Absent from a server before it.
+   */
+  taxSubtotals?: InvoiceTaxSubtotalDto[]
 }
 
-/** `InvoiceResponse`. `customerName` and `payment` are list-row fields and are null here. */
+/** `InvoicePreviewResponse.TaxSubtotal`, the shape the preview and the totals share. */
+export type InvoiceTaxSubtotalDto = {
+  taxCategoryCode: string
+  en16931Category: string
+  rate: number
+  exemptionReason: string | null
+  exemptionReasonCode: string | null
+  taxableAmount: number
+  vatAmount: number
+}
+
+/** `InvoiceResponse`, as `GET /authored-invoices/{id}` answers it. */
 export type InvoiceDetailDto = {
   id: string
   type: InvoiceTypeDto
@@ -127,9 +143,8 @@ export type InvoiceDetailDto = {
   seller?: InvoiceSellerDto | null
   buyer?: InvoiceBuyerDto | null
   /**
-   * The list-row fields `InvoiceResponse` also carries. The single read leaves them null today
-   * (backend C-5); a page that needs them reads them from the list. Optional because a server
-   * older than the field does not send it.
+   * The list-row fields, read by the single read as the list reads them since backend #824 (C-5).
+   * A server before it sends them null, so each is only a fallback beside the page's own reads.
    */
   customerName?: string | null
   payment?: InvoiceListPaymentDto | null

@@ -3031,3 +3031,104 @@ describe('an invoice held because its printed QR differs (QR E-4, PRINTED_QR_DIF
     expect(screen.queryByText(/refused|rejected/i)).toBeNull()
   })
 })
+
+describe('the read-model fields of backend #824 on an invoice, each optional', () => {
+  const mixed = (subtotals?: NonNullable<InvoiceDetailDto['totals']>['taxSubtotals']) => {
+    const base = invoice()
+    return invoice({
+      lines: [
+        base.lines[0],
+        {
+          ...base.lines[0],
+          lineNumber: 2,
+          description: 'Dates for export',
+          quantity: 1,
+          unitPrice: 10,
+          taxCategoryCode: 'Z',
+          en16931Category: 'Z',
+          taxRate: 0,
+        },
+      ],
+      totals: {
+        ...base.totals!,
+        subtotal: 64,
+        taxableAmount: 64,
+        vatAmount: 2.7,
+        totalAmount: 66.7,
+        ...(subtotals ? { taxSubtotals: subtotals } : {}),
+      },
+    })
+  }
+  // The totals block's labels; the preview pane repeats the figures in its own type.
+  const TOTALS_LABEL = 'span.font-medium.text-text-tertiary'
+  const row = (label: string) =>
+    screen.getByText(label, { selector: TOTALS_LABEL }).parentElement as HTMLElement
+  const totalsVatLabels = () =>
+    screen.queryAllByText(/^VAT/, { selector: TOTALS_LABEL }).map((el) => el.textContent)
+
+  it('prints one VAT row per category with the server figure for each (A-8b)', async () => {
+    invoiceResponse = () =>
+      json(
+        200,
+        mixed([
+          {
+            taxCategoryCode: 'S',
+            en16931Category: 'S',
+            rate: 5,
+            exemptionReason: null,
+            exemptionReasonCode: null,
+            taxableAmount: 54,
+            vatAmount: 2.7,
+          },
+          {
+            taxCategoryCode: 'Z',
+            en16931Category: 'Z',
+            rate: 0,
+            exemptionReason: null,
+            exemptionReasonCode: 'VATZR-OM-01',
+            taxableAmount: 10,
+            vatAmount: 0,
+          },
+        ]),
+      )
+    renderInvoice()
+    expect(await screen.findByText('VAT · Standard 5%')).toBeTruthy()
+    expect(within(row('VAT · Standard 5%')).getByText('2.700')).toBeTruthy()
+    expect(within(row('VAT · Zero-rated 0%')).getByText('0.000')).toBeTruthy()
+    expect(totalsVatLabels()).toEqual(['VAT · Standard 5%', 'VAT · Zero-rated 0%'])
+  })
+
+  it('keeps one plain VAT row on a mixed invoice when the server sends no subtotals', async () => {
+    invoiceResponse = () => json(200, mixed())
+    renderInvoice()
+    await screen.findAllByText('Dates for export')
+    expect(totalsVatLabels()).toEqual(['VAT'])
+    expect(within(row('VAT')).getByText('2.700')).toBeTruthy()
+    expect(screen.queryByText(/^VAT · /)).toBeNull()
+  })
+
+  it("names the customer from the invoice when the customer record cannot be read (C-5)", async () => {
+    invoiceResponse = () => json(200, invoice({ customerName: 'Sohar Port Logistics' }))
+    const served = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url.startsWith('/api/v1/customers/') ? json(403, { status: 403 }) : served(url, init),
+    )
+    renderInvoice()
+    await screen.findAllByText('INV-2026-0042')
+    await waitFor(() => expect(screen.getAllByText(/Sohar Port Logistics/).length).toBeGreaterThan(0))
+  })
+
+  it('names nobody when neither the record nor the invoice says who the customer is', async () => {
+    invoiceResponse = () => json(200, invoice({ customerName: null }))
+    const served = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url.startsWith('/api/v1/customers/') ? json(403, { status: 403 }) : served(url, init),
+    )
+    renderInvoice()
+    await screen.findAllByText('INV-2026-0042')
+    await waitFor(() =>
+      expect(calls().some((call) => call.startsWith('GET /api/v1/customers/'))).toBe(true),
+    )
+    expect(screen.queryByText(/Sohar Port Logistics/)).toBeNull()
+  })
+})

@@ -28,6 +28,7 @@ import {
   type NoteLine,
 } from '../../lib/salesNote'
 import { ApiError } from '../../api'
+import { resetSharedRequests } from '../../api/inflight'
 import { issueRefusalOf } from '../../lib/invoiceIssue'
 import { noteCancelRefusalKey } from '../../lib/invoiceDetail'
 import { CATEGORY_REASON_CONFLICT } from '../../lib/invoiceDraft'
@@ -2538,5 +2539,98 @@ describe("why a note was not sent, from the server's deliveryBlocker (W2-D1)", (
     await openNote('DEBIT_NOTE', null)
     expect(await screen.findByText(/This debit note is ready to deliver to/)).toBeTruthy()
     expect(screen.queryByText(/Peppol sending|sent over Peppol from here/)).toBeNull()
+  }, 30_000)
+})
+
+describe('the read-model fields of backend #824 on the credit notes, each optional', () => {
+  const summaryReply = (body: unknown) => (url: string) =>
+    url.startsWith('/api/v1/authored-invoices/summary') ? json(200, body) : undefined
+
+  it('takes what was paid back off "Applied to invoices", and shows it as Refunded (ACC-3)', async () => {
+    override = summaryReply({ ...CREDIT_SUMMARY, refundedTotal: { count: 3, total: 20.5 } })
+    renderAt('/income/credit-notes')
+    expect(await screen.findByText('97.137')).toBeTruthy()
+    const applied = screen.getByRole('heading', { name: 'Applied to invoices' })
+      .closest('article') as HTMLElement
+    // 144.831 issued less 20.500 paid back; 14 issued notes less the 3 paid back.
+    expect(within(applied).getByText('124.331')).toBeTruthy()
+    expect(within(applied).getByText('11 offset, no cash out')).toBeTruthy()
+    const refunded = screen.getByRole('heading', { name: 'Refunded' })
+      .closest('article') as HTMLElement
+    expect(within(refunded).getByText('20.500')).toBeTruthy()
+    expect(within(refunded).getByText('3 paid back to customer')).toBeTruthy()
+    // The Applied tab lists every issued note, so its count stays the issued count.
+    expect(within(screen.getByRole('tab', { name: /Applied/ })).getByText('14')).toBeTruthy()
+    // Refund due has no figure from any server yet.
+    const due = screen.getByRole('heading', { name: 'Refund due' }).closest('article') as HTMLElement
+    expect(within(due).getByText('Not available yet')).toBeTruthy()
+  })
+
+  it('keeps "Applied to invoices" at the issued total and Refunded unavailable without refundedTotal', async () => {
+    override = summaryReply(CREDIT_SUMMARY)
+    renderAt('/income/credit-notes')
+    const applied = (await screen.findByRole('heading', { name: 'Applied to invoices' }))
+      .closest('article') as HTMLElement
+    expect(await within(applied).findByText('144.831')).toBeTruthy()
+    const refunded = screen.getByRole('heading', { name: 'Refunded' })
+      .closest('article') as HTMLElement
+    expect(within(refunded).getByText('Not available yet')).toBeTruthy()
+    expect(within(refunded).queryByText('0.000')).toBeNull()
+  })
+})
+
+describe("a note's own customerName and corrected invoice number (C-5)", () => {
+  // An earlier test leaves the original invoice's read pending for ever; joining it would answer
+  // these tests from that test's stubs.
+  beforeEach(() => resetSharedRequests())
+
+  const note: InvoiceDetailDto = {
+    ...INVOICE,
+    id: NOTE_ID,
+    type: 'CREDIT_NOTE',
+    correctionOfInvoiceId: INVOICE_ID,
+    invoiceNumber: 'CRN-5',
+  }
+
+  const open = async (served: Partial<InvoiceDetailDto>) => {
+    override = (url) => {
+      // Neither the corrected invoice nor the customer record can be read.
+      if (url === `/api/v1/authored-invoices/${INVOICE_ID}`) return json(404, { status: 404 })
+      if (url.startsWith('/api/v1/customers/')) return json(403, { status: 403 })
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}`) return json(200, { ...note, ...served })
+      if (url.startsWith(`/api/v1/authored-invoices/${NOTE_ID}/`))
+        return url.endsWith('/receivable')
+          ? json(404, { status: 404 })
+          : json(
+              200,
+              url.endsWith('/history')
+                ? { entries: [], truncated: false, limit: 200 }
+                : url.endsWith('/internal-note')
+                  ? { internalNote: null }
+                  : [],
+            )
+      return undefined
+    }
+    render(
+      <MemoryRouter initialEntries={[`/income/credit-notes/${NOTE_ID}`]}>
+        <Routes>
+          <Route path="/income/credit-notes/:id" element={<CreditNoteDetailsPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('heading', { name: 'CRN-5' })).toBeTruthy()
+  }
+
+  it('names the invoice and the customer from the note when their own reads fail', async () => {
+    await open({ customerName: 'Sohar Port Logistics', correctionOfInvoiceNumber: 'INV-2026-0042' })
+    await vi.waitFor(() => expect(screen.getAllByText('INV-2026-0042').length).toBeGreaterThan(0))
+    expect(screen.getAllByText(/Sohar Port Logistics/).length).toBeGreaterThan(0)
+    expect(screen.queryByText(INVOICE_ID)).toBeNull()
+  }, 30_000)
+
+  it('keeps the invoice id and an unnamed customer when the note does not carry them', async () => {
+    await open({ customerName: null, correctionOfInvoiceNumber: null })
+    await vi.waitFor(() => expect(screen.getAllByText(INVOICE_ID).length).toBeGreaterThan(0))
+    expect(screen.queryByText(/Sohar Port Logistics/)).toBeNull()
   }, 30_000)
 })

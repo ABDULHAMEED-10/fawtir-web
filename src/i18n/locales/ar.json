@@ -2193,7 +2193,14 @@
       "settledLive_two": "مستندان مسوّيان بدفعة أو برصيد دائن",
       "settledLive_few": "{{invoices}} مستندات مسوّاة بدفعة أو برصيد دائن",
       "settledLive_many": "{{invoices}} مستندًا مسوًّى بدفعة أو برصيد دائن",
-      "settledLive_other": "{{invoices}} مستند مسوّى بدفعة أو برصيد دائن"
+      "settledLive_other": "{{invoices}} مستند مسوّى بدفعة أو برصيد دائن",
+      "paid": "مدفوعة",
+      "paidLive_zero": "لم تُحصَّل أي فاتورة",
+      "paidLive_one": "فاتورة واحدة تم تحصيلها",
+      "paidLive_two": "فاتورتان تم تحصيلهما",
+      "paidLive_few": "{{invoices}} فواتير تم تحصيلها",
+      "paidLive_many": "{{invoices}} فاتورة تم تحصيلها",
+      "paidLive_other": "{{invoices}} فاتورة تم تحصيلها"
     },
     "tabs": {
       "all": "الكل",
@@ -2325,7 +2332,13 @@
     },
     "delivery": {
       "sentManually": "أُرسلت يدويًا",
-      "notSent": "لم تُرسل"
+      "notSent": "لم تُرسل",
+      "queued": "في قائمة الإرسال",
+      "sending": "جارٍ الإرسال",
+      "sent": "مُرسلة",
+      "delivered": "سُلِّمت",
+      "deliveredUnconfirmed": "سُلّمت دون تأكيد",
+      "undeliverable": "لم تُسلَّم"
     },
     "amountNote": {
       "estimate": "تقدير · يُسعَّر عند الإصدار",

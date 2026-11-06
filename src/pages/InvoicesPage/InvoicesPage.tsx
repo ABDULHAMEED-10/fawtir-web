@@ -58,6 +58,7 @@ import {
   type InvoiceSortKey,
   type InvoiceTabId,
   type PaymentChip,
+  type LedgerChip,
   type PeppolResponse,
   type PeriodId,
 } from '../../lib/invoiceList'
@@ -141,6 +142,23 @@ const DELIVERY_HINTS: Record<PeppolResponse, string> = {
   AB: 'invoicesPage.transmission.acknowledgedHint',
   AP: 'invoicesPage.transmission.acceptedHint',
   RE: 'invoicesPage.transmission.rejectedHint',
+}
+const LEDGER_STYLES: Record<LedgerChip, Chip> = {
+  queued: PAYMENT_STYLES.toSend,
+  sending: PAYMENT_STYLES.toSend,
+  sent: DELIVERY_STYLES.AB,
+  delivered: DELIVERY_STYLES.AP,
+  deliveredUnconfirmed: DELIVERY_STYLES.AB,
+  undeliverable: DELIVERY_STYLES.RE,
+}
+/** The dispatch sentences the detail page shows for the same states (lib/invoiceDispatch.ts). */
+const LEDGER_HINTS: Record<LedgerChip, string> = {
+  queued: 'invoiceDispatch.state.queued',
+  sending: 'invoiceDispatch.state.sending',
+  sent: 'invoiceDispatch.state.sent',
+  delivered: 'invoiceDispatch.state.delivered',
+  deliveredUnconfirmed: 'activity.ack.deliveredUnconfirmed',
+  undeliverable: 'invoiceDispatch.state.undeliverable',
 }
 
 /**
@@ -797,20 +815,30 @@ function InvoiceKpiCards({ totals }: { totals: InvoiceSummaryDto }) {
         invoices: count(totals.outstandingInvoices),
       }),
     },
-    {
-      id: 'paid',
-      icon: paidIcon,
-      // `paidTotal` is the total of every receivable with nothing left owed, debit notes among
-      // them, however it was cleared: a credit note clears one with no cash. "Paid" and "invoices
-      // collected" overstated cash in (ACC-10); the summary has no cash-collected figure, so the
-      // card says what the figure is. TODO(backend): INCOME.md row 4.20, a cash-collected figure.
-      titleKey: 'invoicesPage.kpi.settled',
-      figure: money(totals.paidTotal),
-      meta: t('invoicesPage.kpi.settledLive', {
-        count: totals.paidInvoices,
-        invoices: count(totals.paidInvoices),
-      }),
-    },
+    // "Paid" is cash in: `collectedTotal` (ACC-10, backend #824, INCOME.md row 4.20). `paidTotal`
+    // counts every receivable with nothing left owed, debit notes and credit-cleared invoices
+    // among them, so a server before #824 keeps the card named for what that figure is, "Settled".
+    totals.collectedTotal
+      ? {
+          id: 'paid',
+          icon: paidIcon,
+          titleKey: 'invoicesPage.kpi.paid',
+          figure: money(totals.collectedTotal.total),
+          meta: t('invoicesPage.kpi.paidLive', {
+            count: totals.collectedTotal.count,
+            invoices: count(totals.collectedTotal.count),
+          }),
+        }
+      : {
+          id: 'paid',
+          icon: paidIcon,
+          titleKey: 'invoicesPage.kpi.settled',
+          figure: money(totals.paidTotal),
+          meta: t('invoicesPage.kpi.settledLive', {
+            count: totals.paidInvoices,
+            invoices: count(totals.paidInvoices),
+          }),
+        },
     {
       id: 'awaiting',
       icon: awaitingIcon,
@@ -1248,21 +1276,28 @@ function InvoiceRowCells({ row, branch }: { row: InvoiceListItem; branch: string
               label: t(`invoicesPage.authoring.${row.authoring}`),
               title: undefined,
             }
-  // TODO(backend): no Peppol response is answered yet (list.ts `peppolResponse`); a manual send
-  // is the one delivery fact recorded, and an undelivered document leaves the column blank.
+  // TODO(backend): no Peppol response is answered yet (list.ts `peppolResponse`). The ledger state
+  // (A-4b, backend #824) and a manual send are the delivery facts a row carries; a row with
+  // neither leaves the column blank. The ledger pill's hint is the detail page's own sentence.
   const delivery = row.peppolResponse
     ? {
         chip: DELIVERY_STYLES[row.peppolResponse],
         label: row.peppolResponse,
         title: t(DELIVERY_HINTS[row.peppolResponse]),
       }
-    : row.sentManually
+    : row.ledger
       ? {
-          chip: DELIVERY_STYLES.sentManually,
-          label: t('invoicesPage.delivery.sentManually'),
-          title: undefined,
+          chip: LEDGER_STYLES[row.ledger],
+          label: t(`invoicesPage.delivery.${row.ledger}`),
+          title: t(LEDGER_HINTS[row.ledger]),
         }
-      : null
+      : row.sentManually
+        ? {
+            chip: DELIVERY_STYLES.sentManually,
+            label: t('invoicesPage.delivery.sentManually'),
+            title: undefined,
+          }
+        : null
   return (
     <>
       <td className="px-2 py-2.5">
