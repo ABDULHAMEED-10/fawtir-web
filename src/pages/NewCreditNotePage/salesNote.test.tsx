@@ -2731,6 +2731,9 @@ describe('a debit note is owed apart from its invoice (D-24)', () => {
     expect(document.body.textContent).not.toMatch(/60\.500/)
     expect(screen.getByText('Owed separately, linked to INV-2026-0042')).toBeTruthy()
     expect(document.body.textContent).not.toMatch(/Added to|joined .*balance/)
+    // INCW1-1: the chip by the original invoice no longer says its balance increased.
+    expect(screen.getByText('Billed separately')).toBeTruthy()
+    expect(screen.queryByText('Balance increased')).toBeNull()
   }, 30_000)
 
   it('has no sentence left, in either language, that adds a debit note to an invoice’s balance', () => {
@@ -2738,6 +2741,18 @@ describe('a debit note is owed apart from its invoice (D-24)', () => {
       const t = i18n.getFixedT(language)
       expect(i18n.exists('salesNote.list.payment.addedToInvoice', { lng: language })).toBe(false)
       expect(i18n.exists('salesNote.detail.addedTo', { lng: language })).toBe(false)
+      // INCW1-1: the unused debit-note keys that said the charge joined the invoice's balance.
+      for (const stale of [
+        'salesNote.detail.balanceIncreased',
+        'debitNoteDetail.balanceIncreased',
+        'debitNoteDetail.awaitingHint',
+        'debitNoteDetail.stats.addedTo',
+        'debitNoteDetail.stats.nowDue',
+        'newDebitNote.amount.addedByNote',
+        'newDebitNote.amount.newBalance',
+      ]) {
+        expect(i18n.exists(stale, { lng: language })).toBe(false)
+      }
       for (const key of [
         'salesNote.list.payment.separateFromInvoice',
         'salesNote.detail.linkedTo',
@@ -2745,6 +2760,7 @@ describe('a debit note is owed apart from its invoice (D-24)', () => {
         'salesNote.detail.awaitingHint',
         'salesNote.detail.awaitingPaymentHint',
         'salesNote.amount.owedSeparately',
+        'salesNote.detail.billedSeparately',
       ]) {
         expect(i18n.exists(key, { lng: language })).toBe(true)
         expect(t(key, { invoice: 'INV-1', customer: 'C', amount: '1', date: 'd', when: 'w' })).not.toMatch(

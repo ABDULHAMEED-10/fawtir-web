@@ -4020,9 +4020,7 @@
       "netToCharge": "الصافي المُحمَّل",
       "vatAdded": "الضريبة المضافة · ٥٪",
       "effectOn": "الأثر على {{customer}}",
-      "outstanding": "المستحق على {{invoice}}",
-      "addedByNote": "المضاف بهذا الإشعار",
-      "newBalance": "رصيد الفاتورة الجديد"
+      "outstanding": "المستحق على {{invoice}}"
     },
     "col": {
       "description": "الوصف",
@@ -4075,12 +4073,9 @@
     "amountCharged": "المبلغ المُحمَّل",
     "increasesRevenue": "يزيد الإيراد المعترف به",
     "stats": {
-      "debitTotal": "إجمالي الإشعار",
-      "addedTo": "أُضيف إلى {{invoice}}",
-      "nowDue": "المستحق الآن على الفاتورة"
+      "debitTotal": "إجمالي الإشعار"
     },
     "awaitingFrom": "بانتظار السداد من {{customer}}",
-    "awaitingHint": "انضم المبلغ إلى رصيد {{invoice}}، لذا يسدّد العميل مبلغًا واحدًا. يستحق في ٢٩ أغسطس ٢٠٢٦، خلال ٣٠ يومًا.",
     "sections": {
       "details": "البيانات",
       "items": "البنود",
@@ -4090,7 +4085,6 @@
     },
     "viewCustomer": "عرض العميل",
     "adjusts": "يعدّل {{invoice}}",
-    "balanceIncreased": "زاد الرصيد",
     "openInvoice": "فتح الفاتورة",
     "onPeppol": "على Peppol",
     "fields": {
@@ -23797,7 +23791,7 @@
       "adjusts": "يعدّل {{invoice}}",
       "settled": "سُوّيت بهذا التقييد",
       "balanceReduced": "انخفض الرصيد",
-      "balanceIncreased": "ارتفع الرصيد",
+      "billedSeparately": "مستحق بشكل منفصل",
       "originalMeta": "الإجمالي الأصلي OMR {{amount}} · صدرت في {{date}}",
       "originalPaid": "OMR {{amount}} مدفوعة سابقاً",
       "openInvoice": "فتح الفاتورة",

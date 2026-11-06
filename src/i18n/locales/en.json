@@ -3787,9 +3787,7 @@
       "netToCharge": "Net to charge",
       "vatAdded": "VAT added · 5%",
       "effectOn": "Effect on {{customer}}",
-      "outstanding": "Outstanding on {{invoice}}",
-      "addedByNote": "Added by this note",
-      "newBalance": "New invoice balance"
+      "outstanding": "Outstanding on {{invoice}}"
     },
     "col": {
       "description": "Description",
@@ -3842,12 +3840,9 @@
     "amountCharged": "Amount charged",
     "increasesRevenue": "Increases recognised revenue",
     "stats": {
-      "debitTotal": "Debit total",
-      "addedTo": "Added to {{invoice}}",
-      "nowDue": "Now due on the invoice"
+      "debitTotal": "Debit total"
     },
     "awaitingFrom": "Awaiting payment from {{customer}}",
-    "awaitingHint": "The charge joined {{invoice}}'s balance, so the customer settles one figure. Due 29 Aug 2026, in 30 days.",
     "sections": {
       "details": "Details",
       "items": "Items",
@@ -3857,7 +3852,6 @@
     },
     "viewCustomer": "View customer",
     "adjusts": "Adjusts {{invoice}}",
-    "balanceIncreased": "Balance increased",
     "openInvoice": "Open Invoice",
     "onPeppol": "On Peppol",
     "fields": {
@@ -22412,7 +22406,7 @@
       "adjusts": "Adjusts {{invoice}}",
       "settled": "Settled by this credit",
       "balanceReduced": "Balance reduced",
-      "balanceIncreased": "Balance increased",
+      "billedSeparately": "Billed separately",
       "originalMeta": "Original total OMR {{amount}} · issued {{date}}",
       "originalPaid": "OMR {{amount}} already paid",
       "openInvoice": "Open invoice",

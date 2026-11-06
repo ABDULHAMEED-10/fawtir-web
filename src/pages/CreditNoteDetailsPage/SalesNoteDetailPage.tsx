@@ -919,7 +919,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
                             ? refunding
                               ? 'salesNote.detail.settled'
                               : 'salesNote.detail.balanceReduced'
-                            : 'salesNote.detail.balanceIncreased',
+                            : 'salesNote.detail.billedSeparately',
                         )}
                       </span>
                     ) : null}
