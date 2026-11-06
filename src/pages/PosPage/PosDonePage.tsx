@@ -21,7 +21,7 @@ import {
   loadCompanyProfile,
   type CompanyProfileDto,
 } from '../../api/company/companyProfile'
-import { ReceiptMasthead, ReceiptQr, ReceiptRow } from './PosReceiptParts'
+import { OfflineReceiptQr, ReceiptMasthead, ReceiptQr, ReceiptRow } from './PosReceiptParts'
 import { receiptSellerHeader } from '../../lib/posReceiptSeller'
 import type { TillState } from '../../lib/posTill'
 import { saleCashierLabel } from '../../lib/posAttribution'
@@ -278,9 +278,10 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
               </h2>
               <p className="mt-1 text-xs font-medium text-text-quaternary">
                 {/* The server decides the QR (receipt.qr.status): B2C only, so a business or
-                    government buyer never gets one. A queued sale has none yet (retest N-6). */}
+                    government buyer never gets one. A queued sale has one only when the till held the
+                    server's QR profile (QR E-1); otherwise it comes once filed (retest N-6). */}
                 {t(
-                  qrStatus === 'READY'
+                  qrStatus === 'READY' || (!sale && !company && done.queuedQr)
                     ? 'pos.done.qrAlreadyUp'
                     : qrStatus === 'PENDING'
                       ? 'pos.done.qrNotReadyShort'
@@ -514,6 +515,8 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
               <div className="mt-5 flex flex-col items-center gap-2">
                 {sale ? (
                   <ReceiptQr saleId={sale.saleId} status={sale.receipt.qr.status} />
+                ) : !company && done.queuedQr ? (
+                  <OfflineReceiptQr payload={done.queuedQr} />
                 ) : !company ? (
                   <p className="text-[11px] font-medium leading-[1.5] text-text-quaternary">
                     {t('pos.done.qrComing')}

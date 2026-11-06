@@ -59,7 +59,7 @@ function SharedPanel() {
 
 function Done() {
   const done = useFinishedSale()
-  return <p>done {done?.sale?.invoiceNumber ?? done?.queuedNumber}</p>
+  return <p data-queued-qr={done?.queuedQr ?? ''}>done {done?.sale?.invoiceNumber ?? done?.queuedNumber}</p>
 }
 
 /** The till's totals are the invoice's (owner, 21 Oct 2026). */
@@ -367,6 +367,55 @@ describe('taking the payment (P.12)', () => {
         invoiceNumber: 'NZW-T01-INV-2026-000049',
       })
     })
+  })
+
+  // QR E-1: the profile comes only from GET /pos/tills/{id}; the till list never carries it.
+  const QR_PROFILE = {
+    qrVersion: '1.1',
+    invoiceType: '01',
+    sellerName: 'Al Noor Trading LLC',
+    sellerVatin: 'OM1100012345',
+    issueDateZone: 'Asia/Muscat',
+    issueTimeZone: 'Asia/Muscat',
+    amountScale: 3,
+    profileVersion: 'c'.repeat(64),
+  }
+
+  async function sellOffline(detail: unknown) {
+    const answer = (url: string) => (url === '/api/v1/pos/tills/till-1' ? json(detail) : json([TILL]))
+    vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      calls.push({ url, init })
+      if (url === '/api/v1/me/entitlements') return json(CASHIER)
+      if (url === '/api/v1/branches') {
+        return json([{ id: 'b-1', code: 'NZW', name: 'Nizwa', type: 'BRANCH', city: 'Nizwa' }])
+      }
+      if (url.startsWith('/api/v1/pos/tills')) return answer(url)
+      if (url === '/api/v1/pos/sales') throw new TypeError('Failed to fetch')
+      return new Response('', { status: 404 })
+    })
+    renderPayment()
+    fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
+    await waitFor(() =>
+      expect(calls.some((call) => call.url === '/api/v1/pos/tills/till-1')).toBe(true),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+    const done = await screen.findByText('done NZW-T01-INV-2026-000049')
+    const [queued] = JSON.parse(window.localStorage.getItem('fawtir.pos.queue') ?? '[]')
+    return { done, body: queued.body }
+  }
+
+  it('offline with the till’s QR profile, the receipt shows the QR the queued sale carries (QR E-1)', async () => {
+    const { done, body } = await sellOffline({ ...TILL, qrProfile: QR_PROFILE })
+    expect(body.printedQr).toMatchObject({ profileVersion: QR_PROFILE.profileVersion })
+    expect(body.printedQr.payload).toMatch(/^[A-Za-z0-9+/]+=*$/)
+    expect(done.getAttribute('data-queued-qr')).toBe(body.printedQr.payload)
+  })
+
+  it('offline without a QR profile, the queued sale and its receipt are as before E-1', async () => {
+    const { done, body } = await sellOffline({ ...TILL })
+    expect('printedQr' in body).toBe(false)
+    expect(done.getAttribute('data-queued-qr')).toBe('')
   })
 
   it('offline with storage that cannot keep the sale: "Not sold", no receipt, and no number until Check again (POS-MEMQ S8)', async () => {

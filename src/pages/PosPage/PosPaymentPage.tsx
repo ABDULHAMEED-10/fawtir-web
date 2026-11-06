@@ -44,7 +44,7 @@ import { BUYER_IDENTIFIER_SCHEMES } from '../../api/customers/customers'
 import { tillContact } from '../../lib/posContact'
 import { useBuyerMatch } from '../../lib/posBuyerMatch'
 import { missingFieldsSentence, notEligiblePaths } from '../../lib/customerEligibility'
-import type { TillState } from '../../lib/posTill'
+import { useTillQrProfile, type TillState } from '../../lib/posTill'
 import { containsCardNumber } from '../../lib/cardNumbers'
 
 type Ready = Extract<TillState, { status: 'ready' }>
@@ -162,6 +162,7 @@ function Payment({ till }: { till: Ready }) {
   // The till's notices say why (PosTabLockNotice, PosStorageNotice); the sell controls are off for
   // as long as any of them blocks selling, online or offline (DES43 rev 4.7 D.9).
   const sellingBlocked = useSellingBlock(till.till.id) !== null
+  const qrProfile = useTillQrProfile(till.till.id)
   const [refusal, setRefusal] = useState<unknown>(null)
   const [buyerAsked, setBuyerAsked] = useState(false)
   const [buyer, setBuyer] = useState({ name: '', scheme: 'CID', value: '', contact: '' })
@@ -259,7 +260,8 @@ function Payment({ till }: { till: Ready }) {
     }
     try {
       const result = await submitSale(
-        till.till,
+        // Only a sale the till queues reads the profile (`offlinePrintedQr`); an online one never does.
+        qrProfile ? { ...till.till, qrProfile } : till.till,
         { ...body, soldAt: attempt.current.soldAt },
         attempt.current.key,
         slipPhotos,
@@ -298,6 +300,9 @@ function Payment({ till }: { till: Ready }) {
         })),
         sale: 'sale' in result ? result.sale : null,
         queuedNumber: 'queued' in result ? result.queued.number : null,
+        ...('queued' in result && result.queued.body.printedQr
+          ? { queuedQr: result.queued.body.printedQr.payload }
+          : {}),
         queuedBehind: 'queued' in result && result.behind === true,
         finishedAt: attempt.current.soldAt,
       })

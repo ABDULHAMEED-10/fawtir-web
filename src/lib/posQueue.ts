@@ -19,6 +19,7 @@ import {
 import { isTooLarge, refusalValues } from './posRefusals'
 import { BUSINESS_TIME_ZONE } from './format'
 import { forgetBuyer, openBuyer, sealBuyer } from './posVault'
+import { offlinePrintedQr } from './posOfflineQr'
 import {
   beginNumbering,
   ensureTillLock,
@@ -46,8 +47,10 @@ import {
  * order whatever the server says (`opensNumbers`, Q-27), so they wait behind it, in order, and are
  * numbered and printed meanwhile.
  *
- * TODO(backend): a sale made offline prints its number but not its QR; the QR's signed payload
- * is made by the server once the sale is sent (INCOME.md row P.28).
+ * A sale queued offline to a consumer prints its QR when the till holds the server's `qrProfile`
+ * (QR E-1): built from the claimed number, soldAt and the printed totals, and sent as `printedQr`
+ * for the server to compare after issue (`offlinePrintedQr`). Without a profile it prints "QR to
+ * follow", as before.
  *
  * A full invoice names its buyer, and their civil ID or passport number is personal data: the
  * queue entry never holds it where the device can seal it (`posVault`). The sealed copy stays until
@@ -1310,6 +1313,13 @@ export async function submitSale(
     let saved = 'denied' as StorageWrite
     let entry: QueuedSale | null = null
     try {
+      // Built from the number just claimed and never the other way round: no number, time or total
+      // is changed to make a QR. Before signing, so the proof covers it.
+      const printedQr = await offlinePrintedQr(
+        till.qrProfile,
+        { invoiceNumber: number, soldAt: body.soldAt, customer: body.customer },
+        printed,
+      )
       // Signed before the buyer is sealed, so the signed body is the body `bodyToSend` rebuilds (WEB-3).
       entry = await sealed({
         key,
@@ -1317,7 +1327,7 @@ export async function submitSale(
         number,
         body: await signedIfPossible(
           till,
-          { ...body, queuedOffline: true, invoiceNumber: number },
+          { ...body, queuedOffline: true, invoiceNumber: number, ...(printedQr ? { printedQr } : {}) },
           key,
           printed,
         ),

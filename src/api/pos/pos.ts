@@ -49,7 +49,28 @@ export type PosTillDto = {
    * refuses the unknown field, so the till sends it only where this is true.
    */
   takesMakerClaim?: boolean
+  /**
+   * QR E-1: only on `GET /pos/tills/{tillId}`, and only behind the server's offline-QR flag when it
+   * can state every field. Absent, a sale queued offline prints "QR to follow" as before.
+   */
+  qrProfile?: PosQrProfile | null
 }
+
+/** `qrProfile`: what a till needs to print, offline, the receipt QR the filed document will carry. */
+export type PosQrProfile = {
+  qrVersion: string
+  invoiceType: string
+  sellerName: string
+  sellerVatin: string
+  issueDateZone: string
+  issueTimeZone: string
+  amountScale: number
+  /** Opaque: sent back unchanged as `printedQr.profileVersion`. */
+  profileVersion: string
+}
+
+/** The receipt QR a queued sale printed (QR E-1); signed with the sale when it is signed. */
+export type PosPrintedQr = { payload: string; sellerUuid: string; profileVersion: string }
 
 export type PosShiftDto = {
   shiftId: string
@@ -220,6 +241,8 @@ export type PosSaleRequest = {
   offlineProof?: { keyId: string; signature: string }
   /** The totals the receipt printed, as JSON numbers; signed with the sale. */
   printed?: PosPrintedTotals
+  /** Queued sales only: the QR the offline receipt printed from `qrProfile` (QR E-1). */
+  printedQr?: PosPrintedQr
   /**
    * Who was signed in on this device when the sale was queued, as the device says (owner Round 13,
    * L-2). UNTRUSTED: the server records it in the audit as a claim and decides nothing on it. Only on

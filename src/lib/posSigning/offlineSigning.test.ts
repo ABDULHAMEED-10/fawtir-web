@@ -310,6 +310,38 @@ describe('signing a queued sale (WEB-3, WEB-4, WEB-14)', () => {
     expect(entry.body.offlineProof).toBeUndefined()
     expect(entry.body.printed).toBeUndefined()
   })
+
+  it('the QR a queued sale printed is signed with it, and a changed QR no longer verifies (QR E-1)', async () => {
+    await ensureSigningKey({ shiftId: SHIFT, userId: USER, tenantId: TENANT })
+    const profile = {
+      qrVersion: '1.1',
+      invoiceType: '01',
+      sellerName: 'Al Noor Trading LLC',
+      sellerVatin: 'OM1100012345',
+      issueDateZone: 'Asia/Muscat',
+      issueTimeZone: 'Asia/Muscat',
+      amountScale: 3,
+      profileVersion: 'b'.repeat(64),
+    }
+    await submitSale({ ...TILL, qrProfile: profile }, BODY, 'sale-key-6', [], PRINTED)
+    const [entry] = queuedFor(TILL_ID)
+    expect(entry.body.printedQr?.profileVersion).toBe(profile.profileVersion)
+    expect(canonicalSale(bodyForSigning(entry.body))).toContain('"printedQr":')
+    expect(await verifies(entry.body, 'sale-key-6')).toBe(true)
+    const payload = entry.body.printedQr!.payload
+    const altered = payload.startsWith('A') ? 'B' + payload.slice(1) : 'A' + payload.slice(1)
+    const tampered = { ...entry.body, printedQr: { ...entry.body.printedQr!, payload: altered } }
+    expect(await verifies(tampered, 'sale-key-6')).toBe(false)
+  })
+
+  it('without a profile the signed body has no printedQr member and verifies as before', async () => {
+    await ensureSigningKey({ shiftId: SHIFT, userId: USER, tenantId: TENANT })
+    await submitSale(TILL, BODY, 'sale-key-7', [], PRINTED)
+    const [entry] = queuedFor(TILL_ID)
+    expect('printedQr' in entry.body).toBe(false)
+    expect(canonicalSale(bodyForSigning(entry.body))).not.toContain('printedQr')
+    expect(await verifies(entry.body, 'sale-key-7')).toBe(true)
+  })
 })
 
 describe('forgetting the key (WEB-5)', () => {

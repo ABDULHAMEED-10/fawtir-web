@@ -3,6 +3,7 @@ import { posSaleQrPath, type PosSaleDto } from '../../api/pos/pos'
 import { API_BASE_URL } from '../../config/api'
 import { initialsOf } from '../../lib/posTill'
 import type { ReceiptSellerHeader } from '../../lib/posReceiptSeller'
+import { useServerQr } from '../../components/invoice/useServerQr'
 
 /**
  * The parts of a till receipt that the receipt after a sale and its reprint share (QR E-5), so a
@@ -73,6 +74,24 @@ export function ReceiptMasthead({
           {fullInvoice ? 'فاتورة ضريبية' : 'فاتورة ضريبية مبسطة'}
         </p>
       )}
+    </>
+  )
+}
+
+/**
+ * The QR a sale queued offline printed (QR E-1): the `printedQr.payload` sent with it, drawn as it
+ * is. Nothing is drawn until it is encoded, and nothing if encoding fails.
+ */
+export function OfflineReceiptQr({ payload }: { payload: string }) {
+  const { t } = useTranslation()
+  const image = useServerQr(payload)
+  if (!image) return null
+  return (
+    <>
+      <img src={image} alt={t('pos.done.qrAlt')} className="size-[132px]" />
+      <p className="text-[11px] font-medium leading-[1.5] text-text-quaternary">
+        {t('pos.done.scanToCheck')}
+      </p>
     </>
   )
 }

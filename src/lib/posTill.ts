@@ -5,7 +5,14 @@ import { loadOrRecall, recallOffline } from './posOffline'
 import { useEntitlements } from '../hooks/useEntitlements'
 import { useWorkingBranch } from '../components/branch/useWorkingBranch'
 import { hasPermission } from './identity/entitlements'
-import { loadPosTills, posTillsPath, type PosTillDto } from '../api/pos/pos'
+import {
+  loadPosTill,
+  loadPosTills,
+  POS_TILLS_PATH,
+  posTillsPath,
+  type PosQrProfile,
+  type PosTillDto,
+} from '../api/pos/pos'
 
 /**
  * The till this device is, in the branch chosen in the sidebar (P.11; the branch is never picked
@@ -127,6 +134,20 @@ export function usePosTill(): TillState {
     },
     retry,
   }
+}
+
+/**
+ * QR E-1: the till's `qrProfile`, which only `GET /pos/tills/{id}` carries. Kept with the till's
+ * other offline copies (`lib/posOffline`), read again whenever the screen opens online, as they
+ * are; a stale `profileVersion` is the server's to audit. Null when there is none to use.
+ */
+export function useTillQrProfile(tillId: string): PosQrProfile | null {
+  const detail = useApiRead<PosTillDto>(`${POS_TILLS_PATH}/${encodeURIComponent(tillId)}`, () =>
+    loadOrRecall(`till.${tillId}`, () => loadPosTill(tillId)),
+  )
+  if (detail.read.status !== 'ready') return null
+  const profile = (detail.read.data as Partial<PosTillDto> | null)?.qrProfile
+  return profile && typeof profile === 'object' ? profile : null
 }
 
 /** Two letters for the round badge: "Nasser Al Habsi" is NA. */

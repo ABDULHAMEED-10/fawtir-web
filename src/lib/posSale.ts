@@ -64,6 +64,8 @@ export type FinishedSale = {
   sale: PosSaleDto | null
   /** The number the till gave a sale made offline. */
   queuedNumber: string | null
+  /** The QR a sale queued offline printed (QR E-1, `printedQr.payload`); absent, "QR to follow". */
+  queuedQr?: string | null
   /** Queued behind a sale the server would not take, not because the till is offline. */
   queuedBehind?: boolean
   finishedAt: string
