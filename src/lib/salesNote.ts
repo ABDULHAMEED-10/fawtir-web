@@ -1178,7 +1178,7 @@ export function creditRefundOf(row: InvoiceRowDto): CreditRefundCell {
 
 /** The design's "Payment" column on a debit note row. */
 export type DebitPaymentCell =
-  | { kind: 'due'; date: string; addedToInvoice: boolean; daysLeft: number | null }
+  | { kind: 'due'; date: string; separateFromInvoice: boolean; daysLeft: number | null }
   | { kind: 'late'; date: string; days: number }
   | { kind: 'paid'; date: string | null }
   | null
@@ -1187,8 +1187,8 @@ export function debitPaymentOf(row: InvoiceRowDto, today = muscatToday()): Debit
   const status = noteStatusOf('DEBIT_NOTE', row)
   if (status === 'draft' || status === 'cancelled') return null
   // Read from the payment, not from `status`: an undelivered note's status is "to send", and that
-  // hid a note already paid (or late) behind "Due ... added to invoice balance". Delivery only
-  // decides the added-to-invoice hint below.
+  // hid a note already paid (or late) behind the undelivered note's hint. Delivery only decides
+  // that hint below.
   const payment = row.payment
   // The paid date, when the row carries it (INCOME.md 4.7); absent, the cell reads "Paid".
   // TODO(backend): the method (`lastPaymentMethodCode`) has no drawn place in the cell yet (4.7).
@@ -1204,7 +1204,7 @@ export function debitPaymentOf(row: InvoiceRowDto, today = muscatToday()): Debit
   return {
     kind: 'due',
     date: row.dueDate,
-    addedToInvoice: status === 'toSend',
+    separateFromInvoice: status === 'toSend',
     daysLeft: status === 'awaiting' ? daysBetween(today, row.dueDate) : null,
   }
 }

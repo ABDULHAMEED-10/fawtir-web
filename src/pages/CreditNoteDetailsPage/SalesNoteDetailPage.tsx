@@ -376,12 +376,10 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
         ? Math.round((total - refund) * 1000) / 1000
         : null
   const refunding = refund !== null && refund > 0
-  const nowDue =
-    !credit && total !== null
-      ? Math.round(
-          ((origOwed?.outstandingAmount ?? 0) + (owed?.outstandingAmount ?? total)) * 1000,
-        ) / 1000
-      : null
+  // A debit note is its own receivable, linked to the invoice it corrects; the invoice's balance
+  // never takes it in (D-24, owner 6 Nov 2026). What is due here is the note's own outstanding
+  // amount, never the invoice's added to it.
+  const nowDue = !credit && total !== null ? (owed?.outstandingAmount ?? total) : null
 
   const blockerKey = deliveryBlockerKey(data.deliveryBlocker)
   // Manual delivery only: a detail page never reads `peppolResponse` (api/invoices/detail.ts).
@@ -770,7 +768,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
               </div>
               <div>
                 <p className="text-sm font-medium text-[#727579]">
-                  {t(credit ? 'salesNote.detail.appliedTo' : 'salesNote.detail.addedTo', {
+                  {t(credit ? 'salesNote.detail.appliedTo' : 'salesNote.detail.linkedTo', {
                     invoice: invoiceNumber,
                   })}
                 </p>

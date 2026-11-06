@@ -929,8 +929,8 @@ function PaymentCell({ cell }: { cell: ReturnType<typeof debitPaymentOf> }) {
       >
         {cell.kind === 'late'
           ? t('salesNote.list.payment.daysLate', { count: cell.days })
-          : cell.addedToInvoice
-            ? t('salesNote.list.payment.addedToInvoice')
+          : cell.separateFromInvoice
+            ? t('salesNote.list.payment.separateFromInvoice')
             : cell.daysLeft !== null
               ? t('salesNote.list.payment.inDays', { count: cell.daysLeft })
               : ''}

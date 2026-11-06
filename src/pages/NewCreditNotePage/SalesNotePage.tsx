@@ -1266,7 +1266,7 @@ function NoteEditor({
             </div>
             <div className="flex items-center justify-between gap-3">
               <dt className="font-medium text-text-tertiary">
-                {t(credit ? 'salesNote.amount.applied' : 'salesNote.amount.added')}
+                {t(credit ? 'salesNote.amount.applied' : 'salesNote.amount.owedSeparately')}
               </dt>
               <dd>
                 <OmAmount
@@ -1277,22 +1277,24 @@ function NoteEditor({
                 />
               </dd>
             </div>
-            <div className="flex items-center justify-between gap-3">
-              <dt className="font-medium text-text-tertiary">{t('salesNote.amount.newBalance')}</dt>
-              <dd>
-                <OmAmount
-                  size="xs"
-                  amount={money(
-                    outstanding === null
-                      ? null
-                      : credit
-                        ? (effect?.after ?? outstanding)
-                        : Math.round((outstanding + total) * 1000) / 1000,
-                  )}
-                  amountClassName="font-semibold text-text-primary tabular-nums"
-                />
-              </dd>
-            </div>
+            {/* A debit note is owed on its own, linked to the invoice (D-24, owner 6 Nov 2026): no
+                "new invoice balance" adds it in, as the invoice's balance does not change. */}
+            {credit ? (
+              <div className="flex items-center justify-between gap-3">
+                <dt className="font-medium text-text-tertiary">{t('salesNote.amount.newBalance')}</dt>
+                <dd>
+                  <OmAmount
+                    size="xs"
+                    amount={money(outstanding === null ? null : (effect?.after ?? outstanding))}
+                    amountClassName="font-semibold text-text-primary tabular-nums"
+                  />
+                </dd>
+              </div>
+            ) : (
+              <p className="text-xs font-medium leading-[1.5] text-text-tertiary">
+                {t('salesNote.debit.ownReceivable')}
+              </p>
+            )}
             {credit ? (
               <div
                 role="status"

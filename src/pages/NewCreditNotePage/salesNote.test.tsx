@@ -1090,7 +1090,7 @@ describe('a paid debit note row (4.7)', () => {
     ).toEqual({ kind: 'late', date: '2026-10-01', days: 4 })
     expect(
       debitPaymentOf(undelivered({ state: 'UNPAID', outstandingAmount: 10 }), '2026-09-29'),
-    ).toEqual({ kind: 'due', date: '2026-10-01', addedToInvoice: true, daysLeft: null })
+    ).toEqual({ kind: 'due', date: '2026-10-01', separateFromInvoice: true, daysLeft: null })
   })
 })
 
@@ -2633,4 +2633,111 @@ describe("a note's own customerName and corrected invoice number (C-5)", () => {
     await vi.waitFor(() => expect(screen.getAllByText(INVOICE_ID).length).toBeGreaterThan(0))
     expect(screen.queryByText(/Sohar Port Logistics/)).toBeNull()
   }, 30_000)
+})
+
+// D-24 (owner, 6 Nov 2026): a debit note is a separate receivable linked to its invoice. No screen
+// adds it into the invoice's balance, and "Added to invoice balance" is gone from both languages.
+describe('a debit note is owed apart from its invoice (D-24)', () => {
+  const OWED_ON_INVOICE: InvoiceReceivableDto = {
+    ...RECEIVABLE,
+    paidAmount: 23.5,
+    outstandingAmount: 50,
+    paymentState: 'PARTIALLY_PAID',
+  }
+  const debitNote: InvoiceDetailDto = {
+    ...INVOICE,
+    id: NOTE_ID,
+    type: 'DEBIT_NOTE',
+    correctionOfInvoiceId: INVOICE_ID,
+    invoiceNumber: 'DBN-9',
+    totals: {
+      subtotal: 10,
+      itemLevelDiscount: 0,
+      headerDiscount: 0,
+      totalDiscount: 0,
+      taxableAmount: 10,
+      vatAmount: 0.5,
+      totalAmount: 10.5,
+      payableRoundingAmount: 0,
+      outputScale: 3,
+    } as InvoiceDetailDto['totals'],
+  }
+  const owedOnNote: InvoiceReceivableDto = {
+    ...RECEIVABLE,
+    documentTotal: 10.5,
+    paidAmount: 0,
+    creditedAmount: 0,
+    outstandingAmount: 10.5,
+    paymentState: 'UNPAID',
+    dueDate: '2099-09-30',
+  }
+  const figureBy = (label: string) =>
+    (screen.getByText(label).parentElement as HTMLElement).textContent ?? ''
+
+  it('the composer shows the invoice’s balance unchanged and the note’s own amount, never a sum', async () => {
+    receivable = OWED_ON_INVOICE
+    await readyDebitNote()
+    expect(await screen.findByText('Owed separately on this debit note')).toBeTruthy()
+    expect(figureBy('Outstanding on INV-2026-0042')).toContain('50.000')
+    expect(figureBy('Owed separately on this debit note')).toContain('6.300')
+    expect(screen.queryByText('New invoice balance')).toBeNull()
+    expect(screen.queryByText(/56\.300/)).toBeNull()
+    expect(screen.getByText(i18n.t('salesNote.debit.ownReceivable'))).toBeTruthy()
+  }, 30_000)
+
+  it('the detail page says what is due on the note alone, linked to the invoice', async () => {
+    receivable = OWED_ON_INVOICE
+    entitlements = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.payment.manage'] }
+    override = (url) => {
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}`) return json(200, debitNote)
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}/receivable`) return json(200, owedOnNote)
+      if (url.startsWith(`/api/v1/authored-invoices/${NOTE_ID}/`))
+        return json(
+          200,
+          url.endsWith('/history')
+            ? { entries: [], truncated: false, limit: 200 }
+            : url.endsWith('/internal-note')
+              ? { internalNote: null }
+              : [],
+        )
+      return undefined
+    }
+    render(
+      <MemoryRouter initialEntries={[`/income/debit-notes/${NOTE_ID}`]}>
+        <Routes>
+          <Route path="/income/debit-notes/:id" element={<SalesNoteDetailPage kind="DEBIT_NOTE" />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await screen.findByRole('heading', { name: 'DBN-9' })
+    // Both receivables are read; only the note's own is due here.
+    await waitFor(() =>
+      expect(figureBy('Now due on this debit note')).toContain('10.500'),
+    )
+    expect(calls('GET', `/api/v1/authored-invoices/${INVOICE_ID}/receivable`).length).toBeGreaterThan(0)
+    expect(document.body.textContent).not.toMatch(/60\.500/)
+    expect(screen.getByText('Owed separately, linked to INV-2026-0042')).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(/Added to|joined .*balance/)
+  }, 30_000)
+
+  it('has no sentence left, in either language, that adds a debit note to an invoice’s balance', () => {
+    for (const language of ['en', 'ar']) {
+      const t = i18n.getFixedT(language)
+      expect(i18n.exists('salesNote.list.payment.addedToInvoice', { lng: language })).toBe(false)
+      expect(i18n.exists('salesNote.detail.addedTo', { lng: language })).toBe(false)
+      for (const key of [
+        'salesNote.list.payment.separateFromInvoice',
+        'salesNote.detail.linkedTo',
+        'salesNote.detail.nowDue',
+        'salesNote.detail.awaitingHint',
+        'salesNote.detail.awaitingPaymentHint',
+        'salesNote.amount.owedSeparately',
+      ]) {
+        expect(i18n.exists(key, { lng: language })).toBe(true)
+        expect(t(key, { invoice: 'INV-1', customer: 'C', amount: '1', date: 'd', when: 'w' })).not.toMatch(
+          /Added to|added to the invoice|joined|أُضيف إلى رصيد|انضم المبلغ/,
+        )
+      }
+    }
+  })
 })
