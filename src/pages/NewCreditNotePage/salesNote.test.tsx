@@ -2342,8 +2342,8 @@ describe('cancelling a debit note that issued credits rely on (backend #834)', (
   }
 
   it.each([
-    ['en', 'An issued debit note cannot be cancelled, deleted, edited or reversed here. A correction workflow for issued debit notes is not available in this release.'],
-    ['ar', 'لا يمكن إلغاء الإشعار المدين الصادر أو حذفه أو تعديله أو عكسه هنا. سير عمل تصحيح الإشعارات المدينة الصادرة غير متاح في هذا الإصدار.'],
+    ['en', 'An issued debit note cannot be cancelled, deleted, edited or reversed. A correction workflow for issued debit notes is not available in this release.'],
+    ['ar', 'لا يمكن إلغاء الإشعار المدين الصادر أو حذفه أو تعديله أو عكسه. سير عمل تصحيح الإشعارات المدينة الصادرة غير متاح في هذا الإصدار.'],
   ])('sends no cancel from the page, and says why in its own words (%s)', async (lang, sentence) => {
     await i18n.changeLanguage(lang)
     entitlements = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.cancel'] }
