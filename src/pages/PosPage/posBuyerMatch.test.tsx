@@ -349,6 +349,25 @@ describe('a named full tax sale is checked before payment (STUCKQR-1)', () => {
     expect(takeCash().disabled).toBe(false)
   })
 
+  // STQ-1: the card went through while the check was still waiting, then the ID was changed to
+  // one the server refuses. Finish is shut, so the alert by the ID is the only sentence shown.
+  it('tells the cashier to refund a card already taken when the buyer is refused afterwards', async () => {
+    resetOpenSale(BIG)
+    matchAnswer = () => new Promise<Response>(() => undefined)
+    renderPayment()
+    await screen.findByLabelText("Buyer's name")
+    typeBuyer()
+    fireEvent.click(screen.getByRole('button', { name: /^Card/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Paid · / }))
+    expect(screen.getByRole('button', { name: i18n.t('pos.pay.remove') })).toBeTruthy()
+    matchAnswer = () => json({ ...SAME_NAME, qrIssuableOnFullTax: false })
+    typeBuyer('87654321')
+    const said = await screen.findByRole('alert', {}, { timeout: 2000 })
+    expect(said.textContent).toBe(i18n.t('pos.refusal.qrUnavailableRefundCard'))
+    expect(screen.queryByText(/Nothing was charged/)).toBeNull()
+    expect(salePosts()).toHaveLength(0)
+  })
+
   it('lets the cashier choose a full invoice before payment, with the same check', async () => {
     matchAnswer = () => json({ ...SAME_NAME, qrIssuableOnFullTax: false })
     renderPayment()

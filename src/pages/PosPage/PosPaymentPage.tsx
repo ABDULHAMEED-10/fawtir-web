@@ -412,6 +412,9 @@ function Payment({ till }: { till: Ready }) {
     buyerFirst,
   )
   const tenderLocked = buyerFirst && (!buyerTyped || qrRefused)
+  // STUCKQR-2 / STQ-1: once a card is taken on the terminal, "nothing was charged" is false
+  // wherever the QR refusal is said, the inline alert as much as the refusal after Finish.
+  const cardHeld = taken.some((payment) => payment.method === 'card')
   /** The buyer's phone or email is checked before the full invoice goes (F-2). */
   const finishNamed = () => {
     const contact = tillContact(buyer.contact)
@@ -919,8 +922,7 @@ function Payment({ till }: { till: Ready }) {
                   <>
                     {/* STUCKQR-2: an older server, or a race, refuses after the card was charged
                         on the terminal: "nothing was charged" would be false. */}
-                    {refusalCode(refusal) === 'POS_SALE_QR_UNAVAILABLE_FOR_BUYER' &&
-                    taken.some((payment) => payment.method === 'card')
+                    {refusalCode(refusal) === 'POS_SALE_QR_UNAVAILABLE_FOR_BUYER' && cardHeld
                       ? t('pos.refusal.qrUnavailableRefundCard')
                       : refusalSentence(t, refusal)}
                     {refusal instanceof ApiError && refusal.problemType === 'quota-exceeded' ? (
@@ -984,7 +986,9 @@ function Payment({ till }: { till: Ready }) {
               {/* Beside the field, not in its label, so the ID input keeps its own name. */}
               {qrRefused ? (
                 <p role="alert" className="text-xs font-medium text-danger-700">
-                  {t('pos.refusal.POS_SALE_QR_UNAVAILABLE_FOR_BUYER')}
+                  {cardHeld
+                    ? t('pos.refusal.qrUnavailableRefundCard')
+                    : t('pos.refusal.POS_SALE_QR_UNAVAILABLE_FOR_BUYER')}
                 </p>
               ) : buyerTyped && !buyerChecked ? (
                 <p role="status" className="text-xs font-medium text-text-tertiary">
