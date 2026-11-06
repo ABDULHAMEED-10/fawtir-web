@@ -389,7 +389,10 @@ function Payment({ till }: { till: Ready }) {
   const buyerReady = buyer.name.trim() && buyer.value.trim()
   // The customer on file this ID (and phone) would file the invoice against, when it is stored
   // under another name: a mistyped ID shows before the invoice is filed. Never blocks.
-  const onFile = useBuyerMatch(
+  // RB-1 STUCK-QR: a full tax sale this customer cannot get a QR on is refused here, before it is
+  // sent, in the server's own words; the basket and the buyer stay as they are, and nothing else
+  // (a simplified sale, another customer) is chosen for the cashier.
+  const { hint: onFile, qrRefused } = useBuyerMatch(
     till.till.id,
     { ...buyer, scheme: schemes.includes(buyer.scheme) ? buyer.scheme : schemes[0] },
     buyerAsked && !company,
@@ -944,6 +947,12 @@ function Payment({ till }: { till: Ready }) {
                   </span>
                 ) : null}
               </Field>
+              {/* Beside the field, not in its label, so the ID input keeps its own name. */}
+              {qrRefused ? (
+                <p role="alert" className="text-xs font-medium text-danger-700">
+                  {t('pos.refusal.POS_SALE_QR_UNAVAILABLE_FOR_BUYER')}
+                </p>
+              ) : null}
               <Field label={t('pos.buyer.contact')}>
                 <input
                   value={buyer.contact}
@@ -966,7 +975,7 @@ function Payment({ till }: { till: Ready }) {
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
-                  disabled={!buyerReady || !covered || busy || sellingBlocked}
+                  disabled={!buyerReady || !covered || busy || sellingBlocked || qrRefused}
                   onClick={finishNamed}
                   className="inline-flex h-10 items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white disabled:opacity-50"
                 >

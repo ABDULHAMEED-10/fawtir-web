@@ -171,6 +171,11 @@ export type PosConsumerMatch = {
   identifierScheme: string | null
   identifierValue: string | null
   identifierValueMasked: boolean
+  /**
+   * From 0c2d034d4: false when a full tax sale to this customer would be refused 422
+   * POS_SALE_QR_UNAVAILABLE_FOR_BUYER (RB-1 STUCK-QR, temporary). Absent from an older server.
+   */
+  qrIssuableOnFullTax?: boolean
 }
 
 export const POS_CUSTOMER_MATCH_PATH = `${POS_CUSTOMERS_PATH}/match`

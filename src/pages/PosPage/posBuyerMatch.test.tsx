@@ -186,3 +186,65 @@ describe('the lookup', () => {
     expect(hintOf(null)).toBeNull()
   })
 })
+
+// RB-1 STUCK-QR before payment (0c2d034d4): the match says whether a full tax sale to the buyer
+// gets a QR. The server's 422 stays the enforcement; this only refuses earlier.
+describe('a full tax sale the buyer cannot get a QR on', () => {
+  const REFUSED = 'This sale type cannot be issued with a QR yet'
+  // A refused buyer is on file under the same name: a "matches customer on file" hint would sit
+  // inside the ID field's label and change the name the field is found by.
+  const salePosts = () =>
+    calls.filter((call) => call.url === '/api/v1/pos/sales' && call.init?.method === 'POST')
+  const makeFull = () =>
+    screen.getByRole('button', { name: 'Make it a full invoice' }) as HTMLButtonElement
+
+  it('is refused at the buyer, in the server\'s words, before anything is sent, keeping the sale and the buyer', async () => {
+    matchAnswer = () => json({ ...ON_FILE, sameName: true, qrIssuableOnFullTax: false })
+    await buyerForm()
+    const alert = await screen.findByText(new RegExp(REFUSED), {}, { timeout: 2000 })
+    expect(alert.textContent).toBe(i18n.t('pos.refusal.POS_SALE_QR_UNAVAILABLE_FOR_BUYER'))
+    expect(makeFull().disabled).toBe(true)
+    const sent = salePosts().length
+    fireEvent.click(makeFull())
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(salePosts()).toHaveLength(sent)
+    // Nothing is reclassified: the buyer as typed and the way to a company both stay.
+    expect((screen.getByLabelText("Buyer's name") as HTMLInputElement).value).toBe('Hamed Al Rawahi')
+    expect((screen.getByLabelText('ID number') as HTMLInputElement).value).toBe('12345678')
+    expect(screen.getByRole('link', { name: /company/i })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Finish the sale' })).toBeTruthy()
+  })
+
+  it('lets the full tax sale go when the server says a QR is issued', async () => {
+    matchAnswer = () => json({ ...ON_FILE, qrIssuableOnFullTax: true })
+    await buyerForm()
+    await screen.findByText(/Matches customer on file/, {}, { timeout: 2000 })
+    expect(screen.queryByText(new RegExp(REFUSED))).toBeNull()
+    const sent = salePosts().length
+    fireEvent.click(makeFull())
+    await waitFor(() => expect(salePosts()).toHaveLength(sent + 1))
+    expect(JSON.parse(String(salePosts().at(-1)!.init?.body)).customer.kind).toBe('CONSUMER')
+  })
+
+  it('leaves the sale to the server when an older server sends no flag', async () => {
+    await buyerForm()
+    await screen.findByText(/Matches customer on file/, {}, { timeout: 2000 })
+    expect(screen.queryByText(new RegExp(REFUSED))).toBeNull()
+    const sent = salePosts().length
+    fireEvent.click(makeFull())
+    await waitFor(() => expect(salePosts()).toHaveLength(sent + 1))
+  })
+
+  it('drops the refusal as soon as the ID it was about is changed', async () => {
+    matchAnswer = () => json({ ...ON_FILE, sameName: true, qrIssuableOnFullTax: false })
+    await buyerForm()
+    await screen.findByText(new RegExp(REFUSED), {}, { timeout: 2000 })
+    matchAnswer = () => json({ match: 'none', customerId: null, name: null, sameName: false,
+      identifierScheme: null, identifierValue: null, identifierValueMasked: false, qrIssuableOnFullTax: true })
+    fireEvent.change(screen.getByLabelText('ID number'), { target: { value: '87654321' } })
+    expect(screen.queryByText(new RegExp(REFUSED))).toBeNull()
+    expect(makeFull().disabled).toBe(false)
+    await waitFor(() => expect(matches()).toHaveLength(2), { timeout: 2000 })
+    expect(screen.queryByText(new RegExp(REFUSED))).toBeNull()
+  })
+})
