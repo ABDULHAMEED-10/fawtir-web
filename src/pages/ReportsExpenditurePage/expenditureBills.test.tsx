@@ -127,7 +127,7 @@ describe('"Bills received" and "Average bill" (ACC-5, backend #824)', () => {
 })
 
 describe('spend by supplier keys (NEW-1, backend #824)', () => {
-  it('never prints a prefixed key, nor links one, and names each unlinked supplier apart', async () => {
+  it('never prints a prefixed key, and names each unlinked supplier by its label', async () => {
     suppliers = report(
       [
         row({ groupKey: 'name:dhofar pipes', groupLabel: 'Dhofar Pipes', netAmount: 600 }),

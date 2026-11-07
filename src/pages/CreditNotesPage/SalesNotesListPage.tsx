@@ -464,11 +464,13 @@ function NotesList({ kind }: { kind: NoteKind }) {
                 {figure
                   ? kpi.id === 'overdue' && figure.count === 0
                     ? t('salesNote.list.kpi.overdueNone')
-                    : t(`salesNote.list.kpi.${kpi.id}Meta`, {
-                        count: figure.count,
-                        notes: count(figure.count),
-                        days: count(figure.days ?? 0),
-                      })
+                    : figure.count === null
+                      ? t(`salesNote.list.kpi.${kpi.id}MetaUncounted`)
+                      : t(`salesNote.list.kpi.${kpi.id}Meta`, {
+                          count: figure.count,
+                          notes: count(figure.count),
+                          days: count(figure.days ?? 0),
+                        })
                   : // Failed, or a figure the summary does not carry (a credit note's refunds, 4.2).
                     figures.read.status === 'failed' || summary
                     ? t('salesNote.list.kpi.unavailable')

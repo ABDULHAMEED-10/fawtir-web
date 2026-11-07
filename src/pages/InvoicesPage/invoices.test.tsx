@@ -247,7 +247,7 @@ describe('Invoices list, wired to the API', () => {
     // A cleared receivable may have been cleared by credit, with no cash (ACC-10).
     expect(screen.getByText('Settled')).toBeTruthy()
     expect(screen.getByText('18 documents settled by payment or credit')).toBeTruthy()
-    expect(screen.queryByText(/invoices collected/)).toBeNull()
+    expect(screen.queryByText(/with payments received/)).toBeNull()
     expect(screen.getByText('2 invoices due soon')).toBeTruthy()
     // 7 July to 15 September.
     expect(screen.getByText('4 invoices · oldest 70 days')).toBeTruthy()
@@ -1182,7 +1182,7 @@ describe('the read-model fields of backend #824, each optional', () => {
     expect(await screen.findByText('4,321.750')).toBeTruthy()
     const card = screen.getByText('4,321.750').closest('article') as HTMLElement
     expect(within(card).getByText('Paid')).toBeTruthy()
-    expect(within(card).getByText('9 invoices collected')).toBeTruthy()
+    expect(within(card).getByText('9 invoices with payments received')).toBeTruthy()
     // paidTotal is not cash in: it never stands in for the collected figure.
     expect(screen.queryByText('9,876.125')).toBeNull()
     expect(screen.queryByText('Settled')).toBeNull()
@@ -1193,7 +1193,7 @@ describe('the read-model fields of backend #824, each optional', () => {
     const card = (await screen.findByText('9,876.125')).closest('article') as HTMLElement
     expect(within(card).getByText('Settled')).toBeTruthy()
     expect(within(card).queryByText('Paid')).toBeNull()
-    expect(screen.queryByText(/invoices collected/)).toBeNull()
+    expect(screen.queryByText(/with payments received/)).toBeNull()
   })
 
   it('maps each ledger state to its pill, and a delivered one to awaiting payment (A-4b)', () => {

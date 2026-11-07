@@ -226,7 +226,7 @@ function ExpenditureBody({
     return [...totals.values()].sort((a, b) => b.value - a.value)
   }
   // A key prefixed `participant:` or `name:` is a group of bills linked to no supplier (NEW-1,
-  // backend #824), not a supplier's id: it is never printed, nor made into a supplier link.
+  // backend #824), not a supplier's id, so it is never printed as a name.
   const supplierRows = rank(
     suppliers,
     (key, label) =>

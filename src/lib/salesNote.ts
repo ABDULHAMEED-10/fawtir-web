@@ -1150,12 +1150,13 @@ export function noteMatchesTab(kind: NoteKind, row: InvoiceRowDto, tab: NoteTab)
   return tab.only === null || tab.only.includes(noteStatusOf(kind, row))
 }
 
-export type NoteFigure = { amount: number; count: number; days?: number }
+/** `count` is null where no server figure counts the documents behind `amount`. */
+export type NoteFigure = { amount: number; count: number | null; days?: number }
 
 export type NoteSummary = {
   counts: Record<string, number>
   /** Issued this quarter: the subtitle under the title. Null when the source does not say. */
-  quarter: NoteFigure | null
+  quarter: { amount: number; count: number } | null
   cards: Record<string, NoteFigure>
 }
 
@@ -1225,7 +1226,7 @@ export function creditSummaryOf(summary: InvoiceSummaryDto): NoteSummary {
   const counts: Record<string, number> = { all: summary.all, drafts: summary.drafts }
   if (summary.toSend !== undefined) counts.toSend = summary.toSend
   if (summary.issuedTotal) counts.applied = summary.issuedTotal.count
-  const figure = (value: { count: number; total: number } | undefined): NoteFigure | null =>
+  const figure = (value: { count: number; total: number } | undefined) =>
     value ? { amount: value.total, count: value.count } : null
   const cards: Record<string, NoteFigure> = {}
   const credited = figure(summary.issuedLast30Days)
@@ -1233,12 +1234,10 @@ export function creditSummaryOf(summary: InvoiceSummaryDto): NoteSummary {
   const refunded = figure(summary.refundedTotal)
   if (credited) cards.credited = credited
   if (issued && refunded) {
-    // The count is notes with no money paid back: the server counts a note in refundedTotal once
-    // any of it was paid back, and a till refund pays out the whole note it issues (V477).
-    cards.applied = {
-      amount: roundMinor(issued.amount - refunded.amount),
-      count: Math.max(0, issued.count - refunded.count),
-    }
+    // No count: a till refund can pay out part of its note and offset the rest (V477), and
+    // refundedTotal counts such a note once any of it was paid back, so issued less refunded notes
+    // would count a different set from the amount. No server figure counts the applied notes.
+    cards.applied = { amount: roundMinor(issued.amount - refunded.amount), count: null }
   } else if (issued) {
     cards.applied = issued
   }

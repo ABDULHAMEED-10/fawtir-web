@@ -2052,8 +2052,8 @@
       "settledLive_one": "{{invoices}} document settled by payment or credit",
       "settledLive_other": "{{invoices}} documents settled by payment or credit",
       "paid": "Paid",
-      "paidLive_one": "{{invoices}} invoice collected",
-      "paidLive_other": "{{invoices}} invoices collected"
+      "paidLive_one": "{{invoices}} invoice with payments received",
+      "paidLive_other": "{{invoices}} invoices with payments received"
     },
     "tabs": {
       "all": "All",
@@ -2176,7 +2176,7 @@
       "notSent": "Not sent",
       "queued": "Queued",
       "sending": "Sending",
-      "sent": "Sent",
+      "sent": "Sent, not yet delivered",
       "delivered": "Delivered",
       "deliveredUnconfirmed": "Delivered, unconfirmed",
       "undeliverable": "Not delivered"
@@ -22664,7 +22664,8 @@
         "chargedMeta_one": "{{notes}} debit note issued",
         "chargedMeta_other": "{{notes}} debit notes issued",
         "overdueMeta_one": "{{notes}} note · {{days}} days late",
-        "overdueMeta_other": "{{notes}} notes · {{days}} days late"
+        "overdueMeta_other": "{{notes}} notes · {{days}} days late",
+        "appliedMetaUncounted": "Offset against invoices, no cash out"
       },
       "search": "Search by number, invoice, customer...",
       "filters": "Filters",

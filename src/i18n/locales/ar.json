@@ -2195,12 +2195,12 @@
       "settledLive_many": "{{invoices}} مستندًا مسوًّى بدفعة أو برصيد دائن",
       "settledLive_other": "{{invoices}} مستند مسوّى بدفعة أو برصيد دائن",
       "paid": "مدفوعة",
-      "paidLive_zero": "لم تُحصَّل أي فاتورة",
-      "paidLive_one": "فاتورة واحدة تم تحصيلها",
-      "paidLive_two": "فاتورتان تم تحصيلهما",
-      "paidLive_few": "{{invoices}} فواتير تم تحصيلها",
-      "paidLive_many": "{{invoices}} فاتورة تم تحصيلها",
-      "paidLive_other": "{{invoices}} فاتورة تم تحصيلها"
+      "paidLive_zero": "لا فواتير استُلمت عليها دفعات",
+      "paidLive_one": "فاتورة واحدة استُلمت عليها دفعات",
+      "paidLive_two": "فاتورتان استُلمت عليهما دفعات",
+      "paidLive_few": "{{invoices}} فواتير استُلمت عليها دفعات",
+      "paidLive_many": "{{invoices}} فاتورة استُلمت عليها دفعات",
+      "paidLive_other": "{{invoices}} فاتورة استُلمت عليها دفعات"
     },
     "tabs": {
       "all": "الكل",
@@ -2335,7 +2335,7 @@
       "notSent": "لم تُرسل",
       "queued": "في قائمة الإرسال",
       "sending": "جارٍ الإرسال",
-      "sent": "مُرسلة",
+      "sent": "أُرسلت، لم تُسلَّم بعد",
       "delivered": "سُلِّمت",
       "deliveredUnconfirmed": "سُلّمت دون تأكيد",
       "undeliverable": "لم تُسلَّم"
@@ -24053,7 +24053,8 @@
         "creditedMeta_one": "إشعار دائن واحد صادر",
         "chargedMeta_one": "إشعار مدين واحد صادر",
         "refundDueMeta_one": "استرداد واحد للدفع",
-        "overdueMeta_one": "إشعار واحد · متأخر {{days}} يوماً"
+        "overdueMeta_one": "إشعار واحد · متأخر {{days}} يوماً",
+        "appliedMetaUncounted": "خُصمت من الفواتير، دون دفع نقدي"
       },
       "search": "ابحث بالرقم أو الفاتورة أو العميل...",
       "filters": "تصفية",

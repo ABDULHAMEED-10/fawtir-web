@@ -2565,9 +2565,10 @@ describe('the read-model fields of backend #824 on the credit notes, each option
     expect(await screen.findByText('97.137')).toBeTruthy()
     const applied = screen.getByRole('heading', { name: 'Applied to invoices' })
       .closest('article') as HTMLElement
-    // 144.831 issued less 20.500 paid back; 14 issued notes less the 3 paid back.
+    // 144.831 issued less 20.500 paid back; no count, as no server figure counts applied notes.
     expect(within(applied).getByText('124.331')).toBeTruthy()
-    expect(within(applied).getByText('11 offset, no cash out')).toBeTruthy()
+    expect(within(applied).getByText('Offset against invoices, no cash out')).toBeTruthy()
+    expect(within(applied).queryByText(/offset, no cash out/)).toBeNull()
     const refunded = screen.getByRole('heading', { name: 'Refunded' })
       .closest('article') as HTMLElement
     expect(within(refunded).getByText('20.500')).toBeTruthy()
@@ -2585,6 +2586,7 @@ describe('the read-model fields of backend #824 on the credit notes, each option
     const applied = (await screen.findByRole('heading', { name: 'Applied to invoices' }))
       .closest('article') as HTMLElement
     expect(await within(applied).findByText('144.831')).toBeTruthy()
+    expect(within(applied).getByText('14 offset, no cash out')).toBeTruthy()
     const refunded = screen.getByRole('heading', { name: 'Refunded' })
       .closest('article') as HTMLElement
     expect(within(refunded).getByText('Not available yet')).toBeTruthy()
