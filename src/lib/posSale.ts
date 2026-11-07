@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import type { PosPerson, PosPrintedTotals, PosSaleDto, PosSaleRequest } from '../api/pos/pos'
 import type { SlipPhoto } from './posSlipOutbox'
+import type { QueuedSeller } from './posReceiptSeller'
 import { NO_SALE_DISCOUNT, type SaleDiscount, type SaleLine, type SaleTotals } from './pos'
 import { openHeld, sealHeld, type SealedText } from './posVault'
 
@@ -71,6 +72,11 @@ export type FinishedSale = {
    * queued sale only when the QR could not be built after numbering: no receipt is shown (item C).
    */
   queuedQr?: string | null
+  /**
+   * The seller in the till's QR profile a queued sale was numbered with, the one its QR names; the
+   * receipt header falls back to it when the company profile cannot be read (QA-F11).
+   */
+  queuedSeller?: QueuedSeller | null
   /** Queued behind a sale the server would not take, not because the till is offline. */
   queuedBehind?: boolean
   finishedAt: string
@@ -89,7 +95,7 @@ export type HeldSend = {
   slipPhotos: SlipPhoto[]
   printed: PosPrintedTotals
   maker: PosPerson | null
-  receipt: Omit<FinishedSale, 'sale' | 'queuedNumber' | 'queuedQr' | 'queuedBehind' | 'finishedAt'>
+  receipt: Omit<FinishedSale, 'sale' | 'queuedNumber' | 'queuedQr' | 'queuedSeller' | 'queuedBehind' | 'finishedAt'>
 }
 
 export type UncertainSale = {

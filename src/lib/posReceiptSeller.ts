@@ -12,17 +12,26 @@ import type { PosReceiptSellerDto } from '../api/pos/pos'
  *
  * `live`: no `receipt.seller` key at all. Either the server predates S-A, or there is no server
  * answer yet (a sale queued offline, printed before it is issued). That is the receipt as it was
- * before S-A, kept so an older server and the offline till print what they always printed
- * (requirement 8).
+ * before S-A, kept so an older server prints what it always printed (requirement 8). Name and VAT
+ * number come from the live profile when it could be read; otherwise, for a queued sale only, from
+ * the seller in the till's QR profile the sale was queued with, so the header names the seller the
+ * printed QR names (owner decision on QA-F11, OWNER-RC5-QA-DECISIONS-20261107f). That copy carries
+ * no address, and none is made up. The workspace name is the last resort, as before.
  */
 export type ReceiptSellerHeader = {
   source: 'frozen' | 'live'
   /** Null when the issued invoice recorded none: print as not recorded. */
   name: string | null
   address: string
-  /** Null in `frozen` when not recorded; null in `live` when the profile could not be read. */
+  /**
+   * Null in `frozen` when not recorded; null in `live` when neither the profile nor the queued
+   * sale's QR profile gave one.
+   */
   vatNumber: string | null
 }
+
+/** The seller in the till's QR profile a queued sale was numbered with (`PosQrProfile`). */
+export type QueuedSeller = { name: string; vatNumber: string }
 
 type LiveProfile = {
   legalName: string
@@ -38,6 +47,7 @@ export function receiptSellerHeader(
   stated: PosReceiptSellerDto | null | undefined,
   liveProfile: LiveProfile | null,
   workspaceName: string | null | undefined,
+  queuedSeller: QueuedSeller | null = null,
 ): ReceiptSellerHeader {
   // `undefined` is "no such key": an older server. `null` is not sent by a server with S-A; if it
   // ever came it is still a server that knows the field, so it is read as nothing recorded.
@@ -52,12 +62,18 @@ export function receiptSellerHeader(
       vatNumber: present(seller.vatNumber) ? seller.vatNumber : null,
     }
   }
+  if (liveProfile) {
+    return {
+      source: 'live',
+      name: liveProfile.legalName,
+      address: [liveProfile.registeredAddress, liveProfile.registeredCity].filter(Boolean).join(', '),
+      vatNumber: liveProfile.taxNumber,
+    }
+  }
   return {
     source: 'live',
-    name: liveProfile?.legalName ?? workspaceName ?? '',
-    address: liveProfile
-      ? [liveProfile.registeredAddress, liveProfile.registeredCity].filter(Boolean).join(', ')
-      : '',
-    vatNumber: liveProfile ? liveProfile.taxNumber : null,
+    name: present(queuedSeller?.name) ? queuedSeller.name : (workspaceName ?? ''),
+    address: '',
+    vatNumber: present(queuedSeller?.vatNumber) ? queuedSeller.vatNumber : null,
   }
 }

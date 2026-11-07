@@ -72,7 +72,11 @@ function SharedPanel() {
 
 function Done() {
   const done = useFinishedSale()
-  return <p data-queued-qr={done?.queuedQr ?? ''}>done {done?.sale?.invoiceNumber ?? done?.queuedNumber}</p>
+  return (
+    <p data-queued-qr={done?.queuedQr ?? ''} data-queued-seller={JSON.stringify(done?.queuedSeller ?? null)}>
+      done {done?.sale?.invoiceNumber ?? done?.queuedNumber}
+    </p>
+  )
 }
 
 /** The till's totals are the invoice's (owner, 21 Oct 2026). */
@@ -416,6 +420,11 @@ describe('taking the payment (P.12)', () => {
     expect(body.printedQr).toMatchObject({ profileVersion: QR_PROFILE.profileVersion })
     expect(body.printedQr.payload).toMatch(/^[A-Za-z0-9+/]+=*$/)
     expect(done.getAttribute('data-queued-qr')).toBe(body.printedQr.payload)
+    // QA-F11: the receipt header's seller is the one this QR was built from.
+    expect(JSON.parse(done.getAttribute('data-queued-seller') ?? 'null')).toEqual({
+      name: QR_PROFILE.sellerName,
+      vatNumber: QR_PROFILE.sellerVatin,
+    })
   })
 
   // Owner directive 2026-11-06 items A and B. Named cases: the kill switch off or an unverified

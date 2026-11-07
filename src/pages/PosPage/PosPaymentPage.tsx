@@ -295,6 +295,9 @@ function Payment({ till }: { till: Ready }) {
         ...('queued' in result && result.queued.body.printedQr
           ? { queuedQr: result.queued.body.printedQr.payload }
           : {}),
+        ...('queued' in result && qrProfile
+          ? { queuedSeller: { name: qrProfile.sellerName, vatNumber: qrProfile.sellerVatin } }
+          : {}),
         queuedBehind: 'queued' in result && result.behind === true,
         finishedAt: sending.request.soldAt,
       })

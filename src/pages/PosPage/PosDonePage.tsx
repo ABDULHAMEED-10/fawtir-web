@@ -167,6 +167,7 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
     sale ? sale.receipt.seller : undefined,
     business,
     entitlements?.tenantName,
+    sale ? null : (done.queuedSeller ?? null),
   )
 
   return (
@@ -442,7 +443,7 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
             <div className="rounded-sm bg-white px-5 py-6 text-center shadow-sm">
               <ReceiptMasthead
                 seller={seller}
-                liveVatNumber={business?.taxNumber ?? null}
+                liveVatNumber={seller.vatNumber}
                 fullInvoice={fullInvoice}
                 locale={locale}
               />

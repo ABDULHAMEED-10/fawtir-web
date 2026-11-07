@@ -18,7 +18,8 @@ import type { PosReceiptSellerDto } from '../../api/pos/pos'
  * on the issued invoice, for a cashier who cannot read the company profile; never filled from the
  * live profile or the workspace name when an older invoice recorded less (requirement 7); the old
  * header only when the server sends no `seller` key at all, or before the server has answered
- * (requirement 8).
+ * (requirement 8). Before it has answered, a cashier who cannot read the profile gets the seller in
+ * the till's QR profile, without an address (owner decision on QA-F11).
  */
 
 const CASHIER: Entitlements = {
@@ -120,8 +121,14 @@ beforeEach(async () => {
 
 afterEach(() => vi.unstubAllGlobals())
 
-/** A sale the server answered; `seller` left out entirely models a server before S-A. */
-function finish(seller: PosReceiptSellerDto | 'absent') {
+/** The seller in the till's QR profile, deliberately different from every value above. */
+const QUEUED_SELLER = { name: 'Till Copy Trading LLC', vatNumber: 'OM1100077777' }
+
+/**
+ * A sale the server answered; `seller` left out entirely models a server before S-A. `queuedSeller`
+ * is set only to prove an answered sale never prints it.
+ */
+function finish(seller: PosReceiptSellerDto | 'absent', queuedSeller: typeof QUEUED_SELLER | null = null) {
   const totals = totalsFor(SAMPLE_SALE, NO_SALE_DISCOUNT)
   const receipt: Record<string, unknown> = {
     invoiceTotal: 5.649,
@@ -148,6 +155,26 @@ function finish(seller: PosReceiptSellerDto | 'absent') {
       warnings: [],
     } as never,
     queuedNumber: null,
+    ...(queuedSeller ? { queuedSeller } : {}),
+    finishedAt: '2026-10-29T10:00:00Z',
+  })
+}
+
+/** A consumer sale the till queued offline, with the QR it printed. */
+function queueOffline(queuedSeller: typeof QUEUED_SELLER | null) {
+  const totals = totalsFor(SAMPLE_SALE, NO_SALE_DISCOUNT)
+  setFinishedSale({
+    lines: SAMPLE_SALE,
+    totals,
+    tip: 0,
+    change: 0,
+    company: null,
+    payments: [{ method: 'cash', amount: totals.sale }],
+    sale: null,
+    queuedNumber: 'NZW-T01-INV-2026-000050',
+    // The QR it printed (owner directive 2026-11-06): without one no receipt is shown at all.
+    queuedQr: 'AQ==',
+    ...(queuedSeller ? { queuedSeller } : {}),
     finishedAt: '2026-10-29T10:00:00Z',
   })
 }
@@ -219,27 +246,51 @@ describe('the receipt prints the seller frozen on the issued invoice', () => {
     expect(await screen.findByText(LIVE_PROFILE.taxNumber)).toBeTruthy()
     expect(screen.queryByText(i18n.t('pos.done.sellerNameNotRecorded'))).toBeNull()
   })
+
+  it('an older server with the profile refused (403) keeps the workspace name, never a till copy', async () => {
+    finish('absent', QUEUED_SELLER)
+    renderReceipt()
+    expect(await within(receipt()).findByText('Workspace Display Name')).toBeTruthy()
+    expect(screen.queryByText(QUEUED_SELLER.name)).toBeNull()
+    expect(screen.queryByText(QUEUED_SELLER.vatNumber)).toBeNull()
+  })
+
+  it('an issued sale with the profile refused (403) prints the frozen seller, never a till copy', async () => {
+    finish(FROZEN, QUEUED_SELLER)
+    renderReceipt()
+    expect(await screen.findByText('Al Noor Trading LLC')).toBeTruthy()
+    expect(screen.getByText('OM1100012345')).toBeTruthy()
+    expect(screen.queryByText(QUEUED_SELLER.name)).toBeNull()
+    expect(screen.queryByText(QUEUED_SELLER.vatNumber)).toBeNull()
+  })
 })
 
 describe('a sale queued offline has no issued invoice yet', () => {
-  it('prints the header it always printed until the server answers', async () => {
-    const totals = totalsFor(SAMPLE_SALE, NO_SALE_DISCOUNT)
-    setFinishedSale({
-      lines: SAMPLE_SALE,
-      totals,
-      tip: 0,
-      change: 0,
-      company: null,
-      payments: [{ method: 'cash', amount: totals.sale }],
-      sale: null,
-      queuedNumber: 'NZW-T01-INV-2026-000050',
-      // The QR it printed (owner directive 2026-11-06): without one no receipt is shown at all.
-      queuedQr: 'AQ==',
-      finishedAt: '2026-10-29T10:00:00Z',
-    })
+  it('with the till’s QR profile seller, prints its name and VAT number and no address', async () => {
+    queueOffline(QUEUED_SELLER)
+    renderReceipt()
+    expect(await within(receipt()).findByText(QUEUED_SELLER.name)).toBeTruthy()
+    expect(within(receipt()).getByText(QUEUED_SELLER.vatNumber)).toBeTruthy()
+    expect(within(receipt()).queryByText('Workspace Display Name')).toBeNull()
+    expect(screen.queryByText(/Live Street 1|Live City|Way 2410/)).toBeNull()
+    expect(screen.queryByText(i18n.t('pos.done.sellerNameNotRecorded'))).toBeNull()
+  })
+
+  it('without one, prints the workspace name and no VAT number, as it always did', async () => {
+    queueOffline(null)
     renderReceipt()
     expect(await within(receipt()).findByText('Workspace Display Name')).toBeTruthy()
+    expect(within(receipt()).queryByText(/OMd{10}/)).toBeNull()
     expect(screen.queryByText(i18n.t('pos.done.sellerNameNotRecorded'))).toBeNull()
+  })
+
+  it('a profile the cashier can read still comes first', async () => {
+    profileReadable = true
+    queueOffline(QUEUED_SELLER)
+    renderReceipt()
+    expect(await screen.findByText(LIVE_PROFILE.legalName)).toBeTruthy()
+    expect(await screen.findByText(LIVE_PROFILE.taxNumber)).toBeTruthy()
+    expect(screen.queryByText(QUEUED_SELLER.name)).toBeNull()
   })
 })
 
@@ -254,6 +305,28 @@ describe('receiptSellerHeader', () => {
       vatNumber: 'OM1',
     })
     expect(receiptSellerHeader(undefined, null, 'Workspace')).toEqual({
+      source: 'live',
+      name: 'Workspace',
+      address: '',
+      vatNumber: null,
+    })
+  })
+
+  it('without a profile, the queued sale’s seller comes before the workspace name; a blank one does not', () => {
+    const queued = { name: 'Till LLC', vatNumber: 'OM7' }
+    expect(receiptSellerHeader(undefined, null, 'Workspace', queued)).toEqual({
+      source: 'live',
+      name: 'Till LLC',
+      address: '',
+      vatNumber: 'OM7',
+    })
+    expect(receiptSellerHeader(undefined, live, 'Workspace', queued)).toEqual(
+      receiptSellerHeader(undefined, live, 'Workspace'),
+    )
+    expect(receiptSellerHeader(FROZEN, null, 'Workspace', queued)).toEqual(
+      receiptSellerHeader(FROZEN, null, 'Workspace'),
+    )
+    expect(receiptSellerHeader(undefined, null, 'Workspace', { name: ' ', vatNumber: '' })).toEqual({
       source: 'live',
       name: 'Workspace',
       address: '',
