@@ -11395,7 +11395,6 @@
     "subdivisionCodeNone": "Not set",
     "specialZoneLicence": "Special zone licence number",
     "specialZoneLicenceRefused": "The licence number was not accepted. Check it and save again.",
-    "specialZoneLicenceUnavailable": "Setting or clearing the Special Zone licence is not available yet, so the licence was not changed. Your other changes were not saved either. To save them, put the licence number back as it was and save again.",
     "contactPerson": "Contact person",
     "addressAmendNote": "You can update your registered address and contact. Changes apply to invoices you issue from now on; invoices already issued keep the details they were issued with.",
     "amendConflict": "Someone else updated the company details while you were editing. The latest version is now shown, so make your change again.",
