@@ -805,10 +805,10 @@ describe('the receipt of a sale queued offline (retest N-6)', () => {
 
   afterEach(() => vi.useRealTimers())
 
-  it('says it waits to be filed, not that it is filed, and shows the QR it printed', async () => {
+  it('says it waits to reach Fawtir, not that it is issued, and shows the QR it printed', async () => {
     queued()
     renderAt('/pos/receipt')
-    expect(await screen.findByText(/This sale is waiting to be filed/)).toBeTruthy()
+    expect(await screen.findByText(/This sale is waiting to reach Fawtir/)).toBeTruthy()
     expect(screen.queryByText(/has already been issued/)).toBeNull()
     expect(await screen.findByText(i18n.t('pos.done.qrAlreadyUp'))).toBeTruthy()
     // No "QR to follow" on a consumer's offline receipt (owner directive 2026-11-06 item D).
@@ -819,7 +819,7 @@ describe('the receipt of a sale queued offline (retest N-6)', () => {
   it('without its QR shows no receipt and says why, never that the QR comes later', async () => {
     queued(null)
     renderAt('/pos/receipt')
-    expect(await screen.findByText(/This sale is waiting to be filed/)).toBeTruthy()
+    expect(await screen.findByText(/This sale is waiting to reach Fawtir/)).toBeTruthy()
     expect(
       screen.getByText(i18n.t('pos.done.receiptWithheld', { invoice: 'NZW-T01-INV-2026-000049' })),
     ).toBeTruthy()
@@ -832,7 +832,7 @@ describe('the receipt of a sale queued offline (retest N-6)', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     queued()
     renderAt('/pos/receipt')
-    await screen.findByText(/This sale is waiting to be filed/)
+    await screen.findByText(/This sale is waiting to reach Fawtir/)
     expect(screen.queryByText('the sale screen')).toBeNull()
     await act(async () => {
       await vi.advanceTimersByTimeAsync(20_500)
@@ -843,7 +843,7 @@ describe('the receipt of a sale queued offline (retest N-6)', () => {
   it('clears itself on Enter, as the screen says', async () => {
     queued()
     renderAt('/pos/receipt')
-    await screen.findByText(/This sale is waiting to be filed/)
+    await screen.findByText(/This sale is waiting to reach Fawtir/)
     fireEvent.keyDown(window, { key: 'Enter' })
     expect(await screen.findByText('the sale screen')).toBeTruthy()
   })
