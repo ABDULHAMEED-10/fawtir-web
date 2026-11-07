@@ -4536,15 +4536,15 @@
       }
     },
     "done": {
-      "title": "Paid and filed",
+      "title": "Paid and issued",
       "summary": "Invoice {{invoice}} was raised and the Tax Authority accepted it {{seconds}} seconds from finishing the sale. The drawer is open and there is {{change}} change to hand back.",
       "whatHappened": "What happened when you pressed finish",
-      "underTwoSeconds": "all of it, in under two seconds",
-      "seeFilingRecord": "See the filing record",
+      "underTwoSeconds": "issued at the counter",
+      "seeFilingRecord": "See the invoice record",
       "raised": "Invoice raised",
       "raisedNote": "{{invoice}}",
-      "signed": "Signed",
-      "signedNote": "Your certificate",
+      "signed": "Issued",
+      "signedNote": "Validated",
       "filed": "Filed with the OTA",
       "filedNote": "Sent at {{sent}}",
       "accepted": "Accepted",
@@ -4561,7 +4561,7 @@
       "textNote": "To an Omani mobile number",
       "qr": "Show the QR bigger",
       "qrNote": "If they are scanning",
-      "rungUpWrong": "Rung it up wrong? This invoice has already been filed, so it cannot be edited. A credit note is raised instead, which the Tax Authority also sees.",
+      "rungUpWrong": "Rung it up wrong? This invoice has already been issued, so it cannot be edited. A credit note is raised instead.",
       "refundOrVoid": "Refund or void",
       "readyNext": "Ready for the next customer",
       "clearsItself": "Or press Enter. This screen clears itself after 20 seconds",
@@ -4581,7 +4581,7 @@
       "thankYou": "Thank you",
       "queuedTitle": "Sold, sending when back online",
       "queuedSummary": "The till is offline. Invoice {{invoice}} is numbered and will be filed as soon as the connection is back. There is {{change}} change to hand back.",
-      "summaryWaiting": "Invoice {{invoice}} was raised and is on its way to the Tax Authority. There is {{change}} change to hand back.",
+      "summaryWaiting": "Invoice {{invoice}} was issued. Reporting to the Tax Authority starts once your registration and the provider connection are complete. There is {{change}} change to hand back.",
       "sentWhenOnline": "it is sent as soon as the connection is back",
       "sentPeppol": "Sent over Peppol",
       "waiting": "Waiting",
@@ -11366,7 +11366,7 @@
     "noOpenBranches": "No open branches.",
     "cert": {
       "signing": "Signing certificate",
-      "signingNote": "Signs your invoices to show they came from you",
+      "signingNote": "Will sign your invoices to show they came from you",
       "transport": "AS4 transport certificate",
       "transportNote": "Encrypts documents in transit between access points",
       "reporting": "OTA reporting credentials",
@@ -22868,8 +22868,8 @@
       "refundHint": "Credit exceeds the outstanding balance, so {{invoice}} is settled in full and the difference is refundable.",
       "refundNone": "The credit is within what is still owed on {{invoice}}, so nothing goes back to the customer.",
       "filed": {
-        "credit": "Filed against {{invoice}} · reverses declared VAT with the OTA.",
-        "debit": "Filed against {{invoice}} · declares the additional VAT with the OTA."
+        "credit": "Issued against {{invoice}} · reverses VAT.",
+        "debit": "Issued against {{invoice}} · adds VAT."
       }
     },
     "reasonOptions": {

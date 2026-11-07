@@ -809,7 +809,7 @@ describe('the receipt of a sale queued offline (retest N-6)', () => {
     queued()
     renderAt('/pos/receipt')
     expect(await screen.findByText(/This sale is waiting to be filed/)).toBeTruthy()
-    expect(screen.queryByText(/has already been filed/)).toBeNull()
+    expect(screen.queryByText(/has already been issued/)).toBeNull()
     expect(await screen.findByText(i18n.t('pos.done.qrAlreadyUp'))).toBeTruthy()
     // No "QR to follow" on a consumer's offline receipt (owner directive 2026-11-06 item D).
     expect(screen.queryByText(i18n.t('pos.done.qrAfterFiling'))).toBeNull()
