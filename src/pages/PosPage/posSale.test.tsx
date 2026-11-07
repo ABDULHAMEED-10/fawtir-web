@@ -247,6 +247,24 @@ describe('taking the payment (P.12)', () => {
     expect(body.draft.customerId).toBeUndefined()
   })
 
+  // P-OFF (spec rev 3 §7): while offline numbering is stopped the till list carries no INVOICE key in
+  // `series`. An online sale is numbered by the server and goes through as before; the zone check,
+  // which reads the invoice series, is not triggered.
+  it('sells online as before on a till with no invoice series (P-OFF)', async () => {
+    tillsReply = () =>
+      json([{ ...TILL, series: { CREDIT_NOTE: { series: 'NZW-T01-CRN', year: 2026, nextValue: 3 } } }])
+    renderPayment()
+    fireEvent.change(await screen.findByLabelText('Cash handed over'), { target: { value: '10' } })
+    fireEvent.click(screen.getByRole('button', { name: /Take 5.649 in cash/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+    expect(await screen.findByText('done NZW-T01-INV-2026-000049')).toBeTruthy()
+
+    const sent = calls.filter((call) => call.url === '/api/v1/pos/sales')
+    expect(sent).toHaveLength(1)
+    expect(JSON.parse(String(sent[0].init?.body))).toMatchObject({ queuedOffline: false, invoiceNumber: null })
+    expect(screen.queryByText(i18n.t('pos.refusal.tenantZoneUnavailable'))).toBeNull()
+  })
+
   it('records a card as only what the cashier typed: the approval code is optional', async () => {
     renderPayment()
     fireEvent.click(await screen.findByRole('button', { name: /^Card/ }))

@@ -17,11 +17,14 @@ import {
   PosSaleOutcomeUnknown,
   PosStorageUnavailable,
   PosTenantZoneUnavailable,
+  refusesTheSale,
   resetPosQueue,
   retryQueuedSale,
+  saleOutcomeUncertain,
   stopQueueSendsForSignOut,
   storedRefusal,
   submitSale,
+  tillZoneUnreadable,
 } from './posQueue'
 import { heldSlipPhotos } from './posSlipOutbox'
 import { checkHeldWithServer } from './posHeldCheck'
@@ -1896,5 +1899,168 @@ describe('a queued sale and the server key lookup (RESEND-AUTH)', () => {
       outcome: 'queued',
     })
     expect(calls.filter((call) => call.url.includes('/sales/by-key/'))).toEqual([])
+  })
+})
+
+/*
+ * P-OFF (POS-P-OFF-IMPLEMENTATION-SPEC-20261108 rev 3 §2.3 and §7, owner dd/gg in
+ * OWNER-APPROVALS-b43.md). While offline numbering is stopped, the server leaves the INVOICE key out
+ * of a till's `series` (absent, not null) and keeps CREDIT_NOTE. With no invoice series, this device
+ * has no number to print, so a sale it cannot send is never numbered, kept or printed. Online sales
+ * are numbered by the server and are unchanged. The web is not changed for P-OFF; these tests pin
+ * the behaviour it relies on.
+ */
+describe('P-OFF: a till read while offline numbering is stopped (no series.INVOICE)', () => {
+  const STOPPED = {
+    id: 'till-1',
+    branchId: 'b-1',
+    series: { CREDIT_NOTE: { series: 'NZW-T01-CRN', year: 2026, nextValue: 3 } },
+  } as unknown as PosTillDto
+  const WALK_IN: PosSaleRequest = { ...BODY, customer: { kind: 'WALK_IN' } }
+  const COUNTER = 'fawtir.pos.next.till-1.NZW-T01-INV-2026'
+  const keyOf = (call: { init?: RequestInit }) => new Headers(call.init?.headers).get('Idempotency-Key')
+  const salePosts = (key: string) =>
+    calls.filter((call) => call.url === '/api/v1/pos/sales' && call.init?.method === 'POST' && keyOf(call) === key)
+  const filed = (key: string, value: number, extra: Record<string, unknown> = {}) =>
+    json(
+      {
+        saleId: key,
+        invoiceNumber: `NZW-T01-INV-2026-${String(value).padStart(6, '0')}`,
+        receipt: { qr: { status: 'PENDING' } },
+        filing: { dispatchState: 'QUEUED' },
+        warnings: [],
+        ...extra,
+      },
+      201,
+    )
+
+  it('has the CREDIT_NOTE series and no INVOICE key, as the server sends it', () => {
+    expect(Object.hasOwn(STOPPED.series, 'INVOICE')).toBe(false)
+    expect(STOPPED.series.CREDIT_NOTE).toBeDefined()
+  })
+
+  describe('P-03: offline, the sale is refused with nothing numbered, kept or printed', () => {
+    it('with an empty queue: rejected as sent with outcome unknown, the counter as it was, nothing queued', async () => {
+      // A counter this device kept before the stop: P-OFF must neither raise nor reuse it.
+      window.localStorage.setItem(COUNTER, '60')
+      // Offline, the sale's own request is tried first and fails without an answer. That reads as
+      // "sent, outcome unknown" (E-01), not "offline", because the device cannot tell a dropped
+      // connection from no connection; the fallback finds no number and keeps nothing.
+      const sold = submitSale(STOPPED, WALK_IN, 'pos-sale-key-poff-01')
+      await expect(sold).rejects.toBeInstanceOf(PosSaleOutcomeUnknown)
+      await expect(sold).rejects.toMatchObject({ requested: true })
+
+      expect(window.localStorage.getItem(COUNTER)).toBe('60')
+      expect(queuedFor('till-1')).toEqual([])
+      expect(window.localStorage.getItem('fawtir.pos.queue') ?? '[]').not.toContain('pos-sale-key-poff-01')
+      expect(keyMayBeQueued('pos-sale-key-poff-01')).toBe(false)
+      // No storage fault and no burnt number: the next sale is not blocked by this one.
+      expect(offlineBlock('till-1')).toBeNull()
+      // Only the one attempt, as an online sale with no number of its own.
+      const [sent] = salePosts('pos-sale-key-poff-01')
+      expect(salePosts('pos-sale-key-poff-01')).toHaveLength(1)
+      expect(JSON.parse(String(sent.init?.body))).toMatchObject({ queuedOffline: false, invoiceNumber: null })
+    })
+
+    it('behind sales queued before the stop: rejected as offline, never sent, and the backlog unchanged', async () => {
+      await submitSale(TILL, WALK_IN, 'pos-sale-key-poff-pre1')
+      await submitSale(TILL, WALK_IN, 'pos-sale-key-poff-pre2')
+      const backlog = queuedFor('till-1').map((entry) => entry.number)
+      expect(backlog).toEqual(['NZW-T01-INV-2026-000049', 'NZW-T01-INV-2026-000050'])
+      const counter = window.localStorage.getItem(COUNTER)
+
+      await expect(submitSale(STOPPED, WALK_IN, 'pos-sale-key-poff-02')).rejects.toMatchObject({
+        name: 'NetworkError',
+        reason: 'offline',
+      })
+
+      expect(queuedFor('till-1').map((entry) => entry.number)).toEqual(backlog)
+      expect(window.localStorage.getItem(COUNTER)).toBe(counter)
+      expect(keyMayBeQueued('pos-sale-key-poff-02')).toBe(false)
+      expect(salePosts('pos-sale-key-poff-02')).toEqual([])
+    })
+  })
+
+  describe('P-08: no path makes a queued entry', () => {
+    it('while another run is sending (busy): rejected as offline, nothing kept, and that run still files', async () => {
+      await submitSale(TILL, WALK_IN, 'pos-sale-key-poff-pre3')
+      online = true
+      let answer: (reply: Response) => void = () => {}
+      saleReply = () =>
+        new Promise<Response>((resolve) => {
+          answer = resolve
+        }) as unknown as Response
+      const running = flushQueue('till-1')
+      await vi.waitFor(() => expect(salePosts('pos-sale-key-poff-pre3')).toHaveLength(1))
+
+      await expect(submitSale(STOPPED, WALK_IN, 'pos-sale-key-poff-03')).rejects.toMatchObject({
+        name: 'NetworkError',
+        reason: 'offline',
+      })
+      expect(queuedFor('till-1').map((entry) => entry.key)).toEqual(['pos-sale-key-poff-pre3'])
+      expect(salePosts('pos-sale-key-poff-03')).toEqual([])
+
+      answer(filed('pos-sale-key-poff-pre3', 49))
+      expect(await running).toBe('done')
+      expect(queuedFor('till-1')).toEqual([])
+      expect(keyMayBeQueued('pos-sale-key-poff-03')).toBe(false)
+    })
+
+    it('behind a sale the server refused for good (enqueue behind): rejected as offline, nothing kept', async () => {
+      await submitSale(TILL, WALK_IN, 'pos-sale-key-poff-pre4')
+      online = true
+      saleReply = () => refusal(422, 'SIMPLIFIED_INVOICE_LIMIT')
+      await flushQueue('till-1')
+      expect(queuedFor('till-1')).toMatchObject([{ key: 'pos-sale-key-poff-pre4', final: true }])
+      // The same till before the stop would number this sale and keep it behind (H-1).
+      const counter = window.localStorage.getItem(COUNTER)
+
+      await expect(submitSale(STOPPED, WALK_IN, 'pos-sale-key-poff-04')).rejects.toMatchObject({
+        name: 'NetworkError',
+        reason: 'offline',
+      })
+      expect(queuedFor('till-1').map((entry) => entry.key)).toEqual(['pos-sale-key-poff-pre4'])
+      expect(window.localStorage.getItem(COUNTER)).toBe(counter)
+      expect(salePosts('pos-sale-key-poff-04')).toEqual([])
+      expect(keyMayBeQueued('pos-sale-key-poff-04')).toBe(false)
+    })
+  })
+
+  it('an online send with no answer: outcome unknown, held under its key, and the retry replays', async () => {
+    online = true
+    // An uncoded 502 says nothing about whether the sale was recorded (Stage B E-01).
+    saleReply = () => new Response('', { status: 502 })
+    let held: unknown
+    await submitSale(STOPPED, WALK_IN, 'pos-sale-key-poff-05').catch((error: unknown) => {
+      held = error
+    })
+    expect(held).toBeInstanceOf(PosSaleOutcomeUnknown)
+    // The payment screen keeps the sale under this key; a definite refusal would release it.
+    expect(saleOutcomeUncertain(held)).toBe(true)
+    expect(refusesTheSale(held)).toBe(false)
+    expect(queuedFor('till-1')).toEqual([])
+    expect(window.localStorage.getItem(COUNTER)).toBeNull()
+
+    // The same sale again, under the same key: the server answers with the sale it recorded.
+    saleReply = () => filed('pos-sale-key-poff-05', 49, { replayed: true })
+    const again = await submitSale(STOPPED, WALK_IN, 'pos-sale-key-poff-05')
+    expect('sale' in again && again.sale).toMatchObject({
+      invoiceNumber: 'NZW-T01-INV-2026-000049',
+      replayed: true,
+    })
+    const [first, second] = salePosts('pos-sale-key-poff-05')
+    expect(salePosts('pos-sale-key-poff-05')).toHaveLength(2)
+    expect(second.init?.body).toBe(first.init?.body)
+    expect(JSON.parse(String(second.init?.body))).toMatchObject({ queuedOffline: false, invoiceNumber: null })
+  })
+
+  it('online: sent and filed as before, numbered by the server, and the zone check is not triggered', async () => {
+    online = true
+    expect(tillZoneUnreadable(STOPPED, WALK_IN.soldAt)).toBe(false)
+    const result = await submitSale(STOPPED, WALK_IN, 'pos-sale-key-poff-06')
+    expect('sale' in result && result.sale.invoiceNumber).toBe('NZW-T01-INV-2026-000049')
+    const [sent] = salePosts('pos-sale-key-poff-06')
+    expect(JSON.parse(String(sent.init?.body))).toMatchObject({ queuedOffline: false, invoiceNumber: null })
+    expect(queuedFor('till-1')).toEqual([])
   })
 })
