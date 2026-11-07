@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { useState } from 'react'
+import { act, render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { SAMPLE_SALE } from '../../lib/posTestSale'
@@ -12,6 +13,8 @@ import { resetSharedRequests } from '../../api'
 import { forgetWorkingBranch } from '../../lib/workingBranch'
 import { receiptSellerHeader } from '../../lib/posReceiptSeller'
 import type { PosReceiptSellerDto } from '../../api/pos/pos'
+import { useApiRead } from '../../hooks'
+import { COMPANY_PROFILE_PATH, loadCompanyProfile } from '../../api/company/companyProfile'
 
 /**
  * The receipt's seller (CMP-5 S-A, owner round 8): printed from `receipt.seller`, the seller frozen
@@ -180,11 +183,34 @@ function queueOffline(queuedSeller: typeof QUEUED_SELLER | null) {
   })
 }
 
-const renderReceipt = () =>
+let armProfileProbe = () => {}
+
+/**
+ * Reads the company profile only once armed, which a test does after the receipt is on screen, so
+ * after the done page has asked for the profile: it then shares the page's request, or asks after
+ * it. Either way, "profile-loaded" shows only once the page's own read has settled, and the page
+ * has rendered with it no later than the probe.
+ */
+function ProfileLoaded() {
+  const [armed, setArmed] = useState(false)
+  armProfileProbe = () => setArmed(true)
+  const profile = useApiRead(armed ? COMPANY_PROFILE_PATH : null, loadCompanyProfile)
+  return profile.read.status === 'ready' ? <p data-testid="profile-loaded" /> : null
+}
+
+const renderReceipt = (probeProfile = false) =>
   render(
     <MemoryRouter initialEntries={['/pos/receipt']}>
       <Routes>
-        <Route path="/pos/receipt" element={<PosDonePage />} />
+        <Route
+          path="/pos/receipt"
+          element={
+            <>
+              <PosDonePage />
+              {probeProfile ? <ProfileLoaded /> : null}
+            </>
+          }
+        />
         <Route path="/pos" element={<p>the sale screen</p>} />
       </Routes>
     </MemoryRouter>,
@@ -281,23 +307,19 @@ describe('a sale queued offline has no issued invoice yet', () => {
     queueOffline(null)
     renderReceipt()
     expect(await within(receipt()).findByText('Workspace Display Name')).toBeTruthy()
-    expect(within(receipt()).queryByText(/OMd{10}/)).toBeNull()
+    expect(within(receipt()).queryByText(/OM\d{10}/)).toBeNull()
     expect(screen.queryByText(i18n.t('pos.done.sellerNameNotRecorded'))).toBeNull()
   })
 
   it('a readable live profile that differs never replaces the seller the QR names', async () => {
     profileReadable = true
     queueOffline(QUEUED_SELLER)
-    renderReceipt()
-    expect(await within(receipt()).findByText(QUEUED_SELLER.name)).toBeTruthy()
-    expect(within(receipt()).getByText(QUEUED_SELLER.vatNumber)).toBeTruthy()
-    // The profile read has answered by now: the header still names the queued seller.
-    await vi.waitFor(() => {
-      const calls = vi.mocked(fetch).mock.calls.map(([input]) => String(input))
-      expect(calls).toContain('/api/v1/company-profile')
-    })
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    renderReceipt(true)
+    await within(receipt()).findByText(QUEUED_SELLER.name)
+    act(() => armProfileProbe())
+    await screen.findByTestId('profile-loaded')
     expect(within(receipt()).getByText(QUEUED_SELLER.name)).toBeTruthy()
+    expect(within(receipt()).getByText(QUEUED_SELLER.vatNumber)).toBeTruthy()
     expect(screen.queryByText(LIVE_PROFILE.legalName)).toBeNull()
     expect(screen.queryByText(LIVE_PROFILE.taxNumber)).toBeNull()
     expect(screen.queryByText(/Live Street 1|Live City/)).toBeNull()
