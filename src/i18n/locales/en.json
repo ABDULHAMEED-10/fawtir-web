@@ -1506,7 +1506,7 @@
       },
       "government": {
         "title": "Government",
-        "subtitle": "B2G - via Peppol"
+        "subtitle": "Invoiced like a business - via Peppol"
       }
     },
     "details": {
@@ -1535,7 +1535,7 @@
     },
     "government": {
       "title": "Public procurement references",
-      "hint": "Oman's B2G invoices are cleared through Peppol and are normally rejected without a buyer reference. Capture it once here and it is applied to every invoice for this entity.",
+      "hint": "Capture the buyer reference once here and it is applied to every invoice for this entity.",
       "entityCode": "Entity / ministry code",
       "entityCodePlaceholder": "e.g. MOT-004",
       "buyerReference": "Buyer reference",
@@ -1947,7 +1947,7 @@
       },
       "government": {
         "title": "Government",
-        "subtitle": "B2G - via Peppol"
+        "subtitle": "Treated like a business - via Peppol"
       }
     },
     "details": {
@@ -2083,7 +2083,7 @@
       "invoiceType": "Invoice type",
       "kind": {
         "all": "All invoices",
-        "standard": "Standard (B2B/B2G)",
+        "standard": "Standard (business/government)",
         "simplified": "Simplified (B2C)"
       },
       "documentType": "Document type",
@@ -2648,7 +2648,7 @@
       "consumer": "Consumer",
       "consumerSub": "B2C - QR receipt",
       "government": "Government",
-      "governmentSub": "B2G - via Peppol"
+      "governmentSub": "Invoiced like a business - via Peppol"
     },
     "customer": {
       "name": "Muscat Grand Hotel LLC",
@@ -23698,7 +23698,7 @@
       "invoicing": {
         "lead": "Instant ",
         "em": "invoicing",
-        "body": "Every sale becomes the right invoice B2C at the counter, B2B with the company details, B2G with the buyer reference. Fawtir picks, you do not.",
+        "body": "Every sale becomes the right invoice: B2C at the counter, B2B with the company details, and a government customer like a business. Fawtir picks, you do not.",
         "alt": "The Invoices screen in Fawtir: what is outstanding, settled, awaiting payment and overdue, and every invoice with its status"
       },
       "filing": {
@@ -24149,10 +24149,10 @@
       "invoicing": {
         "lead": "Right invoice, without being",
         "em": "asked which",
-        "body": "A walk-in gets a simplified receipt. A company gets a full B2B invoice over Peppol. A ministry gets the buyer reference it requires. Fawtir works out which and does it.",
+        "body": "A walk-in gets a simplified receipt. A company gets a full B2B invoice over Peppol. A government customer is invoiced the same way as a company. Fawtir works out which and does it.",
         "alt": "An invoice's lines in Fawtir, each with its unit, VAT and discount, and the totals",
         "items": {
-          "a": "B2B, B2C and B2G handled automatically",
+          "a": "B2B and B2C handled automatically",
           "b": "Peppol where registered, email where not",
           "c": "Goods or service on each line, with its VAT category",
           "d": "Discounts on a line or on the whole invoice",
