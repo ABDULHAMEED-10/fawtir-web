@@ -3819,7 +3819,7 @@
     "peppol": {
       "title": "Send to customer over Peppol",
       "onPeppol": "On Peppol",
-      "hint": "The debit note reaches {{customer}} the moment it's issued, and the additional VAT is reported to the OTA at the same time."
+      "hint": "The debit note reaches {{customer}} the moment it's issued."
     },
     "attachments": {
       "drop": "Drop files or click to upload",
@@ -10653,7 +10653,7 @@
     "issuedOn": "issued {{date}}",
     "reportedFirst": "reported on the first attempt",
     "reportedOnAttempt": "reported on attempt {{count}}",
-    "noPeppolJourney": "Nothing travelled to a customer: a walk-in sale, or a buyer off Peppol, is reported to the Tax Authority only.",
+    "noPeppolJourney": "Nothing travelled to a customer: a walk-in sale, or a buyer off Peppol.",
     "whyItWasTurnedDown": "Why it was turned down",
     "versionState": {
       "live": "Live at the OTA",
