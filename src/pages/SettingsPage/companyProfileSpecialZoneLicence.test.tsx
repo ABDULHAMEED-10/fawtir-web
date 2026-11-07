@@ -31,11 +31,16 @@ function json(status: number, body?: unknown) {
 let licences: { method: string; body?: unknown }[]
 let licenceRoute: boolean
 let putAnswer: (() => Response) | null
+let deleteAnswer: (() => Response) | null
+/** Every write the page sends, on any route, in order. */
+let writes: { method: string; url: string }[]
 
 function setUp(subdivisionCode: string | null, stored: string | null = null) {
   licences = []
   licenceRoute = true
   putAnswer = null
+  deleteAnswer = null
+  writes = []
   const profile = {
     tenantId: 't-1',
     tenantCode: 'T1',
@@ -64,6 +69,7 @@ function setUp(subdivisionCode: string | null, stored: string | null = null) {
     'fetch',
     vi.fn(async (url: string, init?: RequestInit) => {
       const method = init?.method ?? 'GET'
+      if (method !== 'GET') writes.push({ method, url })
       if (url === '/api/v1/me/entitlements') return json(200, ADMIN)
       if (url === '/api/v1/reference-data') return json(200, SEEDED_REFERENCE)
       if (url === '/api/v1/company-profile' && method === 'GET') return json(200, profile)
@@ -77,7 +83,7 @@ function setUp(subdivisionCode: string | null, stored: string | null = null) {
           })
         }
         licences.push({ method, body: init?.body ? JSON.parse(init.body as string) : undefined })
-        if (method === 'DELETE') return json(204)
+        if (method === 'DELETE') return deleteAnswer ? deleteAnswer() : json(204)
         if (putAnswer) return putAnswer()
         return json(200, {
           specialZoneLicenceNumber: JSON.parse(init!.body as string).specialZoneLicenceNumber,
@@ -162,6 +168,56 @@ describe('Settings > Company: Special Zone licence', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText(/The licence number was not accepted/)).toBeTruthy()
+  })
+
+  describe('while the server has setting it switched off (Z17)', () => {
+    const unavailable = () =>
+      json(409, { title: 'Conflict', status: 409, code: 'SPECIAL_ZONE_LICENCE_UNAVAILABLE' })
+    const MESSAGE =
+      'Setting or clearing the Special Zone licence is not available yet, so the licence was not changed. Your other changes were not saved either. To save them, put the licence number back as it was and save again.'
+
+    /** A later save in the same click: the invoice defaults are written after the licence. */
+    function changeBottomNote() {
+      fireEvent.change(screen.getByLabelText(/Note at the bottom of every invoice/), {
+        target: { value: 'Thank you' },
+      })
+    }
+
+    async function refusedThenUndone(stored: string) {
+      expect(await screen.findByText(MESSAGE)).toBeTruthy()
+      expect(screen.queryByText(/Check your connection/)).toBeNull()
+      expect(screen.queryByText(/The licence number was not accepted/)).toBeNull()
+      expect(screen.queryByText('Saved')).toBeNull()
+      // The refusal stops the click: nothing after the licence is sent.
+      expect(writes).toEqual([{ method: licences[0].method, url: LICENCE_PATH }])
+      fireEvent.click(screen.getByRole('button', { name: 'Undo the changes' }))
+      expect(await screen.findByDisplayValue(stored)).toBeTruthy()
+      expect(screen.getByText('Nothing changed yet')).toBeTruthy()
+    }
+
+    it('says setting it is not available when the PUT is refused', async () => {
+      setUp('SHRFZ', 'SZ-1')
+      putAnswer = unavailable
+      renderPage()
+      fireEvent.change(await screen.findByDisplayValue('SZ-1'), { target: { value: 'SZ-2' } })
+      changeBottomNote()
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+      await waitFor(() => expect(licences).toHaveLength(1))
+      expect(licences[0]).toEqual({ method: 'PUT', body: { specialZoneLicenceNumber: 'SZ-2' } })
+      expect(screen.getByDisplayValue('SZ-2')).toBeTruthy()
+      await refusedThenUndone('SZ-1')
+    })
+
+    it('says clearing it is not available when the DELETE is refused', async () => {
+      setUp('SEZAD', 'SZ-1')
+      deleteAnswer = unavailable
+      renderPage()
+      fireEvent.change(await screen.findByDisplayValue('SZ-1'), { target: { value: '' } })
+      changeBottomNote()
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+      await waitFor(() => expect(licences).toEqual([{ method: 'DELETE', body: undefined }]))
+      await refusedThenUndone('SZ-1')
+    })
   })
 
   it('shows in Arabic', async () => {

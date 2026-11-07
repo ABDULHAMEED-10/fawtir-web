@@ -43,7 +43,7 @@ import {
   saveCompanyProfile,
   type CompanyProfileDto,
 } from '../../api/company/companyProfile'
-import { ApiError } from '../../api/errors'
+import { ApiError, serverCode } from '../../api/errors'
 import {
   BUSINESS_TYPE_NOT_AVAILABLE,
   COMPANY_BUSINESS_TYPE_PATH,
@@ -260,7 +260,7 @@ export function CompanyProfilePage() {
   // An older server has no such route: `undefined` stays, and there is no field.
   const licenceRead = useApiRead(SPECIAL_ZONE_LICENCE_PATH, readSpecialZoneLicence).read
   const [storedLicence, setStoredLicence] = useState<string | null | undefined>(undefined)
-  const [licenceRefused, setLicenceRefused] = useState(false)
+  const [licenceRefused, setLicenceRefused] = useState<'invalid' | 'unavailable' | null>(null)
   const [storedProfile, setStoredProfile] = useState<CompanyProfileDto | undefined>(undefined)
   const [profileSaveFailed, setProfileSaveFailed] = useState(false)
   /** Someone else saved the profile first; the operational fields were reloaded from the server. */
@@ -801,7 +801,11 @@ export function CompanyProfilePage() {
               ) : null}
               {licenceRefused ? (
                 <p role="alert" className="text-xs font-medium text-danger-700">
-                  {t('companyProfile.specialZoneLicenceRefused')}
+                  {t(
+                    licenceRefused === 'unavailable'
+                      ? 'companyProfile.specialZoneLicenceUnavailable'
+                      : 'companyProfile.specialZoneLicenceRefused',
+                  )}
                 </p>
               ) : null}
             </div>
@@ -1195,7 +1199,7 @@ export function CompanyProfilePage() {
               setProfileSaveFailed(false)
               setProfileConflict(false)
               setProfileFieldErrors([])
-              setLicenceRefused(false)
+              setLicenceRefused(null)
               // "Saved" means a request this click sent was answered; a click that sent nothing
               // says nothing.
               let sent = false
@@ -1299,8 +1303,17 @@ export function CompanyProfilePage() {
                   }
                   sent = true
                 } catch (error) {
-                  if (error instanceof ApiError && error.status === 400) {
-                    setLicenceRefused(true)
+                  // Z17: while the deployment's switch is off the server refuses both writes with
+                  // 409 SPECIAL_ZONE_LICENCE_UNAVAILABLE and changes nothing. Matched by code, not
+                  // by status, so another 409 still reads as a failed save; the generic message
+                  // would wrongly blame the connection and invite a retry that is refused again.
+                  if (
+                    error instanceof ApiError &&
+                    serverCode(error) === 'SPECIAL_ZONE_LICENCE_UNAVAILABLE'
+                  ) {
+                    setLicenceRefused('unavailable')
+                  } else if (error instanceof ApiError && error.status === 400) {
+                    setLicenceRefused('invalid')
                   } else {
                     setProfileSaveFailed(true)
                   }
