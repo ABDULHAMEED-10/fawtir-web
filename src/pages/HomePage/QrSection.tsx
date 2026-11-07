@@ -8,10 +8,13 @@ import { Heading, SOFT, Texture } from './site'
 /**
  * The consumer QR code (owner, 1 Nov 2026). No Figma frame; drawn in the site's own pieces like the
  * audience cards. What it says is held to the published rules: the Tax Authority's e-invoicing FAQ
- * (the QR is required on every B2C invoice, full or simplified, and made by the taxpayer, C1; B2C
- * invoices are reported within 24 hours) and Appendix D of the Peppol Oman Architecture v1.0.2 for
- * what the code holds. The picture is the till's real receipt from the mock API, whose QR the API
- * serves (`GET /v1/pos/sales/{id}/qr`).
+ * (the QR is required on every B2C invoice, full or simplified, and made by the taxpayer, C1) and
+ * Appendix D of the Peppol Oman Architecture v1.0.2 for what the code holds. It makes no claim on
+ * when an invoice reaches the Tax Authority: dispatch is off by default (8c797aae, owner
+ * 2026-11-07). Nor does it say every receipt carries the QR from the moment of sale: a receipt the
+ * server withholds (`receiptWithheld`) prints none, and an offline sale without the till's cached
+ * `qrProfile` is not issued at all (3ec3e10a). The picture is the till's real receipt from the mock
+ * API, whose QR the API serves (`GET /v1/pos/sales/{id}/qr`).
  */
 
 const POINTS = ['p1', 'p2', 'p3', 'p4'] as const
