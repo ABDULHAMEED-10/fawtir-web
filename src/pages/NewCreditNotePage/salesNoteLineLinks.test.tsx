@@ -13,6 +13,7 @@ import {
   originalLineRefusal,
   NOTE_REFUSALS,
   patchLine,
+  readsLineLinks,
   toNoteRequest,
   withMode,
 } from '../../lib/salesNote'
@@ -21,8 +22,8 @@ import { NewCreditNotePage } from './NewCreditNotePage'
 
 /*
  * Backend #834 (DA-1 Option B): a credit-note line built from an invoice line names it, so the
- * server caps the credit per original line. RC5 ships with #834, so the link is sent without first
- * asking whether the server reads it (no `readsLineLinks` gate in this port).
+ * server caps the credit per original line. A server before #834 refuses the unknown field, so
+ * the link goes only to a server whose invoice lines carry `originalLineNumber`.
  */
 
 const INVOICE_ID = '11111111-1111-1111-1111-111111111111'
@@ -54,7 +55,7 @@ const line = (lineNumber: number, description: string, quantity: number, unitPri
   exemptionReason: null,
 })
 
-/** An invoice read without `originalLineNumber` on its lines, as a server before #834 answers. */
+/** As a server before #834 answers it: no `originalLineNumber` on any line. */
 const OLD_INVOICE: InvoiceDetailDto = {
   id: INVOICE_ID,
   type: 'INVOICE',
@@ -333,10 +334,19 @@ describe('which credit lines name their invoice line', () => {
     ).toEqual([1, 2, 3])
   })
 
-  it('names the lines whether or not the invoice read carried the field: there is no version gate', () => {
-    expect(
-      toNoteRequest(credit(OLD_INVOICE), OLD_INVOICE).lines.map((entry) => entry.originalLineNumber),
-    ).toEqual([1, 2])
+  it('sends no link at all to a server before #834, which would refuse the body', () => {
+    expect(readsLineLinks(OLD_INVOICE)).toBe(false)
+    expect(readsLineLinks(INVOICE)).toBe(true)
+    for (const entry of toNoteRequest(credit(OLD_INVOICE), OLD_INVOICE).lines)
+      expect(entry).not.toHaveProperty('originalLineNumber')
+  })
+
+  // Deploy-order rule: the web may reach a backend without #834 first, which refuses the key itself.
+  it('leaves the key out of the whole request, in every mode, for an invoice read without line links', () => {
+    let lines = withMode(credit(OLD_INVOICE), 'lines', OLD_INVOICE)
+    lines = patchLine(lines, 'CREDIT_NOTE', 1, { quantity: '3' })
+    for (const form of [credit(OLD_INVOICE), lines, { ...credit(OLD_INVOICE), mode: 'custom' as const }])
+      expect(JSON.stringify(toNoteRequest(form, OLD_INVOICE))).not.toContain('originalLineNumber')
   })
 })
 
@@ -410,12 +420,12 @@ describe('the composer against #834', () => {
     expect(created()[0].lines.map((entry) => entry.originalLineNumber)).toEqual([1, 2])
   }, 30_000)
 
-  it('sends them too for an invoice read without the field on its lines', async () => {
+  it('sends none to a server before #834', async () => {
     invoice = OLD_INVOICE
     await issueAFullCredit()
     expect(await screen.findByText('credit note page')).toBeTruthy()
     expect(created()).toHaveLength(1)
-    expect(created()[0].lines.map((entry) => entry.originalLineNumber)).toEqual([1, 2])
+    for (const entry of created()[0].lines) expect(entry).not.toHaveProperty('originalLineNumber')
   }, 30_000)
 
   it('says what the line has left when the server refuses the credit per line (409)', async () => {

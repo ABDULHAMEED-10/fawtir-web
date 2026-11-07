@@ -54,8 +54,8 @@ export type DraftLineRequest = {
    * Backend #834 (V510, DA-1 Option B): on a credit note's line, the corrected invoice's line it
    * credits, so the server caps the credit per original line. Refused 400 `ORIGINAL_LINE_NOT_FOUND`
    * for a number the invoice lacks and `ORIGINAL_LINE_ONLY_ON_CORRECTIONS` on an invoice. A server
-   * before #834 refuses the whole body as malformed (it refuses unknown fields); RC5 ships with
-   * #834, so the composer sends it without asking the server first.
+   * before #834 refuses the whole body as malformed (it refuses unknown fields), so it goes only to
+   * a server that answers it (`readsLineLinks`).
    */
   originalLineNumber?: number
 }

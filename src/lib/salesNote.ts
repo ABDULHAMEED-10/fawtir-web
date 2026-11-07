@@ -789,6 +789,20 @@ function ruleCarrier(invoice: InvoiceDetailDto) {
 }
 
 /**
+ * Whether the server takes a note line's `originalLineNumber` (backend #834). One before it
+ * refuses the whole draft as a malformed body (`spring.jackson.deserialization.
+ * fail-on-unknown-properties: true`), so the link is sent only once the invoice it corrects was
+ * read with the field on its lines: #834 answers it on every line, null on an invoice's, from the
+ * same commit that reads it. Deploy-order rule: the web deploys on its own, and may reach a backend
+ * without #834 first (TEST at b48e85031 has none), so the new web must keep every credit note
+ * issuable there. While nodes of both versions serve at once (a rolling deploy or a rollback), a
+ * save can still land on an older node and be refused once; it is not retried bare.
+ */
+export function readsLineLinks(invoice: Pick<InvoiceDetailDto, 'lines'>): boolean {
+  return invoice.lines.some((line) => Object.hasOwn(line, 'originalLineNumber'))
+}
+
+/**
  * The invoice line a credit-note line credits, when it plainly is that line given back: one of
  * the invoice's own lines at the invoice's price and discount, so only its quantity may be lower.
  * The server then caps its money and, for the line's own product and unit, its units (DA-1 Option
@@ -832,8 +846,9 @@ export function toNoteRequest(
   selfBilled = false,
 ): DraftRequest {
   const carriedRule = ruleCarrier(invoice)
+  const links = readsLineLinks(invoice)
   const linkOf = (line: NoteLine): Pick<DraftLineRequest, 'originalLineNumber'> => {
-    const original = originalLineOf(line, invoice, kind)
+    const original = links ? originalLineOf(line, invoice, kind) : null
     return original === null ? {} : { originalLineNumber: original }
   }
   return {
