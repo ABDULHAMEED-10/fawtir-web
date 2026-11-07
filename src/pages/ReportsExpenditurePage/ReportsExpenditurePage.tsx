@@ -194,7 +194,8 @@ function ExpenditureBody({
 
   const netNow = sumOver(net, current.months)
   const netBefore = sumOver(net, previous.months)
-  // Spend counts accepted documents only (D-27). What it leaves out, pending and rejected, is named
+  // Spend leaves out undecided supplier debit notes and rejected or refused documents (D-27); bills
+  // awaiting approval stay in it pending an owner ruling. What it leaves out is named
   // beside it; an older server sends neither, and then nothing is said rather than a zero.
   const decisionsReported = rows.every(
     (row) => Object.hasOwn(row, 'pendingNetAmount') && Object.hasOwn(row, 'rejectedNetAmount'),
