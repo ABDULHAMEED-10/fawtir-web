@@ -113,10 +113,11 @@ export type ExpenditureRowDto = {
 } & ExpenditureDecisionFigures
 
 /**
- * Bills the spend leaves out (D-27, backend 2026-11-07): undecided supplier debit notes and
- * rejected or refused documents. Bills awaiting approval stay in spend pending an owner ruling.
- * Pending is supplier debit notes not yet decided; rejected is rejected bills and refused debit
- * notes. Absent from an older server, which is "not available", never zero.
+ * Two of the things spend leaves out (D-27, backend 2026-11-07), among others: undecided supplier
+ * debit notes (pending) and rejected or refused documents (rejected). Bills awaiting approval stay
+ * in spend pending an owner ruling. Rejected covers rejected bills, refused debit notes and a debit
+ * note whose approval was rejected. Absent from an older server, which is "not available", never
+ * zero.
  */
 export type ExpenditureDecisionFigures = {
   pendingDocuments?: number
