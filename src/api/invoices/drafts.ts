@@ -50,6 +50,14 @@ export type DraftLineRequest = {
    * false included, is refused `BACK_ON_SHELF_ONLY_ON_CREDIT_NOTES`.
    */
   backOnShelf?: boolean
+  /**
+   * Backend #834 (V510, DA-1 Option B): on a credit note's line, the corrected invoice's line it
+   * credits, so the server caps the credit per original line. Refused 400 `ORIGINAL_LINE_NOT_FOUND`
+   * for a number the invoice lacks and `ORIGINAL_LINE_ONLY_ON_CORRECTIONS` on an invoice. A server
+   * before #834 refuses the whole body as malformed (it refuses unknown fields); RC5 ships with
+   * #834, so the composer sends it without asking the server first.
+   */
+  originalLineNumber?: number
 }
 
 /** `InvoiceDraftRequest`. Unknown fields are refused, so this carries only what the API reads. */
@@ -144,6 +152,8 @@ export type DraftResponse = {
      * Null when the line names no product or it is not found; absent from an older server.
      */
     keepCount?: boolean | null
+    /** Backend #834: the corrected invoice's line this note line names. */
+    originalLineNumber?: number | null
   }[]
   /** Zero-rating warnings per line (INCOME.md Z.11, Z.13): never blocking; absent before the API. */
   warnings?: InvoiceLineZeroRatingWarning[] | null

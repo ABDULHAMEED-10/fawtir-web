@@ -22358,7 +22358,13 @@
         "O": "the Out of scope category",
         "AE": "the Reverse charge category",
         "G": "the Export category"
-      }
+      },
+      "lineRemainingNamed": "Line {{line}} of the invoice has only {{taxable}} before VAT and a quantity of {{quantity}} left to credit after the earlier credit notes. Lower the amounts on that line, then issue again.",
+      "lineRemainingNamedNoQuantity": "Line {{line}} of the invoice has only {{taxable}} before VAT left to credit after the earlier credit notes. Lower the amounts on that line, then issue again.",
+      "originalLineNotFound": "A line of this note points to a line the invoice does not have. Start the note again from the invoice.",
+      "originalLineNotFoundNamed": "This note points to line {{line}} of the invoice, which the invoice does not have. Start the note again from the invoice.",
+      "lineRemainingNamedNothingLeft": "Nothing is left to credit on line {{line}} of the invoice after the earlier credit notes. Remove that line, then issue again.",
+      "originalLineOnlyOnCorrections": "Only a credit or debit note's lines can point to a line of an invoice. Start the note again from the invoice."
     },
     "onInvoice": {
       "title": "Credit and debit notes"

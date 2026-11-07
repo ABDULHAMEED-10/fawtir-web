@@ -103,6 +103,8 @@ export const ISSUE_REFUSALS: Record<string, { field: IssueField | null; key: str
   // The cumulative caps (DA-1 option B), said without figures where only the code is read: a note
   // draft issued from its own page. The composer names the line or rate (creditCapRefusal).
   CREDIT_NOTE_EXCEEDS_LINE_REMAINING: { field: null, key: 'salesNote.refused.lineRemaining' },
+  // Backend #834 checks a line's invoice-line link again at issue, under the invoice's lock.
+  ORIGINAL_LINE_NOT_FOUND: { field: null, key: 'salesNote.refused.originalLineNotFound' },
   CREDIT_NOTE_EXCEEDS_VAT_CATEGORY_REMAINING: { field: null, key: 'salesNote.refused.categoryRemaining' },
   CREDIT_NOTE_VAT_CATEGORY_NOT_ON_ORIGINAL: { field: null, key: 'salesNote.refused.categoryNotOnInvoice' },
 

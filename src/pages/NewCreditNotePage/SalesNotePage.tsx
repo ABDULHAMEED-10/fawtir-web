@@ -53,6 +53,7 @@ import {
   NOTE_REASONS,
   NOTE_REFUSALS,
   creditCapRefusal,
+  originalLineRefusal,
   NOTE_ROUTES,
   addedLine,
   asksBackOnShelf,
@@ -625,6 +626,11 @@ function NoteEditor({
       const capped = creditCapRefusal(error, t, invoice.currency, i18n.language)
       if (capped) {
         setNotice(withRial(t(capped.key, capped.values)))
+        return
+      }
+      const missingLine = originalLineRefusal(error)
+      if (missingLine) {
+        setNotice(t(missingLine.key, missingLine.values))
         return
       }
       const coded = error instanceof ApiError && error.code && Object.hasOwn(NOTE_REFUSALS, error.code) ? NOTE_REFUSALS[error.code] : undefined

@@ -47,6 +47,11 @@ export type InvoiceLineDto = {
    * Null when the line names no product or it is not found; absent from an older server.
    */
   keepCount?: boolean | null
+  /**
+   * Backend #834 (V510, DA-1 Option B): on a credit or debit note's line, the corrected invoice's
+   * line it credits or debits; null when unlinked and on every line of an invoice.
+   */
+  originalLineNumber?: number | null
 }
 
 export type InvoiceTotalsDto = {

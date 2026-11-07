@@ -366,15 +366,29 @@ export function fromNoteDraft(
   const base = fromInvoice(invoice, noteKind, reference, today)
   const keyOf = (productId: string | null, description: string) =>
     `${productId ?? ''}|${description}`
+  // A saved line naming its invoice line (backend #834) goes back to that line, so two invoice
+  // lines with the same product and description no longer both take one saved line and credit it
+  // twice on the next save. It must still read as that line: a linked line the composer did not
+  // write (a free-text price correction sent through the API) is kept as a line of the note's own
+  // instead of taking on the invoice line's product.
+  const linkedTo = new Map<number, DraftLine>()
+  for (const line of draft.lines)
+    if (typeof line.originalLineNumber === 'number') linkedTo.set(line.originalLineNumber, line)
   const kept = new Map(
-    draft.lines.map((line) => [keyOf(line.productId || null, line.description), line]),
+    draft.lines
+      .filter((line) => typeof line.originalLineNumber !== 'number')
+      .map((line) => [keyOf(line.productId || null, line.description), line]),
   )
   const matched = new Set<string>()
+  const matchedLinks = new Set<DraftLine>()
   const lines: NoteLine[] = base.lines.map((line) => {
     const key = keyOf(line.productId, line.description)
-    const saved = kept.get(key)
+    const link = linkedTo.get(line.lineNumber)
+    const byLink = link && keyOf(link.productId || null, link.description) === key ? link : undefined
+    const saved = byLink ?? kept.get(key)
     if (!saved) return { ...line, include: false }
-    matched.add(key)
+    if (byLink) matchedLinks.add(byLink)
+    else matched.add(key)
     return {
       ...line,
       include: true,
@@ -390,7 +404,12 @@ export function fromNoteDraft(
   })
   let form: NoteForm = { ...base, lines }
   for (const line of draft.lines) {
-    if (matched.has(keyOf(line.productId || null, line.description))) continue
+    if (matchedLinks.has(line)) continue
+    if (
+      typeof line.originalLineNumber !== 'number' &&
+      matched.has(keyOf(line.productId || null, line.description))
+    )
+      continue
     // Rebuilt from the saved line in full, so a reopened draft sends back what it was saved with:
     // the line's own no-VAT reason code and its HS code or service type included.
     const added = addedLine(form, invoice, kindOfDraftLine(line))
@@ -769,6 +788,41 @@ function ruleCarrier(invoice: InvoiceDetailDto) {
   }
 }
 
+/**
+ * The invoice line a credit-note line credits, when it plainly is that line given back: one of
+ * the invoice's own lines at the invoice's price and discount, so only its quantity may be lower.
+ * The server then caps its money and, for the line's own product and unit, its units (DA-1 Option
+ * B, owner decision (d) D1).
+ *
+ * Linked whatever the note's document discount. Leaving a line unlinked to get past the per-line
+ * cap would let it credit more than that line was charged (owner batch 35, A-02). The false refusal
+ * that unlinking used to avoid, whole lines under a fixed invoice discount whose rounded share puts
+ * the note's baisa on another line (10000, 10000 and 40000 less 4.000, lines 1 and 2 in full:
+ * 9999.333 / 9999.334 against 9999.334 / 9999.333), is placed by the server since backend
+ * 523173707 (CreditNoteResidualAllocation, B1). What it still refuses states a line above what it
+ * has left, and the refusal names the line (`creditCapRefusal`).
+ *
+ * Nothing is named for a price-only line (a price or discount other than the invoice's): citing
+ * the product, it would spend the line's units as if they came back, and a later return of those
+ * units would be refused. Nor for a line of the note's own, nor on a debit note (D-26), whose lines
+ * on the invoice's charge a price difference, so a link would widen the units a later credit may
+ * return.
+ */
+function originalLineOf(
+  line: NoteLine,
+  invoice: InvoiceDetailDto,
+  kind: NoteKind,
+): number | null {
+  if (kind !== 'CREDIT_NOTE' || !line.fromInvoice) return null
+  const original = invoice.lines.find((candidate) => candidate.lineNumber === line.lineNumber)
+  if (!original) return null
+  const atInvoicePrice =
+    money3(line.unitPrice.trim()) === money3(original.unitPrice) &&
+    line.discountType === original.discountType &&
+    Number(line.discountValue.trim()) === Number(original.discountValue)
+  return atInvoicePrice ? original.lineNumber : null
+}
+
 export function toNoteRequest(
   form: NoteForm,
   invoice: InvoiceDetailDto,
@@ -778,6 +832,10 @@ export function toNoteRequest(
   selfBilled = false,
 ): DraftRequest {
   const carriedRule = ruleCarrier(invoice)
+  const linkOf = (line: NoteLine): Pick<DraftLineRequest, 'originalLineNumber'> => {
+    const original = originalLineOf(line, invoice, kind)
+    return original === null ? {} : { originalLineNumber: original }
+  }
   return {
     customerId: invoice.customerId,
     branchId: invoice.branchId,
@@ -811,6 +869,7 @@ export function toNoteRequest(
           // The invoice line's links, so reports net the note off against its bundle and rule.
           ...(line.fromInvoice && line.bundleId ? { bundleId: line.bundleId } : {}),
           ...(priceRuleIds.length > 0 ? { priceRuleIds } : {}),
+          ...linkOf(line),
         }
       }),
     // The invoice's document discount, on a credit of its own lines (W-2, `noteHeaderDiscount`).
@@ -878,8 +937,10 @@ export const NOTE_ROUTES: Record<NoteKind, string> = {
  * earlier notes), so the server's refusal is the check (backend #817, 741c06d6b). The server
  * names `taxCategory` (the EN 16931 letter) and `taxRate` (a plain decimal string, absent for E and
  * O, which are keyed by category alone), and on the second code `remainingTaxableAmount` and
- * `remainingVatAmount`. CREDIT_NOTE_EXCEEDS_LINE_REMAINING is not sent (a note line names no
- * original line); it keeps a plain sentence in case a later server sends it.
+ * `remainingVatAmount`. CREDIT_NOTE_EXCEEDS_LINE_REMAINING (backend #834) caps the lines that
+ * name their invoice line (`originalLineOf`); it names `originalLineNumber`,
+ * `remainingTaxableAmount` and `remainingQuantity`, the last null when the invoice line cites no
+ * product, so only its money is capped.
  */
 const CREDIT_CAP_REFUSALS: Record<string, string> = {
   CREDIT_NOTE_EXCEEDS_LINE_REMAINING: 'salesNote.refused.lineRemaining',
@@ -918,9 +979,22 @@ export function creditCapRefusal(
     return null
   const plain = CREDIT_CAP_REFUSALS[error.code]
   const problem = error.problem
+  const money = (value: number) => `${currency} ${formatAmount(value, currency, language)}`
+  if (error.code === 'CREDIT_NOTE_EXCEEDS_LINE_REMAINING') {
+    const line = textIn(problem, 'originalLineNumber')
+    const taxable = amountIn(problem, 'remainingTaxableAmount')
+    if (line === null || taxable === null) return { key: plain }
+    // The server floors what is left at 0.000, and "only OMR 0.000 left" reads as a figure to aim at.
+    if (taxable <= 0) return { key: `${plain}NamedNothingLeft`, values: { line } }
+    // As the server wrote it, a plain decimal: through Number a tiny remainder would print as 1e-7.
+    const quantity =
+      amountIn(problem, 'remainingQuantity') === null ? null : textIn(problem, 'remainingQuantity')
+    return quantity === null
+      ? { key: `${plain}NamedNoQuantity`, values: { line, taxable: money(taxable) } }
+      : { key: `${plain}Named`, values: { line, taxable: money(taxable), quantity } }
+  }
   const categoryCode = textIn(problem, 'taxCategory')
-  if (categoryCode === null || error.code === 'CREDIT_NOTE_EXCEEDS_LINE_REMAINING')
-    return { key: plain }
+  if (categoryCode === null) return { key: plain }
   const rate = textIn(problem, 'taxRate')
   // The cap sentences' own words for the category ("the Zero-rated category"): the invoice page's
   // label read "At Exempt" in English and doubled "بنسبة" in Arabic for Z.
@@ -935,11 +1009,25 @@ export function creditCapRefusal(
   const taxable = amountIn(problem, 'remainingTaxableAmount')
   const vat = amountIn(problem, 'remainingVatAmount')
   if (taxable === null || vat === null) return { key: plain }
-  const money = (value: number) => `${currency} ${formatAmount(value, currency, language)}`
   return {
     key: `${plain}${suffix}`,
     values: { ...where, taxable: money(taxable), vat: money(vat) },
   }
+}
+
+/**
+ * ORIGINAL_LINE_NOT_FOUND (backend #834), with the invoice line it names when the server says
+ * which. The composer names only lines of the invoice it read, so the sentence sends the person
+ * back to the invoice rather than to a field on this page.
+ */
+export function originalLineRefusal(
+  error: unknown,
+): { key: string; values?: Record<string, string> } | null {
+  if (!(error instanceof ApiError) || error.code !== 'ORIGINAL_LINE_NOT_FOUND') return null
+  const line = textIn(error.problem, 'originalLineNumber')
+  return line === null
+    ? { key: 'salesNote.refused.originalLineNotFound' }
+    : { key: 'salesNote.refused.originalLineNotFoundNamed', values: { line } }
 }
 
 /** Note refusals a person can act on, in the page's words. */
@@ -962,6 +1050,7 @@ export const NOTE_REFUSALS: Record<string, string> = {
   TAX_CATEGORY_METADATA_CONFLICT: CATEGORY_REASON_CONFLICT,
   TAX_CATEGORY_REASON_CONFLICT: CATEGORY_REASON_CONFLICT,
   BACK_ON_SHELF_ONLY_ON_CREDIT_NOTES: 'salesNote.backOnShelf.onlyOnCreditNotes',
+  ORIGINAL_LINE_ONLY_ON_CORRECTIONS: 'salesNote.refused.originalLineOnlyOnCorrections',
   // D-26: a credit note naming a debit note, or any route that reaches an issued one.
   ...DEBIT_NOTE_REFUSALS,
 }
