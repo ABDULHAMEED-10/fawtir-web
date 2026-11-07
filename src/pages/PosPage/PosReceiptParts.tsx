@@ -29,8 +29,8 @@ export function ReceiptMasthead({
 }: {
   seller: ReceiptSellerHeader
   /**
-   * The `live` header's VAT number (profile, else the queued sale's QR profile), printed only when
-   * the server stated no frozen seller.
+   * The `live` header's VAT number (the queued sale's QR profile seller, else the profile), printed
+   * only when the server stated no frozen seller.
    */
   liveVatNumber: string | null
   fullInvoice: boolean

@@ -74,7 +74,8 @@ export type FinishedSale = {
   queuedQr?: string | null
   /**
    * The seller in the till's QR profile a queued sale was numbered with, the one its QR names; the
-   * receipt header falls back to it when the company profile cannot be read (QA-F11).
+   * receipt header prints it in place of the live company profile (QA-F11, owner decision 3 of
+   * OWNER-RC5-DECISIONS-20261107g).
    */
   queuedSeller?: QueuedSeller | null
   /** Queued behind a sale the server would not take, not because the till is offline. */

@@ -18,8 +18,9 @@ import type { PosReceiptSellerDto } from '../../api/pos/pos'
  * on the issued invoice, for a cashier who cannot read the company profile; never filled from the
  * live profile or the workspace name when an older invoice recorded less (requirement 7); the old
  * header only when the server sends no `seller` key at all, or before the server has answered
- * (requirement 8). Before it has answered, a cashier who cannot read the profile gets the seller in
- * the till's QR profile, without an address (owner decision on QA-F11).
+ * (requirement 8). Before it has answered, a sale queued with the till's QR profile prints that
+ * profile's seller, the one its QR names, without an address and never the live profile (owner
+ * decision 3, OWNER-RC5-DECISIONS-20261107g).
  */
 
 const CASHIER: Entitlements = {
@@ -284,13 +285,30 @@ describe('a sale queued offline has no issued invoice yet', () => {
     expect(screen.queryByText(i18n.t('pos.done.sellerNameNotRecorded'))).toBeNull()
   })
 
-  it('a profile the cashier can read still comes first', async () => {
+  it('a readable live profile that differs never replaces the seller the QR names', async () => {
     profileReadable = true
     queueOffline(QUEUED_SELLER)
     renderReceipt()
+    expect(await within(receipt()).findByText(QUEUED_SELLER.name)).toBeTruthy()
+    expect(within(receipt()).getByText(QUEUED_SELLER.vatNumber)).toBeTruthy()
+    // The profile read has answered by now: the header still names the queued seller.
+    await vi.waitFor(() => {
+      const calls = vi.mocked(fetch).mock.calls.map(([input]) => String(input))
+      expect(calls).toContain('/api/v1/company-profile')
+    })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(within(receipt()).getByText(QUEUED_SELLER.name)).toBeTruthy()
+    expect(screen.queryByText(LIVE_PROFILE.legalName)).toBeNull()
+    expect(screen.queryByText(LIVE_PROFILE.taxNumber)).toBeNull()
+    expect(screen.queryByText(/Live Street 1|Live City/)).toBeNull()
+  })
+
+  it('a queued sale with no QR profile seller keeps the live profile, as it always did', async () => {
+    profileReadable = true
+    queueOffline(null)
+    renderReceipt()
     expect(await screen.findByText(LIVE_PROFILE.legalName)).toBeTruthy()
     expect(await screen.findByText(LIVE_PROFILE.taxNumber)).toBeTruthy()
-    expect(screen.queryByText(QUEUED_SELLER.name)).toBeNull()
   })
 })
 
@@ -312,7 +330,7 @@ describe('receiptSellerHeader', () => {
     })
   })
 
-  it('without a profile, the queued sale’s seller comes before the workspace name; a blank one does not', () => {
+  it('the queued sale’s seller comes before the live profile and the workspace name, never before a frozen one', () => {
     const queued = { name: 'Till LLC', vatNumber: 'OM7' }
     expect(receiptSellerHeader(undefined, null, 'Workspace', queued)).toEqual({
       source: 'live',
@@ -320,9 +338,12 @@ describe('receiptSellerHeader', () => {
       address: '',
       vatNumber: 'OM7',
     })
-    expect(receiptSellerHeader(undefined, live, 'Workspace', queued)).toEqual(
-      receiptSellerHeader(undefined, live, 'Workspace'),
-    )
+    expect(receiptSellerHeader(undefined, live, 'Workspace', queued)).toEqual({
+      source: 'live',
+      name: 'Till LLC',
+      address: '',
+      vatNumber: 'OM7',
+    })
     expect(receiptSellerHeader(FROZEN, null, 'Workspace', queued)).toEqual(
       receiptSellerHeader(FROZEN, null, 'Workspace'),
     )

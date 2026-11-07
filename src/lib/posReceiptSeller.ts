@@ -12,11 +12,14 @@ import type { PosReceiptSellerDto } from '../api/pos/pos'
  *
  * `live`: no `receipt.seller` key at all. Either the server predates S-A, or there is no server
  * answer yet (a sale queued offline, printed before it is issued). That is the receipt as it was
- * before S-A, kept so an older server prints what it always printed (requirement 8). Name and VAT
- * number come from the live profile when it could be read; otherwise, for a queued sale only, from
- * the seller in the till's QR profile the sale was queued with, so the header names the seller the
- * printed QR names (owner decision on QA-F11, OWNER-RC5-QA-DECISIONS-20261107f). That copy carries
- * no address, and none is made up. The workspace name is the last resort, as before.
+ * before S-A, kept so an older server prints what it always printed (requirement 8).
+ *
+ * A queued sale that carries the seller from the till's QR profile it was numbered with prints that
+ * seller's name and VAT number, before the live profile and even when the profile reads otherwise:
+ * header and QR then name the same seller, where a profile changed since would print a seller the
+ * QR does not name (owner decisions OWNER-RC5-QA-DECISIONS-20261107f and
+ * OWNER-RC5-DECISIONS-20261107g, decision 3). That copy carries no address, and none is made up.
+ * Without it the live profile, then the workspace name, as before.
  */
 export type ReceiptSellerHeader = {
   source: 'frozen' | 'live'
@@ -62,6 +65,14 @@ export function receiptSellerHeader(
       vatNumber: present(seller.vatNumber) ? seller.vatNumber : null,
     }
   }
+  if (queuedSeller) {
+    return {
+      source: 'live',
+      name: present(queuedSeller.name) ? queuedSeller.name : (workspaceName ?? ''),
+      address: '',
+      vatNumber: present(queuedSeller.vatNumber) ? queuedSeller.vatNumber : null,
+    }
+  }
   if (liveProfile) {
     return {
       source: 'live',
@@ -70,10 +81,5 @@ export function receiptSellerHeader(
       vatNumber: liveProfile.taxNumber,
     }
   }
-  return {
-    source: 'live',
-    name: present(queuedSeller?.name) ? queuedSeller.name : (workspaceName ?? ''),
-    address: '',
-    vatNumber: present(queuedSeller?.vatNumber) ? queuedSeller.vatNumber : null,
-  }
+  return { source: 'live', name: workspaceName ?? '', address: '', vatNumber: null }
 }
