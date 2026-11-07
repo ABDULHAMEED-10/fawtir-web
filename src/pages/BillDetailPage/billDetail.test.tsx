@@ -2642,6 +2642,55 @@ describe('an overpaid bill', () => {
     expect(screen.getByRole('button', { name: "Record the supplier's refund" })).toBeTruthy()
   })
 
+  // FLAKE-WATCH-BILLDETAIL: opened before the overpayment read landed, the refund dialog filled in
+  // the whole overpaid amount (40.000) instead of what is undecided (25.000).
+  describe('the refund waits for where the overpayment stands', () => {
+    /** Holds the overpayment GET until the test lets it answer. */
+    function holdOverpayment(answer: () => Response) {
+      let release: () => void = () => {}
+      const gate = new Promise<void>((resolve) => {
+        release = resolve
+      })
+      const base = fetchMock.getMockImplementation()!
+      fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+        if (url === OVERPAYMENT_URL && (init?.method ?? 'GET') === 'GET') {
+          await gate
+          return answer()
+        }
+        return base(url, init)
+      })
+      return () => release()
+    }
+
+    it('offers no refund while the read is pending, then suggests only the undecided part', async () => {
+      standing = { ...standing, keptAsCredit: 15, undecided: 25 }
+      const release = holdOverpayment(() => json(200, standing))
+      renderBill()
+      await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+      await waitFor(() => expect(calls()).toContain(`GET ${OVERPAYMENT_URL}`))
+      expect(screen.getByText(/^Overpaid by/)).toBeTruthy()
+      expect(screen.queryByRole('button', { name: "Record the supplier's refund" })).toBeNull()
+
+      release()
+      fireEvent.click(await screen.findByRole('button', { name: "Record the supplier's refund" }))
+      const dialog = await screen.findByRole('dialog', { name: "Record the supplier's refund" })
+      const amount = within(dialog).getByRole('spinbutton', { name: 'Amount' }) as HTMLInputElement
+      expect(amount.value).toBe('25.000')
+      expect(amount.value).not.toBe('40.000')
+    })
+
+    it('keeps the refund unavailable when the read fails, and says the read failed', async () => {
+      const release = holdOverpayment(() => json(500, { status: 500 }))
+      release()
+      renderBill()
+      await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+      const card = screen.getByText(/^Overpaid by/).closest('section') as HTMLElement
+      expect(await within(card).findByRole('button', { name: 'Try again' })).toBeTruthy()
+      expect(screen.queryByRole('button', { name: "Record the supplier's refund" })).toBeNull()
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+  })
+
   it('draws nothing and reads nothing more for a bill that is not overpaid', async () => {
     billResponse = () => json(200, detail({ readiness: APPROVED }))
     renderBill()

@@ -1075,14 +1075,22 @@ function BillScreen() {
             settle={
               canSettleOverpayment ? (
                 <div className="mt-4 flex flex-col gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setSettling('refund')}
-                    disabled={busy}
-                    className={QUIET_BUTTON}
-                  >
-                    {t('billDetail.overpaid.recordRefund')}
-                  </button>
+                  {/* Offered only once the overpayment read has landed, as Keep and Set against
+                      are (FLAKE-WATCH-BILLDETAIL ruling). Opened earlier, the dialog filled in the
+                      whole overpaid amount, which the server accepts although part of it may
+                      already be kept as credit; a failed read keeps it unavailable. */}
+                  {standingOverpayment ? (
+                    <button
+                      type="button"
+                      onClick={() => setSettling('refund')}
+                      disabled={busy}
+                      className={QUIET_BUTTON}
+                    >
+                      {t('billDetail.overpaid.recordRefund')}
+                    </button>
+                  ) : overpayment.read.status === 'failed' ? (
+                    <ApiReadFailure error={overpayment.read.error} retry={overpayment.retry} />
+                  ) : null}
                   {standingOverpayment && standingOverpayment.undecided > 0 ? (
                     <button
                       type="button"
@@ -1280,16 +1288,13 @@ function BillScreen() {
         />
       ) : null}
 
-      {settling === 'refund' ? (
+      {settling === 'refund' && standingOverpayment ? (
         <OverpaymentRefundModal
           billId={id}
           currency={detail.settlement.currency}
           overpaid={overpaid}
-          suggested={
-            standingOverpayment && standingOverpayment.undecided > 0
-              ? standingOverpayment.undecided
-              : overpaid
-          }
+          // The server's undecided part only, never the whole overpaid amount (FLAKE-WATCH-BILLDETAIL).
+          suggested={standingOverpayment.undecided}
           today={muscatToday()}
           refusal={(error) => refusalText(t, error)}
           onClose={closeSettling}
