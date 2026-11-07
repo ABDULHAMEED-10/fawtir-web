@@ -845,6 +845,58 @@ describe('idempotency keys (W-4)', () => {
   }, 30_000)
 })
 
+describe('a note against a Special Zone invoice (503a8093b)', () => {
+  const ZONED: InvoiceDetailDto = {
+    ...INVOICE,
+    details: { ...INVOICE.details!, transactionSubtypes: ['THIRD_PARTY', 'SPECIAL_ZONE'] },
+  }
+  const created = () => calls('POST', `/api/v1/authored-invoices/${INVOICE_ID}/debit-notes`)
+  const zonedOriginal = (url: string) =>
+    url === `/api/v1/authored-invoices/${INVOICE_ID}` ? json(200, ZONED) : undefined
+
+  it('carries SPECIAL_ZONE alone from a zoned original, on create and on every draft save', async () => {
+    const form = { ...fromInvoice(ZONED, 'CREDIT_NOTE'), reason: 'returnedGoods' }
+    expect(toNoteRequest(form, ZONED, 'CREDIT_NOTE').details.transactionSubtypes).toEqual([
+      'SPECIAL_ZONE',
+    ])
+    override = zonedOriginal
+    await readyDebitNote()
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    await vi.waitFor(() => expect(created()).toHaveLength(1))
+    expect(bodyOf(created()[0]).details.transactionSubtypes).toEqual(['SPECIAL_ZONE'])
+  }, 30_000)
+
+  it('sends no transactionSubtypes at all from an ordinary original', async () => {
+    const form = { ...fromInvoice(INVOICE, 'CREDIT_NOTE'), reason: 'returnedGoods' }
+    expect(toNoteRequest(form, INVOICE, 'CREDIT_NOTE').details).not.toHaveProperty(
+      'transactionSubtypes',
+    )
+    await readyDebitNote()
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    await vi.waitFor(() => expect(created()).toHaveLength(1))
+    expect(bodyOf(created()[0]).details).not.toHaveProperty('transactionSubtypes')
+  }, 30_000)
+
+  it.each([
+    [
+      'CORRECTION_SPECIAL_ZONE_MISMATCH',
+      "This note must follow the original invoice's Special Zone classification.",
+    ],
+    [
+      'CORRECTION_SPECIAL_ZONE_LICENCE_UNAVAILABLE',
+      'The original invoice has no Special Zone licence on record, so a note cannot be issued against it.',
+    ],
+  ])('names the %s refusal', async (code, message) => {
+    override = (url, init) =>
+      url === `/api/v1/authored-invoices/${INVOICE_ID}/debit-notes` && init?.method === 'POST'
+        ? json(400, { title: 'Refused', status: 400, code })
+        : zonedOriginal(url)
+    await readyDebitNote()
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    expect(await screen.findByText(message)).toBeTruthy()
+  }, 30_000)
+})
+
 describe("the note detail's participant id (4.14)", () => {
   it('prints scheme:value from the record, without doubling a prefix the value already has', () => {
     expect(participantIdText({ scheme: '0248', value: 'OM1100447102' })).toBe('0248:OM1100447102')

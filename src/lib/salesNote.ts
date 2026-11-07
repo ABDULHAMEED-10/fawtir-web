@@ -899,6 +899,12 @@ export function toNoteRequest(
       paymentTerms: invoice.details?.paymentTerms ?? null,
       transactionType:
         invoice.details?.transactionType === 'SIMPLIFIED' ? 'SIMPLIFIED' : 'FULL_TAX',
+      // A note must state SPECIAL_ZONE exactly when its original does (503a8093b), on create and on
+      // every draft save. Only that subtype is carried: the others are the original's own
+      // classification, which the server does not ask a note to repeat.
+      ...(invoice.details?.transactionSubtypes?.includes('SPECIAL_ZONE')
+        ? { transactionSubtypes: ['SPECIAL_ZONE'] }
+        : {}),
       correctionReasonCode: reasonCodeOf(kind, form.reason),
       // The reason as chosen, beside its code, so a reopened draft and the lists name it (4.9).
       correctionReasonDetail: reasonCodeOf(kind, form.reason) ? form.reason : null,
@@ -1066,6 +1072,8 @@ export const NOTE_REFUSALS: Record<string, string> = {
   TAX_CATEGORY_REASON_CONFLICT: CATEGORY_REASON_CONFLICT,
   BACK_ON_SHELF_ONLY_ON_CREDIT_NOTES: 'salesNote.backOnShelf.onlyOnCreditNotes',
   ORIGINAL_LINE_ONLY_ON_CORRECTIONS: 'salesNote.refused.originalLineOnlyOnCorrections',
+  CORRECTION_SPECIAL_ZONE_MISMATCH: 'salesNote.refused.specialZoneMismatch',
+  CORRECTION_SPECIAL_ZONE_LICENCE_UNAVAILABLE: 'salesNote.refused.specialZoneLicenceUnavailable',
   // D-26: a credit note naming a debit note, or any route that reaches an issued one.
   ...DEBIT_NOTE_REFUSALS,
 }

@@ -79,6 +79,13 @@ export type DraftRequest = {
     /** UNCL4461 code with the label the reader saw (IBT-081); stored with the draft. */
     paymentMethod?: ReferenceDto | null
     transactionType: 'FULL_TAX' | 'SIMPLIFIED'
+    /**
+     * BTOM-001 positions 4-15. Sent only by a note whose original is SPECIAL_ZONE (position 14):
+     * the server refuses a note that does not match its original with
+     * CORRECTION_SPECIAL_ZONE_MISMATCH (503a8093b). Left out otherwise, so every other request
+     * stays as it was.
+     */
+    transactionSubtypes?: string[]
     /** BTOM-032, a credit or debit note's reason: CAN, VAT, VAL, QTY or OTH. Invoices send none. */
     correctionReasonCode?: string | null
     /**

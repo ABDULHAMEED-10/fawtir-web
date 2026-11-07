@@ -22368,7 +22368,9 @@
       "originalLineNotFound": "A line of this note points to a line the invoice does not have. Start the note again from the invoice.",
       "originalLineNotFoundNamed": "This note points to line {{line}} of the invoice, which the invoice does not have. Start the note again from the invoice.",
       "lineRemainingNamedNothingLeft": "Nothing is left to credit on line {{line}} of the invoice after the earlier credit notes. Remove that line, then issue again.",
-      "originalLineOnlyOnCorrections": "Only a credit or debit note's lines can point to a line of an invoice. Start the note again from the invoice."
+      "originalLineOnlyOnCorrections": "Only a credit or debit note's lines can point to a line of an invoice. Start the note again from the invoice.",
+      "specialZoneMismatch": "This note must follow the original invoice's Special Zone classification.",
+      "specialZoneLicenceUnavailable": "The original invoice has no Special Zone licence on record, so a note cannot be issued against it."
     },
     "onInvoice": {
       "title": "Credit and debit notes"
