@@ -3295,7 +3295,7 @@
   "home": {
     "stage": "Development stage",
     "heroTitle": "E-invoicing compliance, handled for you.",
-    "heroSubtitle": "Create, validate, sign and report every invoice to the Oman Tax Authority, without touching Peppol yourself.",
+    "heroSubtitle": "Create, validate and sign every invoice, prepared for reporting to the Oman Tax Authority, without touching Peppol yourself.",
     "dashboard": "Dashboard",
     "login": "Log in",
     "signup": "Sign up",
@@ -23659,9 +23659,9 @@
       "lead": "Oman's e-invoicing solution,",
       "word": "built locally",
       "tail": "for local business",
-      "body": "Fawtir is a till, an invoicing system and a Tax Authority filing service in one. Ring up a coffee, and the invoice is cleared before the cup is.",
+      "body": "Fawtir is a till and an invoicing system in one, with every invoice prepared for reporting to the Tax Authority. Ring up a coffee, and the invoice is ready before the cup is.",
       "dashboardAlt": "Fawtir's invoices screen: outstanding, settled, awaiting payment and overdue totals, then every invoice with its status and its Peppol and Tax Authority answer",
-      "body1": "Fawtir issues, sends and reports every invoice the way the Oman Tax Authority requires, over Peppol.",
+      "body1": "Fawtir issues every invoice, sends it over Peppol and prepares it for reporting to the Oman Tax Authority.",
       "body2": "One place for the till, the office and your ERP, made in Oman for companies, shops and sole traders.",
       "eyebrow": "Built for Oman's Fawtara e-invoicing"
     },
@@ -23699,8 +23699,8 @@
       "filing": {
         "lead": "Tax Authority ",
         "em": "TDD and OTA",
-        "body": "Checked against Oman's PINT-OM rules, then reported to the Tax Authority for you. Every invoice keeps its filing record.",
-        "alt": "The TDD and OTA screen in Fawtir: invoices accepted by the Tax Authority, waiting on you, and the time to acceptance"
+        "body": "Checked against Oman's PINT-OM rules and prepared for reporting to the Tax Authority. Every invoice keeps its record.",
+        "alt": "The TDD and OTA screen in Fawtir: each invoice's Tax Data Document and its status"
       },
       "stock": {
         "lead": "Products ",
@@ -23715,9 +23715,9 @@
         "body": "Twelve months of revenue, what customers owe you, your VAT position for the quarter and what needs your attention.",
         "alt": "The dashboard's revenue chart: twelve months of invoiced sales"
       },
-      "otaLead": "Invoice, report, see it all.",
+      "otaLead": "Invoice, prepare, see it all.",
       "otaEm": "In one place",
-      "otaSub": "Invoices out, bills in, every one reported to the Tax Authority, and reports that add it all up.",
+      "otaSub": "Invoices out, bills in, every invoice prepared for reporting to the Tax Authority, and reports that add it all up.",
       "bills": {
         "lead": "Supplier ",
         "em": "bills",
@@ -23742,14 +23742,14 @@
       }
     },
     "steps": {
-      "titleLead": "Sell, Invoice, File,",
+      "titleLead": "Sell, Invoice, Prepare,",
       "titleEm": "Next customer",
       "sub": "Steps two and three happen without anyone doing anything.",
       "label": "From sale to next customer",
       "tabs": {
         "sale": "Sale",
         "invoice": "Invoice",
-        "cleared": "Filed",
+        "cleared": "Prepared",
         "serve": "Serve"
       },
       "sale": {
@@ -23766,9 +23766,9 @@
       },
       "cleared": {
         "lead": "Checked and ",
-        "em": "Filed",
-        "body": "Checked against PINT-OM and reported to the Tax Authority in the background. Nobody at the counter waits for it.",
-        "alt": "The Tax Authority screen: invoices accepted by the Oman Tax Authority, each with its Fawtara reference"
+        "em": "Prepared",
+        "body": "Checked against PINT-OM and prepared for reporting to the Tax Authority in the background. Nobody at the counter waits for it.",
+        "alt": "The Tax Authority screen: each invoice's report status"
       },
       "serve": {
         "lead": "Serve the ",
@@ -23792,7 +23792,7 @@
         "offline": "Keeps selling when the signal drops"
       },
       "catalogAlt": "The till's catalogue on a phone, with the basket ready to charge",
-      "paidAlt": "A paid and filed sale with its QR code for the Tax Authority",
+      "paidAlt": "A paid sale with its QR code for the Tax Authority",
       "sub1": "From the first order to the last receipt, Fawtir keeps the counter moving",
       "sub2": "and the paperwork handled.",
       "headLine1": "Small baskets, fast queue, no time",
@@ -23832,11 +23832,11 @@
     "meta": {
       "home": {
         "title": "Fawtir | E-Invoicing Software in Oman: Fawtara, POS and ERP",
-        "description": "Fawtir is Oman's e-invoicing solution, built locally. Issue VAT invoices over Peppol, report to the Oman Tax Authority's Fawtara system, sell at the till and connect your ERP. In Arabic and English."
+        "description": "Fawtir is Oman's e-invoicing solution, built locally. Issue VAT invoices over Peppol, prepare them for reporting to the Oman Tax Authority's Fawtara system, sell at the till and connect your ERP. In Arabic and English."
       },
       "features": {
         "title": "Features | Fawtir E-Invoicing, POS and Stock for Oman",
-        "description": "Invoicing, a point of sale, stock, bills and Tax Authority reporting in one Omani platform, built for the Fawtara e-invoicing rules."
+        "description": "Invoicing, a point of sale, stock, bills and invoices prepared for the Tax Authority in one Omani platform, built for the Fawtara e-invoicing rules."
       },
       "pricing": {
         "title": "Pricing | Fawtir E-Invoicing for Oman",
@@ -23865,10 +23865,10 @@
       "sub": "From a single shop to a group running its own ERP, Fawtir fits the way you already work.",
       "sme": {
         "tag": "SMEs and service companies",
-        "title": "Invoicing that files itself",
-        "body": "Create VAT invoices, credit and debit notes and payment reminders. Each one reaches your customer over Peppol and is reported to the Tax Authority, with customers, suppliers and bills in the same place.",
+        "title": "Invoicing, ready for the Tax Authority",
+        "body": "Create VAT invoices, credit and debit notes and payment reminders. Each one reaches your customer over Peppol and is prepared for reporting to the Tax Authority, with customers, suppliers and bills in the same place.",
         "p1": "Full and simplified tax invoices",
-        "p2": "Peppol delivery and Tax Authority reporting",
+        "p2": "Peppol delivery, ready for Tax Authority reporting",
         "p3": "Bills, suppliers and VAT reports",
         "alt": "Fawtir's invoices screen: outstanding, settled, awaiting payment and overdue totals above the list of invoices"
       },
@@ -23884,17 +23884,17 @@
       "erp": {
         "tag": "Companies with an ERP",
         "title": "Keep your ERP, add compliance",
-        "body": "There is no need to replace the system your finance team knows. Fawtir takes invoices from your ERP by API or file, checks them against Oman's PINT-OM rules and sends them on to Peppol and the Tax Authority.",
+        "body": "There is no need to replace the system your finance team knows. Fawtir takes invoices from your ERP by API or file, checks them against Oman's PINT-OM rules, sends them on over Peppol and prepares them for reporting to the Tax Authority.",
         "p1": "API push or file upload",
         "p2": "Field mapping and checks before anything is sent",
-        "p3": "Every document tracked until it is accepted",
+        "p3": "Every document tracked until it is delivered",
         "flow": {
           "erp": "Your ERP",
           "fawtir": "Fawtir",
           "checked": "Checked against PINT-OM",
           "peppol": "Peppol network",
           "ota": "Oman Tax Authority",
-          "caption": "Invoices go from your ERP to Fawtir, are checked against PINT-OM, then sent over Peppol and reported to the Oman Tax Authority.",
+          "caption": "Invoices go from your ERP to Fawtir, are checked against PINT-OM, then sent over Peppol and prepared for reporting to the Oman Tax Authority.",
           "peppolAlt": "Peppol logo",
           "fawtaraAlt": "Fawtara logo, the Oman Tax Authority's e-invoicing system",
           "erpSub": "Sends each invoice by API or file upload",
@@ -23902,10 +23902,10 @@
           "chips": {
             "mapped": "Fields mapped",
             "checked": "PINT-OM checked",
-            "tracked": "Tracked to acceptance"
+            "tracked": "Tracked to delivery"
           },
           "peppolSub": "Delivered to your buyer's system",
-          "otaSub": "Reported through Fawtara"
+          "otaSub": "Prepared for Fawtara"
         }
       },
       "solo": {
@@ -23917,10 +23917,10 @@
         "p3": "Every invoice stored and easy to find",
         "preview": {
           "kind": "Tax invoice",
-          "status": "Reported",
+          "status": "Issued",
           "to": "Billed to",
           "customer": "Al Noor Trading LLC",
-          "caption": "An example invoice, as it looks once sent and reported."
+          "caption": "An example invoice, as it looks once issued and sent."
         }
       },
       "photoAlt": "An Omani coffee shop owner in a dishdasha and kumma at his counter, holding a tablet with Fawtir's point of sale open, a receipt printer and card machine beside him",
@@ -24057,7 +24057,7 @@
         "lead": "Compliance is not",
         "word": "the upsell",
         "tail": "It is the point",
-        "body1": "Every plan files to the Tax Authority, delivers over Peppol, sells offline and speaks both languages.",
+        "body1": "Every plan prepares invoices for the Tax Authority, delivers over Peppol, sells offline and speaks both languages.",
         "body2": "What changes is how much you sell and how many of you there are."
       },
       "billing": {
@@ -24117,13 +24117,13 @@
         "lead": "One system for",
         "word": "every part",
         "tail": "of your business",
-        "body": "Sell at the counter, invoice customers, pay suppliers, report to the Tax Authority and see your numbers, all from one record."
+        "body": "Sell at the counter, invoice customers, pay suppliers, prepare for Tax Authority reporting and see your numbers, all from one record."
       },
       "tabs": {
         "label": "Features",
         "till": "Smart Till",
         "invoicing": "Invoicing",
-        "filing": "Tax Filing",
+        "filing": "Tax reporting",
         "stock": "Stock",
         "transactions": "Transactions",
         "dashboard": "Dashboard"
@@ -24157,10 +24157,10 @@
       "filing": {
         "lead": "Proof you can hand to",
         "em": "an auditor",
-        "body": "Every invoice keeps its whole history, signed, submitted, accepted and delivered, with the references underneath in plain language. Nothing to assemble later.",
-        "alt": "An invoice's filing history, step by step",
+        "body": "Every invoice keeps its whole history, signed, sent and delivered, with the references underneath in plain language. Nothing to assemble later.",
+        "alt": "An invoice's history, step by step",
         "items": {
-          "a": "Signed and submitted as part of the sale",
+          "a": "Signed and prepared for reporting as part of the sale",
           "b": "Every step timestamped and referenced",
           "c": "Rejections explained, with a one-tap fix",
           "d": "The original files kept for ten years",
@@ -24211,7 +24211,7 @@
         "em": "a feature list",
         "offline": {
           "title": "Sells with no signal",
-          "body": "Files when you are back, and tells you what is still waiting."
+          "body": "Sends when you are back, and tells you what is still waiting."
         },
         "languages": {
           "title": "Arabic and English",
@@ -24239,7 +24239,7 @@
         },
         "leave": {
           "title": "Leave whenever",
-          "body": "Export everything, including the original files sent to the Tax Authority."
+          "body": "Export everything, including the original invoice files."
         }
       },
       "modules": {
@@ -24279,29 +24279,29 @@
       },
       "tdd": {
         "lead": "Every invoice,",
-        "em": "followed to the Tax Authority",
-        "body": "Each invoice and note becomes a Tax Data Document. You see whether the Authority accepted it, how long it took, and why one was refused.",
+        "em": "ready for the Tax Authority",
+        "body": "Each invoice and note becomes a Tax Data Document, prepared for reporting to the Tax Authority, with its status beside it.",
         "items": {
-          "a": "Accepted, waiting or refused, at a glance",
+          "a": "Each document's status at a glance",
           "b": "The reason for a refusal, in plain words",
           "c": "Fix and send again from the same screen",
-          "d": "Time to acceptance, this year and last",
+          "d": "Each document's history, this year and last",
           "e": "Whether the customer received it over Peppol"
         },
-        "alt": "The TDD and OTA screen in Fawtir: invoices accepted by the Tax Authority, waiting on you, and the time to acceptance"
+        "alt": "The TDD and OTA screen in Fawtir: each invoice's Tax Data Document and its status"
       },
       "erp": {
         "lead": "Keep your ERP,",
         "em": "add compliance",
-        "body": "Your ERP sends invoices by API or file. Fawtir maps the fields, checks every invoice against PINT-OM and reports it, then sends it to the buyer over Peppol.",
+        "body": "Your ERP sends invoices by API or file. Fawtir maps the fields, checks every invoice against PINT-OM and prepares it for reporting, then sends it to the buyer over Peppol.",
         "items": {
           "a": "API push or file upload",
           "b": "Field mapping you set once",
           "c": "Checked before anything is sent",
-          "d": "Every document tracked to acceptance",
+          "d": "Every document tracked to delivery",
           "e": "Your branches stay in your ERP"
         },
-        "alt": "Your ERP sends invoices to Fawtir, which checks them and sends them to Peppol and the Tax Authority"
+        "alt": "Your ERP sends invoices to Fawtir, which checks them, sends them over Peppol and prepares them for the Tax Authority"
       },
       "tiles": {
         "pos": {
@@ -24323,7 +24323,7 @@
           },
           "refunds": {
             "title": "Refunds at the till",
-            "body": "The credit note is made and reported for you."
+            "body": "The credit note is made for you, ready for reporting."
           },
           "company": {
             "title": "Full invoice at the counter",
@@ -24331,7 +24331,7 @@
           },
           "offline": {
             "title": "Keeps selling offline",
-            "body": "Sales queue on the till and are filed when the connection is back."
+            "body": "Sales queue on the till and are sent when the connection is back."
           },
           "close": {
             "title": "End-of-day cash count",
@@ -24445,7 +24445,7 @@
           },
           "proof": {
             "title": "Proof for an auditor",
-            "body": "Every step signed, sent and accepted, with its time."
+            "body": "Every step signed and sent, with its time."
           },
           "resend": {
             "title": "Fix and resend",
@@ -24475,7 +24475,7 @@
           },
           "compliance": {
             "title": "Compliance report",
-            "body": "How many invoices were accepted, and how fast."
+            "body": "How many invoices reached each status, and how fast."
           },
           "lists": {
             "title": "Lists to export",
@@ -24525,7 +24525,7 @@
           },
           "erp": {
             "title": "Connect your ERP",
-            "body": "Invoices sent by API or file, checked and reported."
+            "body": "Invoices sent by API or file, checked and prepared for reporting."
           }
         }
       },
@@ -24584,7 +24584,7 @@
       "archive": {
         "lead": "Every document,",
         "em": "kept as the law asks",
-        "body": "Every invoice and bill Fawtir sends or receives is archived with its XML, PDF, QR and Tax Authority reply. Nothing can be edited or deleted while it is kept.",
+        "body": "Every invoice and bill Fawtir sends or receives is archived with its XML, PDF, QR and any Tax Authority reply. Nothing can be edited or deleted while it is kept.",
         "items": {
           "a": "Ten years under the Oman VAT Law, fifteen for property",
           "b": "The XML, PDF, QR and replies kept together",
@@ -24635,15 +24635,15 @@
       },
       "journey": {
         "lead": "Every step,",
-        "em": "from sent to accepted",
-        "body": "Open any invoice to see where it went: the report to the Tax Authority through Fawtara, and the invoice itself to your customer over Peppol, each step with its time.",
-        "alt": "An invoice's journey in Fawtir: reported to the Tax Authority and accepted, then delivered to the customer over Peppol and accepted",
+        "em": "from sent to delivered",
+        "body": "Open any invoice to see where it went: the invoice to your customer over Peppol, and its Tax Data Document for the Tax Authority, each step with its time.",
+        "alt": "An invoice's journey in Fawtir: delivered to the customer over Peppol and accepted, with its Tax Data Document",
         "items": {
-          "a": "Report built, sent to Fawtara and accepted",
+          "a": "Tax Data Document built, ready for Fawtara",
           "b": "Signed, sent over Peppol and taken by the buyer's provider",
           "c": "The buyer's reply: AP, AB or RE",
-          "d": "The Fawtara reference, to check on the OTA portal",
-          "e": "Reported on the first attempt, or why not"
+          "d": "The Fawtara reference, once the Tax Authority gives one",
+          "e": "Every delivery attempt, and why one did not go through"
         }
       },
       "team": {
