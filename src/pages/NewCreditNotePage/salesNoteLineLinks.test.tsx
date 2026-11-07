@@ -254,7 +254,15 @@ describe('which credit lines name their invoice line', () => {
 
   it('names nothing on a debit note line kept at the invoice price (D-26)', () => {
     const base = { ...fromInvoice(INVOICE, 'DEBIT_NOTE'), reason: 'undercharged' }
-    const form = { ...base, lines: base.lines.map((entry) => ({ ...entry, include: true })) }
+    // A debit line starts at 0.000; set back to the invoice's own price it would read as that line.
+    const form = {
+      ...base,
+      lines: base.lines.map((entry) => ({
+        ...entry,
+        include: true,
+        unitPrice: String(INVOICE.lines.find((sold) => sold.lineNumber === entry.lineNumber)!.unitPrice),
+      })),
+    }
     const lines = toNoteRequest(form, INVOICE, 'DEBIT_NOTE').lines
     expect(lines).toHaveLength(2)
     for (const entry of lines) expect(entry).not.toHaveProperty('originalLineNumber')
