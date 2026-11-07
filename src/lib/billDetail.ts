@@ -309,7 +309,7 @@ export function awaitingDiscountCreditNote(detail: BillDetailDto): boolean {
 }
 
 /** The sentence under the amount in the decision panel. */
-export function decisionNoteOf(detail: BillDetailDto): Note {
+export function decisionNoteOf(detail: BillDetailDto, userId: string | null = null): Note {
   const { readiness, hold, settlement } = detail
   // First, and for a credit note too: its own sentence would invite a use the server withholds
   // from a held copy. The hold's reason is the server's English sentence naming a bill id, so the
@@ -329,10 +329,21 @@ export function decisionNoteOf(detail: BillDetailDto): Note {
   if (refusedDebitNote(detail)) return { key: 'supplierDebitNotes.detail.refusedBody' }
   // Not payable until accepted (owner, 10 Oct 2026): what to do first, in place of the approval.
   if (undecidedDebitNote(detail)) return { key: 'apiErrors.refused.debitNoteNotAccepted' }
-  if (hold) return { key: 'billDetail.decision.held', values: { reason: hold.reason ?? '' } }
+  // Who held or rejected it, once the server names them (B-12b, backend #824); for someone who has
+  // left, the sentence names nobody, as it always did. The reader is never named: Activity calls
+  // them "you", and the panel beside it must not call them by name.
+  if (hold)
+    return hold.openedByName && hold.openedBy !== userId
+      ? { key: 'billDetail.decision.heldBy', values: { reason: hold.reason ?? '', name: hold.openedByName } }
+      : { key: 'billDetail.decision.held', values: { reason: hold.reason ?? '' } }
   if (readiness.state === 'REJECTED') {
     const rejection = detail.approvals.find((entry) => entry.decision === 'REJECTED')
-    return { key: 'billDetail.decision.rejected', values: { reason: rejection?.reason ?? '' } }
+    return rejection?.decidedByName && rejection.decidedBy !== userId
+      ? {
+          key: 'billDetail.decision.rejectedBy',
+          values: { reason: rejection.reason ?? '', name: rejection.decidedByName },
+        }
+      : { key: 'billDetail.decision.rejected', values: { reason: rejection?.reason ?? '' } }
   }
   if (reopenedAwaitingApproval(detail)) {
     return {
@@ -696,13 +707,14 @@ export type ActivityEntry = {
   at: string | null
   detail: string | null
   byYou: boolean
+  /** Someone else who acted, by the name the team list shows (B-12b); null for the reader or nobody. */
+  by: string | null
   /** On an overpayment step, its amount for the rial sign and the rest of its detail. */
   overpayment?: { amount: number; currency: string; rest: string | null } | null
   /**
    * On a bill recorded over possible duplicates: who did it, the bills it was said to differ from,
    * each to be linked, and the reason as this reader may see it (withheld by the server unless they
-   * approve bills). Only this step names its actor: the approval asked for the override's actor
-   * (owner batches 12 and 13), and the other steps keep "by you" until the #824 names are ported.
+   * approve bills). Its actor is named as every step's is (`by`, B-12b).
    */
   duplicateOverride?: {
     by: string | null
@@ -826,6 +838,7 @@ export function activityOf(detail: BillDetailDto, userId: string | null): Activi
               : (detail.bill.match?.summary ?? null)
             : entry.detail,
       byYou,
+      by: byYou ? null : (entry.actorName ?? null),
       overpayment: overpaymentStepOf(entry.kind, entry.detail),
       duplicateOverride: override && {
         by: byYou ? null : (entry.actorName ?? null),

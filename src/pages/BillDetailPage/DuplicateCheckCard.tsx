@@ -148,7 +148,9 @@ export function DuplicateCheckCard({
           </span>
           {userId !== null && decided.duplicateResolvedBy === userId
             ? ` · ${t('billDetail.activity.byYou')}`
-            : null}
+            : decided.duplicateResolvedByName
+              ? ` · ${t('billDetail.activity.byName', { name: decided.duplicateResolvedByName })}`
+              : null}
           {decided.duplicateResolutionNote ? `: “${decided.duplicateResolutionNote}”` : null}
         </p>
       ) : null}

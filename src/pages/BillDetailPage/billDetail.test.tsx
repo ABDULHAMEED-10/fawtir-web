@@ -27,6 +27,7 @@ import {
 } from '../../lib/billDetail'
 import type { InboundInvoiceDto } from '../../api/expenditure/inboundInvoice'
 import type { ActivityDetailDto, ActivityItemDto } from '../../api/compliance/activity'
+import { toBillListItem } from '../../lib/billList'
 import { BillDetailPage } from './BillDetailPage'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
@@ -3914,7 +3915,8 @@ describe('a bill recorded over possible duplicates, in its activity', () => {
     const item = await event()
     expect(within(item).getByText(/^INV-7 · /)).toBeTruthy()
     expect(within(item).queryByRole('link')).toBeNull()
-    expect(within(item).queryByText(/by Huda/)).toBeNull()
+    // As any other step, it names its actor since B-12b (backend #824 actorName).
+    expect(within(item).getByText(/by Huda/)).toBeTruthy()
     expect(item.querySelectorAll('p')).toHaveLength(2)
   })
 
@@ -3944,5 +3946,124 @@ describe('a bill recorded over possible duplicates, in its activity', () => {
     expect(within(item).getByRole('link', { name: 'INV-7' })).toBeTruthy()
     expect(within(item).getByText('سُجّل سبب. يمكن للمعتمِدين الاطلاع عليه.')).toBeTruthy()
     expect(within(item).queryByText(/Listed by the person|A reason was recorded/)).toBeNull()
+  })
+})
+
+describe('the people a bill names, from backend #824 (B-12b), each optional', () => {
+  const named = (actorName: string | null | undefined) =>
+    detail({
+      activity: [
+        {
+          at: '2026-09-03T09:00:00Z',
+          kind: 'APPROVED',
+          detail: null,
+          actor: 'u-2',
+          ...(actorName === undefined ? {} : { actorName }),
+        },
+        { at: '2026-09-02T09:00:00Z', kind: 'CONFIRMED', detail: null, actor: 'u-1', actorName: 'Demo Admin' },
+      ],
+    })
+
+  it('names someone else in Activity, and still says "by you" for the reader', async () => {
+    billResponse = () => json(200, named('Maryam Al Balushi'))
+    renderBill()
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Activity' })
+    const card = within(heading.closest('section') as HTMLElement)
+    const approved = card.getByText('Approved').closest('li') as HTMLElement
+    expect(within(approved).getByText(/by Maryam Al Balushi/)).toBeTruthy()
+    const confirmed = card.getByText('Details confirmed').closest('li') as HTMLElement
+    expect(within(confirmed).getByText(/by you/)).toBeTruthy()
+    expect(within(confirmed).queryByText(/Demo Admin/)).toBeNull()
+  })
+
+  it('names nobody else when the server sends no name, as before', async () => {
+    for (const name of [undefined, null]) {
+      billResponse = () => json(200, named(name))
+      const view = renderBill()
+      const heading = await screen.findByRole('heading', { level: 2, name: 'Activity' })
+      const approved = within(heading.closest('section') as HTMLElement)
+        .getByText('Approved')
+        .closest('li') as HTMLElement
+      expect(within(approved).queryByText(/· by/)).toBeNull()
+      view.unmount()
+    }
+  })
+
+  it('says who rejected or held the bill only when the server names them', () => {
+    const rejected = (decidedByName?: string | null) =>
+      detail({
+        readiness: { state: 'REJECTED', distinctApprovals: 0, required: 1, autoApproved: false },
+        approvals: [
+          {
+            id: 'a-9',
+            decision: 'REJECTED',
+            reason: 'Wrong price',
+            decidedBy: 'u-2',
+            decidedAt: '2026-09-03T09:00:00Z',
+            decidedByName,
+          },
+        ],
+      })
+    expect(decisionNoteOf(rejected('Maryam Al Balushi'))).toEqual({
+      key: 'billDetail.decision.rejectedBy',
+      values: { reason: 'Wrong price', name: 'Maryam Al Balushi' },
+    })
+    expect(decisionNoteOf(rejected(null))).toEqual({
+      key: 'billDetail.decision.rejected',
+      values: { reason: 'Wrong price' },
+    })
+    expect(decisionNoteOf(rejected())).toEqual({
+      key: 'billDetail.decision.rejected',
+      values: { reason: 'Wrong price' },
+    })
+    const held = (openedByName?: string | null) =>
+      detail({
+        hold: {
+          id: 'h-1',
+          reason: 'Price query',
+          openedBy: 'u-2',
+          openedAt: '2026-09-04T09:00:00Z',
+          releasedBy: null,
+          releasedAt: null,
+          openedByName,
+        },
+      })
+    expect(decisionNoteOf(held('Hamed Al Kindi'))).toEqual({
+      key: 'billDetail.decision.heldBy',
+      values: { reason: 'Price query', name: 'Hamed Al Kindi' },
+    })
+    expect(decisionNoteOf(held())).toEqual({
+      key: 'billDetail.decision.held',
+      values: { reason: 'Price query' },
+    })
+    // The reader is "you" in Activity, so the panel never calls them by name.
+    expect(decisionNoteOf(held('Hamed Al Kindi'), 'u-2')).toEqual({
+      key: 'billDetail.decision.held',
+      values: { reason: 'Price query' },
+    })
+    expect(decisionNoteOf(rejected('Maryam Al Balushi'), 'u-2')).toEqual({
+      key: 'billDetail.decision.rejected',
+      values: { reason: 'Wrong price' },
+    })
+    for (const lng of ['en', 'ar']) {
+      expect(i18n.t('billDetail.decision.rejectedBy', { lng, name: 'X', reason: 'Y' })).toMatch(/X/)
+      expect(i18n.t('billDetail.decision.heldBy', { lng, name: 'X', reason: 'Y' })).toMatch(/X/)
+    }
+  })
+})
+
+describe('a rejected bill reads nothing owed since backend #824 (OBS-1)', () => {
+  it('keeps its chip from the workflow, not from what is owed or paymentState', () => {
+    const rejected = {
+      ...detail().bill,
+      workflowState: 'REJECTED' as const,
+      readiness: { state: 'REJECTED' as const, distinctApprovals: 0, required: 1, autoApproved: false },
+      paidAmount: 0,
+      outstandingAmount: 0,
+    }
+    const item = toBillListItem(rejected)
+    expect(item).toMatchObject({ status: 'rejected', owes: false, paid: false, amountNote: { key: 'billsPage.rows.inclVat' } })
+    // Paid before the rejection: still rejected, never "part paid" or "settled by credit".
+    expect(toBillListItem({ ...rejected, paidAmount: 100 }).status).toBe('rejected')
   })
 })

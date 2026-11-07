@@ -915,10 +915,10 @@ function BillScreen() {
                           {' '}
                           · {t('billDetail.activity.byYou')}
                         </span>
-                      ) : event.duplicateOverride?.by ? (
+                      ) : event.by ? (
                         <span className="font-medium text-text-quaternary">
                           {' '}
-                          · {t('billDetail.activity.byName', { name: event.duplicateOverride.by })}
+                          · {t('billDetail.activity.byName', { name: event.by })}
                         </span>
                       ) : null}
                     </p>
@@ -1000,7 +1000,7 @@ function BillScreen() {
               {money(row.totalIncludingVat)}
             </p>
             <p className="mt-2 text-sm font-medium leading-[1.5] text-text-tertiary">
-              <NoteText note={decisionNoteOf(detail)} />
+              <NoteText note={decisionNoteOf(detail, session?.userId ?? null)} />
             </p>
 
             <div className="mt-4 flex flex-col gap-3">

@@ -21,8 +21,13 @@ function realBillCheck(bill: BillRowDto): Pick<DebitCheck, 'titleKey' | 'detailK
     : { titleKey: 'supplierDebitNotes.checks.realBill', detailKey: realBillKey(bill), verdict: 'fine' }
 }
 
-/** Open, paid, or cleared by credit with nothing paid, which "paid in full" misread (B-12). */
+/**
+ * Open, paid, or cleared by credit with nothing paid, which "paid in full" misread (B-12). Rejected
+ * first: a rejected bill reads outstanding 0 since backend #824 (OBS-1), which is no payment and no
+ * credit, so only the workflow state can say why nothing is owed.
+ */
 function realBillKey(bill: BillRowDto): string {
+  if (workflowStateOf(bill) === 'REJECTED') return 'supplierDebitNotes.checks.realBillRejected'
   if (bill.outstandingAmount > 0) return 'supplierDebitNotes.checks.realBillOpen'
   return settledWithoutPayment(bill)
     ? 'supplierDebitNotes.checks.realBillSettledByCredit'

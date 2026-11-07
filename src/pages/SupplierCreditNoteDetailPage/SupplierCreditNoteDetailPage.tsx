@@ -255,6 +255,9 @@ function CreditNoteDetail() {
     state !== 'PARTLY_USED'
   // The credit is taken off a bill still to be paid: "You'll pay less" until it is paid (C7).
   const targetUnpaid = bill !== null && bill.outstandingAmount > 0
+  // A rejected bill is owed nothing and reads outstanding 0 since backend #824 (OBS-1): neither
+  // "you'll pay less" nor "already paid" is true of it.
+  const targetRejected = bill !== null && bill.workflowState === 'REJECTED'
   const bannerTitle = closesRefused
     ? t('supplierCreditNotes.detail.closesRefusedTitle', { number: billNumber ?? '' })
     : state === 'REFUNDED'
@@ -263,7 +266,7 @@ function CreditNoteDetail() {
         ? targetUnpaid
           ? t('supplierCreditNotes.detail.youllPayLess', { amount: money(row.balance.applied) })
           : t('supplierCreditNotes.detail.paidLessTitle', { amount: money(row.balance.applied) })
-        : bill && state !== 'PARTLY_USED'
+        : bill && state !== 'PARTLY_USED' && !targetRejected
           ? t('supplierCreditNotes.detail.youllPayLess', { amount: money(remaining) })
           : t('supplierCreditNotes.detail.creditToUse', { amount: money(remaining) })
   const bannerBody = closesRefused
@@ -277,7 +280,9 @@ function CreditNoteDetail() {
           : state === 'WAITING_FOR_BILL'
             ? t('supplierCreditNotes.detail.waitingBody')
             : bill
-              ? bill.outstandingAmount > 0
+              ? targetRejected
+                ? t('supplierCreditNotes.detail.billRejectedNote')
+                : bill.outstandingAmount > 0
                 ? // Not applied yet (an applied credit is APPLIED or PARTLY_USED above): "comes
                   // straight off what you owe" claimed a deduction the activity said was waiting
                   // (B-11, local E2E 2026-10-29).

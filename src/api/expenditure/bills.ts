@@ -392,6 +392,13 @@ export type BillHoldDto = {
   duplicateResolvedBy?: string | null
   duplicateResolvedAt?: string | null
   duplicateResolutionNote?: string | null
+  /**
+   * The three people above by the name the team list shows (B-12b, backend #824). On
+   * `GET /bills/{id}` only; null for the system, for someone who left, on every other route.
+   */
+  openedByName?: string | null
+  releasedByName?: string | null
+  duplicateResolvedByName?: string | null
 }
 
 /**
@@ -476,7 +483,8 @@ export type BillDetailDto = {
   }[]
   readiness: BillRowDto['readiness']
   /** Newest first, in commit order (backend V523): kept as sent, never re-sorted by `decidedAt`. */
-  approvals: { id: string; decision: 'APPROVED' | 'REJECTED' | 'REOPENED'; reason: string | null; decidedBy: string; decidedAt: string }[]
+  /** `decidedByName` as `BillHoldDto.openedByName` reads (B-12b). */
+  approvals: { id: string; decision: 'APPROVED' | 'REJECTED' | 'REOPENED'; reason: string | null; decidedBy: string; decidedAt: string; decidedByName?: string | null }[]
   hold: BillHoldDto | null
   holdHistory: BillHoldDto[]
   /**
@@ -521,6 +529,8 @@ export type BillDetailDto = {
     paymentReference: string | null
     paymentDate: string | null
     occurredAt: string
+    /** Who recorded it, as `BillHoldDto.openedByName` reads (B-12b). */
+    actorName?: string | null
   }[]
   paymentRunReference: string | null
   /**

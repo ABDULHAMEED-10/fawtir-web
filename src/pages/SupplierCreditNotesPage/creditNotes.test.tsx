@@ -2062,6 +2062,25 @@ describe("A held duplicate's wording", () => {
     expect(await screen.findByText(body)).toBeTruthy()
   })
 
+  it('says the bill it corrects was rejected, not paid, when that bill reads nothing owed (OBS-1)', async () => {
+    notes = [note({ credits: namedBill })]
+    billDetail = {
+      bill: {
+        ...OURS,
+        id: BILL_ID,
+        supplierBillNumber: 'QMS-7781',
+        workflowState: 'REJECTED',
+        paidAmount: 0,
+        outstandingAmount: 0,
+      },
+      lines: [],
+    }
+    renderDetail()
+    expect(await screen.findByText(/was rejected in your books, so nothing is owed on it/)).toBeTruthy()
+    expect(screen.queryByText(/has already been paid/)).toBeNull()
+    expect(screen.queryByText(/you pay that much less/)).toBeNull()
+  })
+
   // A held copy is left out of input VAT (PEPPOL_DUPLICATE_HELD) even when the bill it corrects
   // is counted, so no reduction may be claimed for it.
   it.each([

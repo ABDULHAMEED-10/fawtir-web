@@ -354,7 +354,25 @@ describe('a bill held as a possible duplicate', () => {
     expect(within(section).queryByText('Possible duplicate')).toBeNull()
     expect(within(section).getByText(/Second delivery/)).toBeTruthy()
     expect(within(section).queryByText(/by you/)).toBeNull()
+    expect(within(section).queryByText(/· by /)).toBeNull()
     expect(within(section).queryByRole('button', { name: 'Confirm duplicate' })).toBeNull()
+  })
+
+  it('names who decided it when the server names them (B-12b, backend #824)', async () => {
+    const released = duplicateHold({
+      releasedBy: 'u-2',
+      releasedAt: '2026-10-28T09:00:00Z',
+      duplicateResolution: 'NOT_DUPLICATE',
+      duplicateResolvedBy: 'u-2',
+      duplicateResolvedAt: '2026-10-28T09:00:00Z',
+      duplicateResolutionNote: 'Second delivery',
+      duplicateResolvedByName: 'Hamed Al Kindi',
+    })
+    copyResponses = [() => json(200, bill(COPY, 'd-copy', { holdHistory: [released] }))]
+    renderCopy()
+    await screen.findByRole('heading', { level: 2, name: 'Not a duplicate' })
+    const section = document.getElementById('duplicate-check') as HTMLElement
+    expect(within(section).getByText(/· by Hamed Al Kindi: “Second delivery”/)).toBeTruthy()
   })
 
   it('offers no approval or rejection on a confirmed duplicate either', async () => {
