@@ -1918,6 +1918,15 @@ describe('P-OFF: a till read while offline numbering is stopped (no series.INVOI
   } as unknown as PosTillDto
   const WALK_IN: PosSaleRequest = { ...BODY, customer: { kind: 'WALK_IN' } }
   const COUNTER = 'fawtir.pos.next.till-1.NZW-T01-INV-2026'
+  /**
+   * Every offline-numbering counter this device holds, of any till, series or year, and the legacy
+   * per-till one: a refused sale must leave all of them as they were, not only this year's (T1).
+   */
+  const counters = () =>
+    Object.keys(window.localStorage)
+      .filter((key) => key.startsWith('fawtir.pos.next.'))
+      .sort()
+      .map((key) => [key, window.localStorage.getItem(key)])
   const keyOf = (call: { init?: RequestInit }) => new Headers(call.init?.headers).get('Idempotency-Key')
   const salePosts = (key: string) =>
     calls.filter((call) => call.url === '/api/v1/pos/sales' && call.init?.method === 'POST' && keyOf(call) === key)
@@ -1943,6 +1952,10 @@ describe('P-OFF: a till read while offline numbering is stopped (no series.INVOI
     it('with an empty queue: rejected as sent with outcome unknown, the counter as it was, nothing queued', async () => {
       // A counter this device kept before the stop: P-OFF must neither raise nor reuse it.
       window.localStorage.setItem(COUNTER, '60')
+      window.localStorage.setItem('fawtir.pos.next.till-1.NZW-T01-INV-2025', '812')
+      window.localStorage.setItem('fawtir.pos.next.till-1.NZW-T01-CRN-2026', '3')
+      window.localStorage.setItem('fawtir.pos.next.till-2.NZW-T02-INV-2026', '17')
+      const before = counters()
       // Offline, the sale's own request is tried first and fails without an answer. That reads as
       // "sent, outcome unknown" (E-01), not "offline", because the device cannot tell a dropped
       // connection from no connection; the fallback finds no number and keeps nothing.
@@ -1951,6 +1964,7 @@ describe('P-OFF: a till read while offline numbering is stopped (no series.INVOI
       await expect(sold).rejects.toMatchObject({ requested: true })
 
       expect(window.localStorage.getItem(COUNTER)).toBe('60')
+      expect(counters()).toEqual(before)
       expect(queuedFor('till-1')).toEqual([])
       expect(window.localStorage.getItem('fawtir.pos.queue') ?? '[]').not.toContain('pos-sale-key-poff-01')
       expect(keyMayBeQueued('pos-sale-key-poff-01')).toBe(false)
@@ -1968,6 +1982,7 @@ describe('P-OFF: a till read while offline numbering is stopped (no series.INVOI
       const backlog = queuedFor('till-1').map((entry) => entry.number)
       expect(backlog).toEqual(['NZW-T01-INV-2026-000049', 'NZW-T01-INV-2026-000050'])
       const counter = window.localStorage.getItem(COUNTER)
+      const before = counters()
 
       await expect(submitSale(STOPPED, WALK_IN, 'pos-sale-key-poff-02')).rejects.toMatchObject({
         name: 'NetworkError',
@@ -1976,6 +1991,7 @@ describe('P-OFF: a till read while offline numbering is stopped (no series.INVOI
 
       expect(queuedFor('till-1').map((entry) => entry.number)).toEqual(backlog)
       expect(window.localStorage.getItem(COUNTER)).toBe(counter)
+      expect(counters()).toEqual(before)
       expect(keyMayBeQueued('pos-sale-key-poff-02')).toBe(false)
       expect(salePosts('pos-sale-key-poff-02')).toEqual([])
     })
@@ -1992,6 +2008,7 @@ describe('P-OFF: a till read while offline numbering is stopped (no series.INVOI
         }) as unknown as Response
       const running = flushQueue('till-1')
       await vi.waitFor(() => expect(salePosts('pos-sale-key-poff-pre3')).toHaveLength(1))
+      const before = counters()
 
       await expect(submitSale(STOPPED, WALK_IN, 'pos-sale-key-poff-03')).rejects.toMatchObject({
         name: 'NetworkError',
@@ -1999,6 +2016,8 @@ describe('P-OFF: a till read while offline numbering is stopped (no series.INVOI
       })
       expect(queuedFor('till-1').map((entry) => entry.key)).toEqual(['pos-sale-key-poff-pre3'])
       expect(salePosts('pos-sale-key-poff-03')).toEqual([])
+      // Before the held run is answered: filing its own entry then raises the counter, as designed.
+      expect(counters()).toEqual(before)
 
       answer(filed('pos-sale-key-poff-pre3', 49))
       expect(await running).toBe('done')
@@ -2014,6 +2033,7 @@ describe('P-OFF: a till read while offline numbering is stopped (no series.INVOI
       expect(queuedFor('till-1')).toMatchObject([{ key: 'pos-sale-key-poff-pre4', final: true }])
       // The same till before the stop would number this sale and keep it behind (H-1).
       const counter = window.localStorage.getItem(COUNTER)
+      const before = counters()
 
       await expect(submitSale(STOPPED, WALK_IN, 'pos-sale-key-poff-04')).rejects.toMatchObject({
         name: 'NetworkError',
@@ -2021,6 +2041,7 @@ describe('P-OFF: a till read while offline numbering is stopped (no series.INVOI
       })
       expect(queuedFor('till-1').map((entry) => entry.key)).toEqual(['pos-sale-key-poff-pre4'])
       expect(window.localStorage.getItem(COUNTER)).toBe(counter)
+      expect(counters()).toEqual(before)
       expect(salePosts('pos-sale-key-poff-04')).toEqual([])
       expect(keyMayBeQueued('pos-sale-key-poff-04')).toBe(false)
     })
