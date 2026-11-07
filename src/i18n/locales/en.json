@@ -43,7 +43,7 @@
     "notMember": "Not a member yet?",
     "signUp": "Sign up here",
     "heroTitle": "E-invoicing compliance, handled for you.",
-    "heroSubtitle": "Create, validate, sign and report every invoice to the Oman Tax Authority, without touching a single line of Peppol.",
+    "heroSubtitle": "Create and validate every invoice without touching a single line of Peppol. Reporting to the Tax Authority starts automatically once your Fawtara registration and the provider connection are complete. It is not active yet.",
     "submitting": "Signing in…",
     "failed": "Incorrect username or password, or this account can't sign in yet.",
     "signInAgain": "That code didn't work or has expired. Sign in again to get a new code.",
@@ -809,7 +809,7 @@
       "open": "Compare all features",
       "close": "Hide the full comparison",
       "title": "Everything in each plan",
-      "subtitle": "Every plan validates PINT-OM, signs, sends and receives over Peppol and reports to the OTA. Compliance is never gated. The plans differ in volume, people and features.",
+      "subtitle": "Every plan validates PINT-OM, signs, sends and receives over Peppol. Compliance is never gated. The plans differ in volume, people and features.",
       "columnFeature": "What you get",
       "included": "Included",
       "notIncluded": "Not included",
@@ -1051,7 +1051,7 @@
   },
   "fawtaraStatus": {
     "heroTitle": "E-invoicing compliance, handled for you.",
-    "heroSubtitle": "Create, validate, sign and report every invoice to the Oman Tax Authority, without touching a single line of Peppol.",
+    "heroSubtitle": "Create and validate every invoice without touching a single line of Peppol. Reporting to the Tax Authority starts automatically once your Fawtara registration and the provider connection are complete. It is not active yet.",
     "steps": {
       "connected": "Connected",
       "requestSent": "Sent",
@@ -2024,7 +2024,7 @@
   },
   "invoicesPage": {
     "title": "Invoices",
-    "subtitle": "Every document you’ve issued: validated, signed and reported to the Oman Tax Authority.",
+    "subtitle": "Every document you’ve issued, validated, with its status. Reporting to the Tax Authority is not active yet.",
     "bulkUpload": "Bulk upload",
     "export": "Export",
     "createInvoice": "Create Invoice",
@@ -3303,7 +3303,7 @@
   },
   "selfBilling": {
     "title": "Self-billed invoices",
-    "subtitle": "Fawtir sends your supplier invoices via Peppol and reports them to Oman Tax Authority.",
+    "subtitle": "Fawtir sends your supplier invoices via Peppol. Reporting them to the Tax Authority is not active yet.",
     "agreements": "Agreements",
     "create": "Create self-billing invoice",
     "searchPlaceholder": "Search by document, supplier or VAT number",
@@ -4624,13 +4624,13 @@
       "walkIn": {
         "simplified": "Simplified invoice, no customer named",
         "printed": "Printed, with a QR code",
-        "filed": "Filed with the Tax Authority",
+        "filed": "Prepared for reporting to the Tax Authority",
         "paidNow": "Paid now, at the counter"
       },
       "company": {
         "addressed": "Addressed to {{name}}",
         "sentToAccounts": "Sent to their accounts system automatically",
-        "filedB2B": "Filed with the Tax Authority as B2B",
+        "filedB2B": "Prepared for reporting to the Tax Authority as B2B",
         "claimVat": "They can claim the VAT back"
       },
       "notFound": "No customer has that VAT number. Add them by hand.",
@@ -10257,7 +10257,7 @@
   },
   "activity": {
     "title": "TDD & OTA",
-    "subtitle": "Every invoice you send or receive is reported to the Oman Tax Authority as a Tax Data Document.",
+    "subtitle": "Reporting to the Tax Authority starts automatically once your Fawtara registration and the provider connection are complete. It is not active yet.",
     "callLog": "The OTA call log",
     "complianceReport": "Compliance report",
     "searchPlaceholder": "Invoice number, TDD UUID",
@@ -10403,7 +10403,7 @@
     },
     "emptyState": {
       "title": "Nothing reported yet",
-      "body": "This page fills itself. The moment you issue your first invoice, Fawtir builds the tax report, sends it to the Tax Authority, and shows you what came back, usually within a couple of minutes.",
+      "body": "This page fills itself once reporting is active. Reporting to the Tax Authority starts automatically once your Fawtara registration and the provider connection are complete. It is not active yet.",
       "action": "Create your first invoice"
     },
     "ready": {
@@ -11366,11 +11366,11 @@
     "noOpenBranches": "No open branches.",
     "cert": {
       "signing": "Signing certificate",
-      "signingNote": "Signs every invoice so the Tax Authority knows it came from you",
+      "signingNote": "Signs your invoices to show they came from you",
       "transport": "AS4 transport certificate",
       "transportNote": "Encrypts documents in transit between access points",
       "reporting": "OTA reporting credentials",
-      "reportingNote": "Your Fawtara account, used to file every TDD"
+      "reportingNote": "Your Fawtara account, for reporting once your registration and the provider connection are complete. Not active yet"
     },
     "appearance": "How you appear to others",
     "appearanceNote": "what another business sees when they look you up",
@@ -22778,7 +22778,7 @@
       "onPeppol": "On Peppol",
       "peppolHint": {
         "credit": "The credit note is delivered to {{customer}} the moment it's issued.",
-        "debit": "The debit note reaches {{customer}} the moment it's issued, and the additional VAT is reported to the OTA at the same time."
+        "debit": "The debit note reaches {{customer}} the moment it's issued."
       },
       "attachments": "Attachments",
       "dropFiles": "Drop files or click to upload",
