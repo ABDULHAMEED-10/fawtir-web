@@ -126,6 +126,34 @@ describe('"Bills received" and "Average bill" (ACC-5, backend #824)', () => {
   })
 })
 
+describe('what the spend leaves out (D-27)', () => {
+  const DECIDED = {
+    pendingDocuments: 2,
+    pendingNetAmount: 120,
+    pendingTotalAmount: 126,
+    rejectedDocuments: 1,
+    rejectedNetAmount: 300,
+    rejectedTotalAmount: 315,
+  }
+
+  it('names pending and rejected beside the billed figure, which stays the server net', async () => {
+    summary = report([row({ ...BILLS, ...DECIDED })])
+    renderPage()
+    expect(await figure('Billed to you, net of VAT')).toBe('900.000')
+    expect(
+      screen.getByText(
+        'Not in the billed figure this year: supplier debit notes not yet decided, OMR 120.000 (2); rejected bills and debit notes, OMR 300.000 (1).',
+      ),
+    ).toBeTruthy()
+  })
+
+  it('says nothing about them to a server that does not send them', async () => {
+    renderPage()
+    expect(await figure('Billed to you, net of VAT')).toBe('900.000')
+    expect(screen.queryByText(/Not in the billed figure/)).toBeNull()
+  })
+})
+
 describe('spend by supplier keys (NEW-1, backend #824)', () => {
   it('never prints a prefixed key, and names each unlinked supplier by its label', async () => {
     suppliers = report(

@@ -705,6 +705,57 @@ describe('the cash flow page', () => {
   })
 })
 
+describe('supplier refunds on the cash flow page (D-29)', () => {
+  const answer = (cashFlow: CashFlowReportDto) =>
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/me/entitlements')) return json(200, READER)
+      if (url.includes('/reports/cash-flow')) return json(200, cashFlow)
+      if (url.includes('/reports/expenditure')) return json(200, EXPENDITURE)
+      return json(404)
+    })
+  // The server's net includes the refunds (1,100 + 50 and -500 + 25): received less paid out
+  // would say 600, so 675 can only come from reading net as given.
+  const withRefunds = (unclassified: number): CashFlowReportDto => ({
+    ...CASH_FLOW,
+    rows: [
+      { ...CASH_FLOW.rows[0], net: 1150, supplierRefunds: 50, supplierRefundsUnclassified: unclassified },
+      { ...CASH_FLOW.rows[1], net: -475, supplierRefunds: 25, supplierRefundsUnclassified: 0 },
+    ],
+    totals: [{ currency: 'OMR', received: 1300, paidOut: 700, net: 675, supplierRefunds: 75 }],
+  })
+
+  it('names the refunds on a line of their own and shows the server net as given', async () => {
+    answer(withRefunds(0))
+    renderAt('/reports/cash-flow', <ReportsCashFlowPage />)
+    expect(
+      await screen.findByText(
+        'Supplier refunds received this year: OMR 75.000. In left over, not in money in.',
+      ),
+    ).toBeTruthy()
+    expect(screen.getByText('1,300.000')).toBeTruthy()
+    expect(screen.getByText('675.000')).toBeTruthy()
+    expect(screen.queryByText('600.000')).toBeNull()
+    expect(screen.queryByText(/self-billed credit notes/)).toBeNull()
+  })
+
+  it('adds the refunds with no recorded direction only when there are some', async () => {
+    answer(withRefunds(3))
+    renderAt('/reports/cash-flow', <ReportsCashFlowPage />)
+    expect(
+      await screen.findByText(
+        'Supplier refunds received this year: OMR 75.000. In left over, not in money in. A further OMR 3.000 was refunded on self-billed credit notes whose cash direction is not recorded, so it is not in left over.',
+      ),
+    ).toBeTruthy()
+  })
+
+  it('says nothing about refunds to a server that does not send them', async () => {
+    renderAt('/reports/cash-flow', <ReportsCashFlowPage />)
+    expect(await screen.findByText('600.000')).toBeTruthy()
+    expect(screen.queryByText(/Supplier refunds/)).toBeNull()
+  })
+})
+
 describe('the downloads page', () => {
   it('renders the server catalogue, and greys what the reader may not take', async () => {
     renderAt('/reports/lists', <ReportsListsPage />)

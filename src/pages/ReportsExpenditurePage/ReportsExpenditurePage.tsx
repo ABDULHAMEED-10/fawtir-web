@@ -194,6 +194,16 @@ function ExpenditureBody({
 
   const netNow = sumOver(net, current.months)
   const netBefore = sumOver(net, previous.months)
+  // Spend counts accepted documents only (D-27). What it leaves out, pending and rejected, is named
+  // beside it; an older server sends neither, and then nothing is said rather than a zero.
+  const decisionsReported = rows.every(
+    (row) => Object.hasOwn(row, 'pendingNetAmount') && Object.hasOwn(row, 'rejectedNetAmount'),
+  )
+  const outsideNow = (figure: (row: (typeof rows)[number]) => number | undefined) =>
+    sumOver(
+      sumByMonth(rows, (row) => figure(row) ?? 0),
+      current.months,
+    )
   const vatNow = sumOver(vat, current.months)
   const vatBefore = sumOver(vat, previous.months)
   const billsNow = sumOver(bills, current.months)
@@ -348,6 +358,18 @@ function ExpenditureBody({
           )}
         />
       </KpiRow>
+      {decisionsReported ? (
+        <p className="text-sm font-medium text-text-tertiary">
+          {t('reports.expenditure.notInBilled', {
+            when: t(`reports.thisPeriod.${period}`),
+            currency,
+            pending: money(outsideNow((row) => row.pendingNetAmount)),
+            pendingCount: formatCount(outsideNow((row) => row.pendingDocuments), language),
+            rejected: money(outsideNow((row) => row.rejectedNetAmount)),
+            rejectedCount: formatCount(outsideNow((row) => row.rejectedDocuments), language),
+          })}
+        </p>
+      ) : null}
 
       <ChartGrid>
         <ChartCard

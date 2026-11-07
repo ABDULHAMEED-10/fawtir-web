@@ -110,6 +110,20 @@ export type ExpenditureRowDto = {
    */
   billDocuments?: number
   billNetAmount?: number
+} & ExpenditureDecisionFigures
+
+/**
+ * Bills the spend leaves out (D-27, backend 2026-11-07): spend counts accepted documents only.
+ * Pending is supplier debit notes not yet decided; rejected is rejected bills and refused debit
+ * notes. Absent from an older server, which is "not available", never zero.
+ */
+export type ExpenditureDecisionFigures = {
+  pendingDocuments?: number
+  pendingNetAmount?: number
+  pendingTotalAmount?: number
+  rejectedDocuments?: number
+  rejectedNetAmount?: number
+  rejectedTotalAmount?: number
 }
 
 export type ExpenditureTotalDto = {
@@ -121,7 +135,7 @@ export type ExpenditureTotalDto = {
   /** The rows' `billDocuments` and `billNetAmount` summed (ACC-5); absent before backend #824. */
   billDocuments?: number
   billNetAmount?: number
-}
+} & ExpenditureDecisionFigures
 
 export type ExpenditureReportDto = {
   from: string | null
@@ -152,7 +166,8 @@ export type CashFlowRowDto = {
   received: number
   paidOut: number
   net: number
-} & TillPaidOutFigures
+} & TillPaidOutFigures &
+  SupplierRefundFigures
 
 /**
  * Till paid-outs by class (V536), beside `paidOut` and never in it or in `net`: a till payment that
@@ -168,13 +183,27 @@ export type TillPaidOutFigures = {
   cashPaidOutUnclassified?: number
 }
 
+export type SupplierRefundFigures = {
+  /**
+   * Refunds suppliers paid back (D-29): cash received beside `received` (customer payments), and
+   * in `net`. Absent from an older server, which is "not available", never zero.
+   */
+  supplierRefunds?: number
+  /**
+   * Refunds recorded on self-billed credit notes where the tenant is the seller: their cash
+   * direction is not recorded, so the server keeps them out of `net`.
+   */
+  supplierRefundsUnclassified?: number
+}
+
 export type CashFlowTotalDto = {
   /** Null for the "currency not recorded (before RC5)" bucket. */
   currency: string | null
   received: number
   paidOut: number
   net: number
-} & TillPaidOutFigures
+} & TillPaidOutFigures &
+  SupplierRefundFigures
 
 export type CashFlowReportDto = {
   from: string | null

@@ -210,6 +210,17 @@ function CashFlowBody({
     transferred: sumOver(sumByMonth(rows, (row) => tillPaidOuts(row).transferred), current.months),
     unclassified: sumOver(sumByMonth(rows, (row) => tillPaidOuts(row).unclassified), current.months),
   }
+  // Supplier refunds (D-29) are in the server's net but not in "Money in", so they are named on a
+  // line of their own. An older server sends neither field: the line is left out, not shown as 0.
+  const refundsReported = rows.length > 0 && rows.every((row) => Object.hasOwn(row, 'supplierRefunds'))
+  const refundsNow = refundsReported
+    ? sumOver(sumByMonth(rows, (row) => row.supplierRefunds ?? 0), current.months)
+    : 0
+  const unclassifiedRefundsNow = rows.every((row) =>
+    Object.hasOwn(row, 'supplierRefundsUnclassified'),
+  )
+    ? sumOver(sumByMonth(rows, (row) => row.supplierRefundsUnclassified ?? 0), current.months)
+    : 0
   const drawerRows = (['expense', 'advance', 'transferred', 'unclassified'] as const).map((name) => ({
     label: t(`reports.cashFlow.till.${name}`),
     value: drawer[name],
@@ -281,6 +292,22 @@ function CashFlowBody({
           note={t('reports.cashFlow.kpi.dueOutPending')}
         />
       </KpiRow>
+
+      {refundsReported ? (
+        <p className="text-sm font-medium text-text-tertiary">
+          {t('reports.cashFlow.supplierRefunds', {
+            when: t(`reports.thisPeriod.${period}`),
+            currency,
+            amount: money(refundsNow),
+          })}
+          {unclassifiedRefundsNow !== 0
+            ? ` ${t('reports.cashFlow.supplierRefundsUnclassified', {
+                currency,
+                amount: money(unclassifiedRefundsNow),
+              })}`
+            : null}
+        </p>
+      ) : null}
 
       <ChartGrid>
         <ChartCard

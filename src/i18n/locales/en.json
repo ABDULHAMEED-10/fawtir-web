@@ -9204,7 +9204,8 @@
       "peppolUp": "Peppol up <b>{{points}} points</b> since {{quarter}}",
       "peppolDown": "Peppol down <b>{{points}} points</b> since {{quarter}}",
       "peppolSteady": "Peppol steady since {{quarter}}",
-      "nothingBilled": "Nothing was billed in this period."
+      "nothingBilled": "Nothing was billed in this period.",
+      "notInBilled": "Not in the billed figure {{when}}: supplier debit notes not yet decided, {{currency}} {{pending}} ({{pendingCount}}); rejected bills and debit notes, {{currency}} {{rejected}} ({{rejectedCount}})."
     },
     "cashFlow": {
       "title": "Cash flow",
@@ -9260,7 +9261,9 @@
       },
       "currencyNotRecorded": "currency not recorded (before RC5)",
       "timeZoneUnavailable": "The cash flow report needs the company's time zone, which isn't set. Contact Fawtir support to set it, then open the report again.",
-      "unrecorded": "Till paid-outs from before RC5 carry no currency ({{label}}): {{amount}} in this report. They are kept apart and never added to any currency."
+      "unrecorded": "Till paid-outs from before RC5 carry no currency ({{label}}): {{amount}} in this report. They are kept apart and never added to any currency.",
+      "supplierRefunds": "Supplier refunds received {{when}}: {{currency}} {{amount}}. In left over, not in money in.",
+      "supplierRefundsUnclassified": "A further {{currency}} {{amount}} was refunded on self-billed credit notes whose cash direction is not recorded, so it is not in left over."
     },
     "vat": {
       "title": "VAT & Tax",

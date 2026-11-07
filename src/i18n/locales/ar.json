@@ -9817,7 +9817,8 @@
       "peppolUp": "ارتفع Peppol <b>{{points}} نقطة</b> منذ {{quarter}}",
       "peppolDown": "انخفض Peppol <b>{{points}} نقطة</b> منذ {{quarter}}",
       "peppolSteady": "Peppol ثابت منذ {{quarter}}",
-      "nothingBilled": "لم يُفوتر شيء في هذه الفترة."
+      "nothingBilled": "لم يُفوتر شيء في هذه الفترة.",
+      "notInBilled": "غير محسوب في المفوتر {{when}}: إشعارات مدينة من الموردين لم يُبتّ فيها، {{currency}} {{pending}} ({{pendingCount}})؛ وفواتير وإشعارات مدينة مرفوضة، {{currency}} {{rejected}} ({{rejectedCount}})."
     },
     "cashFlow": {
       "title": "التدفق النقدي",
@@ -9873,7 +9874,9 @@
       },
       "currencyNotRecorded": "العملة غير مسجّلة (قبل RC5)",
       "timeZoneUnavailable": "يحتاج تقرير التدفق النقدي إلى المنطقة الزمنية للشركة، وهي غير محددة. تواصل مع دعم فوتر لتحديدها، ثم افتح التقرير مرة أخرى.",
-      "unrecorded": "مصروفات الصناديق السابقة لـ RC5 لا تحمل عملة ({{label}}): {{amount}} في هذا التقرير. تُعرض منفصلة ولا تُضاف إلى أي عملة."
+      "unrecorded": "مصروفات الصناديق السابقة لـ RC5 لا تحمل عملة ({{label}}): {{amount}} في هذا التقرير. تُعرض منفصلة ولا تُضاف إلى أي عملة.",
+      "supplierRefunds": "مبالغ مستردة من الموردين {{when}}: {{currency}} {{amount}}. محسوبة في المتبقي، وليست في الداخل.",
+      "supplierRefundsUnclassified": "وأُعيد كذلك {{currency}} {{amount}} على إشعارات دائنة بالفوترة الذاتية لم يُسجَّل اتجاه نقدها، لذا ليس في المتبقي."
     },
     "vat": {
       "title": "الضريبة",
