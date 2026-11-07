@@ -116,7 +116,11 @@ export function stepsOf(detail: BillDetailDto, format: DateFormat): BillStep[] {
             key: 'billDetail.steps.progress',
             values: { given: readiness.distinctApprovals, required: readiness.required },
           }
-        : { key: 'billDetail.steps.waiting' }
+        : {
+            key: reopenedAwaitingApproval(detail)
+              ? 'billDetail.steps.reopened'
+              : 'billDetail.steps.waiting',
+          }
   }
 
   const scheduled: BillStep = {
@@ -171,7 +175,7 @@ export function stepsOf(detail: BillDetailDto, format: DateFormat): BillStep[] {
 export function decisionsOf(
   detail: BillDetailDto,
   can: (permission: string) => boolean,
-): { approve: boolean; reject: boolean; hold: boolean; release: boolean } {
+): { approve: boolean; reject: boolean; hold: boolean; release: boolean; reopen: boolean } {
   const settled = detail.settlement.paymentState === 'PAID'
   const decidable = !settled && !isCreditNote(detail)
   // Not while a duplicate hold is open. The server's approval reads no hold, so approving an
@@ -180,8 +184,9 @@ export function decisionsOf(
   const approver = can('invoice.approve') && decidable && !heldAsDuplicate(detail)
   const payer = can('invoice.payment.manage') && decidable
   return {
-    // Rejected is final (Abdul, 1 Nov 2026): there is no step that reopens it. The server itself does
-    // not refuse an approval after a rejection, so this is the screen's rule.
+    // A rejection is taken back only by a reopen, never by an approval (owner decision 2026-11-01,
+    // batch 29): the server refuses it with BILL_APPROVAL_REJECTED_NEEDS_REOPEN. A server before
+    // V523 still accepted it, so the screen held this rule on its own (Abdul, 1 Nov 2026).
     approve:
       approver && detail.readiness.state !== 'READY' && detail.readiness.state !== 'REJECTED',
     // Not once any payment is recorded or the bill is in a payment run: a bill part paid, or
@@ -195,7 +200,24 @@ export function decisionsOf(
     // A duplicate hold is released only by deciding it is not a duplicate; the plain release is
     // refused (BILL_HOLD_DUPLICATE_RELEASE_REFUSED), so the page offers the decision instead.
     release: can('invoice.payment.manage') && detail.hold !== null && !heldAsDuplicate(detail),
+    // `bill.reopen` is its own permission, not part of `invoice.approve` (owner batch 31): not every
+    // approver may overturn a refusal. A server before V523 grants it to nobody, so the action stays
+    // hidden there. The server refuses a held copy and a credit note, so neither is offered.
+    reopen:
+      can('bill.reopen') &&
+      !isCreditNote(detail) &&
+      !heldAsDuplicate(detail) &&
+      detail.readiness.state === 'REJECTED',
   }
+}
+
+/**
+ * The rejection was taken back and nobody has approved the bill since: the server reads it PENDING
+ * with no approvals counted. Said apart from a bill nobody ever decided on, so the page never reads
+ * the reopen as an approval.
+ */
+export function reopenedAwaitingApproval(detail: BillDetailDto): boolean {
+  return detail.readiness.state === 'PENDING' && detail.approvals[0]?.decision === 'REOPENED'
 }
 
 /**
@@ -311,6 +333,15 @@ export function decisionNoteOf(detail: BillDetailDto): Note {
   if (readiness.state === 'REJECTED') {
     const rejection = detail.approvals.find((entry) => entry.decision === 'REJECTED')
     return { key: 'billDetail.decision.rejected', values: { reason: rejection?.reason ?? '' } }
+  }
+  if (reopenedAwaitingApproval(detail)) {
+    return {
+      key:
+        readiness.required > 1
+          ? 'billDetail.decision.reopenedNeedsMore'
+          : 'billDetail.decision.reopened',
+      values: { reason: detail.approvals[0].reason ?? '', required: readiness.required },
+    }
   }
   if (readiness.state === 'READY') {
     // Approved, by people or by its amount, but it still differs from its order: nothing pays it
@@ -550,9 +581,13 @@ export function complianceOf(
         : { key: 'billDetail.compliance.noPintOm', ok: false },
     ...(facts
       ? [replyOf(facts)]
-      : peppol && received?.kind === 'unavailable'
-        ? [{ key: 'billDetail.compliance.reply.unavailable', ok: false }]
-        : []),
+      : // The bill's own `peppol` block (batch 39 EXP) answers the reply while the delivery record
+        // is loading or unreadable. Only the reply: the reporting line keeps its proven source.
+        peppol && detail.peppol
+        ? [replyNote(detail.peppol.mlsCode, detail.peppol.mlsTransportState)]
+        : peppol && received?.kind === 'unavailable'
+          ? [{ key: 'billDetail.compliance.reply.unavailable', ok: false }]
+          : []),
     reporting,
     kept
       ? { key: 'billDetail.compliance.originalKept', ok: true }
@@ -663,6 +698,18 @@ export type ActivityEntry = {
   byYou: boolean
   /** On an overpayment step, its amount for the rial sign and the rest of its detail. */
   overpayment?: { amount: number; currency: string; rest: string | null } | null
+  /**
+   * On a bill recorded over possible duplicates: who did it, the bills it was said to differ from,
+   * each to be linked, and the reason as this reader may see it (withheld by the server unless they
+   * approve bills). Only this step names its actor: the approval asked for the override's actor
+   * (owner batches 12 and 13), and the other steps keep "by you" until the #824 names are ported.
+   */
+  duplicateOverride?: {
+    by: string | null
+    bills: { billId: string; number: string | null }[]
+    reason: string | null
+    reasonRecorded: boolean
+  } | null
 }
 
 /**
@@ -700,6 +747,9 @@ const KNOWN_KINDS = new Set([
   'CANCELLED',
   'CONFIRMED_DUPLICATE',
   'NOT_DUPLICATE',
+  'REOPENED',
+  'DUPLICATE_OVERRIDDEN',
+  'DUPLICATE_SUBMITTED_FOR_REVIEW',
 ])
 
 /** A kind this page has no wording for reads "Recorded", as the invoice history does; never the key. */
@@ -713,8 +763,15 @@ function activityKey(kind: string): string {
  * Only the three reasons with approved wording say anything (owner, 12 Oct 2026); any other
  * reason, a counted document and a server that does not send `inputVat` say nothing.
  */
-export function inputVatNoteKey(inputVat: BillRowDto['inputVat'] | null | undefined): string | null {
+export function inputVatNoteKey(
+  inputVat: BillRowDto['inputVat'] | null | undefined,
+  reopened = false,
+): string | null {
   if (!inputVat || inputVat.counted) return null
+  // A reopened bill still reads reason REJECTED until it is approved again (backend V523 keeps input
+  // VAT off on a reopen and brings it back once, with the later approval), so "while rejected"
+  // would contradict the reopened state shown beside it.
+  if (reopened && inputVat.reason === 'REJECTED') return 'billDetail.inputVat.reopened'
   return Object.hasOwn(INPUT_VAT_NOTES, inputVat.reason) ? INPUT_VAT_NOTES[inputVat.reason] : null
 }
 
@@ -743,6 +800,13 @@ export function activityOf(detail: BillDetailDto, userId: string | null): Activi
   return detail.activity.map((entry) => {
     const duplicateHeld =
       entry.kind === 'HELD' && entry.at !== null && duplicateOpenings.has(entry.at)
+    // The server's detail is the same bills' numbers as text; they are drawn as links instead.
+    const override =
+      (entry.kind === 'DUPLICATE_OVERRIDDEN' || entry.kind === 'DUPLICATE_SUBMITTED_FOR_REVIEW') &&
+      entry.duplicateOverride
+        ? entry.duplicateOverride
+        : null
+    const byYou = userId !== null && entry.actor === userId
     return {
       key: duplicateHeld
         ? 'billDetail.activity.kind.HELD_AS_DUPLICATE'
@@ -761,8 +825,17 @@ export function activityOf(detail: BillDetailDto, userId: string | null): Activi
               ? null
               : (detail.bill.match?.summary ?? null)
             : entry.detail,
-      byYou: userId !== null && entry.actor === userId,
+      byYou,
       overpayment: overpaymentStepOf(entry.kind, entry.detail),
+      duplicateOverride: override && {
+        by: byYou ? null : (entry.actorName ?? null),
+        bills: override.overriddenBills.map((bill) => ({
+          billId: bill.billId,
+          number: bill.billNumber,
+        })),
+        reason: override.reason ?? null,
+        reasonRecorded: override.reasonRecorded,
+      },
     }
   })
 }

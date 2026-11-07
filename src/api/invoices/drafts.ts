@@ -178,8 +178,13 @@ export type BranchDto = {
   id: string
   code: string
   name: string
-  type: string
-  city: string | null
+  /**
+   * `type` and `city` come only to a reader with `branch.read`: the lookup the stock, till and
+   * catalogue readers get without it is `{id, code, name, nameAr}` (backend C3 65fc3ad41, owner
+   * B-5 decision 4), so nothing may rely on them being there.
+   */
+  type?: string
+  city?: string | null
   /** The Arabic name, when the server sends it; `useBranchName` falls back to the overview's. */
   nameAr?: string | null
 }

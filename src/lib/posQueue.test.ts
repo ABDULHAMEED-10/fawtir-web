@@ -2,17 +2,38 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError, resetSharedRequests } from '../api'
 import type { PosSaleRequest, PosTillDto } from '../api/pos/pos'
 import {
+  checkStorageAgain,
   correctQueuedSale,
   flushQueue,
   isFinalRefusal,
+  keyMayBeQueued,
+  queueDecision,
+  numberPrefix,
   numbersBefore,
   queuedFor,
+  noteQueueSender,
+  noteTillServer,
+  offlineBlock,
+  PosSaleOutcomeUnknown,
+  PosStorageUnavailable,
+  PosTenantZoneUnavailable,
   resetPosQueue,
   retryQueuedSale,
+  stopQueueSendsForSignOut,
+  storedRefusal,
   submitSale,
 } from './posQueue'
 import { heldSlipPhotos } from './posSlipOutbox'
+import { checkHeldWithServer } from './posHeldCheck'
+import { posRefusalKey } from './posRefusals'
 import { memoryVault, setPosVault, type PosVault } from './posVault'
+
+// Queue mechanics, not the QR: a consumer sale is queued offline only with its QR (owner
+// directive 2026-11-06), so the builder answers with a fixed stand-in here. The real build and
+// its refusals are tested in posOfflineQr.test.ts and posOfflineQrIssuance.test.ts.
+vi.mock('./posOfflineQr', () => ({
+  offlinePrintedQr: async () => ({ payload: 'AQ==', sellerUuid: 'stand-in', profileVersion: '0'.repeat(64) }),
+}))
 
 const TILL = {
   id: 'till-1',
@@ -74,6 +95,8 @@ beforeEach(() => {
   vault = memoryVault(true)
   setPosVault(vault)
   resetPosQueue()
+  // The person signed in on this device: only the sales they queue go by themselves (round 5, P3b).
+  noteQueueSender('u-1')
   resetSharedRequests()
   online = false
   calls = []
@@ -245,6 +268,62 @@ describe("an offline full invoice and the buyer's ID", () => {
     await flushQueue('till-1')
     expect(await vault.ids('pii')).toEqual(['pos-sale-key-0004'])
     expect(queuedFor('till-1')[0].final).toBeUndefined()
+  })
+
+  const salePosts = () =>
+    calls.filter((c) => c.url === '/api/v1/pos/sales' && c.init?.method === 'POST').length
+
+  it('does not send a full invoice whose sealed buyer cannot be opened, and holds it to try again (B38 OFF)', async () => {
+    await submitSale(TILL, BODY, 'pos-sale-key-0041')
+    // The vault this tab reaches has lost the copy (a failed open, or its data cleared).
+    setPosVault(memoryVault(true))
+    online = true
+    const before = salePosts()
+    expect(await flushQueue('till-1')).toBe('done')
+
+    expect(salePosts()).toBe(before)
+    const [entry] = queuedFor('till-1')
+    expect(entry).toMatchObject({
+      refusal: 'POS_QUEUED_BUYER_UNAVAILABLE',
+      sealed: true,
+      attempts: 1,
+    })
+    expect(entry.final).toBeUndefined()
+    expect(entry.notBefore).toBeDefined()
+    expect(entry.buyerRemoved).toBeUndefined()
+
+    // Resting, so not tried again at once.
+    await flushQueue('till-1')
+    expect(salePosts()).toBe(before)
+  })
+
+  it('Try again sends it with the buyer once the vault opens again, and filing deletes the copy (B38 OFF)', async () => {
+    await submitSale(TILL, BODY, 'pos-sale-key-0042')
+    setPosVault(memoryVault(true))
+    online = true
+    await flushQueue('till-1')
+    expect(queuedFor('till-1')[0].refusal).toBe('POS_QUEUED_BUYER_UNAVAILABLE')
+
+    setPosVault(vault)
+    await retryQueuedSale('till-1', 'pos-sale-key-0042')
+    expect(sentConsumer().identifierValue).toBe(CIVIL_ID)
+    expect(queuedFor('till-1')).toEqual([])
+    expect(await vault.ids('pii')).toEqual([])
+  })
+
+  it('in strict number order, a later queued sale waits behind the held one (B38 OFF)', async () => {
+    await submitSale(TILL, BODY, 'pos-sale-key-0043')
+    await submitSale(TILL, { ...BODY, customer: { kind: 'WALK_IN' } }, 'pos-sale-key-0044')
+    expect(queuedFor('till-1').map((entry) => entry.key)).toEqual([
+      'pos-sale-key-0043',
+      'pos-sale-key-0044',
+    ])
+    setPosVault(memoryVault(true))
+    online = true
+    const before = salePosts()
+    expect(await flushQueue('till-1')).toBe('done')
+    expect(salePosts()).toBe(before)
+    expect(queuedFor('till-1')).toHaveLength(2)
   })
 
   it('without a sealing vault, keeps the buyer in the entry, and removes it on a final refusal', async () => {
@@ -573,6 +652,40 @@ describe('a refused sale never stops the till (E2E 30 Oct 2026, H-1)', () => {
     expect(entries[1].final).toBe(true)
   })
 
+  it.each([
+    ['another person is noted at the till', () => noteQueueSender('u-2')],
+    ['the person signs out', () => stopQueueSendsForSignOut()],
+  ])(
+    'a run stops before its next sale when %s mid-send; the sale on the wire is filed, the rest wait (PRV43-OFF L-1)',
+    async (_, change) => {
+      const server = fakeServer()
+      const reply = saleReply
+      saleReply = () => {
+        const answer = reply()
+        if (server.posts.length === 1) change()
+        return answer
+      }
+      await submitSale(TILL, WALK_IN, 'pos-sale-key-first')
+      await submitSale(TILL, WALK_IN, 'pos-sale-key-second')
+      online = true
+
+      expect(await flushQueue('till-1')).toBe('done')
+
+      expect(server.posts.map((post) => post.key)).toEqual(['pos-sale-key-first'])
+      expect(queuedFor('till-1').map((entry) => entry.key)).toEqual(['pos-sale-key-second'])
+
+      // Its maker, back at the till, sends it.
+      saleReply = reply
+      noteQueueSender('u-1')
+      await flushQueue('till-1')
+      expect(server.posts.map((post) => post.key)).toEqual([
+        'pos-sale-key-first',
+        'pos-sale-key-second',
+      ])
+      expect(queuedFor('till-1')).toEqual([])
+    },
+  )
+
   it('on the current server later sales keep selling behind a final refusal, in order, and say why', async () => {
     const server = fakeServer()
     server.refuseKeys.add('pos-sale-key-bad')
@@ -593,7 +706,9 @@ describe('a refused sale never stops the till (E2E 30 Oct 2026, H-1)', () => {
     expect(server.next).toBe(49)
   })
 
-  it('on a server that allows it later sales go past a stuck one, naming it, and it can still be filed', async () => {
+  // Q-27 (owner P0-3): inverted. Even against a server that would skip (the #831 backend, which the
+  // fake models with `canSkip`) and a till saying `openNumbers: true`, this build keeps strict order.
+  it('a till saying openNumbers still keeps strict order: nothing goes past a stuck one, nothing names it', async () => {
     const server = fakeServer()
     server.canSkip = true
     server.refuseKeys.add('pos-sale-key-bad2')
@@ -601,32 +716,35 @@ describe('a refused sale never stops the till (E2E 30 Oct 2026, H-1)', () => {
     await submitSale(NEW_TILL, WALK_IN, 'pos-sale-key-next2')
     online = true
     // As the screen does: QueueSender tells the queue about the till.
-    const { noteTillServer } = await import('./posQueue')
     noteTillServer(NEW_TILL)
     await flushQueue('till-1')
 
-    expect(queuedFor('till-1').map((entry) => entry.key)).toEqual(['pos-sale-key-bad2'])
-    expect(server.filed.get('pos-sale-key-next2')).toBe('NZW-T01-INV-2026-000050')
-    const passing = server.posts.filter((post) => post.key === 'pos-sale-key-next2').pop()
-    expect(passing?.body.skippedNumbers).toEqual(['NZW-T01-INV-2026-000049'])
+    expect(queuedFor('till-1').map((entry) => entry.key)).toEqual([
+      'pos-sale-key-bad2',
+      'pos-sale-key-next2',
+    ])
+    expect(server.posts.some((post) => post.key === 'pos-sale-key-next2')).toBe(false)
+    expect(server.posts.every((post) => post.body.skippedNumbers === undefined)).toBe(true)
 
-    // A new sale is sold online, not queued, on its own number and flagged as online.
+    // A new sale is not sold online past the stuck one (NF-1): it is numbered and waits behind.
     const sold = await submitSale(NEW_TILL, WALK_IN, 'pos-sale-key-third2')
-    expect('sale' in sold && sold.sale.invoiceNumber).toBe('NZW-T01-INV-2026-000051')
-    const sent = server.posts.filter((post) => post.key === 'pos-sale-key-third2').pop()
-    expect(sent?.body).toMatchObject({ queuedOffline: false, invoiceNumber: null })
-    expect(sent?.body.skippedNumbers).toBeUndefined()
+    expect(sold).toMatchObject({ behind: true, queued: { number: 'NZW-T01-INV-2026-000051' } })
+    expect(server.posts.some((post) => post.key === 'pos-sale-key-third2')).toBe(false)
+    expect(server.next).toBe(49)
+    expect(calls.some((call) => call.url.includes('/pos/open-numbers'))).toBe(false)
 
     // Final: not sent again by itself.
     const tries = server.posts.filter((post) => post.key === 'pos-sale-key-bad2').length
     await flushQueue('till-1')
     expect(server.posts.filter((post) => post.key === 'pos-sale-key-bad2').length).toBe(tries)
 
-    // A person fixes the cause and presses Try again: the same key, filed once.
+    // A person fixes the cause and presses Try again: the same key, filed once, then the rest in order.
     server.refuseKeys.delete('pos-sale-key-bad2')
     await retryQueuedSale('till-1', 'pos-sale-key-bad2')
     expect(queuedFor('till-1')).toEqual([])
     expect(server.filed.get('pos-sale-key-bad2')).toBe('NZW-T01-INV-2026-000049')
+    expect(server.filed.get('pos-sale-key-next2')).toBe('NZW-T01-INV-2026-000050')
+    expect(server.filed.get('pos-sale-key-third2')).toBe('NZW-T01-INV-2026-000051')
     await retryQueuedSale('till-1', 'pos-sale-key-bad2')
     expect([...server.filed.values()].filter((v) => v.endsWith('000049'))).toHaveLength(1)
   })
@@ -702,6 +820,181 @@ describe('a refused sale never stops the till (E2E 30 Oct 2026, H-1)', () => {
     }
   })
 
+  it('a full invoice held for an HS code (PENDING_VALIDATION) stays unissued, and goes on the same key and number', async () => {
+    fakeServer()
+    await submitSale(TILL, BODY, 'pos-sale-key-hs')
+    online = true
+    const reply = saleReply
+    saleReply = () =>
+      new Response(
+        JSON.stringify({
+          type: 'https://api.fawtir.om/problems/x',
+          status: 422,
+          code: 'POS_QUEUED_SALE_HS_CODE_REQUIRED',
+          lines: [1, 3],
+          invoiceNumber: 'NZW-T01-INV-2026-000049',
+          state: 'PENDING_VALIDATION',
+        }),
+        { status: 422, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+    await flushQueue('till-1')
+    const [held] = queuedFor('till-1')
+    expect(held).toMatchObject({
+      refusal: 'POS_QUEUED_SALE_HS_CODE_REQUIRED',
+      number: 'NZW-T01-INV-2026-000049',
+      refusalValues: { lines: '1, 3' },
+    })
+    // Cleared only by a person adding the code, so it is never given up on and never final.
+    expect(held.final).toBeUndefined()
+    expect(
+      isFinalRefusal(
+        new ApiError({ status: 422, problemType: null, code: 'POS_QUEUED_SALE_HS_CODE_REQUIRED' }),
+      ),
+    ).toBe(false)
+
+    saleReply = reply
+    await retryQueuedSale('till-1', 'pos-sale-key-hs')
+    const posts = calls.filter((call) => call.init?.method === 'POST')
+    const last = posts.at(-1)!
+    expect(new Headers(last.init?.headers).get('Idempotency-Key')).toBe('pos-sale-key-hs')
+    expect(JSON.parse(String(last.init?.body)).invoiceNumber).toBe('NZW-T01-INV-2026-000049')
+    expect(queuedFor('till-1')).toEqual([])
+  })
+
+  // Backend 073d5261c exempts queued sales from the zone refusal; should one arrive anyway it is
+  // till-wide (review QEW-1): the entry is kept, never final, a new sale is refused to the cashier
+  // rather than printed and queued offline past the guard, and the entry goes once the zone is set.
+  it('a queued sale refused for the company zone stops new sales till-wide, and goes again', async () => {
+    fakeServer()
+    await submitSale(TILL, BODY, 'pos-sale-key-zone')
+    online = true
+    const reply = saleReply
+    saleReply = () =>
+      new Response(
+        JSON.stringify({
+          type: 'https://api.fawtir.om/problems/tenant-timezone-not-supported-for-e-invoice',
+          status: 422,
+          code: 'TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE',
+        }),
+        { status: 422, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+    expect(await flushQueue('till-1')).toMatchObject({ verdict: 'till' })
+    const [kept] = queuedFor('till-1')
+    expect(kept).toMatchObject({ key: 'pos-sale-key-zone', refusal: 'TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE' })
+    expect(kept.final).toBeUndefined()
+    // A new sale: thrown to the cashier, not numbered, not queued, never sent itself.
+    await expect(submitSale(TILL, BODY, 'pos-sale-key-zone-2')).rejects.toMatchObject({
+      status: 422,
+      code: 'TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE',
+    })
+    expect(queuedFor('till-1')).toHaveLength(1)
+    expect(
+      calls.some((call) => new Headers(call.init?.headers).get('Idempotency-Key') === 'pos-sale-key-zone-2'),
+    ).toBe(false)
+    expect(
+      isFinalRefusal(
+        new ApiError({ status: 422, problemType: null, code: 'TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE' }),
+      ),
+    ).toBe(false)
+    saleReply = reply
+    await retryQueuedSale('till-1', 'pos-sale-key-zone')
+    const last = calls.filter((call) => call.init?.method === 'POST').at(-1)!
+    expect(new Headers(last.init?.headers).get('Idempotency-Key')).toBe('pos-sale-key-zone')
+    expect(queuedFor('till-1')).toEqual([])
+  })
+
+  // NOT RUN (static only). Backend 8f04050ab (HS Slice B): a full invoice with a line that states
+  // neither goods nor services is held before issue. The server does not fill it on the resend and
+  // this device must not choose it, so the sale stays queued, on its number and unchanged.
+  it('a full invoice held for an undeclared line stays queued, numbered as printed and unchanged', async () => {
+    fakeServer()
+    await submitSale(TILL, BODY, 'pos-sale-key-gs')
+    online = true
+    saleReply = () =>
+      new Response(
+        JSON.stringify({
+          type: 'https://api.fawtir.om/problems/x',
+          status: 422,
+          code: 'POS_QUEUED_SALE_GOODS_OR_SERVICE_REQUIRED',
+          lines: [2],
+          invoiceNumber: 'NZW-T01-INV-2026-000049',
+          state: 'PENDING_VALIDATION',
+        }),
+        { status: 422, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+    await flushQueue('till-1')
+    const [held] = queuedFor('till-1')
+    expect(held).toMatchObject({
+      refusal: 'POS_QUEUED_SALE_GOODS_OR_SERVICE_REQUIRED',
+      number: 'NZW-T01-INV-2026-000049',
+      refusalValues: { lines: '2' },
+    })
+    expect(held.final).toBeUndefined()
+    expect(held.attempts).toBe(1)
+    expect(
+      isFinalRefusal(
+        new ApiError({
+          status: 422,
+          problemType: null,
+          code: 'POS_QUEUED_SALE_GOODS_OR_SERVICE_REQUIRED',
+        }),
+      ),
+    ).toBe(false)
+
+    await retryQueuedSale('till-1', 'pos-sale-key-gs')
+    const posts = calls.filter((call) => call.init?.method === 'POST')
+    const last = posts.at(-1)!
+    expect(new Headers(last.init?.headers).get('Idempotency-Key')).toBe('pos-sale-key-gs')
+    // Nothing on this device picked goods or services for the lines.
+    expect(JSON.parse(String(last.init?.body)).draft.lines).toEqual(held.body.draft.lines)
+    expect(queuedFor('till-1')).toHaveLength(1)
+  })
+
+  // Backend a2c9fcf0c (FIN-M3-CURRENCY-MIX Phase 2a): the implicit shift open carries the float over
+  // through expectedCash, which refuses 409 while the earlier shift's cash is in mixed or unrecorded
+  // currencies. A person clears that (counting the float, a new shift, a manager), so a queued sale
+  // refused there must stay on its printed number and body, retryable, never given up on (FIN-2a-3).
+  it.each(['POS_SHIFT_CURRENCY_MIXED', 'POS_SHIFT_CURRENCY_UNRECORDED'])(
+    'a queued sale refused %s at the float carry stays queued, numbered as printed and unchanged, and Try again sends it',
+    async (code) => {
+      fakeServer()
+      await submitSale(TILL, BODY, 'pos-sale-key-cur')
+      const [queued] = queuedFor('till-1')
+      online = true
+      const reply = saleReply
+      saleReply = () =>
+        new Response(
+          JSON.stringify({
+            type: `https://api.fawtir.om/problems/${code.toLowerCase().replace(/_/g, '-')}`,
+            status: 409,
+            code,
+            currencies: ['OMR', 'USD'],
+            unrecordedMovements: 2,
+          }),
+          { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+        )
+      await flushQueue('till-1')
+      const [held] = queuedFor('till-1')
+      expect(held).toMatchObject({
+        key: 'pos-sale-key-cur',
+        refusal: code,
+        number: queued.number,
+        attempts: 1,
+      })
+      expect(held.number).toBe('NZW-T01-INV-2026-000049')
+      expect(held.final).toBeUndefined()
+      expect(held.body).toEqual(queued.body)
+      expect(isFinalRefusal(new ApiError({ status: 409, problemType: null, code }))).toBe(false)
+
+      saleReply = reply
+      await retryQueuedSale('till-1', 'pos-sale-key-cur')
+      const last = calls.filter((call) => call.init?.method === 'POST').at(-1)!
+      expect(new Headers(last.init?.headers).get('Idempotency-Key')).toBe('pos-sale-key-cur')
+      expect(JSON.parse(String(last.init?.body)).invoiceNumber).toBe('NZW-T01-INV-2026-000049')
+      expect(queuedFor('till-1')).toEqual([])
+    },
+  )
+
   it('on the current server an unreviewed refusal holds later numbers only as far as number order forces', async () => {
     const server = fakeServer()
     await submitSale(TILL, WALK_IN, 'pos-sale-key-u1')
@@ -774,5 +1067,834 @@ describe('a refused sale never stops the till (E2E 30 Oct 2026, H-1)', () => {
       'NZW-T01-INV-2026-000050',
     ])
     expect(numbersBefore('NZW-T01-INV-2026-000049', 'NZW-T01-INV-2026-000049')).toEqual([])
+  })
+})
+
+describe('the refusal an entry keeps (review W5-SHARED)', () => {
+  const phrase = (status: number, reason: string) =>
+    new Response(JSON.stringify({ timestamp: '2026-11-05T08:00:00Z', status, error: reason, path: '/x' }), {
+      status,
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+  it('keeps HTTP_500 for a 5xx whose only "code" is the reason phrase, and a real code as it is', () => {
+    const gateway = new ApiError({ status: 500, problemType: null, code: 'Internal Server Error' })
+    expect(storedRefusal(gateway)).toBe('HTTP_500')
+    const coded = new ApiError({ status: 503, problemType: null, code: 'BILL_PAYMENT_ON_HOLD' })
+    expect(storedRefusal(coded)).toBe('BILL_PAYMENT_ON_HOLD')
+    expect(storedRefusal(new ApiError({ status: 502, problemType: null }))).toBe('HTTP_502')
+  })
+
+  it('a phrase-bearing 5xx only waits, and a phrase-bearing refusal is kept as HTTP_<status>', async () => {
+    await submitSale(TILL, { ...BODY, customer: { kind: 'WALK_IN' } }, 'pos-sale-key-phrase')
+    online = true
+    // A 5xx never reaches the stored refusal: the verdict (unchanged) is 'wait'.
+    saleReply = () => phrase(500, 'Internal Server Error')
+    await flushQueue('till-1')
+    expect(queuedFor('till-1')[0].refusal ?? null).toBeNull()
+    saleReply = () => phrase(409, 'Conflict')
+    await flushQueue('till-1')
+    expect(queuedFor('till-1')[0].refusal).toBe('HTTP_409')
+  })
+})
+
+describe('offline numbers across a new year (B36 OFF-1)', () => {
+  const NEW_YEAR_TILL = {
+    ...TILL,
+    series: { INVOICE: { series: 'NZW-T01-INV', year: 2027, nextValue: 1 } },
+  } as unknown as PosTillDto
+  // 1 Jan 2027 00:30 in Muscat (UTC+4), while UTC still reads 31 Dec 2026.
+  const JUST_AFTER_MIDNIGHT = '2026-12-31T20:30:00Z'
+  const LAST_MINUTE = '2026-12-31T19:59:00Z'
+
+  it('prints no number for a new-year sale on a till last read in the old year, and keeps nothing', async () => {
+    await expect(
+      submitSale(TILL, { ...BODY, soldAt: JUST_AFTER_MIDNIGHT }, 'pos-sale-key-ny01'),
+      // E-01: its request went out first, so the outcome is unknown rather than "offline".
+    ).rejects.toBeInstanceOf(PosSaleOutcomeUnknown)
+    expect(queuedFor('till-1')).toEqual([])
+  })
+
+  it("still numbers the old year's last minute on the old year's series", async () => {
+    const result = await submitSale(TILL, { ...BODY, soldAt: LAST_MINUTE }, 'pos-sale-key-ny02')
+    expect('queued' in result && result.queued.number).toBe('NZW-T01-INV-2026-000049')
+  })
+
+  it("starts the new year at the server's value: the old year's counter and queue do not carry over", async () => {
+    await submitSale(TILL, BODY, 'pos-sale-key-ny03')
+    await submitSale(TILL, BODY, 'pos-sale-key-ny04')
+    expect(queuedFor('till-1').map((entry) => entry.number)).toEqual([
+      'NZW-T01-INV-2026-000049',
+      'NZW-T01-INV-2026-000050',
+    ])
+
+    const first = await submitSale(
+      NEW_YEAR_TILL,
+      { ...BODY, soldAt: '2027-01-01T08:00:00Z' },
+      'pos-sale-key-ny05',
+    )
+    const second = await submitSale(
+      NEW_YEAR_TILL,
+      { ...BODY, soldAt: '2027-01-01T08:05:00Z' },
+      'pos-sale-key-ny06',
+    )
+    expect('queued' in first && first.queued.number).toBe('NZW-T01-INV-2027-000001')
+    expect('queued' in second && second.queued.number).toBe('NZW-T01-INV-2027-000002')
+  })
+
+  it('adopts a counter kept before it was per year once, into the year in use, and drops it', async () => {
+    window.localStorage.setItem('fawtir.pos.next.till-1', '60')
+    const first = await submitSale(TILL, BODY, 'pos-sale-key-ny07')
+    expect('queued' in first && first.queued.number).toBe('NZW-T01-INV-2026-000060')
+    expect(window.localStorage.getItem('fawtir.pos.next.till-1')).toBeNull()
+    expect(window.localStorage.getItem('fawtir.pos.next.till-1.NZW-T01-INV-2026')).toBe('61')
+
+    const second = await submitSale(TILL, BODY, 'pos-sale-key-ny08')
+    expect('queued' in second && second.queued.number).toBe('NZW-T01-INV-2026-000061')
+  })
+
+  it('reads the series and year a number runs in', () => {
+    expect(numberPrefix('NZW-T01-INV-2026-000123')).toBe('NZW-T01-INV-2026')
+    expect(numberPrefix('not a till number')).toBeNull()
+  })
+})
+
+describe('offline numbering in the tenant zone (B37 OFF-6)', () => {
+  // UTC+14. 2026-12-31T10:30Z is 1 Jan 2027 00:30 there and 31 Dec 14:30 in Muscat.
+  const KIRITIMATI = 'Pacific/Kiritimati'
+  const THERE_NEW_YEAR = '2026-12-31T10:30:00Z'
+  const tillIn = (year: number, nextValue: number, timeZone?: string) =>
+    ({
+      ...TILL,
+      series: { INVOICE: { series: 'NZW-T01-INV', year, nextValue, timeZone } },
+    }) as unknown as PosTillDto
+
+  it("numbers a sale in the year of the server's zone, not Muscat's", async () => {
+    const result = await submitSale(
+      tillIn(2027, 1, KIRITIMATI),
+      { ...BODY, soldAt: THERE_NEW_YEAR },
+      'pos-sale-key-tz01',
+    )
+    expect('queued' in result && result.queued.number).toBe('NZW-T01-INV-2027-000001')
+  })
+
+  it("prints nothing when the till was read before the zone's new year and the sale is after it", async () => {
+    await expect(
+      submitSale(tillIn(2026, 49, KIRITIMATI), { ...BODY, soldAt: THERE_NEW_YEAR }, 'pos-sale-key-tz02'),
+    ).rejects.toBeInstanceOf(PosSaleOutcomeUnknown)
+    expect(queuedFor('till-1')).toEqual([])
+  })
+
+  it('keeps Asia/Muscat for a server that does not name its zone', async () => {
+    const result = await submitSale(
+      tillIn(2026, 49),
+      { ...BODY, soldAt: THERE_NEW_YEAR },
+      'pos-sale-key-tz03',
+    )
+    expect('queued' in result && result.queued.number).toBe('NZW-T01-INV-2026-000049')
+  })
+
+  const salePosts = () =>
+    calls.filter((call) => call.url === '/api/v1/pos/sales' && call.init?.method === 'POST')
+
+  // Owner decision XT2-ZONE-UNREADABLE (2026-11-05 item 4, Option A): fail closed with its own refusal.
+  it('prints nothing for a zone this browser cannot read', async () => {
+    await expect(
+      submitSale(tillIn(2026, 49, 'Not/AZone'), BODY, 'pos-sale-key-tz04'),
+    ).rejects.toBeInstanceOf(PosTenantZoneUnavailable)
+    expect(queuedFor('till-1')).toEqual([])
+    expect(salePosts()).toEqual([])
+  })
+
+  // Agent 10 test gap 2 on 346d0d06c: the refused sale sends nothing, its waiting sales included.
+  it('a zone-refused sale flushes nothing that waits; Try again and the flush still send them in order', async () => {
+    const walkIn: PosSaleRequest = { ...BODY, customer: { kind: 'WALK_IN' } }
+    const valid = tillIn(2026, 49, 'Asia/Muscat')
+    await submitSale(valid, walkIn, 'pos-sale-key-tzq1')
+    await submitSale(valid, walkIn, 'pos-sale-key-tzq2')
+    expect(queuedFor('till-1').map((entry) => entry.number)).toEqual([
+      'NZW-T01-INV-2026-000049',
+      'NZW-T01-INV-2026-000050',
+    ])
+    online = true
+    // Each answer files the number it was sent.
+    saleReply = () => {
+      const sent = JSON.parse(String(calls[calls.length - 1].init?.body)) as PosSaleRequest
+      return json({ saleId: `s-${sent.invoiceNumber}`, invoiceNumber: sent.invoiceNumber, warnings: [] }, 201)
+    }
+    const posted = () =>
+      salePosts().map((call) => new Headers(call.init?.headers).get('Idempotency-Key'))
+    const offlineTries = posted()
+
+    await expect(
+      submitSale(tillIn(2026, 49, 'Not/AZone'), walkIn, 'pos-sale-key-tzq3'),
+    ).rejects.toBeInstanceOf(PosTenantZoneUnavailable)
+    // No POST for any key: neither the refused sale nor the two waiting before it.
+    expect(posted()).toEqual(offlineTries)
+    expect(queuedFor('till-1').map((entry) => entry.key)).toEqual(['pos-sale-key-tzq1', 'pos-sale-key-tzq2'])
+    expect(offlineBlock('till-1', 'online')).toBeNull()
+
+    await retryQueuedSale('till-1', 'pos-sale-key-tzq1')
+    expect(posted().slice(offlineTries.length)[0]).toBe('pos-sale-key-tzq1')
+    await flushQueue('till-1')
+    expect(posted().slice(offlineTries.length)).toEqual(['pos-sale-key-tzq1', 'pos-sale-key-tzq2'])
+    expect(queuedFor('till-1')).toEqual([])
+  })
+
+  it('a zone failure is not a storage failure: no block, no Check again loop, and it sells once the zone is valid', async () => {
+    const unreadable = tillIn(2026, 49, 'Not/AZone')
+    online = true
+    const first = await submitSale(unreadable, BODY, 'pos-sale-key-tz05').then(
+      () => null,
+      (thrown: unknown) => thrown,
+    )
+    expect(first).toBeInstanceOf(PosTenantZoneUnavailable)
+    expect(first).not.toBeInstanceOf(PosStorageUnavailable)
+    expect(posRefusalKey(first)).toBe('pos.refusal.tenantZoneUnavailable')
+    expect(posRefusalKey(new PosStorageUnavailable('denied'))).toBe('pos.refusal.storageUnavailable')
+    // No till-wide storage block was set, so Check again has nothing to lift or set again.
+    expect(offlineBlock('till-1')).toBeNull()
+    expect(offlineBlock('till-1', 'online')).toBeNull()
+    expect(checkStorageAgain()).toBeNull()
+    expect(offlineBlock('till-1', 'online')).toBeNull()
+    // Asked again with the same till, it is refused the same way: nothing was stored to flip.
+    await expect(submitSale(unreadable, BODY, 'pos-sale-key-tz05')).rejects.toBeInstanceOf(
+      PosTenantZoneUnavailable,
+    )
+    expect(salePosts()).toEqual([])
+    expect(queuedFor('till-1')).toEqual([])
+
+    // The till read again with a zone this browser verifies: the sale goes.
+    saleReply = () =>
+      json({ saleId: 's-tz', invoiceNumber: 'NZW-T01-INV-2026-000049', warnings: [] }, 201)
+    const sold = await submitSale(tillIn(2026, 49, 'Asia/Muscat'), BODY, 'pos-sale-key-tz05')
+    expect('sale' in sold).toBe(true)
+    expect(salePosts()).toHaveLength(1)
+  })
+})
+
+describe('a queue shared by two tabs of the till (B37 OFF-4)', () => {
+  const otherTabEntry = {
+    key: 'pos-sale-key-other-tab',
+    tillId: 'till-1',
+    number: 'NZW-T01-INV-2026-000050',
+    body: { ...BODY, customer: { kind: 'WALK_IN' }, queuedOffline: true, invoiceNumber: 'NZW-T01-INV-2026-000050' },
+    refusal: null,
+  }
+
+  it('never writes over a sale another tab queued', async () => {
+    await submitSale(TILL, BODY, 'pos-sale-key-tab-1')
+    const stored = JSON.parse(window.localStorage.getItem('fawtir.pos.queue') ?? '[]')
+    window.localStorage.setItem('fawtir.pos.queue', JSON.stringify([...stored, otherTabEntry]))
+
+    const mine = await submitSale(TILL, BODY, 'pos-sale-key-tab-2')
+
+    expect('queued' in mine && mine.queued.number).toBe('NZW-T01-INV-2026-000051')
+    const keys = JSON.parse(window.localStorage.getItem('fawtir.pos.queue') ?? '[]').map(
+      (entry: { key: string }) => entry.key,
+    )
+    expect(keys).toEqual(['pos-sale-key-tab-1', 'pos-sale-key-other-tab', 'pos-sale-key-tab-2'])
+    expect(queuedFor('till-1').map((entry) => entry.key)).toEqual(keys)
+  })
+
+  it('sees a sale the other tab has since sent as gone', async () => {
+    window.localStorage.setItem('fawtir.pos.queue', JSON.stringify([otherTabEntry]))
+    expect(queuedFor('till-1').map((entry) => entry.key)).toEqual(['pos-sale-key-other-tab'])
+    window.localStorage.setItem('fawtir.pos.queue', '[]')
+    window.dispatchEvent(new StorageEvent('storage', { key: 'fawtir.pos.queue' }))
+    expect(queuedFor('till-1')).toEqual([])
+  })
+
+  it('does not take unreadable text for an empty queue', async () => {
+    await submitSale(TILL, BODY, 'pos-sale-key-tab-3')
+    window.localStorage.setItem('fawtir.pos.queue', '{not json')
+    expect(queuedFor('till-1').map((entry) => entry.key)).toEqual(['pos-sale-key-tab-3'])
+  })
+})
+
+describe("a queued sale's warnings reach the next sale (B37 OFF-8)", () => {
+  it('says every warning of the background send, naming the filed sale', async () => {
+    await submitSale(TILL, BODY, 'pos-sale-key-warn-1')
+    online = true
+    const reply = saleReply
+    saleReply = () =>
+      json(
+        {
+          saleId: 'sale-1',
+          invoiceNumber: 'NZW-T01-INV-2026-000049',
+          warnings: [
+            { code: 'STOCK_BELOW_ZERO', line: 2, message: 'not shown' },
+            { code: 'POS_DISCOUNT_ABOVE_LIMIT_ACCEPTED', line: null, message: 'not shown' },
+            { code: 'FILED_PAST_RESTRICTION', line: null, message: 'not shown' },
+          ],
+        },
+        201,
+      )
+    await flushQueue('till-1')
+    expect(queuedFor('till-1')).toEqual([])
+
+    saleReply = reply
+    const next = await submitSale(TILL, BODY, 'pos-sale-key-warn-2')
+    expect('sale' in next && next.sale.warnings).toEqual([
+      { code: 'STOCK_BELOW_ZERO', line: 2, filed: 'NZW-T01-INV-2026-000049' },
+      { code: 'POS_DISCOUNT_ABOVE_LIMIT_ACCEPTED', line: null, filed: 'NZW-T01-INV-2026-000049' },
+      { code: 'FILED_PAST_RESTRICTION', line: null, filed: 'NZW-T01-INV-2026-000049' },
+    ])
+    const after = await submitSale(TILL, BODY, 'pos-sale-key-warn-3')
+    expect('sale' in after && after.sale.warnings).toEqual([])
+  })
+})
+
+// NOT RUN (batch 43, static only). Owner Round 13, L-2: the maker goes to the server only as an
+// untrusted claim, and only where it can neither break a proof nor be refused as an unknown field.
+describe('the maker sent as an untrusted claim (Round 13 L-2)', () => {
+  const WALK_IN: PosSaleRequest = { ...BODY, customer: { kind: 'WALK_IN' } }
+  const queued = (value: number, extra: Partial<PosSaleRequest> = {}) => {
+    const number = `NZW-T01-INV-2026-${String(value).padStart(6, '0')}`
+    return {
+      key: `pos-sale-key-claim-${value}`,
+      tillId: 'till-1',
+      number,
+      body: { ...WALK_IN, queuedOffline: true, invoiceNumber: number, ...extra },
+      refusal: null,
+      madeBy: { userId: 'u-1', name: 'Maryam' },
+    }
+  }
+  const sentBodies = () =>
+    calls
+      .filter((call) => call.url === '/api/v1/pos/sales' && call.init?.method === 'POST')
+      .map((call) => JSON.parse(String(call.init?.body)) as PosSaleRequest)
+
+  it('names the maker on an unsigned sale to a server that takes it, never on a signed one', async () => {
+    window.localStorage.setItem(
+      'fawtir.pos.queue',
+      JSON.stringify([
+        queued(49, { offlineProof: { keyId: 'k-1', signature: 'A'.repeat(86) } }),
+        queued(50),
+      ]),
+    )
+    noteTillServer({ id: 'till-1', openNumbers: false, takesMakerClaim: true })
+    online = true
+
+    await flushQueue('till-1')
+
+    const [signed, unsigned] = sentBodies()
+    expect(signed.invoiceNumber).toBe('NZW-T01-INV-2026-000049')
+    expect(signed).not.toHaveProperty('claimedMakerUnverified')
+    expect(unsigned.invoiceNumber).toBe('NZW-T01-INV-2026-000050')
+    expect(unsigned.claimedMakerUnverified).toBe('u-1')
+  })
+
+  it('sends nothing of the kind to a server that has not said it takes it', async () => {
+    window.localStorage.setItem('fawtir.pos.queue', JSON.stringify([queued(49)]))
+    noteTillServer({ id: 'till-1', openNumbers: false })
+    online = true
+
+    await flushQueue('till-1')
+
+    expect(sentBodies()).toHaveLength(1)
+    expect(sentBodies()[0]).not.toHaveProperty('claimedMakerUnverified')
+  })
+
+  it('names nobody for an entry whose maker was never kept', async () => {
+    const entry: Partial<ReturnType<typeof queued>> = queued(49)
+    delete entry.madeBy
+    window.localStorage.setItem('fawtir.pos.queue', JSON.stringify([entry]))
+    noteTillServer({ id: 'till-1', openNumbers: false, takesMakerClaim: true })
+    online = true
+
+    await retryQueuedSale('till-1', 'pos-sale-key-claim-49', 'u-1')
+
+    expect(sentBodies()).toHaveLength(1)
+    expect(sentBodies()[0]).not.toHaveProperty('claimedMakerUnverified')
+  })
+
+  const sentKeys = () =>
+    calls
+      .filter((call) => call.url === '/api/v1/pos/sales' && call.init?.method === 'POST')
+      .map((call) => new Headers(call.init?.headers).get('Idempotency-Key'))
+
+  it('an older server refusing the unknown claim gets the same sale once more without it, and no claim after (PRV43-OFF2 N-6)', async () => {
+    window.localStorage.setItem('fawtir.pos.queue', JSON.stringify([queued(49), queued(50)]))
+    noteTillServer({ id: 'till-1', openNumbers: false, takesMakerClaim: true })
+    online = true
+    let replies = 0
+    saleReply = () => {
+      replies += 1
+      if (replies === 1) {
+        return new Response(
+          JSON.stringify({ type: 'https://api.fawtir.om/problems/malformed-request', status: 400 }),
+          { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
+        )
+      }
+      return json(
+        {
+          saleId: `sale-${replies}`,
+          invoiceNumber: 'n',
+          receipt: { qr: { status: 'PENDING' } },
+          filing: { dispatchState: 'QUEUED' },
+          warnings: [],
+        },
+        201,
+      )
+    }
+
+    expect(await flushQueue('till-1')).toBe('done')
+
+    const [refused, resent, next] = sentBodies()
+    expect(refused.claimedMakerUnverified).toBe('u-1')
+    expect(resent).not.toHaveProperty('claimedMakerUnverified')
+    const { claimedMakerUnverified: _claim, ...unclaimed } = refused
+    void _claim
+    expect(resent).toEqual(unclaimed)
+    expect(sentKeys().slice(0, 2)).toEqual(['pos-sale-key-claim-49', 'pos-sale-key-claim-49'])
+    expect(next).not.toHaveProperty('claimedMakerUnverified')
+    expect(sentBodies()).toHaveLength(3)
+    expect(queuedFor('till-1')).toEqual([])
+  })
+
+  it('a malformed-request refusal of a body with no claim is not resent', async () => {
+    window.localStorage.setItem('fawtir.pos.queue', JSON.stringify([queued(49)]))
+    noteTillServer({ id: 'till-1', openNumbers: false })
+    online = true
+    saleReply = () =>
+      new Response(
+        JSON.stringify({ type: 'https://api.fawtir.om/problems/malformed-request', status: 400 }),
+        { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+
+    await flushQueue('till-1')
+
+    expect(sentBodies()).toHaveLength(1)
+    expect(queuedFor('till-1')).toHaveLength(1)
+  })
+
+  // PRV43-OFF3 L-5: only the malformed-request refusal is the older server's answer to the claim; any
+  // other 400 is about the sale itself, and resending it without the claim would change nothing.
+  it('a body carrying the claim refused 400 as anything but malformed-request is not resent', async () => {
+    window.localStorage.setItem('fawtir.pos.queue', JSON.stringify([queued(49)]))
+    noteTillServer({ id: 'till-1', openNumbers: false, takesMakerClaim: true })
+    online = true
+    saleReply = () =>
+      new Response(
+        JSON.stringify({ type: 'https://api.fawtir.om/problems/validation-failed', status: 400 }),
+        { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+
+    await flushQueue('till-1')
+
+    expect(sentBodies()).toHaveLength(1)
+    expect(sentBodies()[0].claimedMakerUnverified).toBe('u-1')
+    expect(queuedFor('till-1')).toHaveLength(1)
+  })
+})
+
+// NOT RUN (batch 43, static only). PRV43-OFF2 N-7 asked that the number-gap retry, a second POST, be
+// held to the sender check. Under Q-27 (owner P0-3) that retry never happens at all: a gap refusal
+// on a till saying `openNumbers` is one POST, kept as a held refusal, with nothing skipped.
+describe('the number-gap refusal on a till that says openNumbers (Q-27)', () => {
+  it('sends no skip retry, signed out or not; the entry stays, held on the gap', async () => {
+    const number = 'NZW-T01-INV-2026-000050'
+    window.localStorage.setItem(
+      'fawtir.pos.queue',
+      JSON.stringify([
+        {
+          key: 'pos-sale-key-gap-50',
+          tillId: 'till-1',
+          number,
+          body: {
+            ...BODY,
+            customer: { kind: 'WALK_IN' },
+            queuedOffline: true,
+            invoiceNumber: number,
+          },
+          refusal: null,
+          madeBy: { userId: 'u-1', name: 'Maryam' },
+        },
+      ]),
+    )
+    noteTillServer({ id: 'till-1', openNumbers: true })
+    online = true
+    saleReply = () => {
+      stopQueueSendsForSignOut()
+      return new Response(
+        JSON.stringify({
+          type: 'https://api.fawtir.om/problems/pos-till-number-gap',
+          status: 409,
+          code: 'POS_TILL_NUMBER_GAP',
+          expectedNumber: 'NZW-T01-INV-2026-000049',
+        }),
+        { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+    }
+
+    expect(await flushQueue('till-1')).toMatchObject({ verdict: 'held' })
+
+    const posts = calls.filter(
+      (call) => call.url === '/api/v1/pos/sales' && call.init?.method === 'POST',
+    )
+    expect(posts).toHaveLength(1)
+    expect(JSON.parse(String(posts[0].init?.body))).not.toHaveProperty('skippedNumbers')
+    expect(queuedFor('till-1')).toHaveLength(1)
+    const [waiting] = queuedFor('till-1')
+    expect(waiting.key).toBe('pos-sale-key-gap-50')
+    expect(waiting.refusal).toBe('POS_TILL_NUMBER_GAP')
+    expect(waiting.final).toBeUndefined()
+  })
+
+  // T-GAP: a forged gap answer naming any expected number moves nothing either.
+  it('a gap refusal naming a far-back expected number still sends once and skips nothing', async () => {
+    const number = 'NZW-T01-INV-2026-000060'
+    window.localStorage.setItem(
+      'fawtir.pos.queue',
+      JSON.stringify([
+        {
+          key: 'pos-sale-key-gap-60',
+          tillId: 'till-1',
+          number,
+          body: { ...BODY, customer: { kind: 'WALK_IN' }, queuedOffline: true, invoiceNumber: number },
+          refusal: null,
+          madeBy: { userId: 'u-1', name: 'Maryam' },
+        },
+      ]),
+    )
+    noteTillServer({ id: 'till-1', openNumbers: true, takesMakerClaim: false })
+    online = true
+    saleReply = () =>
+      new Response(
+        JSON.stringify({
+          type: 'https://api.fawtir.om/problems/pos-till-number-gap',
+          status: 409,
+          code: 'POS_TILL_NUMBER_GAP',
+          expectedNumber: 'NZW-T01-INV-2026-000001',
+        }),
+        { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+
+    await flushQueue('till-1')
+
+    const posts = calls.filter(
+      (call) => call.url === '/api/v1/pos/sales' && call.init?.method === 'POST',
+    )
+    expect(posts).toHaveLength(1)
+    expect(JSON.parse(String(posts[0].init?.body))).not.toHaveProperty('skippedNumbers')
+    expect(queuedFor('till-1').map((entry) => entry.key)).toEqual(['pos-sale-key-gap-60'])
+  })
+})
+
+// NOT RUN (RC5 W-Q27, static only). Owner P0-3 / Q-27 hard-disable and the NF7R device marker
+// (DES43 rev 4.3.4 §5.6 option (b); A8-G1, A8-G6). Appendix N: N-R2e, N-R2g, N-R2h, N-R2i.
+describe('Q-27: open-number skipping is off whatever the till or the device says', () => {
+  const WALK_IN: PosSaleRequest = { ...BODY, customer: { kind: 'WALK_IN' } }
+  const PROOF = { keyId: 'k-1', signature: 'A'.repeat(86) }
+  const PRINTED = { taxable: 5, vat: 0.25, total: 5.25 }
+  const stored = (value: number, extra: Record<string, unknown> = {}, body: object = {}) => {
+    const number = `NZW-T01-INV-2026-${String(value).padStart(6, '0')}`
+    return {
+      key: `pos-sale-key-q27-${value}`,
+      tillId: 'till-1',
+      number,
+      body: { ...WALK_IN, queuedOffline: true, invoiceNumber: number, ...body },
+      refusal: null,
+      madeBy: { userId: 'u-1', name: 'Maryam' },
+      ...extra,
+    }
+  }
+  const sales = () =>
+    calls.filter((call) => call.url === '/api/v1/pos/sales' && call.init?.method === 'POST')
+  const sentBody = (index: number) =>
+    JSON.parse(String(sales()[index].init?.body)) as PosSaleRequest & Record<string, unknown>
+  const sentKey = (index: number) => new Headers(sales()[index].init?.headers).get('Idempotency-Key')
+  const skipping = { ...TILL, openNumbers: true } as PosTillDto
+
+  it('a legacy set-aside head blocks strict order; Try again sends it once, signed, and leaves only the device marker', async () => {
+    window.localStorage.setItem(
+      'fawtir.pos.queue',
+      JSON.stringify([
+        stored(
+          49,
+          { refusal: 'SIMPLIFIED_INVOICE_LIMIT', final: true, setAside: true },
+          { offlineProof: PROOF, printed: PRINTED },
+        ),
+        // A8-2: a refusal that is not on the FINAL list comes back to life on load.
+        stored(50, { refusal: 'PERIOD_CLOSED', final: true }),
+        stored(51),
+      ]),
+    )
+    noteTillServer({ id: 'till-1', openNumbers: true, takesMakerClaim: false })
+    online = true
+
+    expect(queuedFor('till-1')[1].final).toBeUndefined()
+
+    await flushQueue('till-1')
+    expect(sales()).toHaveLength(0)
+
+    const sold = await submitSale(skipping, WALK_IN, 'pos-sale-key-q27-new')
+    expect(sold).toMatchObject({ behind: true, queued: { number: 'NZW-T01-INV-2026-000052' } })
+    expect(sales()).toHaveLength(0)
+
+    saleReply = () => refusal(409, 'POS_TILL_NUMBER_REPEATED')
+    await retryQueuedSale('till-1', 'pos-sale-key-q27-49', 'u-1')
+
+    expect(sales()).toHaveLength(1)
+    expect(sentKey(0)).toBe('pos-sale-key-q27-49')
+    const body = sentBody(0)
+    expect(body.offlineProof).toEqual(PROOF)
+    expect(body.printed).toEqual(PRINTED)
+    expect(body.invoiceNumber).toBe('NZW-T01-INV-2026-000049')
+    expect(body).not.toHaveProperty('setAside')
+    expect(body).not.toHaveProperty('setAsideSeen')
+    expect(body).not.toHaveProperty('skippedNumbers')
+
+    const entries = queuedFor('till-1')
+    expect(entries.map((entry) => entry.key)).toEqual([
+      'pos-sale-key-q27-49',
+      'pos-sale-key-q27-50',
+      'pos-sale-key-q27-51',
+      'pos-sale-key-q27-new',
+    ])
+    expect(entries[0]).toMatchObject({
+      refusal: 'POS_TILL_NUMBER_REPEATED',
+      final: true,
+      setAsideSeen: true,
+    })
+    expect(entries[0].setAside).toBeUndefined()
+  })
+
+  it('Try again on a set-aside entry behind a blocker sends nothing, keeps order, and leaves the marker', async () => {
+    window.localStorage.setItem(
+      'fawtir.pos.queue',
+      JSON.stringify([
+        stored(49, { refusal: 'SIMPLIFIED_INVOICE_LIMIT', final: true }),
+        stored(50, { refusal: 'SIMPLIFIED_INVOICE_LIMIT', final: true, setAside: true }),
+      ]),
+    )
+    online = true
+
+    await retryQueuedSale('till-1', 'pos-sale-key-q27-50', 'u-1')
+    expect(sales()).toHaveLength(0)
+    const [, second] = queuedFor('till-1')
+    expect(second.setAside).toBeUndefined()
+    expect(second.setAsideSeen).toBe(true)
+
+    await flushQueue('till-1')
+    expect(sales()).toHaveLength(0)
+    expect(queuedFor('till-1')).toHaveLength(2)
+  })
+
+  it('a correction of a set-aside entry goes unsigned with the new payments and keeps the marker', async () => {
+    window.localStorage.setItem(
+      'fawtir.pos.queue',
+      JSON.stringify([
+        stored(
+          49,
+          { refusal: 'POS_PAYMENTS_DO_NOT_MATCH_TOTAL', final: true, setAside: true },
+          { offlineProof: PROOF, printed: PRINTED },
+        ),
+      ]),
+    )
+    online = true
+    saleReply = () => refusal(422, 'POS_PAYMENTS_DO_NOT_MATCH_TOTAL')
+
+    await correctQueuedSale('till-1', 'pos-sale-key-q27-49', [{ method: 'CARD', amount: 6 }], 'u-1')
+
+    expect(sales()).toHaveLength(1)
+    const body = sentBody(0)
+    expect(body).not.toHaveProperty('offlineProof')
+    expect(body).not.toHaveProperty('printed')
+    expect(body).not.toHaveProperty('setAsideSeen')
+    expect(body.payments).toEqual([{ method: 'CARD', amount: 6 }])
+    const [entry] = queuedFor('till-1')
+    expect(entry.setAside).toBeUndefined()
+    expect(entry.setAsideSeen).toBe(true)
+  })
+
+  // N-R2e, N-R2g, N-R2i. The till's cached copy (`fawtir.pos.offline.<tenant>.<user>.tills.<branch>`)
+  // is this same DTO after a JSON round trip; the cache read itself is covered in the browser (N-R2-BR).
+  it.each([
+    ['openNumbers: true', { openNumbers: true }],
+    ['openNumbers as text', { openNumbers: 'true' }],
+    ['the legacy skipsStuckNumbers', { skipsStuckNumbers: true }],
+    ['both flags (#831 shapes)', { openNumbers: true, skipsStuckNumbers: true }],
+  ])('a till carrying %s, as cached on the device, still keeps strict order', async (_name, flags) => {
+    const cached = JSON.parse(JSON.stringify({ ...TILL, ...flags })) as PosTillDto
+    window.localStorage.setItem(
+      'fawtir.pos.queue',
+      JSON.stringify([stored(49, { refusal: 'SIMPLIFIED_INVOICE_LIMIT', final: true })]),
+    )
+    noteTillServer(cached)
+    online = true
+
+    const sold = await submitSale(cached, WALK_IN, 'pos-sale-key-q27-cached')
+
+    expect(sold).toMatchObject({ behind: true, queued: { number: 'NZW-T01-INV-2026-000050' } })
+    expect(sales()).toHaveLength(0)
+    expect(calls.some((call) => call.url.includes('/pos/open-numbers'))).toBe(false)
+  })
+})
+
+// Owner v2 K30: the gateway's 413 (RequestSizeLimitFilter, problem type payload-too-large, no code).
+// The same body can never fit, so the sale stays on the device on its number with no retry loop.
+describe('a queued sale too large to send (K30)', () => {
+  const WALK_IN: PosSaleRequest = { ...BODY, customer: { kind: 'WALK_IN' } }
+  const tooLarge = () =>
+      new Response(
+        JSON.stringify({
+          type: 'https://api.fawtir.om/problems/payload-too-large',
+          title: 'Payload Too Large',
+          status: 413,
+        }),
+        { status: 413, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+  const posted = (key: string) =>
+    calls.filter(
+      (call) =>
+        call.init?.method === 'POST' && new Headers(call.init.headers).get('Idempotency-Key') === key,
+    ).length
+
+  it('is kept final on its number and body, is not sent again by itself, and Try again sends it once', async () => {
+    await submitSale(TILL, WALK_IN, 'pos-sale-key-large')
+    const [before] = queuedFor('till-1')
+    // The offline try counts as a call too; what matters is what goes once the server answers.
+    const offline = posted('pos-sale-key-large')
+    online = true
+    saleReply = tooLarge
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      await flushQueue('till-1')
+      const [kept] = queuedFor('till-1')
+      expect(kept).toMatchObject({
+        key: 'pos-sale-key-large',
+        number: before.number,
+        refusal: 'HTTP_413',
+        final: true,
+      })
+      expect(kept.body).toEqual(before.body)
+      expect(posted('pos-sale-key-large')).toBe(offline + 1)
+
+      for (let i = 0; i < 3; i++) {
+        vi.advanceTimersByTime(61_000)
+        await flushQueue('till-1')
+      }
+      expect(posted('pos-sale-key-large')).toBe(offline + 1)
+      expect(queuedFor('till-1')[0].final).toBe(true)
+
+      await retryQueuedSale('till-1', 'pos-sale-key-large')
+      expect(posted('pos-sale-key-large')).toBe(offline + 2)
+      expect(queuedFor('till-1')[0]).toMatchObject({ refusal: 'HTTP_413', final: true })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('stays final after a reload, where the kept refusal is re-read without its status', async () => {
+    window.localStorage.setItem(
+      'fawtir.pos.queue',
+      JSON.stringify([
+        {
+          key: 'pos-sale-key-large-kept',
+          tillId: 'till-1',
+          number: 'NZW-T01-INV-2026-000049',
+          body: { ...WALK_IN, queuedOffline: true, invoiceNumber: 'NZW-T01-INV-2026-000049' },
+          refusal: 'HTTP_413',
+          refusalType: 'payload-too-large',
+          final: true,
+        },
+      ]),
+    )
+    vi.resetModules()
+    const fresh = await import('./posQueue')
+    expect(fresh.queuedFor('till-1')[0]).toMatchObject({ refusal: 'HTTP_413', final: true })
+  })
+
+  it('an online sale refused as too large is final, so it is not queued for a retry', () => {
+    const error = new ApiError({ status: 413, problemType: 'payload-too-large', code: null })
+    expect(isFinalRefusal(error)).toBe(true)
+  })
+})
+
+// RESEND-AUTH (backend 98c0066cb): a key the server closed after finding nothing under it is refused
+// for good, and the server's key lookup never closes a key the queue still has to file under (RA-1).
+describe('a queued sale and the server key lookup (RESEND-AUTH)', () => {
+  const WALK_IN: PosSaleRequest = { ...BODY, customer: { kind: 'WALK_IN' } }
+  const closed = () =>
+    new Response(JSON.stringify({ type: 'about:blank', status: 409, code: 'POS_SALE_KEY_ABANDONED' }), {
+      status: 409,
+      headers: { 'Content-Type': 'application/problem+json' },
+    })
+  const posted = (key: string) =>
+    calls.filter(
+      (call) =>
+        call.init?.method === 'POST' && new Headers(call.init.headers).get('Idempotency-Key') === key,
+    ).length
+
+  it('keeps a sale refused POS_SALE_KEY_ABANDONED queued and final, and never sends it again by itself', async () => {
+    await submitSale(TILL, WALK_IN, 'pos-sale-key-closed')
+    online = true
+    saleReply = closed
+    await flushQueue('till-1')
+    const [held] = queuedFor('till-1')
+    expect(held).toMatchObject({ key: 'pos-sale-key-closed', refusal: 'POS_SALE_KEY_ABANDONED', final: true })
+    const sent = posted('pos-sale-key-closed')
+    await flushQueue('till-1')
+    expect(posted('pos-sale-key-closed')).toBe(sent)
+    const error = new ApiError({ status: 409, problemType: null, code: 'POS_SALE_KEY_ABANDONED' })
+    expect(isFinalRefusal(error)).toBe(true)
+    expect(posRefusalKey(error)).toBe('pos.refusal.POS_SALE_KEY_ABANDONED')
+  })
+
+  // RW6-1: what releases a held sale under the same key.
+  it('decides a key only when the server filed it or refused it for good', async () => {
+    await submitSale(TILL, WALK_IN, 'pos-sale-key-wait')
+    await submitSale(TILL, WALK_IN, 'pos-sale-key-filed')
+    online = true
+    const reply = saleReply
+    saleReply = () => new Response('', { status: 503 })
+    await flushQueue('till-1')
+    expect(queueDecision('pos-sale-key-wait')).toBeNull()
+    saleReply = reply
+    await flushQueue('till-1')
+    expect(queuedFor('till-1')).toEqual([])
+    expect(queueDecision('pos-sale-key-filed')).toMatchObject({ saleId: expect.any(String) })
+    expect(queueDecision('pos-sale-key-wait')).toMatchObject({ saleId: expect.any(String) })
+    online = false
+    await submitSale(TILL, WALK_IN, 'pos-sale-key-closed-2')
+    online = true
+    saleReply = closed
+    await flushQueue('till-1')
+    expect(queueDecision('pos-sale-key-closed-2')).toMatchObject({ key: 'pos-sale-key-closed-2', final: true })
+    expect(queueDecision('pos-sale-key-never-sent')).toBeNull()
+  })
+
+  // RW7-1, RW7-2: neither a too-large answer nor a 2xx that is not a sale decides a key.
+  it('leaves a key undecided after a too-large refusal or a 2xx with no sale in it', async () => {
+    await submitSale(TILL, WALK_IN, 'pos-sale-key-large-2')
+    online = true
+    const reply = saleReply
+    saleReply = () => new Response('', { status: 413 })
+    await flushQueue('till-1')
+    expect(queuedFor('till-1')[0]).toMatchObject({ key: 'pos-sale-key-large-2', final: true })
+    expect(queueDecision('pos-sale-key-large-2')).toBeNull()
+    saleReply = () =>
+      new Response('{}', { status: 201, headers: { 'Content-Type': 'application/json' } })
+    await retryQueuedSale('till-1', 'pos-sale-key-large-2')
+    expect(queueDecision('pos-sale-key-large-2')).toBeNull()
+    saleReply = reply
+  })
+
+  it('never asks the server about a key in the queue, nor while the queue cannot be read (RA-1)', async () => {
+    await submitSale(TILL, WALK_IN, 'pos-sale-key-queued')
+    online = true
+    expect(keyMayBeQueued('pos-sale-key-queued')).toBe(true)
+    expect(keyMayBeQueued('pos-sale-key-elsewhere')).toBe(false)
+    expect(await checkHeldWithServer({ tillId: 'till-1', key: 'pos-sale-key-queued' })).toEqual({
+      outcome: 'queued',
+    })
+    window.localStorage.setItem('fawtir.pos.queue', '{not json')
+    expect(keyMayBeQueued('pos-sale-key-elsewhere')).toBe(true)
+    expect(await checkHeldWithServer({ tillId: 'till-1', key: 'pos-sale-key-elsewhere' })).toEqual({
+      outcome: 'queued',
+    })
+    expect(calls.filter((call) => call.url.includes('/sales/by-key/'))).toEqual([])
   })
 })

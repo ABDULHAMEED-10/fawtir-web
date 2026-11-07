@@ -16,6 +16,7 @@ export {
 export {
   ApiError,
   NetworkError,
+  serverCode,
   type NetworkFailureReason,
   type ProblemFieldError,
 } from './errors'

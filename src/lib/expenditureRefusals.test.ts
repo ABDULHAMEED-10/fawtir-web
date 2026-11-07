@@ -348,6 +348,15 @@ describe('an Expenditure refusal is a decision, not a fault', () => {
     }
   })
 
+  it('words 409 BILL_PAYMENT_PAID_FROM_TILL, a till paid-out\'s bill side, without offering a route', () => {
+    const paidFromTill = describeApiFailure(refusal('BILL_PAYMENT_PAID_FROM_TILL'))
+    expect(MAPPED_REFUSAL_CODES).toContain('BILL_PAYMENT_PAID_FROM_TILL')
+    expect(i18n.t(paidFromTill.key, { lng: 'en' })).toBe(
+      "This payment was paid out of a till drawer, so it can't be reversed here. Correcting a payment made from till cash isn't available.",
+    )
+    expect(i18n.exists(paidFromTill.key, { lng: 'ar', fallbackLng: false })).toBe(true)
+  })
+
   it('gives a reversal in a sent run and a partly paid debit note their sentences, in both languages', () => {
     const reversal = describeApiFailure(
       refusal('BILL_PAYMENT_REVERSAL_IN_SENT_RUN', { paymentRunReference: 'PR-0012' }),

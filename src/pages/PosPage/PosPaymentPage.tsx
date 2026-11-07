@@ -1,9 +1,20 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Rial, Select } from '../../components/ui'
 import { TillMoneyInput } from './TillMoneyInput'
-import { setFinishedSale, useOpenSale } from '../../lib/posSale'
+import {
+  holdUncertainSale,
+  setFinishedSale,
+  settleHeldKey,
+  settleUncertainSale,
+  startNewSale,
+  useOpenSale,
+  useUncertainSale,
+  type NewHold,
+  type UncertainSale,
+} from '../../lib/posSale'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
+import { BUSINESS_TIME_ZONE, formatAmount, formatInstantDay } from '../../lib/format'
 import { AppShell } from '../../layouts/AppShell'
 import { PosFootNote } from './PosFootNote'
 import { PosQuotaNextStep } from './PosQuotaNextStep'
@@ -17,7 +28,7 @@ import {
   PencilIcon,
   ShieldIcon,
 } from './posIcons'
-import { VAT_RATE, omr, omrSigned, totalsFor, unitPrice, LULL, toBaisa } from '../../lib/pos'
+import { VAT_RATE, omr, omrSigned, totalsFor, unitPrice, LULL, toBaisa, toRials } from '../../lib/pos'
 import {
   METHODS,
   TIP_CHOICES,
@@ -27,24 +38,42 @@ import {
   stillToCollect,
   tipFor,
   toPay,
+  qrRefusalKeys,
   type MethodId,
   type Taken,
   type TipChoice,
 } from '../../lib/posPayment'
+import { checkHeldWithServer } from '../../lib/posHeldCheck'
 import { posSaleBody, type TillBuyer } from '../../lib/posInvoice'
-import { submitSale } from '../../lib/posQueue'
-import { posRefusalKey, refusalCode, refusalValues } from '../../lib/posRefusals'
+import {
+  PosTenantZoneUnavailable,
+  keyMayBeQueued,
+  useQueueDecision,
+  useQueuedSales,
+  refusesTheSale,
+  saleOutcomeUncertain,
+  submitSale,
+  useSellingBlock,
+} from '../../lib/posQueue'
+import { refusalCode, refusalSentence } from '../../lib/posRefusals'
 import { shrinkSlip, slipReading, type SlipReading } from '../../lib/posSlip'
 import { useReferenceData } from '../../lib/reference/referenceData'
 import { DESIGN_REFERENCE } from '../../lib/invoiceDraft'
-import { newPosKey, readPosSlip, uploadPosSlip, type PosSaleRequest } from '../../api/pos/pos'
+import {
+  newPosKey,
+  readPosSlip,
+  uploadPosSlip,
+  type PosSaleDto,
+  type PosSaleRequest,
+} from '../../api/pos/pos'
 import { ApiError, NetworkError } from '../../api'
 import { MAX_SLIP_BYTES } from '../../lib/posSlipOutbox'
 import { BUYER_IDENTIFIER_SCHEMES } from '../../api/customers/customers'
 import { tillContact } from '../../lib/posContact'
-import { useBuyerMatch } from '../../lib/posBuyerMatch'
+import { overSimplifiedLimit, useBuyerMatch } from '../../lib/posBuyerMatch'
 import { missingFieldsSentence, notEligiblePaths } from '../../lib/customerEligibility'
-import type { TillState } from '../../lib/posTill'
+import { useTillQrProfile, type TillState } from '../../lib/posTill'
+import { containsCardNumber } from '../../lib/cardNumbers'
 
 type Ready = Extract<TillState, { status: 'ready' }>
 
@@ -148,6 +177,9 @@ function Payment({ till }: { till: Ready }) {
   const [handedOver, setHandedOver] = useState<number | null>(null)
   const [partTyped, setPartTyped] = useState<number | null>(null)
   const [approval, setApproval] = useState('')
+  // FIN-5: a card number in the approval field is stopped here, before it can be taken into the
+  // sale body that an offline till keeps in local storage until it is filed.
+  const approvalHoldsCard = method === 'card' && containsCardNumber(approval)
   const [reference2, setReference2] = useState('')
   const [slip, setSlip] = useState<HeldSlip | null>(null)
   const [slipState, setSlipState] = useState<'idle' | 'reading' | 'failed'>('idle')
@@ -155,6 +187,10 @@ function Payment({ till }: { till: Ready }) {
   const slipInput = useRef<HTMLInputElement>(null)
 
   const [busy, setBusy] = useState(false)
+  // The till's notices say why (PosTabLockNotice, PosStorageNotice); the sell controls are off for
+  // as long as any of them blocks selling, online or offline (DES43 rev 4.7 D.9).
+  const sellingBlocked = useSellingBlock(till.till.id) !== null
+  const qrProfileNow = useTillQrProfile(till.till.id)
   const [refusal, setRefusal] = useState<unknown>(null)
   const [buyerAsked, setBuyerAsked] = useState(false)
   const [buyer, setBuyer] = useState({ name: '', scheme: 'CID', value: '', contact: '' })
@@ -162,6 +198,11 @@ function Payment({ till }: { till: Ready }) {
   const [contactError, setContactError] = useState<'phone' | 'email' | null>(null)
   /** A retried sale is the same sale: same key, same time, same body (P.12). */
   const attempt = useRef<{ fingerprint: string; key: string; soldAt: string } | null>(null)
+  const uncertain = useUncertainSale(till.till.id)
+  const [heldCheck, setHeldCheck] = useState<HeldCheckState>('idle')
+  /** What the server decided for a lock-only hold, shown once the hold is released. */
+  const [decided, setDecided] = useState<Decided | null>(null)
+  const retryCheck = useRef<number | null>(null)
 
   const tip = company ? 0 : tipFor(tipChoice, totals.sale)
   const owed = toPay(totals.sale, tip)
@@ -228,8 +269,60 @@ function Payment({ till }: { till: Ready }) {
           }
         : { kind: 'walkIn' }
 
+  /**
+   * Sends the sale and shows its receipt, or says why not. An answer that leaves the outcome
+   * unknown holds the sale exactly as sent (E-01): the screen then offers only the same sale again,
+   * under the same key, or today's sales, until an answer is definite.
+   */
+  const send = async (held: NewHold) => {
+    const sending = held.send
+    try {
+      const qrProfile = await qrProfileNow()
+      const result = await submitSale(
+        // Only a sale the till queues reads the profile (`offlinePrintedQr`); an online one never does.
+        qrProfile ? { ...till.till, qrProfile } : till.till,
+        sending.request,
+        held.key,
+        sending.slipPhotos,
+        sending.printed,
+        sending.maker,
+      )
+      settleUncertainSale()
+      setFinishedSale({
+        ...sending.receipt,
+        sale: 'sale' in result ? result.sale : null,
+        queuedNumber: 'queued' in result ? result.queued.number : null,
+        ...('queued' in result && result.queued.body.printedQr
+          ? { queuedQr: result.queued.body.printedQr.payload }
+          : {}),
+        queuedBehind: 'queued' in result && result.behind === true,
+        finishedAt: sending.request.soldAt,
+      })
+      attempt.current = null
+      till.retry()
+      navigate('/pos/done')
+    } catch (error) {
+      setRefusal(error)
+      if (saleOutcomeUncertain(error)) holdUncertainSale(held)
+      // The server answered this key with its own code: nothing is recorded under it, so the sale
+      // may be changed again. A refusal made here before anything was sent leaves it held.
+      else if (refusesTheSale(error)) settleUncertainSale()
+      // The till's zone came from the till as last read: read it again, so a zone restored in the
+      // company settings is verified on the next press (XT2-ZONE-UNREADABLE).
+      if (error instanceof PosTenantZoneUnavailable) till.retry()
+      const code = refusalCode(error)
+      if (code === 'SIMPLIFIED_INVOICE_LIMIT' || code === 'BUYER_IDENTIFIER_REQUIRED') {
+        setBuyerAsked(true)
+      }
+      // RESEND-AUTH: the key is closed for good, so the same body must not be sent under it again
+      // by Finish; the next Finish is a new sale with a new key, and the sentence says to check the
+      // terminal first.
+      if (code === 'POS_SALE_KEY_ABANDONED') attempt.current = null
+    }
+  }
+
   const finish = async (named = false) => {
-    if (busy) return
+    if (busy || uncertain) return
     setBusy(true)
     setRefusal(null)
     const { payments, tip: tipPart, slipPhotos } = paymentsRequest(taken, tip)
@@ -251,49 +344,124 @@ function Payment({ till }: { till: Ready }) {
       attempt.current = { fingerprint, key: newPosKey('sale'), soldAt: new Date().toISOString() }
     }
     try {
-      const result = await submitSale(
-        till.till,
-        { ...body, soldAt: attempt.current.soldAt },
-        attempt.current.key,
-        slipPhotos,
-      )
-      setFinishedSale({
-        lines,
-        totals,
-        tip,
-        change,
-        company,
-        buyer:
-          named && !company
+      await send({
+        tenantId: till.tenantId ?? null,
+        tillId: till.till.id,
+        shiftId: till.till.openShift?.shiftId ?? null,
+        tillLabel: till.till.name || till.till.code,
+        key: attempt.current.key,
+        send: {
+          request: { ...body, soldAt: attempt.current.soldAt },
+          slipPhotos,
+          // What the receipt prints, signed with a queued sale (V530 `printed`).
+          printed: {
+            taxable: toRials(totals.beforeVat),
+            vat: toRials(totals.vat),
+            total: toRials(totals.sale),
+          },
+          // Kept on this device only, so only this person's session sends it by itself (P3b).
+          maker: till.userId
             ? {
-                name: buyer.name.trim(),
-                identifierScheme: schemes.includes(buyer.scheme) ? buyer.scheme : schemes[0],
-                identifierValue: buyer.value.trim(),
+                userId: till.userId,
+                name: (till.mine ? till.till.openShift?.cashier.name : null) ?? till.userName ?? null,
               }
             : null,
-        payments: taken.map((entry) => ({
-          method: entry.method,
-          amount: entry.amount,
-          approvalCode: entry.approvalCode,
-        })),
-        sale: 'sale' in result ? result.sale : null,
-        queuedNumber: 'queued' in result ? result.queued.number : null,
-        queuedBehind: 'queued' in result && result.behind === true,
-        finishedAt: attempt.current.soldAt,
+          receipt: {
+            lines,
+            totals,
+            tip,
+            change,
+            company,
+            buyer:
+              named && !company
+                ? {
+                    name: buyer.name.trim(),
+                    identifierScheme: schemes.includes(buyer.scheme) ? buyer.scheme : schemes[0],
+                    identifierValue: buyer.value.trim(),
+                  }
+                : null,
+            payments: taken.map((entry) => ({
+              method: entry.method,
+              amount: entry.amount,
+              approvalCode: entry.approvalCode,
+            })),
+          },
+        },
       })
-      attempt.current = null
-      till.retry()
-      navigate('/pos/done')
-    } catch (error) {
-      setRefusal(error)
-      const code = refusalCode(error)
-      if (code === 'SIMPLIFIED_INVOICE_LIMIT' || code === 'BUYER_IDENTIFIER_REQUIRED') {
-        setBuyerAsked(true)
-      }
     } finally {
       setBusy(false)
     }
   }
+
+  const retrySame = async () => {
+    if (busy || !uncertain?.send) return
+    setBusy(true)
+    setRefusal(null)
+    try {
+      await send({ ...uncertain, send: uncertain.send })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /**
+   * A lock-only hold has no body to send again, so the server decides it (RESEND-AUTH). Only a
+   * person's press asks: NOT_RECORDED closes the key, which must never follow from a page load.
+   */
+  const checkHeld = async () => {
+    if (!uncertain || uncertain.send !== null || uncertain.restoring) return
+    const held = uncertain
+    setHeldCheck('checking')
+    const result = await checkHeldWithServer(held)
+    if (result.outcome === 'recorded' || result.outcome === 'notRecorded') {
+      setHeldCheck('idle')
+      if (!result.released) return
+      attempt.current = null
+      setDecided(
+        result.outcome === 'recorded' ? { kind: 'recorded', sale: result.sale } : { kind: 'notRecorded' },
+      )
+    } else if (result.outcome === 'inProgress') {
+      setHeldCheck('inProgress')
+      retryCheck.current = window.setTimeout(() => {
+        retryCheck.current = null
+        void checkAgain.current()
+      }, result.retryAfterSeconds * 1000)
+    } else {
+      setHeldCheck(result.outcome)
+    }
+  }
+  const checkAgain = useRef(checkHeld)
+  checkAgain.current = checkHeld
+  // RW6-1: a held key the till's queue also has is decided by the queue's own send. Read on every
+  // queue change, so the panel's button and note follow it; filed or refused for good by the server
+  // releases the hold, anything that waits (offline, 401, 403, 408, 429, 5xx) does not.
+  useQueuedSales(till.till.id)
+  const queueDecided = useQueueDecision(uncertain?.key ?? null)
+  useEffect(() => {
+    if (!uncertain || !queueDecided) return
+    // RW7-2: refused only on the entry's own final mark, filed only on a real sale; anything else
+    // decides nothing and the hold stays.
+    const refused = 'key' in queueDecided && queueDecided.final === true ? queueDecided : null
+    const filed =
+      !refused && 'saleId' in queueDecided && typeof queueDecided.saleId === 'string' ? queueDecided : null
+    if (!refused && !filed) return
+    if (!settleHeldKey(uncertain.key)) return
+    attempt.current = null
+    setDecided(
+      filed
+        ? { kind: 'recorded', sale: filed }
+        : // RW7-1: a sale is already recorded under the key, with other contents: not a refusal.
+          refused!.refusal === 'POS_SALE_KEY_REUSED'
+          ? { kind: 'keyReused', number: refused!.number }
+          : { kind: 'queueRefused', number: refused!.number },
+    )
+  }, [uncertain, queueDecided])
+  useEffect(
+    () => () => {
+      if (retryCheck.current !== null) window.clearTimeout(retryCheck.current)
+    },
+    [],
+  )
 
   const schemes =
     refusal instanceof ApiError && Array.isArray(refusal.problem.buyerIdentifierSchemes)
@@ -302,11 +470,32 @@ function Payment({ till }: { till: Ready }) {
   const buyerReady = buyer.name.trim() && buyer.value.trim()
   // The customer on file this ID (and phone) would file the invoice against, when it is stored
   // under another name: a mistyped ID shows before the invoice is filed. Never blocks.
-  const onFile = useBuyerMatch(
+  // RB-1 STUCK-QR: a full tax sale this customer cannot get a QR on is refused here, before it is
+  // sent, in the server's own words; the basket and the buyer stay as they are, and nothing else
+  // (a simplified sale, another customer) is chosen for the cashier.
+  //
+  // STUCKQR-1 (owner: "refuse before payment capture"): a card is taken on the bank's terminal
+  // before Finish, so a named full tax sale (the cashier chose it, or the sale is over the
+  // simplified limit) asks for the buyer first, and no payment is taken until the buyer is typed
+  // and the lookup has not refused them. A lookup still waiting or failed does not block: it is
+  // said, and the server checks again when the sale is sent.
+  const buyerFirst = !company && (buyerAsked || overSimplifiedLimit(totals.beforeVat))
+  const {
+    hint: onFile,
+    qrRefused,
+    asked: buyerTyped,
+    answered: buyerChecked,
+  } = useBuyerMatch(
     till.till.id,
     { ...buyer, scheme: schemes.includes(buyer.scheme) ? buyer.scheme : schemes[0] },
-    buyerAsked && !company,
+    buyerFirst,
   )
+  const tenderLocked = buyerFirst && (!buyerTyped || qrRefused)
+  // STUCKQR-2 / STQ-1: wherever the QR refusal is said, the inline alert as much as the refusal
+  // after Finish, it says what to give back for the payments already taken.
+  const qrRefusal = qrRefusalKeys(taken)
+    .map((key) => t(key))
+    .join(' ')
   /** The buyer's phone or email is checked before the full invoice goes (F-2). */
   const finishNamed = () => {
     const contact = tillContact(buyer.contact)
@@ -324,6 +513,32 @@ function Payment({ till }: { till: Ready }) {
     refusal instanceof ApiError
       ? notEligiblePaths({ code: refusal.code, ...refusal.problem })
       : null
+
+  if (decided && !uncertain) {
+    return (
+      <HeldDecidedPanel
+        decided={decided}
+        onNewSale={() => {
+          setDecided(null)
+          startNewSale()
+          navigate('/pos')
+        }}
+      />
+    )
+  }
+
+  if (uncertain) {
+    return (
+      <UncertainSalePanel
+        held={uncertain}
+        refusal={refusal}
+        busy={busy || sellingBlocked}
+        onRetry={() => void retrySame()}
+        check={heldCheck}
+        onCheck={() => void checkHeld()}
+      />
+    )
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
@@ -387,6 +602,20 @@ function Payment({ till }: { till: Ready }) {
               </p>
             </div>
 
+            {tenderLocked && !qrRefused ? (
+              <p role="status" className="mx-6 mt-4 rounded-sm bg-warning-100 px-4 py-3 text-sm font-medium text-text-primary">
+                {t('pos.buyer.firstNeeded')}
+              </p>
+            ) : null}
+            {!company && !buyerFirst && taken.length === 0 ? (
+              <button
+                type="button"
+                onClick={() => setBuyerAsked(true)}
+                className="mx-6 mt-4 self-start text-sm font-semibold text-primary-700"
+              >
+                {t('pos.buyer.chooseFull')}
+              </button>
+            ) : null}
             <div className="grid grid-cols-2 gap-3 px-6 py-4 sm:grid-cols-4">
               {METHODS.map((entry) => (
                 <MethodTile
@@ -450,7 +679,7 @@ function Payment({ till }: { till: Ready }) {
                   </p>
                   <button
                     type="button"
-                    disabled={cash <= 0}
+                    disabled={cash <= 0 || tenderLocked}
                     onClick={() =>
                       // Less than owed is part of a split; the rest is taken another way.
                       take({ method: 'cash', amount: Math.min(cash, left), handedOver: cash })
@@ -481,11 +710,19 @@ function Payment({ till }: { till: Ready }) {
                         dir="ltr"
                         onChange={(event) => setApproval(event.target.value)}
                         placeholder={t('pos.pay.optional')}
+                        aria-invalid={approvalHoldsCard || undefined}
                         className={[
                           FIELD,
-                          slip?.reading.unsure.includes('authCode') ? 'border-pending-700' : '',
+                          slip?.reading.unsure.includes('authCode') || approvalHoldsCard
+                            ? 'border-pending-700'
+                            : '',
                         ].join(' ')}
                       />
+                      {approvalHoldsCard ? (
+                        <span role="alert" className="text-xs font-medium text-pending-700">
+                          {t('pos.pay.approvalIsCardNumber')}
+                        </span>
+                      ) : null}
                     </Field>
                   ) : null}
                   {method === 'transfer' ? (
@@ -509,7 +746,7 @@ function Payment({ till }: { till: Ready }) {
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    disabled={partAmount <= 0}
+                    disabled={partAmount <= 0 || approvalHoldsCard || tenderLocked}
                     onClick={() =>
                       take({
                         method,
@@ -779,7 +1016,11 @@ function Payment({ till }: { till: Ready }) {
                   </>
                 ) : (
                   <>
-                    {t(posRefusalKey(refusal), refusalValues(refusal))}
+                    {/* STUCKQR-2: an older server, or a race, refuses after the card was charged
+                        on the terminal: "nothing was charged" would be false. */}
+                    {refusalCode(refusal) === 'POS_SALE_QR_UNAVAILABLE_FOR_BUYER'
+                      ? qrRefusal
+                      : refusalSentence(t, refusal)}
                     {refusal instanceof ApiError && refusal.problemType === 'quota-exceeded' ? (
                       <PosQuotaNextStep />
                     ) : null}
@@ -789,7 +1030,7 @@ function Payment({ till }: { till: Ready }) {
             </div>
           ) : null}
 
-          {buyerAsked && !company ? (
+          {buyerFirst ? (
             // The full-invoice offer (SIMPLIFIED_INVOICE_LIMIT, BUYER_IDENTIFIER_REQUIRED): the
             // buyer is named with their ID (IBR-016-OM), or the sale is put on a company.
             <div className="mx-5 mb-4 grid grid-cols-1 gap-3 rounded-sm bg-surface-background p-4">
@@ -838,6 +1079,16 @@ function Payment({ till }: { till: Ready }) {
                   </span>
                 ) : null}
               </Field>
+              {/* Beside the field, not in its label, so the ID input keeps its own name. */}
+              {qrRefused ? (
+                <p role="alert" className="text-xs font-medium text-danger-700">
+                  {qrRefusal}
+                </p>
+              ) : buyerTyped && !buyerChecked ? (
+                <p role="status" className="text-xs font-medium text-text-tertiary">
+                  {t('pos.buyer.checking')}
+                </p>
+              ) : null}
               <Field label={t('pos.buyer.contact')}>
                 <input
                   value={buyer.contact}
@@ -860,7 +1111,7 @@ function Payment({ till }: { till: Ready }) {
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
-                  disabled={!buyerReady || !covered || busy}
+                  disabled={!buyerReady || !covered || busy || sellingBlocked || qrRefused}
                   onClick={finishNamed}
                   className="inline-flex h-10 items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white disabled:opacity-50"
                 >
@@ -876,7 +1127,7 @@ function Payment({ till }: { till: Ready }) {
           <div className="px-5 pb-5">
             <button
               type="button"
-              disabled={!covered || busy}
+              disabled={!covered || busy || sellingBlocked}
               onClick={() => void finish(false)}
               className="inline-flex h-[52px] w-full items-center justify-center rounded-sm bg-success-700 text-base font-semibold text-white transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -888,6 +1139,200 @@ function Payment({ till }: { till: Ready }) {
       </div>
     </div>
   )
+}
+
+type HeldCheckState = 'idle' | 'checking' | 'inProgress' | 'queued' | 'failed'
+/** What the server decided for a held key, by the key lookup or the queue's own send. */
+type Decided =
+  | { kind: 'recorded'; sale: PosSaleDto }
+  | { kind: 'notRecorded' }
+  | { kind: 'queueRefused'; number: string }
+  | { kind: 'keyReused'; number: string }
+
+/**
+ * The sale was sent and its outcome is not known (E-01). Nothing here changes it: no basket, no
+ * payment, no buyer, only the same sale again or the server's answer for its key.
+ */
+function UncertainSalePanel({
+  held,
+  refusal,
+  busy,
+  onRetry,
+  check,
+  onCheck,
+}: {
+  held: UncertainSale
+  refusal: unknown
+  busy: boolean
+  onRetry: () => void
+  check: HeldCheckState
+  onCheck: () => void
+}) {
+  const { t, i18n } = useTranslation()
+  const cashier = held.send?.maker?.name ?? null
+  // Only the lock came back (no sealed sale on this device): the sale cannot be sent again from
+  // here, so the server is asked what became of its key (owner decision 5: a cashier's own word
+  // that Today was checked does not release it).
+  const lockOnly = held.send === null && !held.restoring
+  // RA-1: a key the queue holds is the queue's to send; the server is not asked about it here.
+  const queued = lockOnly && (check === 'queued' || keyMayBeQueued(held.key))
+  const summary = held.summary
+  return (
+    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-4 pb-10">
+      <section className="flex flex-col gap-4 rounded-md bg-surface-card px-6 py-5">
+        <h1 className="text-xl font-semibold text-text-primary">{t('pos.pay.uncertain.title')}</h1>
+        <p role="alert" className="text-sm font-medium leading-[1.6] text-danger-700">
+          {refusal ? refusalSentence(t, refusal) : t('pos.refusal.outcomeUnknown')}
+        </p>
+        <p className="text-sm leading-[1.6] text-text-secondary">{t('pos.pay.uncertain.locked')}</p>
+        {cashier ? (
+          <p className="text-sm font-medium text-text-secondary">
+            {t('pos.pay.uncertain.rungBy', { name: cashier })}
+          </p>
+        ) : null}
+        {summary ? (
+          <p className="text-sm font-medium text-text-secondary">
+            {t('pos.pay.uncertain.saleFigures', {
+              amount: `${summary.currency} ${formatAmount(summary.total, summary.currency, i18n.language)}`,
+              // RBW3-1b: Today opens on the current day; a sale held from an earlier day is
+              // found only by its date, so the time alone would send the cashier to the wrong list.
+              date: formatInstantDay(summary.soldAt, i18n.language),
+              time: heldTime(summary.soldAt, i18n.language),
+            })}
+          </p>
+        ) : null}
+        {held.restoring ? (
+          <p role="status" className="text-sm font-medium text-text-tertiary">
+            {t('pos.pay.uncertain.restoring')}
+          </p>
+        ) : null}
+        {held.kept === 'none' || held.kept === 'lock' ? (
+          <p role="status" className="rounded-sm bg-warning-100 px-4 py-3 text-sm font-semibold text-text-primary">
+            {t(held.kept === 'none' ? 'pos.pay.uncertain.unsaved' : 'pos.pay.uncertain.lockOnly')}
+          </p>
+        ) : null}
+        {held.hadSlips ? (
+          <p role="status" className="text-sm font-medium text-text-secondary">
+            {t('pos.pay.uncertain.reattachSlip')}
+          </p>
+        ) : null}
+        <div className="flex flex-wrap items-center gap-4">
+          {lockOnly ? (
+            <button
+              type="button"
+              disabled={busy || queued || check === 'checking' || check === 'inProgress'}
+              onClick={onCheck}
+              className="inline-flex h-11 items-center rounded-sm border border-border-subtle bg-white px-5 text-sm font-semibold text-text-primary disabled:opacity-40"
+            >
+              {t('pos.pay.uncertain.checkServer')}
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={busy || held.send === null}
+              onClick={onRetry}
+              className="inline-flex h-11 items-center rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-40"
+            >
+              {t('pos.pay.uncertain.retry')}
+            </button>
+          )}
+          <Link to="/pos/today" className="text-sm font-semibold text-primary-700 hover:text-primary-800">
+            {t('pos.pay.uncertain.checkToday')}
+          </Link>
+        </div>
+        {lockOnly && queued ? (
+          <p role="status" className="text-xs font-medium text-text-tertiary">
+            {t('pos.pay.uncertain.queuedKey')}
+          </p>
+        ) : lockOnly && check !== 'idle' ? (
+          <p
+            role={check === 'failed' ? 'alert' : 'status'}
+            className={`text-xs font-medium ${check === 'failed' ? 'text-danger-700' : 'text-text-tertiary'}`}
+          >
+            {t(
+              check === 'checking'
+                ? 'pos.pay.uncertain.checking'
+                : check === 'inProgress'
+                  ? 'pos.pay.uncertain.stillSaving'
+                  : 'pos.pay.uncertain.checkFailed',
+            )}
+          </p>
+        ) : null}
+      </section>
+    </div>
+  )
+}
+
+/**
+ * The server decided a held sale and it is released (RESEND-AUTH, RW6-1). Recorded: the sale as the
+ * server has it, so it is not rung again. Not recorded: its key is closed, the customer may still
+ * have paid, and the sale goes again only as a new one with a new key. Refused from the queue: the
+ * queued entry keeps the sale, and it is dealt with there.
+ */
+function HeldDecidedPanel({ decided, onNewSale }: { decided: Decided; onNewSale: () => void }) {
+  const { t, i18n } = useTranslation()
+  const sale = decided.kind === 'recorded' ? decided.sale : null
+  return (
+    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-4 pb-10">
+      <section className="flex flex-col gap-4 rounded-md bg-surface-card px-6 py-5">
+        <h1 className="text-xl font-semibold text-text-primary">
+          {t(
+            sale
+              ? 'pos.pay.uncertain.recordedTitle'
+              : decided.kind === 'queueRefused'
+                ? 'pos.pay.uncertain.queueRefusedTitle'
+                : decided.kind === 'keyReused'
+                  ? 'pos.pay.uncertain.keyReusedTitle'
+                  : 'pos.pay.uncertain.notRecordedTitle',
+          )}
+        </h1>
+        {sale ? (
+          <>
+            <p role="status" className="text-sm font-medium leading-[1.6] text-text-secondary">
+              {t('pos.pay.uncertain.recorded', {
+                invoice: sale.invoiceNumber,
+                amount: `OMR ${formatAmount(sale.totals.total, 'OMR', i18n.language)}`,
+              })}
+            </p>
+            {/* RW6-3: no reprint here; ReceiptReprint prints nothing while REPRINT_LINES_SETTLED
+                is off, so the cashier is pointed to Today's own reprint, which lifts with it. */}
+            <p className="text-sm font-medium text-text-secondary">
+              {t('pos.pay.uncertain.reprintFromToday')}
+            </p>
+          </>
+        ) : decided.kind === 'queueRefused' || decided.kind === 'keyReused' ? (
+          <p role="status" className="text-sm font-medium leading-[1.6] text-text-secondary">
+            {t(`pos.pay.uncertain.${decided.kind}`, { number: decided.number })}
+          </p>
+        ) : (
+          <p role="alert" className="text-sm font-medium leading-[1.6] text-danger-700">
+            {t('pos.pay.uncertain.notRecorded')}
+          </p>
+        )}
+        <div className="flex flex-wrap items-center gap-4">
+          <button
+            type="button"
+            onClick={onNewSale}
+            className="inline-flex h-11 items-center rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+          >
+            {t(decided.kind === 'notRecorded' ? 'pos.pay.uncertain.ringAgain' : 'pos.done.startNew')}
+          </button>
+          <Link to="/pos/today" className="text-sm font-semibold text-primary-700 hover:text-primary-800">
+            {t('pos.pay.uncertain.checkToday')}
+          </Link>
+        </div>
+      </section>
+    </div>
+  )
+}
+
+/** When the held sale was rung, in the business's time zone (where Today lists it). */
+function heldTime(soldAt: string, language: string): string {
+  return new Intl.DateTimeFormat(language.startsWith('ar') ? 'ar-u-nu-latn' : 'en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: BUSINESS_TIME_ZONE,
+  }).format(new Date(soldAt))
 }
 
 /** What Scan slip found, or why it found nothing; never a reason to stop. */
@@ -906,7 +1351,7 @@ function SlipNote({
   if (state === 'failed') {
     return (
       <p className="rounded-sm bg-pending-100 px-3 py-2.5 text-xs font-medium leading-[1.5] text-pending-700">
-        {t(posRefusalKey(error))} {t('pos.pay.slipSkip')}
+        {refusalSentence(t, error)} {t('pos.pay.slipSkip')}
       </p>
     )
   }

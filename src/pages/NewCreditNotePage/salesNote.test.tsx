@@ -28,7 +28,9 @@ import {
   type NoteLine,
 } from '../../lib/salesNote'
 import { ApiError } from '../../api'
+import { resetSharedRequests } from '../../api/inflight'
 import { issueRefusalOf } from '../../lib/invoiceIssue'
+import { noteCancelRefusalKey } from '../../lib/invoiceDetail'
 import { CATEGORY_REASON_CONFLICT } from '../../lib/invoiceDraft'
 import { NewCreditNotePage } from './NewCreditNotePage'
 import { NewSelfBilledCreditNotePage } from './NewSelfBilledCreditNotePage'
@@ -1088,7 +1090,7 @@ describe('a paid debit note row (4.7)', () => {
     ).toEqual({ kind: 'late', date: '2026-10-01', days: 4 })
     expect(
       debitPaymentOf(undelivered({ state: 'UNPAID', outstandingAmount: 10 }), '2026-09-29'),
-    ).toEqual({ kind: 'due', date: '2026-10-01', addedToInvoice: true, daysLeft: null })
+    ).toEqual({ kind: 'due', date: '2026-10-01', separateFromInvoice: true, daysLeft: null })
   })
 })
 
@@ -2129,21 +2131,18 @@ describe('a debit note with payments, and a stale payment on it (DA-2, DA-12 rev
   const moreMenu = async () =>
     fireEvent.click(await screen.findByRole('button', { name: i18n.t('invoiceDetails.actions.more') }))
 
-  it('explains instead of cancelling a debit note with a payment', async () => {
-    await open(() => json(200, owedOnNote(4)))
+  // D-26 (owner, 6 Nov 2026): an issued debit note is never cancelled from the web, paid or not.
+  // Until then a paid one explained its payments and an unpaid one opened the confirmation.
+  it.each([
+    ['with a payment', 4],
+    ['unpaid', 0],
+  ])('explains instead of cancelling an issued debit note %s', async (_, paid) => {
+    await open(() => json(200, owedOnNote(paid)))
     await moreMenu()
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel debit note' }))
-    expect(
-      await screen.findByText('This note cannot be cancelled: payments are recorded against it.'),
-    ).toBeTruthy()
+    expect(await screen.findByText(i18n.t('salesNote.detail.debitLocked'))).toBeTruthy()
     expect(screen.queryByRole('dialog')).toBeNull()
-  })
-
-  it('opens the confirmation for an unpaid debit note', async () => {
-    await open(() => json(200, owedOnNote(0)))
-    await moreMenu()
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel debit note' }))
-    expect(await screen.findByRole('dialog', { name: 'Cancel this debit note?' })).toBeTruthy()
+    expect(calls('POST', `/api/v1/authored-invoices/${NOTE_ID}/cancel`)).toHaveLength(0)
   })
 
   it('reads the note again when the payment dialog closes after the balance moved', async () => {
@@ -2313,5 +2312,499 @@ describe('the cap sentences name each category without repeating a word (DA-1 re
     const sentence = t(refusal.key, refusal.values)
     expect(sentence).toBe(text)
     expect(sentence).not.toMatch(/بنسبة.*بنسبة|At Exempt|as Out of scope/)
+  })
+})
+
+// D-26 (owner, 6 Nov 2026): the page no longer sends an issued debit note's cancel, so the server's
+// refusal is not reached from it. The wording stays mapped for a refusal from anywhere else.
+describe('cancelling a debit note that issued credits rely on (backend #834)', () => {
+  it.each([
+    ['en', 'This debit note cannot be cancelled: credit notes already issued on the invoice use what it added. Cancel those credit notes first.'],
+    ['ar', 'لا يمكن إلغاء هذا الإشعار المدين: الإشعارات الدائنة الصادرة على الفاتورة تستخدم ما أضافه. ألغِ تلك الإشعارات الدائنة أولاً.'],
+  ])('still words the refusal, never "reload and try again" (%s)', (lang, sentence) => {
+    const refusal = new ApiError({
+      status: 409,
+      problemType: 'resource-conflict',
+      code: 'DEBIT_NOTE_CANCEL_CREDITED',
+      problem: {},
+    })
+    const key = noteCancelRefusalKey(refusal, 'DEBIT_NOTE')
+    expect(key).toBe('salesNote.detail.cancelBlocked.debitCredited')
+    expect(i18n.getFixedT(lang)(key!)).toBe(sentence)
+  })
+
+  const debitNote: InvoiceDetailDto = {
+    ...INVOICE,
+    id: NOTE_ID,
+    type: 'DEBIT_NOTE',
+    correctionOfInvoiceId: INVOICE_ID,
+    invoiceNumber: 'DBN-5',
+  }
+
+  it.each([
+    ['en', 'An issued debit note cannot be cancelled, deleted, edited or reversed. A correction workflow for issued debit notes is not available in this release.'],
+    ['ar', 'لا يمكن إلغاء الإشعار المدين الصادر أو حذفه أو تعديله أو عكسه. سير عمل تصحيح الإشعارات المدينة الصادرة غير متاح في هذا الإصدار.'],
+  ])('sends no cancel from the page, and says why in its own words (%s)', async (lang, sentence) => {
+    await i18n.changeLanguage(lang)
+    entitlements = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.cancel'] }
+    override = (url, init) => {
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}`) return json(200, debitNote)
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}/cancel` && init?.method === 'POST')
+        return json(409, { status: 409, code: 'DEBIT_NOTE_CANCEL_CREDITED', detail: 'cancel them first' })
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}/receivable`)
+        return json(200, {
+          ...RECEIVABLE,
+          documentTotal: 10.5,
+          paidAmount: 0,
+          creditedAmount: 0,
+          outstandingAmount: 10.5,
+          paymentState: 'UNPAID',
+        })
+      if (url.startsWith(`/api/v1/authored-invoices/${NOTE_ID}/`))
+        return json(
+          200,
+          url.endsWith('/history')
+            ? { entries: [], truncated: false, limit: 200 }
+            : url.endsWith('/internal-note')
+              ? { internalNote: null }
+              : [],
+        )
+      return undefined
+    }
+    render(
+      <MemoryRouter initialEntries={[`/income/debit-notes/${NOTE_ID}`]}>
+        <Routes>
+          <Route path="/income/debit-notes/:id" element={<SalesNoteDetailPage kind="DEBIT_NOTE" />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await screen.findByRole('heading', { name: 'DBN-5' })
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(([url]) => url === `/api/v1/authored-invoices/${NOTE_ID}/receivable`),
+      ).toBe(true),
+    )
+    fireEvent.click(await screen.findByRole('button', { name: i18n.t('invoiceDetails.actions.more') }))
+    fireEvent.click(
+      await screen.findByRole('menuitem', { name: i18n.t('salesNote.detail.cancelAction.DEBIT_NOTE') }),
+    )
+    expect(await screen.findByText(sentence)).toBeTruthy()
+    expect(screen.queryByRole('textbox')).toBeNull()
+    expect(calls('POST', `/api/v1/authored-invoices/${NOTE_ID}/cancel`)).toHaveLength(0)
+  })
+})
+
+describe('cancelling a credit note whose effects outside it would survive (D-3)', () => {
+  const tillNote: InvoiceDetailDto = {
+    ...INVOICE,
+    id: NOTE_ID,
+    type: 'CREDIT_NOTE',
+    correctionOfInvoiceId: INVOICE_ID,
+    invoiceNumber: 'CRN-9',
+  }
+
+  it.each([
+    [
+      'en',
+      'CREDIT_NOTE_CANCEL_TILL_REFUND',
+      'This credit note cannot be cancelled: it was issued by a refund at the till, and cancelling it would not undo the refund.',
+    ],
+    [
+      'ar',
+      'CREDIT_NOTE_CANCEL_TILL_REFUND',
+      'لا يمكن إلغاء هذا الإشعار الدائن: صدر عن استرداد في الصندوق، وإلغاؤه لا يلغي الاسترداد.',
+    ],
+    [
+      'en',
+      'CREDIT_NOTE_CANCEL_HAS_STOCK_RETURN',
+      'This credit note cannot be cancelled: it put goods back on the shelf, and cancelling it would not take them off again. Correct the stock with a count, or issue a debit note.',
+    ],
+    [
+      'ar',
+      'CREDIT_NOTE_CANCEL_HAS_STOCK_RETURN',
+      'لا يمكن إلغاء هذا الإشعار الدائن: أعاد بضاعة إلى الرف، وإلغاؤه لا يسحبها منه. صحّح المخزون بالجرد، أو أصدر إشعارًا مدينًا.',
+    ],
+  ])('(%s) words 409 %s by code and closes the dialog', async (lang, code, sentence) => {
+    await i18n.changeLanguage(lang)
+    entitlements = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.cancel'] }
+    const serverDetail = 'This credit note was issued by a refund at a till, so it cannot be cancelled'
+    override = (url, init) => {
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}`) return json(200, tillNote)
+      if (url === `/api/v1/authored-invoices/${INVOICE_ID}/payments`) return json(200, [])
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}/cancel` && init?.method === 'POST')
+        return json(409, { status: 409, code, detail: serverDetail })
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}/receivable`) return json(404, { status: 404 })
+      if (url.startsWith(`/api/v1/authored-invoices/${NOTE_ID}/`))
+        return json(
+          200,
+          url.endsWith('/history')
+            ? { entries: [], truncated: false, limit: 200 }
+            : url.endsWith('/internal-note')
+              ? { internalNote: null }
+              : [],
+        )
+      return undefined
+    }
+    render(
+      <MemoryRouter initialEntries={[`/income/credit-notes/${NOTE_ID}`]}>
+        <Routes>
+          <Route path="/income/credit-notes/:id" element={<CreditNoteDetailsPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await screen.findByRole('heading', { name: 'CRN-9' })
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(([url]) => url === `/api/v1/authored-invoices/${INVOICE_ID}/payments`),
+      ).toBe(true),
+    )
+    fireEvent.click(await screen.findByRole('button', { name: i18n.t('invoiceDetails.actions.more') }))
+    fireEvent.click(
+      await screen.findByRole('menuitem', { name: i18n.t('salesNote.detail.cancelAction.CREDIT_NOTE') }),
+    )
+    fireEvent.change(await screen.findByRole('textbox'), { target: { value: 'Raised twice' } })
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('salesNote.detail.cancelConfirm.CREDIT_NOTE') }))
+    expect(await screen.findByText(sentence)).toBeTruthy()
+    expect(screen.queryByText(i18n.t('apiErrors.conflict'))).toBeNull()
+    expect(screen.queryByText(serverDetail)).toBeNull()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    const cancels = fetchMock.mock.calls.filter(
+      ([url, init]) => url === `/api/v1/authored-invoices/${NOTE_ID}/cancel` && init?.method === 'POST',
+    )
+    expect(cancels).toHaveLength(1)
+  })
+})
+
+describe('the note cancel refusals, shared by the note page and the documents list', () => {
+  const refused = (code: string) =>
+    new ApiError({ status: 409, problemType: null, code, problem: { code, detail: 'English prose' } })
+
+  it.each([
+    ['CREDIT_NOTE_CANCEL_TILL_REFUND', 'salesNote.detail.cancelBlocked.tillRefund'],
+    ['CREDIT_NOTE_CANCEL_HAS_STOCK_RETURN', 'salesNote.detail.cancelBlocked.stockReturn'],
+    ['INVOICE_CANCEL_HAS_PAYMENTS', 'salesNote.detail.cancelBlocked.refunded'],
+    ['INVOICE_CANCEL_HAS_CORRECTIONS', 'invoiceDetails.cancelBlocked.correctionsOnNote'],
+    ['DEBIT_NOTE_CANCEL_CREDITED', 'salesNote.detail.cancelBlocked.debitCredited'],
+  ])('%s on a credit note reads %s', (code, key) => {
+    expect(noteCancelRefusalKey(refused(code), 'CREDIT_NOTE')).toBe(key)
+    expect(i18n.exists(key, { lng: 'ar', fallbackLng: false })).toBe(true)
+  })
+
+  it('leaves anything else, and an uncoded 409, to the general sentence', () => {
+    expect(noteCancelRefusalKey(refused('STALE_INVOICE_VERSION'), 'CREDIT_NOTE')).toBeNull()
+    expect(
+      noteCancelRefusalKey(new ApiError({ status: 409, problemType: 'resource-conflict' }), 'CREDIT_NOTE'),
+    ).toBeNull()
+    expect(noteCancelRefusalKey(new Error('offline'), 'DEBIT_NOTE')).toBeNull()
+  })
+})
+
+describe("why a note was not sent, from the server's deliveryBlocker (W2-D1)", () => {
+  const openNote = async (kind: 'CREDIT_NOTE' | 'DEBIT_NOTE', deliveryBlocker: string | null) => {
+    const number = kind === 'CREDIT_NOTE' ? 'CRN-9' : 'DBN-9'
+    const note: InvoiceDetailDto = {
+      ...INVOICE,
+      id: NOTE_ID,
+      type: kind,
+      correctionOfInvoiceId: INVOICE_ID,
+      deliveryState: 'NOT_SUBMITTED',
+      deliveryBlocker,
+      invoiceNumber: number,
+    }
+    override = (url) => {
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}`) return json(200, note)
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}/receivable`) return json(200, RECEIVABLE)
+      if (url.startsWith(`/api/v1/authored-invoices/${NOTE_ID}/`))
+        return json(
+          200,
+          url.endsWith('/history')
+            ? { entries: [], truncated: false, limit: 200 }
+            : url.endsWith('/internal-note')
+              ? { internalNote: null }
+              : [],
+        )
+      return undefined
+    }
+    const path = kind === 'CREDIT_NOTE' ? 'credit-notes' : 'debit-notes'
+    render(
+      <MemoryRouter initialEntries={[`/income/${path}/${NOTE_ID}`]}>
+        <Routes>
+          <Route path="/income/credit-notes/:id" element={<CreditNoteDetailsPage />} />
+          <Route path="/income/debit-notes/:id" element={<DebitNoteDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('heading', { name: number })).toBeTruthy()
+  }
+
+  it.each([
+    ['CREDIT_NOTE', 'CANONICAL_HANDOFF_NOT_ENABLED', "Peppol sending isn't switched on here yet, so nothing has been sent."],
+    ['DEBIT_NOTE', 'DISPATCH_NOT_ACTIVE', 'Peppol sending is switched off here at the moment, so nothing has been sent.'],
+    ['CREDIT_NOTE', 'SOMETHING_NEW', "This credit note can't be sent over Peppol from here at the moment."],
+    ['DEBIT_NOTE', 'SOMETHING_NEW', "This debit note can't be sent over Peppol from here at the moment."],
+  ] as const)('a %s with %s says so in place of "ready to deliver"', async (kind, blocker, sentence) => {
+    await openNote(kind, blocker)
+    expect(await screen.findByText(sentence, { exact: false })).toBeTruthy()
+    expect(screen.queryByText(/ready to deliver to/)).toBeNull()
+  }, 30_000)
+
+  it('with no blocker the note keeps its "ready to deliver" hint', async () => {
+    await openNote('DEBIT_NOTE', null)
+    expect(await screen.findByText(/This debit note is ready to deliver to/)).toBeTruthy()
+    expect(screen.queryByText(/Peppol sending|sent over Peppol from here/)).toBeNull()
+  }, 30_000)
+})
+
+describe('the read-model fields of backend #824 on the credit notes, each optional', () => {
+  const summaryReply = (body: unknown) => (url: string) =>
+    url.startsWith('/api/v1/authored-invoices/summary') ? json(200, body) : undefined
+
+  it('takes what was paid back off "Applied to invoices", and shows it as Refunded (ACC-3)', async () => {
+    override = summaryReply({ ...CREDIT_SUMMARY, refundedTotal: { count: 3, total: 20.5 } })
+    renderAt('/income/credit-notes')
+    expect(await screen.findByText('97.137')).toBeTruthy()
+    const applied = screen.getByRole('heading', { name: 'Applied to invoices' })
+      .closest('article') as HTMLElement
+    // 144.831 issued less 20.500 paid back; 14 issued notes less the 3 paid back.
+    expect(within(applied).getByText('124.331')).toBeTruthy()
+    expect(within(applied).getByText('11 offset, no cash out')).toBeTruthy()
+    const refunded = screen.getByRole('heading', { name: 'Refunded' })
+      .closest('article') as HTMLElement
+    expect(within(refunded).getByText('20.500')).toBeTruthy()
+    expect(within(refunded).getByText('3 paid back to customer')).toBeTruthy()
+    // The Applied tab lists every issued note, so its count stays the issued count.
+    expect(within(screen.getByRole('tab', { name: /Applied/ })).getByText('14')).toBeTruthy()
+    // Refund due has no figure from any server yet.
+    const due = screen.getByRole('heading', { name: 'Refund due' }).closest('article') as HTMLElement
+    expect(within(due).getByText('Not available yet')).toBeTruthy()
+  })
+
+  it('keeps "Applied to invoices" at the issued total and Refunded unavailable without refundedTotal', async () => {
+    override = summaryReply(CREDIT_SUMMARY)
+    renderAt('/income/credit-notes')
+    const applied = (await screen.findByRole('heading', { name: 'Applied to invoices' }))
+      .closest('article') as HTMLElement
+    expect(await within(applied).findByText('144.831')).toBeTruthy()
+    const refunded = screen.getByRole('heading', { name: 'Refunded' })
+      .closest('article') as HTMLElement
+    expect(within(refunded).getByText('Not available yet')).toBeTruthy()
+    expect(within(refunded).queryByText('0.000')).toBeNull()
+  })
+})
+
+describe("a note's own customerName and corrected invoice number (C-5)", () => {
+  // An earlier test leaves the original invoice's read pending for ever; joining it would answer
+  // these tests from that test's stubs.
+  beforeEach(() => resetSharedRequests())
+
+  const note: InvoiceDetailDto = {
+    ...INVOICE,
+    id: NOTE_ID,
+    type: 'CREDIT_NOTE',
+    correctionOfInvoiceId: INVOICE_ID,
+    invoiceNumber: 'CRN-5',
+  }
+
+  const open = async (served: Partial<InvoiceDetailDto>) => {
+    override = (url) => {
+      // Neither the corrected invoice nor the customer record can be read.
+      if (url === `/api/v1/authored-invoices/${INVOICE_ID}`) return json(404, { status: 404 })
+      if (url.startsWith('/api/v1/customers/')) return json(403, { status: 403 })
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}`) return json(200, { ...note, ...served })
+      if (url.startsWith(`/api/v1/authored-invoices/${NOTE_ID}/`))
+        return url.endsWith('/receivable')
+          ? json(404, { status: 404 })
+          : json(
+              200,
+              url.endsWith('/history')
+                ? { entries: [], truncated: false, limit: 200 }
+                : url.endsWith('/internal-note')
+                  ? { internalNote: null }
+                  : [],
+            )
+      return undefined
+    }
+    render(
+      <MemoryRouter initialEntries={[`/income/credit-notes/${NOTE_ID}`]}>
+        <Routes>
+          <Route path="/income/credit-notes/:id" element={<CreditNoteDetailsPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('heading', { name: 'CRN-5' })).toBeTruthy()
+  }
+
+  it('names the invoice and the customer from the note when their own reads fail', async () => {
+    await open({ customerName: 'Sohar Port Logistics', correctionOfInvoiceNumber: 'INV-2026-0042' })
+    await vi.waitFor(() => expect(screen.getAllByText('INV-2026-0042').length).toBeGreaterThan(0))
+    expect(screen.getAllByText(/Sohar Port Logistics/).length).toBeGreaterThan(0)
+    expect(screen.queryByText(INVOICE_ID)).toBeNull()
+  }, 30_000)
+
+  it('keeps the invoice id and an unnamed customer when the note does not carry them', async () => {
+    await open({ customerName: null, correctionOfInvoiceNumber: null })
+    await vi.waitFor(() => expect(screen.getAllByText(INVOICE_ID).length).toBeGreaterThan(0))
+    expect(screen.queryByText(/Sohar Port Logistics/)).toBeNull()
+  }, 30_000)
+})
+
+// D-24 (owner, 6 Nov 2026): a debit note is a separate receivable linked to its invoice. No screen
+// adds it into the invoice's balance, and "Added to invoice balance" is gone from both languages.
+describe('a debit note is owed apart from its invoice (D-24)', () => {
+  const OWED_ON_INVOICE: InvoiceReceivableDto = {
+    ...RECEIVABLE,
+    paidAmount: 23.5,
+    outstandingAmount: 50,
+    paymentState: 'PARTIALLY_PAID',
+  }
+  const debitNote: InvoiceDetailDto = {
+    ...INVOICE,
+    id: NOTE_ID,
+    type: 'DEBIT_NOTE',
+    correctionOfInvoiceId: INVOICE_ID,
+    invoiceNumber: 'DBN-9',
+    totals: {
+      subtotal: 10,
+      itemLevelDiscount: 0,
+      headerDiscount: 0,
+      totalDiscount: 0,
+      taxableAmount: 10,
+      vatAmount: 0.5,
+      totalAmount: 10.5,
+      payableRoundingAmount: 0,
+      outputScale: 3,
+    } as InvoiceDetailDto['totals'],
+  }
+  const owedOnNote: InvoiceReceivableDto = {
+    ...RECEIVABLE,
+    documentTotal: 10.5,
+    paidAmount: 0,
+    creditedAmount: 0,
+    outstandingAmount: 10.5,
+    paymentState: 'UNPAID',
+    dueDate: '2099-09-30',
+  }
+  const figureBy = (label: string) =>
+    (screen.getByText(label).parentElement as HTMLElement).textContent ?? ''
+
+  it('the composer shows the invoice’s balance unchanged and the note’s own amount, never a sum', async () => {
+    receivable = OWED_ON_INVOICE
+    await readyDebitNote()
+    expect(await screen.findByText('Owed separately on this debit note')).toBeTruthy()
+    expect(figureBy('Outstanding on INV-2026-0042')).toContain('50.000')
+    expect(figureBy('Owed separately on this debit note')).toContain('6.300')
+    expect(screen.queryByText('New invoice balance')).toBeNull()
+    expect(screen.queryByText(/56\.300/)).toBeNull()
+    expect(screen.getByText(i18n.t('salesNote.debit.ownReceivable'))).toBeTruthy()
+  }, 30_000)
+
+  it('the detail page says what is due on the note alone, linked to the invoice', async () => {
+    receivable = OWED_ON_INVOICE
+    entitlements = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.payment.manage'] }
+    override = (url) => {
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}`) return json(200, debitNote)
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}/receivable`) return json(200, owedOnNote)
+      if (url.startsWith(`/api/v1/authored-invoices/${NOTE_ID}/`))
+        return json(
+          200,
+          url.endsWith('/history')
+            ? { entries: [], truncated: false, limit: 200 }
+            : url.endsWith('/internal-note')
+              ? { internalNote: null }
+              : [],
+        )
+      return undefined
+    }
+    render(
+      <MemoryRouter initialEntries={[`/income/debit-notes/${NOTE_ID}`]}>
+        <Routes>
+          <Route path="/income/debit-notes/:id" element={<SalesNoteDetailPage kind="DEBIT_NOTE" />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await screen.findByRole('heading', { name: 'DBN-9' })
+    // Both receivables are read; only the note's own is due here.
+    await waitFor(() =>
+      expect(figureBy('Now due on this debit note')).toContain('10.500'),
+    )
+    expect(calls('GET', `/api/v1/authored-invoices/${INVOICE_ID}/receivable`).length).toBeGreaterThan(0)
+    expect(document.body.textContent).not.toMatch(/60\.500/)
+    expect(screen.getByText('Owed separately, linked to INV-2026-0042')).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(/Added to|joined .*balance/)
+    // INCW1-1: the chip by the original invoice no longer says its balance increased.
+    expect(screen.getByText('Billed separately')).toBeTruthy()
+    expect(screen.queryByText('Balance increased')).toBeNull()
+  }, 30_000)
+
+  it('the detail page shows credit an overpaid debit note holds on its own line, never set against the invoice (D-30(a))', async () => {
+    receivable = OWED_ON_INVOICE
+    override = (url) => {
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}`) return json(200, debitNote)
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}/receivable`)
+        return json(200, {
+          ...owedOnNote,
+          paidAmount: 12,
+          outstandingAmount: 0,
+          unappliedCredit: -1.5,
+          paymentState: 'PAID',
+        })
+      if (url.startsWith(`/api/v1/authored-invoices/${NOTE_ID}/`))
+        return json(
+          200,
+          url.endsWith('/history')
+            ? { entries: [], truncated: false, limit: 200 }
+            : url.endsWith('/internal-note')
+              ? { internalNote: null }
+              : [],
+        )
+      return undefined
+    }
+    render(
+      <MemoryRouter initialEntries={[`/income/debit-notes/${NOTE_ID}`]}>
+        <Routes>
+          <Route path="/income/debit-notes/:id" element={<SalesNoteDetailPage kind="DEBIT_NOTE" />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await screen.findByRole('heading', { name: 'DBN-9' })
+    const credit = await screen.findByTestId('unapplied-credit')
+    expect(within(credit).getByText('-1.500')).toBeTruthy()
+    expect(within(credit).getByText('Unapplied credit')).toBeTruthy()
+    // What is due on the note stays the server's floored figure.
+    expect(figureBy('Now due on this debit note')).toContain('0.000')
+  }, 30_000)
+
+  it('has no sentence left, in either language, that adds a debit note to an invoice’s balance', () => {
+    for (const language of ['en', 'ar']) {
+      const t = i18n.getFixedT(language)
+      expect(i18n.exists('salesNote.list.payment.addedToInvoice', { lng: language })).toBe(false)
+      expect(i18n.exists('salesNote.detail.addedTo', { lng: language })).toBe(false)
+      // INCW1-1: the unused debit-note keys that said the charge joined the invoice's balance.
+      for (const stale of [
+        'salesNote.detail.balanceIncreased',
+        'debitNoteDetail.balanceIncreased',
+        'debitNoteDetail.awaitingHint',
+        'debitNoteDetail.stats.addedTo',
+        'debitNoteDetail.stats.nowDue',
+        'newDebitNote.amount.addedByNote',
+        'newDebitNote.amount.newBalance',
+      ]) {
+        expect(i18n.exists(stale, { lng: language })).toBe(false)
+      }
+      for (const key of [
+        'salesNote.list.payment.separateFromInvoice',
+        'salesNote.detail.linkedTo',
+        'salesNote.detail.nowDue',
+        'salesNote.detail.awaitingHint',
+        'salesNote.detail.awaitingPaymentHint',
+        'salesNote.amount.owedSeparately',
+        'salesNote.detail.billedSeparately',
+      ]) {
+        expect(i18n.exists(key, { lng: language })).toBe(true)
+        expect(t(key, { invoice: 'INV-1', customer: 'C', amount: '1', date: 'd', when: 'w' })).not.toMatch(
+          /Added to|added to the invoice|joined|أُضيف إلى رصيد|انضم المبلغ/,
+        )
+      }
+    }
   })
 })

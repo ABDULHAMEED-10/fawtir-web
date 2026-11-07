@@ -82,7 +82,9 @@ export type VolumeReportDto = {
  * bill carries no tax subtotals. `documents` counts every document whatever its sign.
  *
  * `groupKey` is empty under `NONE`; under `CATEGORY` an empty key means no category was recorded,
- * which the page must show as "Uncategorised" rather than drop.
+ * which the page must show as "Uncategorised" rather than drop. Under `SUPPLIER`, bills linked to
+ * no supplier record group as `participant:<scheme:value>` or `name:<stated name>` (NEW-1, backend
+ * #824): only an unprefixed key is a supplier's id.
  */
 export type ExpenditureRowDto = {
   period: string
@@ -101,6 +103,13 @@ export type ExpenditureRowDto = {
    * today, so the pages say "reclaim not confirmed" rather than calling every bill reclaimable.
    */
   reclaimableVatAmount?: number | null
+  /**
+   * Bills only (ACC-5, backend #824): the bucket's documents that are not a credit note (381, 261)
+   * or a debit note (383), and their net, unsigned. "Bills received" and "Average bill" read these;
+   * `documents` and `netAmount` count and net the notes in. Absent from a server before #824.
+   */
+  billDocuments?: number
+  billNetAmount?: number
 }
 
 export type ExpenditureTotalDto = {
@@ -109,6 +118,9 @@ export type ExpenditureTotalDto = {
   netAmount: number
   vatAmount: number
   totalAmount: number
+  /** The rows' `billDocuments` and `billNetAmount` summed (ACC-5); absent before backend #824. */
+  billDocuments?: number
+  billNetAmount?: number
 }
 
 export type ExpenditureReportDto = {
@@ -132,18 +144,37 @@ export type CashFlowRowDto = {
   period: string
   periodStart: string
   periodEnd: string
-  currency: string
+  /**
+   * Null only for till paid-outs written before RC5, which recorded no currency (backend cb9898ac3,
+   * OQ-F19): the "currency not recorded" bucket. Never to be read as the company's currency.
+   */
+  currency: string | null
   received: number
   paidOut: number
   net: number
+} & TillPaidOutFigures
+
+/**
+ * Till paid-outs by class (V536), beside `paidOut` and never in it or in `net`: a till payment that
+ * paid a bill is already in `paidOut`, once, as that bill payment. Absent from a server before
+ * cb9898ac3, which reads as none.
+ */
+export type TillPaidOutFigures = {
+  cashPaidOutExpense?: number
+  cashPaidOutAdvance?: number
+  /** An internal movement, in no outflow total. */
+  cashTransferred?: number
+  /** Written before RC5, which carry no class. */
+  cashPaidOutUnclassified?: number
 }
 
 export type CashFlowTotalDto = {
-  currency: string
+  /** Null for the "currency not recorded (before RC5)" bucket. */
+  currency: string | null
   received: number
   paidOut: number
   net: number
-}
+} & TillPaidOutFigures
 
 export type CashFlowReportDto = {
   from: string | null

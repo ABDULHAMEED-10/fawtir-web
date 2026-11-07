@@ -22,12 +22,13 @@ import {
 } from '../../components/debit/NoteParts'
 import { useNoteBill, useNoteOwnBill } from '../../components/debit/noteBill'
 import { useApiRead } from '../../hooks'
-import type { Page } from '../../api'
+import { ApiError, type Page } from '../../api'
 import {
   applyCreditNote,
   creditNotePath,
   loadCreditNote,
   loadCreditNoteSettlements,
+  newCreditNoteRefundKey,
   refundCreditNote,
   type CreditNoteRowDto,
   type CreditNoteSettlementDto,
@@ -354,6 +355,17 @@ function CreditNoteDetail() {
             <StatusChip className={CHIP[chip.tone]} label={t(chip.labelKey)} />
             <KindBadge sign={'−'} label={t(`supplierNotes.kind.credit.${item.source}`)} />
           </div>
+          {item.waitingForDecisionOn ? (
+            <Link
+              to={`/expenditure/bills/${item.waitingForDecisionOn}`}
+              data-testid="credit-note-waiting-duplicate"
+              className="mt-2 inline-block text-sm font-semibold leading-[1.4] text-pending-700 hover:underline"
+            >
+              {billNumber
+                ? t('supplierCreditNotes.waitingDuplicate.onBill', { number: billNumber })
+                : t('supplierCreditNotes.waitingDuplicate.onItsBill')}
+            </Link>
+          ) : null}
           <p className="mt-2 text-sm font-medium leading-[1.4] text-text-tertiary">
             {t('supplierCreditNotes.detail.from')}{' '}
             <span className="font-semibold text-text-secondary">
@@ -723,6 +735,10 @@ function CreditNoteDetail() {
                   remaining={remaining}
                   onDone={afterAction}
                   onFailure={onFailure}
+                  onKeySpent={() => {
+                    note.retry()
+                    settlements.retry()
+                  }}
                   onCancel={() => setMode('idle')}
                 />
               ) : (
@@ -1064,6 +1080,7 @@ function RefundForm({
   remaining,
   onDone,
   onFailure,
+  onKeySpent,
   onCancel,
 }: {
   noteId: string
@@ -1071,6 +1088,7 @@ function RefundForm({
   remaining: number
   onDone: (key: string) => void
   onFailure: (error: unknown) => void
+  onKeySpent: () => void
   onCancel: () => void
 }) {
   const { t, i18n } = useTranslation()
@@ -1079,6 +1097,10 @@ function RefundForm({
   const [amount, setAmount] = useState('')
   const [paidOn, setPaidOn] = useState('')
   const [reference, setReference] = useState('')
+  // One key per refund the person means to record, as RecordPaymentModal keys a payment: a second
+  // click, or a retry after a timeout or a lost answer, is the same refund and the server records
+  // it once. The form closes after a success, so the next refund opens with a fresh key.
+  const [refundKey, setRefundKey] = useState(newCreditNoteRefundKey)
 
   const parsed = (value: string) => {
     const number = Number(value)
@@ -1089,9 +1111,16 @@ function RefundForm({
   const refund = async () => {
     setBusy(true)
     try {
-      await refundCreditNote(noteId, parsed(amount)!, paidOn, reference.trim() || null)
+      await refundCreditNote(noteId, refundKey, parsed(amount)!, paidOn, reference.trim() || null)
       onDone('supplierCreditNoteDetail.refundedDone')
     } catch (error) {
+      // The form was changed after an attempt whose answer never arrived, so that attempt may be
+      // recorded. The old key cannot carry the new figures; the next press is a new refund, and
+      // the page reads the note again so the person can see whether the first one went through.
+      if (error instanceof ApiError && error.code === 'CREDIT_NOTE_REFUND_IDEMPOTENCY_KEY_REUSED') {
+        setRefundKey(newCreditNoteRefundKey())
+        onKeySpent()
+      }
       onFailure(error)
     } finally {
       setBusy(false)

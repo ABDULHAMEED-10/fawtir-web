@@ -11,12 +11,10 @@ import { ApiError } from '../../api/errors'
 import {
   confirmIntake,
   discardIntake,
-  possibleDuplicateOf,
   updateIntake,
   type ConfirmedBillDto,
   type IntakeDocumentTypeDto,
   type IntakeDto,
-  type PossibleDuplicateDto,
 } from '../../api/expenditure/billIntake'
 import {
   loadSupplierOrders,
@@ -25,6 +23,15 @@ import {
 } from '../../api/expenditure/supplierRecord'
 import { loadSupplierPage, supplierListPath } from '../../api/expenditure/suppliers'
 import { describeApiFailure } from '../../lib/apiFailure'
+import {
+  overrideExtras,
+  overrideRefused,
+  reviewAfterRefusal,
+  type DuplicateOverride,
+  type DuplicateReview,
+  duplicateBodyKey,
+} from '../../lib/billDuplicateOverride'
+import { DuplicateReviewPanel } from './DuplicateReviewPanel'
 import {
   BILL_CONFIRM_REFUSALS,
   CURRENCIES,
@@ -214,7 +221,7 @@ export function BillIntakeForm({
   const [vatNumber, setVatNumber] = useState<string | null>(lockedSupplier?.vatNumber ?? null)
   const [errors, setErrors] = useState<BillProblems>({})
   const [notice, setNotice] = useState<string | null>(null)
-  const [duplicate, setDuplicate] = useState<PossibleDuplicateDto | null>(null)
+  const [duplicate, setDuplicate] = useState<DuplicateReview | null>(null)
   const [busy, setBusy] = useState<'confirm' | 'keep' | null>(null)
   const [dismissedOrders, setDismissedOrders] = useState<string[]>([])
   /** The read fields still amber: unsure on the file and not typed over since (rows 1.6, 1.10). */
@@ -307,7 +314,7 @@ export function BillIntakeForm({
     formatAmount(value, currency, i18n.language)
   const error = (field: BillField) => (errors[field] ? t(errors[field]!) : undefined)
 
-  const save = async (notDuplicateOf: string | null) => {
+  const save = async (override: DuplicateOverride | null) => {
     if (inFlight.current) return
     const problems = billProblems(form, { needsNumber: true })
     setErrors(problems)
@@ -320,7 +327,7 @@ export function BillIntakeForm({
     setNotice(null)
     try {
       onSaved(
-        await confirmIntake(intake.id, toConfirmation(form, { notDuplicateOf, documentTypeCode })),
+        await confirmIntake(intake.id, toConfirmation(form, { ...overrideExtras(override), documentTypeCode })),
       )
     } catch (failure) {
       refuse(failure)
@@ -357,9 +364,13 @@ export function BillIntakeForm({
   // ways, a field the server will not take, an intake already confirmed or gone. The update's
   // field paths sit under `extracted.`, which is stripped so they land on the same inputs.
   const refuse = (failure: unknown) => {
-    const same = possibleDuplicateOf(failure)
+    const same = reviewAfterRefusal(duplicate, failure)
+    const overridden = overrideRefused(duplicate, failure)
     if (same) {
       setDuplicate(same)
+    } else if (overridden) {
+      setDuplicate(overridden.review)
+      if (!overridden.review) setNotice(t(overridden.key))
     } else if (failure instanceof ApiError && failure.code && Object.hasOwn(BILL_CONFIRM_REFUSALS, failure.code)) {
       const refusal = BILL_CONFIRM_REFUSALS[failure.code]
       if (refusal.field) setErrors({ [refusal.field]: refusal.key })
@@ -877,41 +888,27 @@ export function BillIntakeForm({
           </section>
 
           {duplicate ? (
-            <section role="alert" className="rounded-md border border-[#d8c9a8] bg-[#faf5ea] p-5">
-              <h2 className="flex items-center gap-2 text-base font-semibold text-text-primary">
-                <img src={warnIcon} alt="" className="size-5" />
-                {t('billIntake.duplicate.title')}
-              </h2>
-              <p className="mt-2 text-sm font-medium leading-[1.5] text-text-secondary">
-                {withRial(
-                  t('billIntake.duplicate.body', {
-                    number: duplicate.supplierBillNumber,
-                    date: duplicate.issueDate ? formatDate(duplicate.issueDate, i18n.language) : '',
+            <DuplicateReviewPanel
+              review={duplicate}
+              onChange={setDuplicate}
+              onDifferent={(override) => void save(override)}
+              busy={busy !== null}
+              sentence={(bill) =>
+                withRial(
+                  t(duplicateBodyKey(bill), {
+                    number: bill.supplierBillNumber,
+                    date: bill.issueDate ? formatDate(bill.issueDate, i18n.language) : '',
                     total:
-                      duplicate.total === null
+                      bill.total === null
                         ? ''
-                        : `${money(duplicate.total, duplicate.currencyCode ?? form.currency)} ${duplicate.currencyCode ?? form.currency}`,
-                    source: t(`billIntake.duplicate.source.${duplicate.source}`),
+                        : `${money(bill.total, bill.currencyCode ?? form.currency)} ${bill.currencyCode ?? form.currency}`,
+                    source: t(`billIntake.duplicate.source.${bill.source}`),
                   }),
-                )}
-              </p>
-              <div className="mt-4 flex flex-wrap gap-3">
-                <Link
-                  to={`/expenditure/bills/${duplicate.billId}`}
-                  className="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary hover:bg-primary-25"
-                >
-                  {t('billIntake.duplicate.open')}
-                </Link>
-                <button
-                  type="button"
-                  disabled={busy !== null}
-                  onClick={() => void save(duplicate.billId)}
-                  className="inline-flex h-[42px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white hover:bg-primary-800 disabled:opacity-60"
-                >
-                  {t('billIntake.duplicate.different')}
-                </button>
-              </div>
-            </section>
+                )
+              }
+              linkClassName="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary hover:bg-primary-25"
+              buttonClassName="inline-flex h-[42px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white hover:bg-primary-800 disabled:opacity-60"
+            />
           ) : null}
         </div>
       </div>

@@ -2050,7 +2050,10 @@
       "overdueNone": "Nothing overdue",
       "settled": "Settled",
       "settledLive_one": "{{invoices}} document settled by payment or credit",
-      "settledLive_other": "{{invoices}} documents settled by payment or credit"
+      "settledLive_other": "{{invoices}} documents settled by payment or credit",
+      "paid": "Paid",
+      "paidLive_one": "{{invoices}} invoice collected",
+      "paidLive_other": "{{invoices}} invoices collected"
     },
     "tabs": {
       "all": "All",
@@ -2170,7 +2173,13 @@
     },
     "delivery": {
       "sentManually": "Sent manually",
-      "notSent": "Not sent"
+      "notSent": "Not sent",
+      "queued": "Queued",
+      "sending": "Sending",
+      "sent": "Sent",
+      "delivered": "Delivered",
+      "deliveredUnconfirmed": "Delivered, unconfirmed",
+      "undeliverable": "Not delivered"
     },
     "amountNote": {
       "estimate": "Estimate · priced at issue",
@@ -2218,19 +2227,20 @@
       "delivered": "Delivered",
       "undeliverable": "Could not be delivered",
       "heldSenderStanding": "On hold, not sent yet",
-      "unknown": "Sending status not recognised by this screen. Reload, or contact support if it stays"
+      "unknown": "Sending status not recognised by this screen. Reload, or contact support if it stays",
+      "heldPrintedQr": "Held for review: nothing filed yet"
     },
     "reason": {
       "sellerAddress": "Your company address on this invoice is incomplete. It was fixed when the invoice was issued, so this invoice cannot be sent: cancel it and issue a new one after completing the address.",
       "sellerContact": "Your company telephone number was missing when this invoice was issued, so it cannot be sent: cancel it and issue a new one after adding the number.",
       "buyerAddress": "The customer's address on this invoice is incomplete. It was fixed at issue, so this invoice cannot be sent: cancel it and issue a new one after completing the customer's address.",
       "lineClassification": "A line on this invoice is missing its goods/services classification or business activity, so it cannot be sent: cancel it and issue a corrected invoice.",
-      "lineHsCode": "A goods line on this invoice has no HS code, so it cannot be sent: cancel it and issue a corrected invoice.",
+      "lineHsCode": "This invoice was issued with a goods line that has no HS code, so it is held and not sent. Someone who can issue invoices adds the missing code (or Other) to release it under the same number.",
       "lineTaxReason": "A zero-rated or exempt line on this invoice has no reason code, so it cannot be sent: cancel it and issue a corrected invoice.",
       "unsupportedShape": "This kind of self-billed invoice cannot be sent electronically.",
       "correctionReason": "This note has no correction reason, so it cannot be sent: cancel it and issue a corrected note.",
       "precedingUnavailable": "The invoice this note corrects could not be read. Sending will be retried.",
-      "validationFailed": "The e-invoice failed validation, so it was not sent. Cancel it and issue a corrected invoice, or contact support with the invoice number.",
+      "validationFailed": "The e-invoice failed validation, so it was not sent. Issued invoices cannot be changed. Contact support with the invoice number.",
       "notSupported": "This invoice cannot be expressed as an e-invoice, so it was not sent. Contact support with the invoice number.",
       "duplicateConflict": "Another document was already submitted under this invoice number, so this one was not sent. Contact support with the invoice number.",
       "noLongerIssued": "The invoice is no longer issued, so it will not be sent.",
@@ -2241,7 +2251,8 @@
       "senderNotAuthorized": "The seller on this invoice is not your company's Peppol participant. It was fixed when the invoice was issued, so this invoice cannot be sent. Contact support with the invoice number.",
       "transportUnavailable": "Sending over Peppol was not available on this service, so nothing was sent.",
       "noOutcome": "The sending service gave no answer for this invoice, so it was not sent. Contact support with the invoice number.",
-      "retriesSpent": "Sending failed repeatedly and has stopped. It will not be retried by itself: contact support with the invoice number."
+      "retriesSpent": "Sending failed repeatedly and has stopped. It will not be retried by itself: contact support with the invoice number.",
+      "printedQrDiffers": "The QR code printed for the customer differs from the one this invoice would be filed with, so the invoice is held for review and nothing has been filed yet. Contact Fawtir support with the invoice number."
     },
     "sent": {
       "dispatched": "The invoice was validated and queued for sending.",
@@ -2433,6 +2444,7 @@
     },
     "draftTitle": "Draft invoice",
     "draftNotice": "This is a draft. It has no number and no figures until it is issued, and nothing has been sent or reported.",
+    "stockWarnings": "When it was issued, stock noted:",
     "customerUnknown": "Customer not shown",
     "noVat": "No VAT number on record",
     "sentManually": "Sent manually",
@@ -2465,7 +2477,8 @@
       "APPROVAL_WITHDRAWN": "Approval request withdrawn",
       "APPROVED": "Approved",
       "APPROVAL_REJECTED": "Not approved",
-      "APPROVAL_CLEARED_BY_EDIT": "Approval cleared by an edit"
+      "APPROVAL_CLEARED_BY_EDIT": "Approval cleared by an edit",
+      "ISSUED_HS_CODE_AMENDED": "HS codes added after issue"
     },
     "cancel": {
       "title": "Cancel this invoice?",
@@ -2528,7 +2541,9 @@
         "periodClosed": "That date falls in a closed accounting period.",
         "notIssued": "Payments can only be recorded against an issued invoice.",
         "alreadyReversed": "That payment was already reversed. The list has been refreshed.",
-        "paymentGone": "That payment could not be found. The list has been refreshed."
+        "reversalAfterRefundOrCredit": "This payment was taken at the till, and the invoice already has a refund or credit note, so it cannot be reversed. Make any further correction with a refund at the till or a credit note.",
+        "paymentGone": "That payment could not be found. The list has been refreshed.",
+        "referenceCardNumber": "That looks like the card number. Type the approval code from the bank slip as the reference, never the card number."
       },
       "balanceChanged": "What is owed changed since this page was opened. Closing this dialog shows the current balance."
     },
@@ -2537,6 +2552,11 @@
       "DEBIT_NOTE": "Debit note {{id}}"
     },
     "notSentYet": "Not sent yet",
+    "deliveryBlocker": {
+      "CANONICAL_HANDOFF_NOT_ENABLED": "Peppol sending isn't switched on here yet, so nothing has been sent",
+      "DISPATCH_NOT_ACTIVE": "Peppol sending is switched off here at the moment, so nothing has been sent",
+      "other": "This invoice can't be sent over Peppol from here at the moment"
+    },
     "duplicateUnavailable": "Duplicating is not available yet: there is no route to copy a document.",
     "delivered": {
       "sentManually": "Sent manually to {{customer}} · {{when}}",
@@ -2583,7 +2603,8 @@
       "creditNote": "CREDIT NOTE",
       "debitNote": "DEBIT NOTE",
       "from": "From",
-      "totalDue": "Total due"
+      "totalDue": "Total due",
+      "qrAlt": "The invoice's receipt QR code"
     },
     "you": "You",
     "sentViaPeppol": "Sent via Peppol",
@@ -2601,6 +2622,12 @@
       "payments": "This invoice cannot be cancelled: payments are recorded against it.",
       "paymentsOnNote": "This note cannot be cancelled: payments are recorded against it.",
       "correctionsOnNote": "This note cannot be cancelled: credit or debit notes have been issued against it."
+    },
+    "receiptQr": {
+      "pending": "No QR code yet: this invoice's receipt QR is not ready.",
+      "notApplicable": "No QR code: receipt QR codes are printed only on sales to consumers.",
+      "notAnIssuedSale": "No QR code: only an issued sales invoice carries a receipt QR.",
+      "unavailable": "No QR code: the receipt QR could not be read."
     }
   },
   "createInvoice": {
@@ -2639,7 +2666,7 @@
       "contactPlaceholder": "To send the receipt",
       "peppolNote": "No Peppol ID needed. We’ll use the OTA substitute participant ID 997770000099 and generate the mandatory QR code on the receipt.",
       "receiptQr": "Receipt QR",
-      "receiptQrHint": "TLV-encoded per OTA spec.\nGenerated on submit."
+      "receiptQrHint": "Made by Fawtir from the issued invoice."
     },
     "summary": {
       "title": "Summary",
@@ -2924,6 +2951,7 @@
       "endBeforeStart": "The end can't be before the first draft.",
       "occurrences": "Give a whole number of runs, or leave it empty.",
       "intervalRequired": "Choose how often it runs.",
+      "goodsOrServiceRequired": "A line of this schedule does not say whether it is goods or a service, so it was not saved. Choose goods or a service for each line, then save again.",
       "notFound": "This schedule no longer exists.",
       "linesRequired": "Add at least one line with a description.",
       "alreadyRaised": "This schedule changed since you opened it: its latest draft has already been raised. Reload the page and try again.",
@@ -3759,9 +3787,7 @@
       "netToCharge": "Net to charge",
       "vatAdded": "VAT added · 5%",
       "effectOn": "Effect on {{customer}}",
-      "outstanding": "Outstanding on {{invoice}}",
-      "addedByNote": "Added by this note",
-      "newBalance": "New invoice balance"
+      "outstanding": "Outstanding on {{invoice}}"
     },
     "col": {
       "description": "Description",
@@ -3814,12 +3840,9 @@
     "amountCharged": "Amount charged",
     "increasesRevenue": "Increases recognised revenue",
     "stats": {
-      "debitTotal": "Debit total",
-      "addedTo": "Added to {{invoice}}",
-      "nowDue": "Now due on the invoice"
+      "debitTotal": "Debit total"
     },
     "awaitingFrom": "Awaiting payment from {{customer}}",
-    "awaitingHint": "The charge joined {{invoice}}'s balance, so the customer settles one figure. Due 29 Aug 2026, in 30 days.",
     "sections": {
       "details": "Details",
       "items": "Items",
@@ -3829,7 +3852,6 @@
     },
     "viewCustomer": "View customer",
     "adjusts": "Adjusts {{invoice}}",
-    "balanceIncreased": "Balance increased",
     "openInvoice": "Open Invoice",
     "onPeppol": "On Peppol",
     "fields": {
@@ -4453,7 +4475,7 @@
       "receiptWithQr_one": "{{count}} item · receipt with a QR code",
       "receiptWithQr_other": "{{count}} items · receipt with a QR code",
       "finish": "Finish the sale",
-      "finishNote": "Finishing raises the invoice, files it with the Tax Authority and opens the drawer. Takes about a second. The QR code comes up for the customer straight after. {{change}} change to hand back.",
+      "finishNote": "Finishing raises the invoice and opens the drawer. Takes about a second. For a consumer, the QR code comes up once it is ready. {{change}} change to hand back.",
       "tipRow": {
         "none": "Tip",
         "p5": "Tip · 5%",
@@ -4482,7 +4504,36 @@
       "slipRead": "Read from the slip: {{card}} {{rrn}}",
       "slipCheck": "Check the marked field before you press Paid.",
       "slipDiffers": "The slip says {{slip}}, the payment is {{payment}}.",
-      "slipKeptOffline": "The till is offline. The slip photo is kept with this sale and sent once the connection is back. Type the approval code if you need it now."
+      "slipKeptOffline": "The till is offline. The slip photo is kept with this sale and sent once the connection is back. Type the approval code if you need it now.",
+      "approvalIsCardNumber": "That looks like the card number. Type the approval code from the bank slip, never the card number.",
+      "uncertain": {
+        "title": "The outcome of this sale is not known yet",
+        "locked": "Until it is, the basket, the payment and the buyer cannot be changed: a changed sale would be a new one, and the customer could be charged twice.",
+        "unsaved": "This sale could not be kept on this device, so a reload would forget it. A sale may already be recorded: check Today before ringing it again.",
+        "retry": "Send the same sale again",
+        "checkToday": "Check today’s sales",
+        "rungBy": "Rung by {{name}}.",
+        "restoring": "Reading the held sale on this device…",
+        "lockOnly": "This sale’s details could not be kept safely on this device, so it cannot be sent again from here. Check it with the server before anything is rung again.",
+        "reattachSlip": "This sale had a card slip photo, which this device did not keep. Once the sale is confirmed, attach the slip photo to it again.",
+        "otherTill": "{{till}} has a sale whose outcome is not known yet. Check Today on {{till}} before anything is rung there again.",
+        "saleFigures": "This sale: {{amount}}, rung on {{date}} at {{time}}.",
+        "checkServer": "Check with the server",
+        "checking": "Checking with the server…",
+        "stillSaving": "The server is still saving this sale. Checking again in a moment.",
+        "checkFailed": "The server did not answer, so nothing is decided and the till stays locked. Check again once the connection is back.",
+        "queuedKey": "This sale is in the till’s queue of offline sales, which sends it by itself. It is not checked with the server from here.",
+        "recordedTitle": "The server recorded this sale",
+        "recorded": "Invoice {{invoice}}, {{amount}}. It is recorded once: do not ring it or charge for it again.",
+        "notRecordedTitle": "The server has no record of this sale",
+        "notRecorded": "The server has no record of this sale. Before taking payment again, check everything already taken: the card terminal or slip, any bank transfer, and the cash handed over. Give back what was taken, or keep it for the new sale (for a card, keep the approval).",
+        "ringAgain": "Ring it again as a new sale",
+        "reprintFromToday": "To reprint its receipt, use Print receipt on this sale in Today.",
+        "queueRefusedTitle": "The server refused this sale from the till's queue",
+        "queueRefused": "It is kept in this till's waiting sales as {{number}}, with the server's reason. Keep the payment until a manager decides on this sale in Today's waiting sales; do not ring it again.",
+        "keyReusedTitle": "A sale is already recorded under this key",
+        "keyReused": "A sale is already recorded under this key with different contents; check Today. The till's waiting sales keep it as {{number}}."
+      }
     },
     "done": {
       "title": "Paid and filed",
@@ -4500,6 +4551,8 @@
       "acceptedNote": "{{accepted}}",
       "giveReceipt": "Give them the receipt",
       "qrAlreadyUp": "the QR is already on the customer screen",
+      "qrNotReadyShort": "the QR is not ready yet",
+      "qrNone": "this receipt has no QR code",
       "printed": "Printed",
       "printedNote": "Came out of the counter printer",
       "email": "Email it",
@@ -4516,13 +4569,15 @@
       "theirReceipt": "Their receipt",
       "printAgain": "Print again",
       "vat": "VAT",
+      "sellerNameNotRecorded": "Seller name not recorded on this invoice",
+      "notRecorded": "not recorded on this invoice",
       "simplifiedInvoice": "Simplified tax invoice",
       "till": "Till {{number}} · {{who}}",
       "beforeVat": "Before VAT",
       "tipNoVat": "Tip (no VAT)",
       "totalOmr": "Total OMR",
       "change": "Change",
-      "scanToCheck": "Scan to check this invoice with the Oman Tax Authority",
+      "scanToCheck": "This invoice's QR code",
       "thankYou": "Thank you",
       "queuedTitle": "Sold, sending when back online",
       "queuedSummary": "The till is offline. Invoice {{invoice}} is numbered and will be filed as soon as the connection is back. There is {{change}} change to hand back.",
@@ -4533,12 +4588,15 @@
       "taxInvoice": "Tax invoice",
       "cardApproval": "Card · approval {{code}}",
       "qrAlt": "The invoice's QR code",
-      "qrComing": "The QR code comes up once the invoice is filed.",
-      "qrAfterFiling": "the QR comes once the sale is filed",
+      "qrComing": "The QR code comes up once it is ready.",
+      "qrPending": "The QR code is not ready yet.",
+      "qrAfterFiling": "the QR comes up once it is ready",
       "rungUpWrongQueued": "Rung it up wrong? This sale is waiting to be filed. Once it is filed, a mistake is put right with a credit note, which the Tax Authority also sees.",
       "queuedBehindTitle": "Sold, filing after an earlier sale",
       "queuedBehindSummary": "Invoice {{invoice}} is numbered and will be filed after an earlier sale the till is holding. See the till screen for what it needs. There is {{change}} change to hand back.",
-      "sentAfterEarlier": "it is filed once the earlier sale has gone"
+      "sentAfterEarlier": "it is filed once the earlier sale has gone",
+      "receiptWithheld": "No receipt was printed: this sale’s QR could not be made on this till. The sale is kept as {{invoice}} and is sent when the till is back online. Ask a manager to review it before the customer is given a receipt.",
+      "receiptQrNotReady": "No receipt was printed: this sale’s QR is not ready, and a tax invoice to a consumer must carry its QR. The sale is recorded as {{invoice}}. Ask a manager to review it before the customer is given a receipt."
     },
     "company": {
       "whose": "Whose company is it?",
@@ -4630,7 +4688,9 @@
         "peppol": "Peppol",
         "credited": "Credited",
         "waiting": "Waiting",
-        "failed": "Not filed"
+        "failed": "Not filed",
+        "notDelivered": "Not delivered",
+        "notDeliveredHint": "The buyer's Peppol system refused this invoice or could not be reached. The sale and its invoice have not changed. Send the invoice to the buyer another way, or ask an administrator to check its delivery."
       },
       "tab": {
         "everything": "Everything",
@@ -4648,6 +4708,7 @@
       "salesCount_other": "{{count}} sales",
       "nothingYet": "No sales on this day yet.",
       "shiftOf": "{{who}}’s shift · Till {{till}}",
+      "shiftUnverified": "Shift (cashier not verified) · Till {{till}}",
       "pages": "Pages of sales",
       "previous": "Previous page",
       "next": "Next page",
@@ -4655,7 +4716,11 @@
       "mixed": "Split",
       "approval": "Approval {{code}}",
       "partlyCredited": "{{amount}} credited",
-      "plusTip": "+ {{amount}} tip"
+      "plusTip": "+ {{amount}} tip",
+      "reprintTitle": "Reprint receipt",
+      "reprintUnavailable": "Reprint is not available yet.",
+      "reprintCopy": "COPY",
+      "reprintNotKept": "This receipt cannot be reprinted: when the queued sale was sent again, the till presented a different receipt from the one on file. A manager should review this sale."
     },
     "close": {
       "title": "Closing it",
@@ -4690,6 +4755,20 @@
       "paidOut": "Paid out of the drawer",
       "paidOutNote": "Milk delivery, receipt in the drawer · {{who}}",
       "shouldHold": "So the drawer should hold",
+      "notAvailable": "Not available",
+      "paidInCurrency": "Currency paid in",
+      "paidInCurrencyNote": "Fawtir does not record a till's currency, so none is assumed. Choose the one the cash was paid in.",
+      "figuresWithheld": "What this drawer should hold is not available: this shift's records do not give one total. Nothing can be counted against it here. Ask a manager.",
+      "withheld": {
+        "POS_SHIFT_CURRENCY_MIXED": "This shift's cash is recorded in more than one currency ({{currencies}}), so it can't be totalled and the shift can't be closed here. A manager needs to sort this out.",
+        "POS_SHIFT_CURRENCY_UNRECORDED": "This shift has cash movements with no currency recorded ({{unrecordedMovements}}), so its cash can't be totalled and the shift can't be closed here. A manager needs to sort this out.",
+        "withoutFigures": {
+          "POS_SHIFT_CURRENCY_MIXED": "This shift's cash is recorded in more than one currency, so it can't be totalled and the shift can't be closed here. A manager needs to sort this out.",
+          "POS_SHIFT_CURRENCY_UNRECORDED": "This shift has cash movements with no currency recorded, so its cash can't be totalled and the shift can't be closed here. A manager needs to sort this out."
+        }
+      },
+      "lateCash": "Late cash filed into the previous shift: OMR {{amount}}",
+      "lateCashHint": "Offline sales from the shift before yours arrived after you took over. The cash is in this drawer but not in the expected figure.",
       "whyShort": "Why is it short?",
       "guessIsFine": "a guess is fine. The point is that somebody looked",
       "changeWrong": "Change given wrong",
@@ -4746,6 +4825,67 @@
         "FLOAT": "Opening float"
       },
       "whatFor": "What was it for?",
+      "paidOutNotRefund": "Refunds are made from the sale, not here.",
+      "paidOutForm": {
+        "choose": "Choose",
+        "currency": "Currency paid out",
+        "currencyNote": "Fawtir does not record a till's currency, so none is assumed. Choose the one the cash was in.",
+        "category": "What kind of paid-out",
+        "categories": {
+          "PETTY_CASH_EXPENSE": "Petty cash expense",
+          "SUPPLIER_PAYMENT": "Payment to a supplier",
+          "CASH_TRANSFER": "Cash moved elsewhere",
+          "FLOAT_ADJUSTMENT": "Float adjustment",
+          "OTHER": "Something else"
+        },
+        "class": "How it is booked",
+        "classes": {
+          "EXPENSE": "Expense",
+          "ADVANCE": "Advance",
+          "TRANSFER": "Transfer",
+          "BILL_SETTLEMENT": "Payment of the bill"
+        },
+        "classFixed": "Booked as: {{class}}",
+        "receipt": "Receipt",
+        "receiptNote": "A JPEG or PNG photo or a PDF, up to 10 MB.",
+        "receiptProblem": {
+          "type": "A receipt must be a JPEG or PNG photo or a PDF.",
+          "size": "A receipt must be at most 10 MB."
+        },
+        "receiptTooBigForServer": "This receipt is too large for Fawtir to accept. Use a smaller photo or PDF.",
+        "noReceipt": "There is no receipt",
+        "noReceiptReason": "Why there is no receipt",
+        "noReceiptNote": "The paid-out is flagged for the manager to review.",
+        "bill": "The bill it pays (optional)",
+        "billSearch": "Bill number or supplier",
+        "billFind": "Find",
+        "billNone": "No approved bill with something still owed matches.",
+        "billRow": "{{supplier}} · {{number}} · {{outstanding}} {{currency}} owed",
+        "billLinked": "Pays {{supplier}} · {{number}} ({{outstanding}} {{currency}} owed)",
+        "billUnlink": "Do not link a bill",
+        "billLookupFailed": "Bills could not be read. Try again, or ask someone who can settle bills.",
+        "billCurrency": "This bill is in {{currency}}. The cash paid out must be in the same currency.",
+        "billAmountScale": "The amount has more decimals than the bill's currency takes.",
+        "pending": {
+          "title": "The till could not tell whether this paid-out was recorded.",
+          "mayBeRecorded": "This paid-out may already have been recorded by an earlier press, and you cannot send it again. Do not pay the cash out again: ask a manager to check this shift's paid-outs.",
+          "receipt": "Receipt attached",
+          "noReceipt": "No receipt: {{reason}}",
+          "bill": "Pays a supplier bill",
+          "hint": "Press Record it again: the same paid-out is never recorded twice. Its details are locked, because changing any detail would record a new paid-out.",
+          "again": "Record it again",
+          "check": "Check whether it was recorded",
+          "movesFound": "Paid-outs recorded on this shift so far. If it is among them, press Record it again to confirm it.",
+          "movesNone": "No paid-out is recorded on this shift yet.",
+          "wait": "A press can still be on its way for up to a minute and a half, so this unlocks {{seconds}} s from now. Read the cash moves again then.",
+          "recheck": "That reading was taken while the press could still be on its way. Read the cash moves again before unlocking.",
+          "unreadable": "The details of that press could not be read back on this device, so it cannot be sent again from here.",
+          "unreadableHint": "After a minute and a half, check whether it was recorded. If it is not among the cash moves, unlock the form and enter it again.",
+          "notRecorded": "It is not there: unlock the details",
+          "timedOut": "That press took too long, and the server recorded nothing from it. An earlier press may still be recorded, so the details stay locked. Press \"Record it again\": it is sent as the same paid-out and cannot be recorded twice."
+        },
+        "receiptStorageUnavailable": "Not recorded: the receipt could not be stored. To record the paid-out now, tick \"There is no receipt\" and give the reason. If this keeps happening, contact Fawtir support."
+      },
       "record": "Record it",
       "howMany": "How many of {{note}}",
       "companyNote_one": "{{count}} company invoice over Peppol",
@@ -4764,7 +4904,9 @@
       "cardNote_one": "{{count}} sale",
       "cardNote_other": "{{count}} sales",
       "notCounted": "Not counted yet",
-      "countFirst": "Type what is actually in the drawer, then close the till."
+      "countFirst": "Type what is actually in the drawer, then close the till.",
+      "terminalNetNote": "Card taken {{gross}} across {{payments}} payments, tips included; paid back to cards {{refunds}}. Fawtir's net card figure is {{net}}. Type the total from the bank machine's end-of-day report. The machine may print sales and refunds separately, so its figure may not be this net.",
+      "heldSale": "The shift cannot be closed while a sale’s outcome is not known. Send the same sale again, or check Today, first."
     },
     "refund": {
       "title": "Putting something right",
@@ -4789,7 +4931,7 @@
       "makeAnother": "Make them another one",
       "makeAnotherNote": "Credit note and a fresh sale at the same price. Nothing changes hands.",
       "why": "Why?",
-      "whyNote": "goes on the credit note and the Tax Authority sees it",
+      "whyNote": "goes on the credit note",
       "anythingToAdd": "Anything worth adding?",
       "reason": {
         "madeWrong": "Made wrong",
@@ -4800,7 +4942,7 @@
         "other": "Other"
       },
       "creditNote": "The credit note",
-      "filedStraightAway": "{{number}} · will be filed straight away",
+      "filedStraightAway": "{{number}} · issued against the original invoice",
       "nothingSelected": "Tick a line to start the credit note.",
       "tipNotRefunded": "Tip · not refunded",
       "backToThem": "Back to them",
@@ -4825,24 +4967,33 @@
       "howItGoesBack": "How it goes back",
       "offWhatTheyOwe": "{{amount}} comes off what they owe, back to their account, not from the drawer.",
       "cardLimit": "Up to {{amount}} can go back to the card.",
-      "overCard": "At most {{amount}} can go back to the card. The rest goes back in cash or by transfer.",
+      "overCard": "At most {{amount}} can go back to the card, so this refund cannot go as it stands.",
       "doesNotAdd": "The money back has to add up to {{amount}}.",
+      "routeFixed": "The money goes back the way the sale was paid. These amounts cannot be changed here.",
+      "toChooseLeft": "{{amount}} still has to be put under cash before the refund can go.",
+      "notAsQuoted": "The money back does not add up to {{amount}} the way the sale was paid, so this refund cannot go. Choose the lines again.",
+      "transferUnverified": "Money paid by bank transfer can only go back once the account it goes to has been checked, and that check is not available yet. This refund cannot go here.",
       "moneyBackNoteLive": "A credit note for {{amount}}, paid back the way it was paid: {{method}}.",
       "makeAnotherNoteLive": "A credit note for {{amount}}, then a fresh sale for the replacement.",
-      "willBeFiled": "filed with the Tax Authority straight away",
+      "willBeFiled": "issued against the original invoice",
       "discountsBack": "Discounts on these lines",
-      "done": "Refunded. Credit note {{number}} is filed.",
+      "done": "Refunded. Credit note {{number}} is issued.",
       "ringNew": "Ring up the replacement",
-      "filedNoteLive": "The credit note is filed with the Tax Authority like any invoice and counts toward your monthly documents. Cash paid back shows on the shift's close.",
-      "alreadyRefunded": "This sale has already been refunded in full. Credit notes: {{numbers}}.",
+      "filedNoteLive": "The credit note is issued against the original invoice like any invoice and counts toward your monthly documents. Cash paid back shows on the shift's close.",
+      "alreadyRefunded": "Every item on this sale has already been refunded. Credit notes: {{numbers}}.",
       "nothingToRefund": "Nothing on this sale can be refunded.",
       "givenFreeLine": "Given free: goes back on the shelf, no credit note",
       "noCreditNote": "Given free, so no credit note and no money back",
       "stockReturnButton": "Put back with no refund",
       "stockReturnDone": "Return recorded. No credit note, nothing paid back.",
-      "drawerTooLow": "The drawer does not have that much cash: it should hold {{held}} and this refund gives back {{cash}} in cash. You can still go ahead. Check the drawer when you close.",
+      "drawerTooLow": "The drawer should hold only {{held}}, and this refund gives back {{cash}} in cash, so it cannot go. Give the rest back by card or transfer, or pay cash into the drawer first.",
       "approvalInvalid": "The approval code takes up to 40 English letters, digits or symbols, as on the slip. Leave it empty if you do not have one.",
-      "givenAwayOldServer": "This item was given away, so there is no money to give back, and Fawtir cannot record its return on its own yet. Nothing has changed. If it came back, count it on the shelf."
+      "givenAwayOldServer": "This item was given away, so there is no money to give back, and Fawtir cannot record its return on its own yet. Nothing has changed. If it came back, count it on the shelf.",
+      "quoteUnavailable": "Fawtir cannot work out this refund right now, so it cannot be made at the till. Nothing was refunded. Try again in a moment.",
+      "creditUnclear": "{{name}}: a credit note from the invoice screens does not say whether it came back, so it is refunded from the invoice, not here.",
+      "hsCodeFor": "HS code for {{name}}",
+      "toChoose": "{{amount}} cannot go back the way the sale was paid. Type it under cash.",
+      "hsCodeNeeded": "Line {{line}} is goods and has no HS code, so nothing was refunded. Choose its code on the line below (Other if none fits); the refund is worked out again."
     },
     "saleDiscountLabel": "Discount on the whole sale",
     "saleDiscountNote": "Taken after the price rule and before VAT. It shows on the invoice as a document discount.",
@@ -4878,10 +5029,159 @@
         "email": "That email address is not complete."
       },
       "onFile": "Matches customer on file: {{name}}",
-      "onFileWithId": "Matches customer on file: {{name}} ({{id}})"
+      "onFileWithId": "Matches customer on file: {{name}} ({{id}})",
+      "checking": "Checking this buyer… Payment can be taken; the sale is checked again when it is sent.",
+      "firstNeeded": "This sale needs a full invoice to a named buyer: type the buyer’s name, ID and phone below before taking payment.",
+      "chooseFull": "Full invoice to a named buyer"
+    },
+    "storage": {
+      "blocked": "This device can't safely read or save its sales and invoice numbers, so selling is unavailable here, online or offline. Sales already waiting can still be sent. Check again, or use another registered till.",
+      "reportStale": "This device's date or time doesn't match the till's business date, so selling is unavailable here. Check the date and time, then check again.",
+      "burnt": "Checking again or an online sale does not clear this. Selling on this till cannot resume for now: keep the device on and online so sales already numbered can still send, sell on another till and ask your manager to escalate.",
+      "burntHeadline": "Selling is stopped on this till: one number could not be kept, and none was printed.",
+      "checkAgain": "Check again"
+    },
+    "tabLock": {
+      "finishing": "Finishing the last sale in this tab. Selling starts again in a moment.",
+      "otherTab": "This till is already active in another tab or window on this device. Selling is unavailable in this tab, online or offline. Use the other tab, or close it and check again.",
+      "unsupported": "This browser can't guarantee that only one tab uses this till, so selling is unavailable here, online or offline. Use a supported browser to sell on this till.",
+      "checkAgain": "Check again"
+    },
+    "offline": {
+      "clockSkew": "This device's clock is more than 5 minutes off. Set the date and time correctly so sales made offline can be shown to be yours.",
+      "pending": "Not yet attributed",
+      "legacy": "Recorded by {{name}} (unverified, older till)",
+      "filedBy": "Sent by {{name}}",
+      "keys": {
+        "title": "Device keys on this till",
+        "intro": "Each cashier's device signs the sales it makes offline. If a device is lost or stolen, revoke its key: sales it signs afterwards are held for review.",
+        "none": "No device key is active on this till.",
+        "yours": "Your key",
+        "cashier": "Key of cashier {{id}}…",
+        "valid": "Registered {{from}}, valid until {{until}}"
+      },
+      "reason": {
+        "other": "Could not be proven",
+        "NO_PROOF": "Sent without proof",
+        "ACTIVE_KEY_UNSIGNED": "Not signed although the till had a key",
+        "PAYLOAD_INVALID": "The sale could not be checked",
+        "SOLD_AT_PRECISION": "The sale time could not be checked",
+        "UNKNOWN_KEY": "Signed with a key the server does not know",
+        "UNKNOWN_SESSION": "Signed in a session the server does not know",
+        "TILL_MISMATCH": "Signed for another till",
+        "SHIFT_MISMATCH": "Signed for another shift",
+        "CASHIER_MISMATCH": "Signed for another cashier",
+        "SIGNATURE": "The signature does not match the sale",
+        "KEY_REVOKED": "Signed with a revoked key",
+        "OUTSIDE_KEY_WINDOW": "Sold outside the key’s time or after its shift ended",
+        "SHIFT_END_UNPROVEN": "Arrived after the shift ended; its time is only the device’s",
+        "PROOF_TOO_OLD": "Arrived more than 72 hours after the key was registered",
+        "OUT_OF_SEQUENCE": "Arrived out of order"
+      },
+      "holds": {
+        "link": "Sales to review",
+        "title": "Offline sales to review",
+        "intro": "These sales were made offline and filed, but who made them could not be proven. Decide who made each one.",
+        "tab": {
+          "OPEN": "To review",
+          "RESOLVED": "Decided"
+        },
+        "none": "Nothing to review.",
+        "manualDiscount": "Manual discount",
+        "limited": "A manager will review this sale.",
+        "notAllowed": "Only a manager who closes tills can review these sales."
+      },
+      "detail": {
+        "outcome": "Proof",
+        "revocation": "Revoked by",
+        "keyId": "Device key",
+        "deviceId": "Device",
+        "keyWindow": "Key valid",
+        "printedTotal": "Printed total",
+        "serverTotal": "Filed total",
+        "discountMax": "Highest discount (%)",
+        "signatureSha256": "Signature (SHA-256)",
+        "withheld": "Withheld: the sale contained a card number. SHA-256:",
+        "noPayload": "No signed sale was sent.",
+        "heldFor": {
+          "title": "Why the server held it",
+          "cause": {
+            "LEGACY_DISCOUNT_MAKER_UNPROVEN": "A manual discount, and nothing shows who gave it",
+            "LEGACY_PRICE_BELOW_CATALOGUE": "Priced below the catalogue",
+            "LEGACY_PRICE_UNIT_NOT_COMPARABLE": "Sold in another unit at another price",
+            "LEGACY_PRICE_NOT_ESTABLISHED": "No catalogue price to compare with"
+          },
+          "unknownCause": "Held for: {{cause}}",
+          "below": "Line {{line}}: sold at {{price}}; the catalogue price when it was filed is {{catalogue}}",
+          "belowNotOnSale": "Line {{line}}: sold at {{price}}; the price stored for it is {{catalogue}} (no longer on sale)",
+          "unit": "Line {{line}}: sold at {{price}} per {{unit}}; the catalogue price is {{catalogue}} per {{productUnit}}, not converted",
+          "notEstablished": "Line {{line}}: no price could be found to compare with",
+          "notOnSaleNow": "Line {{line}} was sold offline and is not on sale now."
+        }
+      },
+      "resolve": {
+        "title": "Who made this sale?",
+        "attribute": "{{name}}, shift opened {{from}}",
+        "keep": "Leave it unattributed",
+        "reason": "Why (required)",
+        "final": "This decision is final: it cannot be changed or undone.",
+        "submit": "Record the decision"
+      },
+      "revoke": {
+        "explain": "If this device is lost or stolen, revoke its key. Sales it signs from now on are held for review.",
+        "action": "Revoke this device key",
+        "done_one": "Revoked. {{count}} sale was filed with this key before.",
+        "done_other": "Revoked. {{count}} sales were filed with this key before.",
+        "already": "This device key was already revoked."
+      },
+      "legacyReport": {
+        "title": "Sales from older tills (last 7 days)",
+        "intro": "Queued sales from tills that cannot prove who made them. They are recorded under whoever was signed in when they were sent, which is not proof.",
+        "show": "Show",
+        "none": "None in the last 7 days."
+      }
+    },
+    "discountFlags": {
+      "link": "Discounts over the limit",
+      "title": "Sales over the discount limit",
+      "intro": "Sales kept with a manual discount above what the cashier's role allows, from the last 92 days. A sale made offline was already printed and paid, so it was kept and is listed here. Acknowledge each one once you have looked at it.",
+      "none": "No sales over the discount limit in the last 92 days.",
+      "notAllowed": "Only a manager who closes tills can review these sales.",
+      "cashier": "Cashier: {{name}}",
+      "cashierUnnamed": "Cashier {{id}}",
+      "discount": "Discount {{discount}}%, limit {{limit}}%",
+      "discountNoLimit": "Discount {{discount}}%; the cashier can no longer sell, so no limit is shown",
+      "afterReview": "Judged when a manager decided who made this offline sale.",
+      "acknowledgedByYou": "Acknowledged by you, {{at}}",
+      "acknowledgedByOther": "Acknowledged by manager {{id}}, {{at}}",
+      "note": "Note (optional)",
+      "final": "An acknowledgement is final and cannot be changed.",
+      "submit": "Acknowledge"
     },
     "refusal": {
       "offline": "The till could not reach Fawtir. Check the connection and try again.",
+      "storageUnavailable": "Not sold: this device can't safely keep its sales right now, so nothing was sent and no number was printed.",
+      "tenantZoneUnavailable": "Your company's time zone could not be verified. Selling is unavailable for now. Contact Fawtir support.",
+      "storageUnavailableAfterSend": "No receipt: the connection dropped while sending, and this device couldn't keep the sale, so no number was printed. It may already have reached Fawtir: check today's sales before ringing it up again.",
+      "impersonation": "This can't be done while signed in as a company. A support session can't use the till: ask someone in the company to do it.",
+      "tabLockUnavailable": "Not sold: selling is unavailable in this tab, so nothing was sent and no number was printed.",
+      "POS_OFFLINE_KEY_ALREADY_REVOKED": "This device key was already revoked.",
+      "POS_OFFLINE_KEY_NOT_FOUND": "This device key was not found, or you may not revoke it.",
+      "POS_OFFLINE_KEY_HUMAN_ONLY": "Only a signed-in person can do this, not an API key or a support session.",
+      "POS_ATTRIBUTION_HUMAN_ONLY": "Only a signed-in person can decide this, not an API key or a support session.",
+      "POS_ATTRIBUTION_SELF": "This sale could be about you (you sent it, it was signed with your key, or you were a cashier on the till then), so someone else has to decide it.",
+      "POS_ATTRIBUTION_NOT_A_CANDIDATE": "That shift cannot have made this sale. Choose one from the list.",
+      "POS_ATTRIBUTION_ALREADY_RESOLVED": "Someone has already decided this sale. The decision is final.",
+      "POS_ATTRIBUTION_HOLD_NOT_FOUND": "This held sale was not found.",
+      "POS_ATTRIBUTION_REVIEWER_ONLY": "Only a manager who closes tills for every cashier, not only their own, can review these sales.",
+      "POS_LEGACY_RANGE_INVALID": "Choose a period of at most 92 days, with the start before the end.",
+      "POS_DISCOUNT_FLAG_HUMAN_ONLY": "Only a signed-in person can acknowledge this, not an API key.",
+      "POS_DISCOUNT_FLAG_NOT_FOUND": "This sale is not on the list of sales over the discount limit, or it is outside your branches.",
+      "POS_DISCOUNT_FLAG_SELF": "This sale is recorded as yours, so another manager has to acknowledge it.",
+      "POS_DISCOUNT_FLAG_ALREADY_ACKNOWLEDGED": "Another manager has already acknowledged this sale. The acknowledgement is final.",
+      "POS_DISCOUNT_FLAG_HOLD_OPEN": "Decide who made this offline sale in Sales to review first; then acknowledge it here.",
+      "POS_DISCOUNT_FLAG_SUPERSEDED": "This sale was attributed to a cashier after review and its discount was judged again within their limit, so there is nothing left to acknowledge.",
+      "POS_DISCOUNT_FLAG_RANGE_INVALID": "Choose a period of at most 92 days, with the start before the end.",
       "failed": "That did not go through. Try again.",
       "forbidden": "You do not have permission to do this at the till.",
       "planFeature": "Your plan does not include this.",
@@ -4905,6 +5205,7 @@
       "POS_TILL_NUMBER_GAP": "A sale made offline is missing before this one. The till expected number {{expectedNumber}}.",
       "POS_TILL_NUMBER_REPEATED": "This invoice number was already used.",
       "POS_SALE_KEY_REUSED": "This sale was already sent with different contents.",
+      "POS_SALE_KEY_ABANDONED": "The server has no record of this sale and has closed it, so it can never be sent again as it was. Before taking payment again, check everything already taken: the card terminal or slip, any bank transfer, and the cash handed over. Give back what was taken, or keep it for the new sale (for a card, keep the approval).",
       "POS_CONSUMER_CONTACT_INVALID": "The contact must be a phone number or an email address.",
       "POS_CARD_APPROVAL_REQUIRED": "Type the approval code from the bank slip.",
       "POS_COUNT_REQUIRED": "Count the drawer before closing.",
@@ -4930,8 +5231,65 @@
       "POS_SHIFT_FLOAT_LOCKED": "The shift has a sale, so its float cannot change.",
       "POS_PAID_OUT_NOTE_REQUIRED": "Say what the cash was for.",
       "POS_PAID_OUT_EXCEEDS_CASH": "That is more than the {{expectedCash}} in the drawer.",
+      "POS_PAID_OUT_FORBIDDEN": "You cannot pay cash out of the drawer. Ask a manager for the paid-out permission.",
+      "POS_CASH_MOVEMENT_FORBIDDEN": "Paying cash into the drawer needs the permission to close the till.",
+      "POS_PAID_OUT_DETAILS_REQUIRED": "A paid-out needs its kind, currency and receipt. Fill them in and record it again.",
+      "POS_PAID_OUT_IDEMPOTENCY_KEY_REQUIRED": "This paid-out went without its safety key, so nothing was recorded. Reload the page and record it again.",
+      "POS_PAID_OUT_IDEMPOTENCY_KEY_REUSED": "A paid-out with other details was already recorded on this attempt. Check the cash moves on this page before you record it again.",
+      "POS_PAID_OUT_CATEGORY_REQUIRED": "Say what kind of paid-out this is.",
+      "POS_PAID_OUT_CLASS_REQUIRED": "Say whether this is an expense, an advance or a transfer.",
+      "POS_PAID_OUT_CLASS_INVALID": "That booking does not fit this kind of paid-out. Choose another.",
+      "POS_PAID_OUT_CURRENCY_REQUIRED": "Choose the currency the cash was paid out in.",
+      "POS_PAID_OUT_RECEIPT_REQUIRED": "Attach the receipt, or say why there is none.",
+      "POS_PAID_OUT_RECEIPT_NOT_FOUND": "The receipt was not found. Attach it again.",
+      "POS_PAID_OUT_RECEIPT_OTHER_TILL": "That receipt was attached at another till. Press Record it again to attach it here.",
+      "POS_PAID_OUT_RECEIPT_ALREADY_USED": "That receipt already backs another paid-out. Check the cash moves on this page; if this is a different payment, attach its own receipt.",
+      "POS_PAID_OUT_CURRENCY_INVALID": "Cash is not counted in that currency. Choose the currency the cash was paid out in.",
+      "POS_SHIFT_CURRENCY_MIXED": "This shift's cash is recorded in more than one currency ({{currencies}}), so it can't be totalled. Nothing was recorded. A manager needs to sort this out.",
+      "POS_SHIFT_CURRENCY_UNRECORDED": "This shift has cash movements with no currency recorded ({{unrecordedMovements}}), so its cash can't be totalled. Nothing was recorded. A manager needs to sort this out.",
+      "POS_PAID_OUT_CURRENCY_MISMATCH": "This shift's cash is counted in {{shiftCurrency}}. A paid-out in {{sentCurrency}} can't be taken from this drawer. Nothing was recorded.",
+      "POS_CASH_MOVEMENT_CURRENCY_MISMATCH": "This shift's cash is counted in {{shiftCurrency}}. Cash in {{sentCurrency}} can't be paid into this drawer. Nothing was recorded.",
+      "POS_REFUND_CURRENCY_MISMATCH": "This sale was paid in {{saleCurrency}}; this drawer holds {{shiftCurrency}}, so the cash can't come from this drawer. Nothing was refunded. Ask a manager.",
+      "POS_CASH_MOVEMENT_CURRENCY_INVALID": "Cash is not counted in that currency. Nothing was recorded.",
+      "POS_CASH_MOVEMENT_CURRENCY_REQUIRED": "Choose the currency the cash was paid in. Nothing was recorded.",
+      "POS_SHIFT_CURRENCY_UNKNOWN": "This shift's currency is not known yet. Nothing was recorded. A manager can help.",
+      "POS_PAID_OUT_TIMED_OUT": "This paid-out took too long, and nothing was paid out. Press \"Record it\" again with the same details: it is sent again safely and cannot be recorded twice.",
+      "withoutFigures": {
+        "POS_SHIFT_CURRENCY_MIXED": "This shift's cash is recorded in more than one currency, so it can't be totalled. Nothing was recorded. A manager needs to sort this out.",
+        "POS_SHIFT_CURRENCY_UNRECORDED": "This shift has cash movements with no currency recorded, so its cash can't be totalled. Nothing was recorded. A manager needs to sort this out.",
+        "POS_PAID_OUT_CURRENCY_MISMATCH": "This shift's cash is counted in another currency, so this paid-out can't be taken from this drawer. Nothing was recorded.",
+        "POS_CASH_MOVEMENT_CURRENCY_MISMATCH": "This shift's cash is counted in another currency, so this cash can't be paid into this drawer. Nothing was recorded.",
+        "POS_REFUND_CURRENCY_MISMATCH": "This sale was paid in a different currency from the cash in this drawer, so the refund can't come from this drawer. Nothing was refunded. Ask a manager.",
+        "SIMPLIFIED_INVOICE_LIMIT": "This sale is over the limit for a simplified invoice, so it needs a full invoice with the buyer's details.",
+        "POS_PAYMENTS_DO_NOT_MATCH_TOTAL": "The payments do not add up to the invoice total.",
+        "POS_PRODUCT_NOT_SELLABLE": "An item in this sale is not on sale in this branch any more.",
+        "POS_VARIANT_NOT_SELLABLE": "A size in this sale is not on sale any more.",
+        "POS_PRICE_NOT_CATALOGUE": "A price in this sale has changed. Take that item off and add it again.",
+        "POS_TILL_NUMBER_GAP": "A sale made offline is missing before this one.",
+        "POS_ZERO_PRICE": "A line has no price. Set one before selling it. To give it away, keep its price and discount it 100%.",
+        "POS_OVER_SHORT_REASON_REQUIRED": "The count does not match what the drawer should hold. Pick a reason.",
+        "POS_CARD_DIFFERENCE_NOTE_REQUIRED": "The bank machine's card total does not match Fawtir's. Add a short note.",
+        "POS_PAID_OUT_EXCEEDS_CASH": "That is more than the cash in the drawer.",
+        "POS_REFUND_CASH_EXCEEDS_DRAWER": "The drawer does not hold enough cash for this refund. Ask a manager.",
+        "POS_REFUND_LINE_CREDIT_UNCLEAR": "A line already has a credit note that does not say whether goods came back, so it cannot be refunded at the till. Refund it from the invoice. Nothing was refunded.",
+        "POS_REFUND_QUANTITY_EXCEEDS": "That is more than is left of a line on this sale.",
+        "POS_REFUND_MONEY_DOES_NOT_MATCH": "The money back does not match the credit note. Check it and refund again.",
+        "POS_REFUND_MORE_THAN_PAID": "That is more than can go back on this sale.",
+        "POS_REFUND_CARD_MORE_THAN_PAID": "That is more than can go back to the card.",
+        "POS_REFUND_MORE_THAN_OWED": "That is more than the company owes.",
+        "DISCOUNT_ABOVE_LIMIT": "This discount is above your limit. Lower it, or ask a manager.",
+        "HS_CODE_REQUIRED": "A goods line has no HS code, so nothing was done. Someone who can edit items adds the code on the item (Other if none fits), then try again.",
+        "GOODS_OR_SERVICE_REQUIRED": "A line does not say whether it is goods or a service, so nothing was done. Someone who can edit items gives the item an HS code if it is goods, or makes it a service, then try again."
+      },
+      "POS_PAID_OUT_BILL_FORBIDDEN": "Ask someone who can settle bills to record this payment against the bill.",
+      "POS_SUPPLIER_PAYMENT_REQUIRES_BILL_SETTLE": "Only someone who can settle supplier bills can pay a supplier from the till. Nothing was recorded.",
+      "POS_PAID_OUT_BILL_LINK_INVALID": "Only a payment to a supplier can pay a bill.",
+      "POS_PAID_OUT_REFUND_REFERENCE": "A paid-out is never a refund. Refund the sale from the refund page.",
+      "POS_CASH_MOVEMENT_FIELDS_INVALID": "Cash paid in takes only an amount and a note.",
+      "POS_CASH_RECEIPT_INVALID": "The receipt must be a JPEG or PNG photo or a PDF of at most 10 MB, and its content must match its type.",
       "POS_CASH_MOVEMENT_AMOUNT_INVALID": "The amount is not right.",
       "POS_NOTE_TOO_LONG": "The note is longer than 500 characters.",
+      "POS_NOTE_CARD_NUMBER": "Remove the card number from this note. Card numbers must never be typed into notes.",
       "POS_SALE_NOT_FOUND": "No till sale has that invoice number.",
       "POS_REFUND_NOT_OWN_SALE": "You can refund only the sales you rang up.",
       "POS_REFUND_LINE_INVALID": "One of the lines cannot be refunded.",
@@ -4947,13 +5305,36 @@
       "CUSTOMER_NOT_INVOICE_ELIGIBLE": "This company cannot get a full invoice yet: {{missing}} is missing.",
       "customerIncomplete": "This company's record is missing something a full invoice needs.",
       "completeCompany": "Complete it on the company screen",
-      "DISCOUNT_ABOVE_LIMIT": "This discount takes {{requestedPercent}}% off and your limit is {{limitPercent}}%. Lower it, or ask a manager."
+      "DISCOUNT_ABOVE_LIMIT": "This discount takes {{requestedPercent}}% off and your limit is {{limitPercent}}%. Lower it, or ask a manager.",
+      "POS_REFUND_CASH_EXCEEDS_DRAWER": "The drawer should hold only {{cashInDrawer}}, and this refund gives back {{cashRequested}} in cash. Give the rest back by card or transfer, or pay cash into the drawer first.",
+      "POS_REFUND_LINE_CREDIT_UNCLEAR": "Line {{line}} already has a credit note that does not say whether goods came back, so it cannot be refunded at the till. Refund it from the invoice. Nothing was refunded.",
+      "POS_SALE_CANCELLED": "This sale's invoice was cancelled, so there is nothing to refund.",
+      "HS_CODE_REQUIRED": "Line {{line}} is goods and has no HS code, so nothing was done. Someone who can edit items adds the code on the item (Other if none fits), then try again.",
+      "GOODS_OR_SERVICE_REQUIRED": "Line {{line}} does not say whether it is goods or a service, so nothing was done. Someone who can edit items gives the item an HS code if it is goods, or makes it a service, then try again.",
+      "POS_REFUND_NOTHING_TO_PAY_BACK": "What is going back is worth less than a baisa, so there is nothing to refund. Give back more of the line in one refund.",
+      "CREDIT_NOTE_NOTHING_CORRECTABLE": "There is no remaining amount available to credit on this sale. Review its existing credit notes. Nothing was refunded.",
+      "CREDIT_NOTE_EXCEEDS_CORRECTABLE_AMOUNT": "This refund asks to credit more than the amount still available to credit on this sale. Give back less, or review the sale's existing credit notes. Nothing was refunded.",
+      "tooLarge": "This sale is too large to send, so nothing was recorded. Contact Fawtir support.",
+      "TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE": "This company's time zone is not set to Oman time, so e-invoices can't be issued and nothing was recorded. Contact Fawtir support to set it to Asia/Muscat.",
+      "offlineQrUnavailable": "This till cannot issue an offline receipt now: the QR settings are not available. Nothing was numbered or printed. Reconnect to sell online, or keep the sale open until the connection is back.",
+      "offlineQrUnavailableAfterSend": "No receipt: the connection dropped while sending, and this till cannot issue an offline receipt because its QR settings are not available, so no number was printed. The sale may already have reached Fawtir. Keep the sale open and finish it again once the till is online: it goes with the same key, so it cannot be recorded twice.",
+      "offlineQrUnavailableBehind": "This sale has to wait behind earlier sales that are not filed yet, and this till cannot issue a receipt for it without its QR settings. Nothing was numbered or printed. Keep the sale open and try again once the waiting sales are filed.",
+      "outcomeUnknown": "The sale was sent, but no clear answer came back, so it may already be recorded. Do not take payment again and do not ring it up again: send the same sale again, or check today’s sales.",
+      "POS_SALE_QR_UNAVAILABLE_FOR_BUYER": "This sale type cannot be issued with a QR yet: a full tax invoice to this buyer is not available at the till for now. Nothing was charged, numbered or printed, and the sale is kept.",
+      "qrUnavailableTaken": "This sale type cannot be issued with a QR yet: a full tax invoice to this buyer is not available at the till for now, and the sale was not recorded.",
+      "qrGiveBack": {
+        "card": "Refund the card on the terminal.",
+        "transfer": "Return the bank transfer to the customer.",
+        "cash": "Give the cash back to the customer."
+      }
     },
     "warning": {
       "STOCK_BELOW_ZERO": "Line {{line}} took the stock below zero. Count it when you can.",
+      "POS_OFFLINE_ATTRIBUTION_HELD": "Filed. Who made this sale could not be proven; a manager will review it.",
+      "POS_PRINTED_TOTALS_DIFFER": "Filed. The printed totals differ from the server's; the difference is recorded.",
       "STOCK_UNIT_MISMATCH": "Line {{line}} is in another unit than the item is counted in, so no stock moved.",
       "POS_PRICE_STALE_ACCEPTED": "Line {{line}} was sold offline at an older price.",
-      "POS_PRODUCT_NOT_SELLABLE_ACCEPTED": "Line {{line}} was sold offline after it went off sale.",
+      "POS_PRODUCT_NOT_SELLABLE_ACCEPTED": "Line {{line}} was sold offline and is not on sale now.",
       "FILED_PAST_RESTRICTION": "Made offline, so it was filed although the company is restricted now.",
       "FILED_AFTER_24H_B2C": "Made offline and filed more than 24 hours later.",
       "SLIP_AMOUNT_DIFFERS": "The slip's amount is not the card payment's.",
@@ -4968,8 +5349,9 @@
       "ZR_MEDICAL_NOT_LISTED": "Line {{line}} is zero-rated as medical, but its HS code is not on Oman's zero-rated medicines or medical equipment lists. Check its VAT category or HS code.",
       "POS_DISCOUNT_ABOVE_LIMIT_ACCEPTED": "Sold offline with a discount above the cashier's limit. It is filed and recorded for the manager.",
       "POS_PRINTED_NUMBER_DIFFERS": "A customer's receipt says {{printed}}, but that sale is filed as {{filed}}. Use {{filed}} to find it.",
+      "POS_GOODS_OR_SERVICE_FROM_PRODUCT": "Line {{line}} did not say whether it is goods or a service, so it was filed as its item is marked in the catalogue.",
       "POS_GOODS_FLAG_CLEARED": "Line {{line}} has no HS code, so it was filed without being marked as goods. Someone who can edit items adds the code on the item (Other if none fits) for next time.",
-      "POS_HS_CODE_MISSING_ACCEPTED": "Line {{line}} has no HS code. The sale is kept, but its full invoice is not filed until the item has one. Someone who can edit items adds the code on the item (Other if none fits)."
+      "POS_REFUND_PIECE_CARRIED": "Line {{line}} did not come back: on its own in this refund it is worth less than a baisa. It stays on the sale; give it back together with more of the line."
     },
     "day": {
       "title": "The day's shifts",
@@ -4997,8 +5379,18 @@
       "waiting_one": "1 sale is waiting to be sent. It goes by itself as soon as it can.",
       "waiting_other": "{{count}} sales are waiting to be sent. They go by themselves as soon as they can.",
       "heldHint": "The customer holds this invoice. The till tries again by itself and keeps selling meanwhile. Nothing is charged or filed twice.",
+      "hsCodeHint": "The customer has the printed receipt; the invoice is not issued yet. Someone who can edit items adds the HS code on the item (Other if none fits), then press Try again. It goes again as the same sale on the same number, so nothing is charged or filed twice. The till keeps selling meanwhile.",
+      "hsCodeLines": "Lines without an HS code: {{lines}}.",
+      "goodsOrServiceLines": "Lines that do not say goods or service: {{lines}}.",
+      "goodsOrServiceItemHint": "The customer has the printed receipt; the invoice is not issued yet. Someone who can edit items marks each listed item as goods or a service in the catalogue (the item must still be active), and gives an item marked as goods its HS code there too (Other if none fits), then press Try again. It goes again as the same sale on the same number, so nothing is charged or filed twice. Later sales wait behind it. The till keeps selling meanwhile.",
+      "goodsOrServiceHint": "The customer has the printed receipt; the invoice is not issued yet. The lines this device kept for it cannot be changed here, so Try again will not clear it by itself, and later sales wait behind it. Ask a manager to contact Fawtir support, and do not clear this device's data. To stop it happening again, give goods items an HS code. The till keeps selling meanwhile.",
       "finalHint": "The customer holds this invoice and it stays open here until it is filed. Sending it again as it stands will not work. Correct it if you can, or contact Fawtir support. The till keeps selling meanwhile.",
       "retry": "Try again",
+      "sendFor": "Send for {{cashier}}",
+      "sendForUnknown": "Send (who made it was not recorded)",
+      "sendForHint": "Not sent by itself: someone else made it, or it was made before this device recorded who made each sale. Sending it files it with you as the sender. Nothing is charged or filed twice.",
+      "others_one": "1 sale made offline on this till is not sent by itself: someone else made it, or who made it was not recorded. It goes only when someone chooses to send it, and it is then filed with that person as the sender.",
+      "others_other": "{{count}} sales made offline on this till are not sent by themselves: someone else made them, or who made them was not recorded. Each goes only when someone chooses to send it, and it is then filed with that person as the sender.",
       "reason": {
         "readOnly": "The subscription is read-only. This sale goes by itself once the subscription is paid.",
         "planFeature": "The plan does not include the till. This sale goes once the plan does.",
@@ -5007,7 +5399,12 @@
         "POS_SOLD_AT_IN_FUTURE": "This device's clock is ahead of the right time. Correct the clock and the sale goes.",
         "SELLER_PARTICIPANT_NOT_VERIFIED": "The company's Participant ID is not verified yet. The sale goes once it is.",
         "INDUSTRIAL_CLASSIFICATION_REQUIRED": "The company's business activity code is missing. Add it in Settings and the sale goes.",
-        "other": "Fawtir would not accept this sale as it stands."
+        "POS_QUEUED_SALE_HS_CODE_REQUIRED": "Not issued yet, waiting for an HS code: this full invoice has a goods line with no HS code, so Fawtir has not issued it and has not used its number.",
+        "POS_QUEUED_SALE_GOODS_OR_SERVICE_REQUIRED": "Not issued yet: this full invoice has a line that does not say whether it is goods or a service, so Fawtir has not issued it and has not used its number.",
+        "POS_QUEUED_BUYER_UNAVAILABLE": "Not sent yet: this device cannot open the buyer's details it kept for this full invoice. Reload the page and press Try again. If it still does not go, contact Fawtir support and do not clear this device's data.",
+        "other": "Fawtir would not accept this sale as it stands.",
+        "tooLarge": "Too large to send.",
+        "TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE": "This company's time zone is not set to Oman time. The sale goes once Fawtir support sets it to Asia/Muscat."
       },
       "askManager": "The till keeps selling. Ask a manager to deal with it.",
       "orderHint": "Later sales are still numbered and printed, but cannot be filed until this one is: Fawtir files a till's numbers strictly in order for now.",
@@ -5020,6 +5417,7 @@
       "setAsideReason": "Why is it being set aside?",
       "setAsideWarning": "This lets later sales go on. It does not file this sale: the customer still holds the invoice, and it stays listed until it is filed.",
       "setAsideNote": "Set aside: {{reason}}. Still not filed.",
+      "setAsideSeenNote": "Set aside on this device earlier. Not confirmed by the server.",
       "elsewhere": "Held on till {{till}}'s device.",
       "method": {
         "CASH": "Cash",
@@ -5031,7 +5429,28 @@
       "waitingOffline_other": "{{count}} sales are waiting to be sent. They go by themselves as soon as the connection is back.",
       "waitingBehind_one": "1 later sale is waiting behind it. It goes by itself once the sale above is filed.",
       "waitingBehind_other": "{{count}} later sales are waiting behind it. They go by themselves once the sale above is filed.",
-      "buyerRemovedHint": "This sale cannot be filed from this device. This device cannot keep a buyer's ID safely, so the buyer was removed when the sale was refused, and a full invoice has to name them. The customer holds this invoice: contact Fawtir support."
+      "buyerRemovedHint": "This sale cannot be filed from this device. This device cannot keep a buyer's ID safely, so the buyer was removed when the sale was refused, and a full invoice has to name them. The customer holds this invoice: contact Fawtir support.",
+      "tooLargeHint": "This sale is kept on this device with its number and is not sent again by itself: the same sale can never fit. Do not clear this browser's data. Contact Fawtir support."
+    },
+    "pendingSync": {
+      "closeTitle_one": "1 sale made offline is still on this device",
+      "closeTitle_other": "{{count}} sales made offline are still on this device",
+      "closeNote": "The server has not confirmed them, so the figures above may not include them. Closing tries to send them first. If they cannot go, they stay on this device as long as this browser's data is kept.",
+      "someRefused_one": "1 of them was refused. See the Till screen for why.",
+      "someRefused_other": "{{count}} of them were refused. See the Till screen for why.",
+      "closeLeft_one": "1 sale is not confirmed as filed yet. It stays on this device as long as this browser's data is kept. You can try again, or close anyway.",
+      "closeLeft_other": "{{count}} sales are not confirmed as filed yet. They stay on this device as long as this browser's data is kept. You can try again, or close anyway.",
+      "closeLeftOffline_one": "This device is offline, so 1 sale is not confirmed as filed. It stays on this device as long as this browser's data is kept. You can try again, or close anyway.",
+      "closeLeftOffline_other": "This device is offline, so {{count}} sales are not confirmed as filed. They stay on this device as long as this browser's data is kept. You can try again, or close anyway.",
+      "sendAgain": "Try sending again",
+      "sending": "Sending waiting sales…",
+      "sentRecount_one": "1 waiting sale was sent, so the figures above have been read again. Check the count, then close.",
+      "sentRecount_other": "{{count}} waiting sales were sent, so the figures above have been read again. Check the count, then close.",
+      "closeAnyway": "Close anyway",
+      "signOutLeft_one": "1 sale on this device is not confirmed as filed. It stays on this device as long as this browser's data is kept. See the Till screen.",
+      "signOutLeft_other": "{{count}} sales on this device are not confirmed as filed. They stay on this device as long as this browser's data is kept. See the Till screen.",
+      "signOutAnyway": "Sign out anyway",
+      "switchAnyway": "Switch user anyway"
     },
     "moneyNotAFigure": "That is not an amount. Type it like 4.510.",
     "lineDiscount": {
@@ -5047,6 +5466,69 @@
         "sale": "The whole-sale discount takes {{percent}}% off. Your limit is {{limit}}%.",
         "total": "Your discounts come to {{percent}}% of the sale. Your limit is {{limit}}%."
       }
+    },
+    "currencyExceptions": {
+      "link": "Currency exceptions",
+      "title": "Currency exceptions",
+      "intro": "Shifts whose drawer cannot be totalled, because their cash is in more than one currency or was recorded with no currency. Nothing here is added across shifts or currencies.",
+      "notAllowed": "Seeing this report needs permission to view the till.",
+      "from": "From",
+      "to": "To",
+      "show": "Show",
+      "rangeInvalid": "Choose dates at most 92 days apart, with the start not after the end.",
+      "truncated": "More shifts match than are shown here. Narrow the dates to see the rest.",
+      "none": "No shift in these dates has cash in more than one currency or with no currency.",
+      "notAvailable": "Not available",
+      "shift": "Till {{till}} · {{date}}",
+      "cashierUnknown": "Cashier not known",
+      "opened": "Opened {{at}}",
+      "ended": "Ended {{at}}",
+      "status": {
+        "OPEN": "Open",
+        "ENDED_UNCOUNTED": "Handed over, not counted",
+        "CLOSED": "Closed"
+      },
+      "mixed": "Cash in more than one currency: {{currencies}}.",
+      "unrecorded": "Cash moved with no currency recorded. Movements: {{movements}}.",
+      "currency": "Currency",
+      "currencyUnknown": "Currency unknown",
+      "paidIn": "Paid in",
+      "paidOut": "Paid out",
+      "movements": "Movements",
+      "storedClose": "Closed {{at}}, as stored",
+      "storedCloseNote": "These figures were added up across currencies before the mix was refused. They are not an amount in any one currency.",
+      "expected": "Expected",
+      "counted": "Counted",
+      "overShort": "Over or short"
+    },
+    "heldSales": {
+      "link": "Held sales",
+      "title": "Held sales",
+      "intro": "Sales from the tills that the server is holding for a check, and the numbers a till is waiting for before it can send later sales. A sale leaves this list once it is filed.",
+      "notAllowed": "Seeing held sales needs permission to view the till.",
+      "truncated": "More held sales exist than shown.",
+      "none": "No sale is held.",
+      "row": "Till {{till}} · number {{number}}",
+      "overdue": "Overdue: first seen more than 24 hours ago",
+      "waitingFor": "Waiting for number {{number}}; the server has no record of that sale.",
+      "reason": {
+        "goodsOrService": "Held: a line does not say whether it is goods or a service.",
+        "hsCode": "Held: a goods line has no HS code.",
+        "other": "Held by the server for a check before it is filed."
+      },
+      "lines": "Lines: {{lines}}.",
+      "heldTimes": "Held first {{first}}, last {{last}}.",
+      "reHeld": "Held again since: {{times}}.",
+      "blockedTimes": "Later sales refused behind it: first {{first}}, last {{last}}.",
+      "queueWaits": "The till waits for number {{number}}.",
+      "timeUnknown": "not recorded",
+      "withheld": "Receipt not printed — manager review. The sale is filed under this number, but the till printed no tax receipt for it.",
+      "withheldTimes": "Marked first {{first}}, last {{last}}.",
+      "otherKind": "Listed by the server for review.",
+      "refused": "Refused by the server: this sale was not filed, and the till’s later sales are blocked behind number {{number}}. It is not overdue itself.",
+      "refusedTimes": "Refused first {{first}}, last {{last}}.",
+      "reRefused": "Refused again since: {{times}}.",
+      "rowNoNumber": "Till {{till}} · number not recorded"
     }
   },
   "orderDetail": {
@@ -6076,7 +6558,12 @@
       "noDueDate": "No due date",
       "noOrderNote": "No order behind it",
       "noAmount": "No amount yet",
-      "queried": "Queried {{date}}"
+      "queried": "Queried {{date}}",
+      "twin": {
+        "sure": "Same supplier bill as another on file",
+        "possible": "May be the same supplier bill as another on file",
+        "heldCopy": "Its Peppol copy was flagged as a duplicate of this bill"
+      }
     },
     "state": {
       "newNotReviewed": "New, not reviewed",
@@ -6142,7 +6629,8 @@
       "download": "Download",
       "reject": "Reject",
       "approve": "Approve",
-      "recordPayment": "Record payment"
+      "recordPayment": "Record payment",
+      "reopen": "Reopen"
     },
     "steps": {
       "arrived": "Arrived",
@@ -6173,7 +6661,8 @@
       "arrivedVia": "{{date}} · {{source}}",
       "notYet": "Not yet",
       "paidOf": "Paid OMR {{paid}} of OMR {{total}}",
-      "settledByCredit": "Settled by credit"
+      "settledByCredit": "Settled by credit",
+      "reopened": "Reopened, waiting for approval"
     },
     "match": {
       "ordered": "Ordered",
@@ -6263,8 +6752,14 @@
         "OVERPAYMENT_CREDIT_RECEIVED": "Credit from another bill set against this one",
         "HELD_AS_DUPLICATE": "Held as a possible duplicate",
         "CONFIRMED_DUPLICATE": "Confirmed as a duplicate",
-        "NOT_DUPLICATE": "Decided not a duplicate"
-      }
+        "NOT_DUPLICATE": "Decided not a duplicate",
+        "REOPENED": "Reopened",
+        "DUPLICATE_OVERRIDDEN": "Listed by the person who recorded it",
+        "DUPLICATE_SUBMITTED_FOR_REVIEW": "Submitted for review by the person who recorded it"
+      },
+      "byName": "by {{name}}",
+      "overrideReason": "Why: {{reason}}",
+      "reasonRecorded": "A reason was recorded. Approvers can read it."
     },
     "decision": {
       "title": "Your decision",
@@ -6281,7 +6776,10 @@
       "release": "Release",
       "queryIt": "Query it",
       "inRun": "Approved for payment and in payment run {{run}}. It is paid when the run is marked paid.",
-      "settledByCredit": "Settled in full by credit. Nothing was paid."
+      "settledByCredit": "Settled in full by credit. Nothing was paid.",
+      "reopen": "Reopen for approval",
+      "reopened": "Reopened: “{{reason}}”. It is not approved. It needs approving again before it can be paid.",
+      "reopenedNeedsMore": "Reopened: “{{reason}}”. It is not approved. It cannot be paid until {{required}} different people have approved it again."
     },
     "compliance": {
       "title": "Compliance",
@@ -6389,7 +6887,9 @@
       "reasonTooLong": "That reason is too long. Shorten it and reject again.",
       "holdReasonRequired": "A hold has to say why.",
       "holdReasonTooLong": "That reason is too long. Shorten it and put the bill on hold again.",
-      "appliedCredit": "This bill can't be rejected: supplier credit is set against it, and credit can't be released yet."
+      "appliedCredit": "This bill can't be rejected: supplier credit is set against it, and credit can't be released yet.",
+      "needsReopen": "This bill was rejected. It has to be reopened, with a reason, before it can be approved.",
+      "reopenReasonRequired": "Reopening needs a reason."
     },
     "done": {
       "approved": "Approved.",
@@ -6398,7 +6898,8 @@
       "released": "Released from hold.",
       "matched": "Matched to the order.",
       "unmatched": "The match was removed.",
-      "recorded": "Payment recorded."
+      "recorded": "Payment recorded.",
+      "reopened": "Reopened. It needs approving before it can be paid."
     },
     "notStated": "Not stated",
     "terms": {
@@ -6427,6 +6928,8 @@
     },
     "overpaid": {
       "overpaidBy": "Overpaid by {{amount}}",
+      "keyReused": "This was changed after an earlier attempt that may already be recorded. Close this and check the bill before recording it again: the next attempt counts as a new one.",
+      "inProgress": "This is still being recorded. Wait a moment, then press again without changing it.",
       "kept": "{{amount}} kept as credit",
       "recordRefund": "Record the supplier's refund",
       "setAgainst": "Set against a bill",
@@ -6442,7 +6945,8 @@
     "inputVat": {
       "debitNoteNotAccepted": "Not counted in VAT until you accept it.",
       "rejected": "Not counted in VAT while rejected.",
-      "noSupplierTaxInvoice": "Not counted in VAT: no supplier tax invoice yet."
+      "noSupplierTaxInvoice": "Not counted in VAT: no supplier tax invoice yet.",
+      "reopened": "Not counted in VAT until it is approved again."
     },
     "duplicate": {
       "title": {
@@ -6456,11 +6960,27 @@
         "notDuplicate": "Decided to be a separate bill, not a duplicate. It is handled as an ordinary bill.",
         "suspectedCreditNote": "The same supplier sent this credit note number again over Peppol. Compare it with the credit note already on file and decide. It can't be set against any bill until then.",
         "confirmedCreditNote": "Confirmed as a duplicate of the credit note already on file. It stays on hold and can't be set against any bill.",
-        "notDuplicateCreditNote": "Decided to be a separate credit note, not a duplicate. It is handled as an ordinary credit note."
+        "notDuplicateCreditNote": "Decided to be a separate credit note, not a duplicate. It is handled as an ordinary credit note.",
+        "suspectedUploaded": "This Peppol document looks like a copy of a bill already on file that was uploaded. The uploaded bill stays payable. Compare them and decide: if they are separate documents, both are owed; if they are the same, this copy stays on hold and is never paid.",
+        "suspectedScanned": "This Peppol document looks like a copy of a bill already on file that was scanned. The scanned bill stays payable. Compare them and decide: if they are separate documents, both are owed; if they are the same, this copy stays on hold and is never paid.",
+        "suspectedPending": "This document looks like a copy of one already on file. Compare them and decide. It cannot be paid until then.",
+        "suspectedUploadedCreditNote": "This Peppol credit note looks like a copy of a credit note already on file that was uploaded. The uploaded one can still be used. Compare them and decide. This copy can't be set against any bill until then.",
+        "suspectedScannedCreditNote": "This Peppol credit note looks like a copy of a credit note already on file that was scanned. The scanned one can still be used. Compare them and decide. This copy can't be set against any bill until then.",
+        "suspectedPendingCreditNote": "This credit note looks like a copy of one already on file. Compare them and decide. It can't be set against any bill until then."
       },
       "thisBill": "This bill",
       "original": "Already on file",
       "openOriginal": "Open",
+      "coincidences": {
+        "title": "Potential coincidences",
+        "intro": "Peppol documents filed under other suppliers that have, or had when this bill was held, the same number, type, date, total and currency. Nothing shows they are from this supplier, so they are not confirmed duplicates. Check each one's status and review them before you decide.",
+        "notOnFile": "No longer on file",
+        "status": {
+          "ATTACHED_STILL_MATCHES": "Still matches",
+          "ATTACHED_NO_LONGER_MATCHES": "No longer matches",
+          "FOUND_SINCE_HOLD": "Not attached when the bill was held"
+        }
+      },
       "field": {
         "supplier": "Supplier",
         "number": "Their bill number",
@@ -6501,14 +7021,23 @@
         "alreadyResolved": "Someone has already decided whether this is a duplicate. The bill has been refreshed.",
         "notHeld": "This bill is no longer held as a possible duplicate. The bill has been refreshed.",
         "sameDocumentUuid": "Both copies carry the same document UUID, so it cannot be marked as not a duplicate.",
+        "deciderIsRecorder": "You recorded one of these bills, so another invoice approver must decide whether it is a duplicate.",
+        "recorderUnknown": "This duplicate can't be decided here: one of these bills was recorded by a person, but who recorded it isn't on file. Contact support.",
+        "evidenceChanged": "The potential coincidences beside this hold changed since you opened the bill. Review them as they stand now before you decide.",
         "releaseRefused": "This bill is held as a possible duplicate. Open it and decide whether it is one instead of releasing it.",
         "noteRequired": "Add a note saying why.",
         "noteTooLong": "That note is too long. Keep it to 500 characters or fewer.",
         "approvalHeld": "This bill is held as a possible duplicate, so it can't be approved. Decide the duplicate check first.",
-        "rejectionHeld": "This bill is held as a possible duplicate, so it can't be rejected. Decide the duplicate check first."
+        "rejectionHeld": "This bill is held as a possible duplicate, so it can't be rejected. Decide the duplicate check first.",
+        "reopenHeld": "This bill is held as a possible duplicate, so it can't be reopened. Decide the duplicate check first."
       },
       "decided": "Decided {{date}}",
       "sameUuidCreditNote": "Both copies carry the same document UUID, so this one cannot be released as a separate credit note. Confirm it as a duplicate."
+    },
+    "reopen": {
+      "title": "Reopen this bill",
+      "body": "Reopening takes the rejection back so the bill can be approved again. It does not approve the bill: it still needs approving before it can be paid, and approvals given before the rejection do not count. The rejection and this reason stay in the bill's history.",
+      "confirm": "Reopen the bill"
     }
   },
   "uploadBill": {
@@ -7155,6 +7684,10 @@
     }
   },
   "supplierCreditNotes": {
+    "waitingDuplicate": {
+      "onBill": "Waiting for the duplicate decision on bill {{number}}",
+      "onItsBill": "Waiting for the duplicate decision on its bill"
+    },
     "title": "Credit Notes",
     "subtitle": "Money your suppliers owe back for short deliveries, damage, overcharges or returns. Each one lowers what you owe on a bill, or sits as credit until you use it.",
     "allSuppliers": "All suppliers",
@@ -7314,6 +7847,8 @@
       "footerToFill_other": "{{count}} fields still to fill",
       "savedAppliedDebitNote": "Saved and set against the debit note.",
       "savedClosesRefusedDebitNote": "Saved. The credit closes refused debit note {{note}}; anything left over stays as credit.",
+      "savedHeldAsDuplicate": "Saved. This note is held as a possible duplicate. Its credit cannot be used unless an approver decides it is not a duplicate.",
+      "savedStatusUnknown": "Saved. Check this note's status to see whether it is waiting for a decision.",
       "refusedDebitNoteCloses": "This debit note was refused, so the credit closes it. Anything left over stays as credit.",
       "setNowNoteDebitNote": "The debit note is unpaid, so you simply pay OMR {{amount}} less.",
       "saveAndSetDebitNote": "Save and set against the debit note",
@@ -8708,11 +9243,25 @@
       "billedIn": "Billed {{when}},",
       "topShare": "{{name}} is <b>{{percent}}%</b> of everything billed",
       "everythingElse": "Everything else",
-      "topShareInclVat": "{{name}} is <b>{{percent}}%</b> of everything billed, VAT included"
+      "topShareInclVat": "{{name}} is <b>{{percent}}%</b> of everything billed, VAT included",
+      "till": {
+        "title": "Cash paid out of the tills",
+        "legend": "Paid out {{when}}, {{currency}}",
+        "note": "Not in money out or left over. A till payment that paid a bill is counted once, in money out.",
+        "none": "No cash was paid out of the tills in this period.",
+        "expense": "Expenses",
+        "advance": "Advances",
+        "transferred": "Moved elsewhere",
+        "unclassified": "Not classed (before RC5)"
+      },
+      "currencyNotRecorded": "currency not recorded (before RC5)",
+      "timeZoneUnavailable": "The cash flow report needs the company's time zone, which isn't set. Contact Fawtir support to set it, then open the report again.",
+      "unrecorded": "Till paid-outs from before RC5 carry no currency ({{label}}): {{amount}} in this report. They are kept apart and never added to any currency."
     },
     "vat": {
       "title": "VAT & Tax",
       "subtitle": "What you collected on sales, what you paid on purchases, and what the Tax Authority is owed.",
+      "notAReturn": "Calculated from your records to help you prepare your return. It is not a filed return.",
       "kpi": {
         "collected": "VAT collected on sales",
         "collectedNote": "output VAT",
@@ -9516,6 +10065,14 @@
         "productNotFound": "A product on this order is no longer in your catalogue. Pick it again or type the line instead.",
         "variantRequired": "A product on this order has sizes or options. Choose the one each line buys.",
         "variantNotOnProduct": "A size or option on this order no longer belongs to its product. Choose it again."
+      },
+      "statedUnit": {
+        "legacyNote": "This line was saved before Fawtir recorded the unit its stock is counted in. Say which unit you counted the goods in.",
+        "confirm": "I counted these in {{unit}}, the unit the catalogue counts this item in",
+        "choose": "Choose a unit",
+        "chooseFor": "Unit you counted {{item}} in",
+        "checking": "Reading the unit this item is counted in…",
+        "missing": "Say which unit you counted {{item}} in before booking it in."
       }
     }
   },
@@ -11435,7 +11992,8 @@
       "ota_delivery_submit": "Send documents to the Tax Authority",
       "smp_participant_view": "See the company's Peppol listing",
       "smp_participant_manage": "Add, change and remove the company's Peppol listing",
-      "smp_reconcile": "Bring in Fawtara records and match the Peppol listing to them"
+      "smp_reconcile": "Bring in Fawtara records and match the Peppol listing to them",
+      "bill_reopen": "Reopen a rejected supplier bill so it can be approved again. Reopening approves nothing"
     }
   },
   "makeRole": {
@@ -13074,6 +13632,7 @@
       "unitCostInvalid": "Type the cost each before VAT: zero or more, up to three decimals.",
       "receivedOnInvalid": "The date received can't be in the future.",
       "noteRequired": "Say what happened in the note.",
+      "noteCardNumber": "Remove the card number from this note. Card numbers must never be typed into notes.",
       "reorderLevelInvalid": "Type a level of zero or more, with up to three decimals.",
       "itemNotFound": "This item isn't counted in this branch.",
       "notCountedProduct": "This item doesn't keep a count. Switch Keep count on in the catalogue first.",
@@ -13181,7 +13740,9 @@
       "atEach": "at {{amount}} each",
       "lastPaid": "{{amount}} on {{date}}",
       "chartNoteNoRate": "The {{count}} {{unit}} received on {{date}} have not sold yet, so there is no rate to say how long they last.",
-      "supplierRef": "Supplier's ref. {{reference}}"
+      "supplierRef": "Supplier's ref. {{reference}}",
+      "cancelSaleBack": "Sale cancelled, back on the shelf",
+      "cancelReturnOff": "Return cancelled, taken off the shelf"
     }
   },
   "priceRules": {
@@ -16977,7 +17538,8 @@
         "bodyFinance": "Record that the money went back to the company. The amount is what the company paid and cannot be changed. The case is then closed and can no longer be changed.",
         "on": "Refunded on",
         "onInvalid": "Choose a day from when the case opened up to today.",
-        "onInvalidApproved": "Choose today or a later day: the money can't go back before the refund is approved."
+        "onInvalidApproved": "Choose today or a later day: the money can't go back before the refund is approved.",
+        "referenceCardNumber": "That looks like the card number. Type the card refund's approval or refund reference, never the card number."
       },
       "declinedBecause": "Not refunded: {{reason}}",
       "decline": {
@@ -20789,7 +21351,10 @@
       "debitNoteAlreadyPaid": "This debit note is already paid. Record a refund from the supplier instead.",
       "paymentReversalInSentRun": "This bill is in payment run {{run}}, whose bank file is already made. Use the run's Mark paid or Cancel instead.",
       "debitNotePartlyPaid": "This debit note is partly paid. Record a refund from the supplier for the paid part first.",
-      "debitNoteNotAccepted": "Accept the debit note before you pay it."
+      "debitNoteNotAccepted": "Accept the debit note before you pay it.",
+      "receiptStockUnitMismatch": "Nothing was received. An item on this order is now counted in a different unit from the one it was ordered in. Check the item's unit, or order it again in the unit it is counted in now.",
+      "receiptStockUnitRequired": "Nothing was received. A line on this order was saved before Fawtir recorded the unit its stock is counted in, so the receipt must say which unit the goods were counted in. State that unit, then book the goods in again.",
+      "paymentPaidFromTill": "This payment was paid out of a till drawer, so it can't be reversed here. Correcting a payment made from till cash isn't available."
     },
     "selfBilling": {
       "generic": "The server refused this because of the self-billing agreement with this supplier. Check the agreement before trying again.",
@@ -20836,7 +21401,8 @@
       "stock": "Your plan does not include stock counting. What you counted before can still be viewed.",
       "receiptScan": "Your plan does not include scanning bills and receipts. What you made before can still be viewed, downloaded and exported."
     },
-    "tooLarge": "That file is too large for Fawtir to accept. Use a smaller photo or PDF."
+    "tooLarge": "That file is too large for Fawtir to accept. Use a smaller photo or PDF.",
+    "discountAboveLimit": "This discount takes {{requestedPercent}}% off and your limit is {{limitPercent}}%. Lower it, or ask an administrator in your company to raise your limit."
   },
   "appAccess": {
     "checking": "Checking your access…",
@@ -21001,7 +21567,7 @@
       "tenantInactive": "Your account isn't active, so it can't issue invoices.",
       "notReady": "Your account can't issue invoices right now ({{reason}}).",
       "quota": "You've used this month's invoice allowance on your plan.",
-      "timezone": "Your company's time zone isn't set, so the issue date can't be checked. Set it in company settings.",
+      "timezone": "This company's time zone isn't set, so the issue date can't be checked. Contact Fawtir support to set it.",
       "sellerParticipant": "Your company's Peppol registration isn't verified yet, so it can't issue invoices.",
       "customerIncomplete": "This customer is missing details an invoice needs. Complete the customer, then issue.",
       "customerNotSelectable": "This customer can't be invoiced.",
@@ -21013,8 +21579,11 @@
       "notDraft": "This invoice is no longer a draft.",
       "unavailable": "Issuing isn't available on this server yet.",
       "activityRequired": "Set your business activity in Company settings before creating a business or government invoice.",
+      "hsCodeRequired": "A goods line on this draft has no HS code, so it was not issued. Open the draft, choose the line's HS code (Other if none fits), save, then issue again.",
+      "goodsOrServiceRequired": "A line on this draft does not say whether it is goods or a service, so it was not issued and no number was used. Open the draft, give each goods line its HS code (Other if none fits) or mark the line as a service, save, then issue again.",
       "buyerAddressIncomplete": "This customer's address is incomplete for Peppol: add the street, additional street, city, postal code and address line 3, then issue again.",
-      "buyerAddressAction": "Complete the customer"
+      "buyerAddressAction": "Complete the customer",
+      "timezoneNotOman": "This company's time zone is not set to Oman time, so e-invoices can't be issued. The draft is unchanged. Contact Fawtir support to set it to Asia/Muscat, then issue again."
     },
     "creditNote": {
       "title": "Issue this credit note?",
@@ -21039,7 +21608,8 @@
       "STOCK_QUANTITY_NOT_WHOLE": "the item is counted in whole pieces, so a part quantity moved no stock.",
       "STOCK_QUANTITY_INVALID": "the quantity has more than three decimals, so no stock moved.",
       "STOCK_RETURN_EXCEEDS_SALE": "not all of it went back on the shelf, because a return puts back no more than the sale took off, less earlier returns. Count the shelf if it is wrong.",
-      "STOCK_NOT_TRACKED_AT_SALE": "nothing went back on the shelf, because the sale took none of it off. Count the shelf if it is wrong."
+      "STOCK_NOT_TRACKED_AT_SALE": "nothing went back on the shelf, because the sale took none of it off. Count the shelf if it is wrong.",
+      "STOCK_BELOW_ZERO": "it took the stock below zero. Count it when you can."
     },
     "openCustomer": "Open the customer"
   },
@@ -21367,6 +21937,11 @@
     "allSuppliers": "All suppliers",
     "noSupplier": "Supplier not on your list",
     "unnumbered": "No bill number",
+    "twin": {
+      "sure": "Same supplier bill as another on file",
+      "possible": "May be the same supplier bill as another on file",
+      "heldCopy": "Its Peppol copy was flagged as a duplicate of this bill"
+    },
     "tickDueBy": "Tick everything due by",
     "tickNote": "are in this run. Ticking a bill adds it to the run straight away; unticking takes it out.",
     "nothingToPay": "No approved bills are waiting to be paid.",
@@ -21582,6 +22157,7 @@
     "duplicate": {
       "title": "This may be a bill you already have",
       "body": "A bill {{number}} from this supplier is already recorded: dated {{date}}, {{total}}, {{source}}.",
+      "bodyFiguresOnly": "A bill {{number}} with the same details is already recorded, but nothing shows it is from this supplier: dated {{date}}, {{total}}, {{source}}. It may be a coincidence.",
       "source": {
         "PEPPOL": "received over Peppol",
         "UPLOADED": "uploaded",
@@ -21590,7 +22166,22 @@
         "SELF_BILLED": "self-billed"
       },
       "open": "Open that bill",
-      "different": "It's a different bill. Save it"
+      "different": "It's a different bill. Save it",
+      "titleMany": "This may be one of {{count}} bills you already have",
+      "reasonLabel": "Why is this a different bill?",
+      "differentAll": "They are all different bills. Save it",
+      "reasonRequired": "Say why this bill is different from the ones listed.",
+      "reasonTooLong": "Keep the reason to 280 characters.",
+      "tooMany": "This bill matches too many bills on file to save in one go. Open them and check the supplier and number.",
+      "unknown": "One of the bills it was compared with is no longer on file, or no longer matches this bill. Save again to check it afresh.",
+      "unknownNotFound": "One of the bills it was compared with is no longer on file. Save again to check it afresh.",
+      "unknownNoLongerMatches": "One of the bills it was compared with is still on file but no longer matches this bill. Save again to check it afresh.",
+      "cannotOverrideMany": "This bill matches more than one bill on file, and they cannot be set aside here yet. Open them and check the supplier and number.",
+      "reasonRequiredSingle": "Enter a reason before confirming this is a different bill.",
+      "approverOnly": "Only an authorized invoice approver can confirm that this is a different bill. You can submit it for review.",
+      "approverRequired": "This action requires an authorized human invoice approver. Ask an invoice approver to record this bill.",
+      "approverMustRecord": "Only an authorized invoice approver can confirm that this is a different bill. Ask an invoice approver to record it.",
+      "submitForReview": "Submit it for review"
     },
     "discard": "Discard",
     "saving": "Saving…",
@@ -21625,6 +22216,8 @@
       "choose": "Choose receipt photos",
       "hint": "JPG, PNG or PDF, up to {{mb}} MB each. You can choose several at once.",
       "saved": "Saved as a bill.",
+      "savedHeld": "Saved as a bill and held as a possible duplicate. It is waiting for an authorized invoice approver, other than the person who recorded it, to decide. It has not been approved or paid.",
+      "savedStatusUnknown": "The bill was saved. Open it to see whether it is waiting for a decision.",
       "typeIt": "Nothing is read from the photo. Type the receipt in from the picture on the left.",
       "vatWorkedOut": "Worked out from the total and the rate. Type over it if the receipt says otherwise.",
       "owingNote": "It is recorded as a bill to pay later.",
@@ -21653,7 +22246,8 @@
       "vatRateMismatch": "That VAT rate does not match the VAT category. Choose the rate that goes with it.",
       "supplierSwitchedOff": "This supplier is switched off. Switch it back on to record a bill for it.",
       "pettyCashNotCash": "Petty cash can only be recorded as cash.",
-      "noteTooLong": "That note is too long. Shorten it to 500 characters."
+      "noteTooLong": "That note is too long. Shorten it to 500 characters.",
+      "paymentOnHold": "This bill will be held as a possible duplicate, so its payment can't be recorded now. Save it without the payment, and record the payment once an authorized invoice approver has resolved the hold."
     },
     "reading": {
       "pages_one": "{{count}} page",
@@ -21836,13 +22430,13 @@
       "recordRefund": "Record refund",
       "draftNotice": "This is a draft. It has no number and no figures until it is issued.",
       "appliedTo": "Applied to {{invoice}}",
-      "addedTo": "Added to {{invoice}}",
+      "linkedTo": "Owed separately, linked to {{invoice}}",
       "refundDue": "Refund due",
-      "nowDue": "Now due on the invoice",
+      "nowDue": "Now due on this debit note",
       "refundBanner": "Refund due to {{customer}}",
       "refundBannerHint": "{{invoice}} is settled in full; the credit exceeds it by this amount.",
       "awaitingBanner": "Awaiting payment from {{customer}}",
-      "awaitingHint": "The charge joined {{invoice}}'s balance, so the customer settles one figure. Due {{date}}, {{when}}.",
+      "awaitingHint": "A separate amount, linked to {{invoice}}; {{invoice}}'s own balance does not change. Due {{date}}, {{when}}.",
       "dueIn": "in {{count}} days",
       "dueToday": "due today",
       "dueLate": "{{count}} days late",
@@ -21852,13 +22446,21 @@
         "credit": "This credit note is ready to deliver to {{customer}} over Peppol.",
         "debit": "This debit note is ready to deliver to {{customer}} over Peppol."
       },
+      "blocked": {
+        "CANONICAL_HANDOFF_NOT_ENABLED": "Peppol sending isn't switched on here yet, so nothing has been sent.",
+        "DISPATCH_NOT_ACTIVE": "Peppol sending is switched off here at the moment, so nothing has been sent.",
+        "other": {
+          "credit": "This credit note can't be sent over Peppol from here at the moment.",
+          "debit": "This debit note can't be sent over Peppol from here at the moment."
+        }
+      },
       "details": "Details",
       "viewCustomer": "View customer",
       "reverses": "Reverses {{invoice}}",
       "adjusts": "Adjusts {{invoice}}",
       "settled": "Settled by this credit",
       "balanceReduced": "Balance reduced",
-      "balanceIncreased": "Balance increased",
+      "billedSeparately": "Billed separately",
       "originalMeta": "Original total OMR {{amount}} · issued {{date}}",
       "originalPaid": "OMR {{amount}} already paid",
       "openInvoice": "Open invoice",
@@ -21941,7 +22543,7 @@
       "refundNoneHint": "The credit was applied to {{invoice}}'s balance; no money goes back to the customer.",
       "refundNotWired": "Refunds are not recorded in Fawtir yet. Pay it outside Fawtir and keep the reference on the internal note.",
       "awaitingPayment": "awaiting payment",
-      "awaitingPaymentHint": "Added to {{invoice}}'s balance. {{customer}} owes OMR {{amount}} in total, due {{date}}.",
+      "awaitingPaymentHint": "A separate amount, linked to {{invoice}}: {{customer}} owes OMR {{amount}} on this debit note, due {{date}}.",
       "reverse": "Reverse",
       "reversed": "Reversed",
       "reverseTitle": "Reverse this payment?",
@@ -21994,8 +22596,13 @@
       },
       "notAvailableYet": "Not available yet",
       "cancelBlocked": {
-        "refunded": "This credit note cannot be cancelled: a refund is recorded against it."
-      }
+        "refunded": "This credit note cannot be cancelled: a refund is recorded against it.",
+        "debitCredited": "This debit note cannot be cancelled: credit notes already issued on the invoice use what it added. Cancel those credit notes first.",
+        "tillRefund": "This credit note cannot be cancelled: it was issued by a refund at the till, and cancelling it would not undo the refund.",
+        "stockReturn": "This credit note cannot be cancelled: it put goods back on the shelf, and cancelling it would not take them off again. Correct the stock with a count, or issue a debit note."
+      },
+      "debitLocked": "An issued debit note cannot be cancelled, deleted, edited or reversed. A correction workflow for issued debit notes is not available in this release.",
+      "creditOnDebitRefused": "A credit note cannot be issued against a debit note. A correction workflow for issued debit notes is not available in this release."
     },
     "status": {
       "draft": "Draft",
@@ -22087,7 +22694,7 @@
         "settled": "Settled",
         "due": "Due {{date}}",
         "daysLate": "{{count}} days late",
-        "addedToInvoice": "Added to invoice balance",
+        "separateFromInvoice": "Owed separately from its invoice",
         "inDays": "In {{count}} days"
       }
     },
@@ -22244,7 +22851,7 @@
       "effectOn": "Effect on {{customer}}",
       "outstanding": "Outstanding on {{invoice}}",
       "applied": "Applied to balance",
-      "added": "Added by this note",
+      "owedSeparately": "Owed separately on this debit note",
       "newBalance": "New invoice balance",
       "refundTitle": "Refund due to customer",
       "refundHint": "Credit exceeds the outstanding balance, so {{invoice}} is settled in full and the difference is refundable.",
@@ -22646,7 +23253,9 @@
       "REFUNDED": "Refunded"
     },
     "appliedDone": "The credit was used against that bill.",
-    "refundedDone": "The refund was recorded."
+    "refundedDone": "The refund was recorded.",
+    "refundKeyReused": "This refund was changed after an earlier attempt that may already be recorded. Check the refunds on this note before recording it again: the next attempt counts as a new refund.",
+    "refundInProgress": "This refund is still being recorded. Wait a moment, then press Record the refund again without changing it."
   },
   "approvalPolicy": {
     "title": "Bill approvals",
@@ -25048,6 +25657,55 @@
       "open": "See what's waiting"
     }
   },
+  "rejectedDocuments": {
+    "breadcrumb": "Rejected by Fawtir",
+    "title": "Rejected by Fawtir",
+    "subtitle": "Supplier documents Fawtir refused when they arrived",
+    "countTitle_one": "Fawtir rejected {{n}} supplier document",
+    "countTitle_other": "Fawtir rejected {{n}} supplier documents",
+    "explain": "Each one was answered with a rejection (RE) and did not become a bill, so nothing here is owed. The reason went to the supplier with the rejection: they can correct the document and send it again. The last column says whether the rejection has reached them.",
+    "noneTitle": "Nothing was rejected",
+    "noneBody": "Fawtir has not rejected any document your suppliers sent.",
+    "notStated": "Not stated",
+    "col": {
+      "sender": "Sent by",
+      "type": "Type",
+      "received": "Received",
+      "rejected": "Rejected",
+      "delivery": "Rejection sent to supplier"
+    },
+    "type": {
+      "plain": {
+        "INVOICE": "Invoice",
+        "CREDIT_NOTE": "Credit note"
+      },
+      "selfBilled": {
+        "INVOICE": "Self-billed invoice",
+        "CREDIT_NOTE": "Self-billed credit note"
+      }
+    },
+    "delivery": {
+      "sending": "Being sent to the supplier",
+      "awaitingReceipt": "Sent, awaiting receipt",
+      "delivered": "Delivered {{date}}",
+      "deliveredUndated": "Delivered",
+      "failed": "Could not be delivered",
+      "notQueued": "Not yet queued",
+      "unknown": "Status not known"
+    },
+    "pager": {
+      "nav": "Pages of rejected documents",
+      "previous": "Previous page",
+      "next": "Next page"
+    },
+    "banner": {
+      "title_one": "Fawtir rejected {{n}} supplier document when it arrived.",
+      "title_other": "Fawtir rejected {{n}} supplier documents when they arrived.",
+      "body": "They did not become bills.",
+      "open": "See rejected documents",
+      "dismiss": "Dismiss"
+    }
+  },
   "quotaWarning": {
     "near": {
       "title": "You have used {{percent}}% of this period's documents.",
@@ -25306,7 +25964,27 @@
         "confirm": "Change my role"
       },
       "subtitleNoBranches": "Their role and permissions.",
-      "branchAdminPending": "Not saved yet: press Save permissions to apply it."
+      "branchAdminPending": "Not saved yet: press Save permissions to apply it.",
+      "sellLimit": "Discount limit at the till (%)",
+      "sellLimitPlaceholder": "Their role's limit",
+      "sellLimitInvalid": "Type a percentage above 0 and up to 100, with at most two decimals, or leave it blank.",
+      "sellLimitOwn": "Set for them: discounts up to {{percent}}%. Clear it to use their role's limit.",
+      "sellLimitOwnNone": "Set for them: no discount limit. Clear it to use their role's limit.",
+      "sellLimitRole": "From their role: discounts up to {{percent}}%. Type a number to set a different limit for them.",
+      "sellLimitRoleNone": "From their role: no discount limit. Type a number to set one for them.",
+      "sellLimitRoleUnknown": "Blank means their role's limit applies. Type a number to set one for them.",
+      "sellLimitPlaceholderOwn": "Type a limit",
+      "sellLimitPlaceholderNone": "No limit",
+      "sellLimitRequired": "No role gives them till selling, so this limit cannot be left blank. Type a percentage, or untick selling to take the right away.",
+      "sellLimitOwnOnly": "Set for them: discounts up to {{percent}}%. No role gives them till selling, so this is their only limit: change it here, or untick selling to take the right away.",
+      "carriedLimit": "Carried from a removed role, and kept whatever role they hold now or later: {{permission}}, max discount {{percent}}%.",
+      "carriedLimitOther": "Carried from a removed role, and kept whatever role they hold now or later: {{permission}}.",
+      "carriedTicked": "Carried from a removed role. Unticking removes only this carried permission and its limit; it does not block the permission from a role.",
+      "carriedUnticked": "The carried permission and its limit will be removed when saved. If their role gives this permission, they keep it from the role, with the role's limit; otherwise it is taken away.",
+      "sellLimitCarried": "Carried from a removed role: discounts up to {{percent}}%, whatever role they hold now or later. Type a limit to replace it, or untick selling to remove it; if their role gives selling, they then sell with the role's limit.",
+      "sellLimitNoRole": "No role gives them till selling: blank means no discount limit. Type a number to set one.",
+      "carriedAppliesFrom": "Applies from {{date}}, when the company's notice of the new discount limits takes effect. Until then the limits read as they did before this release.",
+      "carriedNotInForce": "Not in force yet: it applies only after the company is given notice of the new discount limits. Until then the limits read as they did before this release."
     },
     "handover": {
       "open": "Hand over ownership",
@@ -26042,7 +26720,8 @@
       "branchClosed": "A closed branch cannot sell this item. Untick it.",
       "branchGone": "One of these branches no longer exists. Reload and try again.",
       "zeroRatingMismatch": "Zero-rated as food needs an HS code on Oman's zero-rated food list in force today. Choose a listed HS code, or another VAT category.",
-      "reasonNotDefault": "Export and international transport reasons depend on the sale, so an item cannot carry them. Choose the reason on the invoice line instead."
+      "reasonNotDefault": "Export and international transport reasons depend on the sale, so an item cannot carry them. Choose the reason on the invoice line instead.",
+      "unitLocked": "This item's stock has already moved, so its unit can't change. Keep the current unit, or count this item to zero and create a new item in the new unit."
     },
     "backOnSaleDone": "Back on sale. New invoice lines can pick it again.",
     "branchesNotSaved": "The item is saved, but not where it is sold."
@@ -26166,5 +26845,65 @@
     },
     "itemCount_one": "{{count}} item",
     "itemCount_other": "{{count}} items"
+  },
+  "heldHs": {
+    "action": "Add missing HS codes",
+    "title": "Add HS codes to {{number}}",
+    "subtitle": "This invoice is held, not sent, because a goods line has no HS code.",
+    "lineLabel": "Line {{line}}: {{description}}",
+    "useOther": "Use Other (000000000000)",
+    "useOtherFor": "Use Other for line {{line}}",
+    "reason": "Why the codes are being added",
+    "sameNumber": "The invoice keeps its number and amounts. Once saved, it goes back in the queue to be sent.",
+    "submit": "Add HS codes",
+    "saving": "Saving…",
+    "noLines": "No goods line on this invoice is missing an HS code. Ask support.",
+    "done": {
+      "released": "HS codes added. The invoice is back in the queue to be sent, under the same number.",
+      "stillOwed": "HS codes added. The invoice is still waiting to be sent."
+    },
+    "refused": {
+      "stale": "This invoice was changed since you opened it, so nothing was changed. Reload the page and try again.",
+      "notHeld": "This invoice is not held for an HS code, so nothing was changed.",
+      "tillReceipt": "This invoice was made at a till and its receipt was handed to the buyer, so it is not changed. Correct it with a credit note and a new invoice.",
+      "delivered": "This invoice has reached its buyer, so it is not changed. Correct it with a credit note and a new invoice.",
+      "alreadySent": "This invoice has been submitted, so it is not changed. Correct it with a credit note and a new invoice.",
+      "stateUnavailable": "Whether this invoice was sent could not be checked, so nothing was changed. Try again shortly.",
+      "inProgress": "This invoice is being sent right now, so nothing was changed. Reload the page shortly.",
+      "otherHold": "Sending this invoice stopped for a reason an HS code does not fix, so nothing was changed. Ask support.",
+      "legalHold": "This invoice is under a legal hold, so it is not changed until the hold is released.",
+      "reasonRequired": "Say why the HS codes are being added.",
+      "empty": "Add a code to at least one line.",
+      "invalid": {
+        "line": "Line {{line}}: that is not an HS code on the Oman list, so nothing was changed. Use Other (000000000000) when no closer code applies.",
+        "any": "One of the codes is not an HS code on the Oman list, so nothing was changed. Use Other (000000000000) when no closer code applies."
+      },
+      "lineUnknown": {
+        "line": "Line {{line}} is not a line of this invoice. Reload the page.",
+        "any": "A line named is not on this invoice. Reload the page."
+      },
+      "notGoods": {
+        "line": "Line {{line}} was not issued as goods, so it takes no HS code.",
+        "any": "A line named was not issued as goods, so it takes no HS code."
+      },
+      "alreadySet": {
+        "line": "Line {{line}} already has an HS code. Only a missing code can be added.",
+        "any": "A line named already has an HS code. Only a missing code can be added."
+      },
+      "repeated": {
+        "line": "Line {{line}} is named more than once.",
+        "any": "A line is named more than once."
+      },
+      "stillMissing": {
+        "line": "Line {{line}} is goods and still has no HS code, so nothing was changed. Give every goods line a code.",
+        "any": "A goods line still has no HS code, so nothing was changed. Give every goods line a code."
+      }
+    }
+  },
+  "receivableCredit": {
+    "unapplied": "Unapplied credit",
+    "net": "Net balance",
+    "customers": "Customers holding credit: {{customers}}",
+    "hint": "Credit notes or payments above this document’s total. It is held for the customer and is not set against any other invoice."
   }
 }

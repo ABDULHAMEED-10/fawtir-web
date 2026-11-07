@@ -89,3 +89,10 @@ backend that predates the route.
 | 2.3 | The revenue chart's day / week / month switch. Month shows the last twelve months from `volumeTrend`; Day and Week read "Not available yet" | Daily (last 7 or 30 days) and weekly (last 12 weeks) buckets on `volumeTrend`, for example a `granularity=DAY|WEEK|MONTH` parameter |
 | 2.4 | The topbar search: invoices, customers, suppliers, documents and catalogue, a few of each | Each list is asked separately (`/authored-invoices?q=`, `/customers?search=`, `/suppliers?q=`, `/compliance/documents?invoice_number=`, `/products?q=`). The document archive matches the number only, not the other party's name. A single `GET /v1/search?q=` would let one request answer all of them |
 | 2.5 | The TDD & OTA badge in the sidebar: how many documents still need someone to act | Read from `GET /v1/compliance/activity/summary` (`attention`) on every page. A lighter count endpoint, or the count on `/me/entitlements`, would save the summary call |
+
+## Update 2026-10-30 (read-model fields of backend #824, not deployed yet)
+
+| # | The design shows | Ask |
+|---|---|---|
+| 1.30 (update) | Expenditure "Bills received" and "Average bill" (ACC-5) | **Fixed by backend #824**: when every row carries `billDocuments` and `billNetAmount`, "Bills received" counts bills only and "Average bill" is bill net over bill count, so a credit or debit note moves neither. Without them, or when only some rows carry them, both cards read `documents` and `netAmount` as before. "Billed to you, net of VAT" stays the signed `netAmount` |
+| 1.31 | Spend by supplier: one row per supplier, linked or not (NEW-1) | **Fixed by backend #824**, which groups bills linked to no supplier record as `participant:<scheme:value>` or `name:<stated name>`. The page names a row by its `groupLabel`; a prefixed key is never printed and never made into a supplier link, since only an unprefixed key is a supplier id |

@@ -180,7 +180,14 @@ function ExpenditureBody({
   const { current, previous } = periodWindows(period, today)
   const net = sumByMonth(rows, (row) => row.netAmount)
   const vat = sumByMonth(rows, (row) => row.vatAmount)
-  const bills = sumByMonth(rows, (row) => row.documents)
+  // "Bills received" and "Average bill" count and net bills only (ACC-5, backend #824, REPORTS.md
+  // 1.30). A server before #824 has no bill-only figures: the cards keep reading every document,
+  // notes included, as they always did, rather than guessing which documents were notes.
+  const billOnly = rows.every(
+    (row) => typeof row.billDocuments === 'number' && typeof row.billNetAmount === 'number',
+  )
+  const bills = sumByMonth(rows, (row) => (billOnly ? (row.billDocuments ?? 0) : row.documents))
+  const billNet = billOnly ? sumByMonth(rows, (row) => row.billNetAmount ?? 0) : null
   const reclaimable = rows.every((row) => typeof row.reclaimableVatAmount === 'number')
     ? sumByMonth(rows, (row) => row.reclaimableVatAmount ?? 0)
     : null
@@ -189,13 +196,12 @@ function ExpenditureBody({
   const netBefore = sumOver(net, previous.months)
   const vatNow = sumOver(vat, current.months)
   const vatBefore = sumOver(vat, previous.months)
-  // TODO(backend): REPORTS.md row 1.30. `documents` counts credit and debit notes too, and the
-  // net they divide is signed, so "Bills received" and "Average bill" mix them in (ACC-5). The
-  // report has no type to split them by; Income's fix (1.22) needs the same here.
   const billsNow = sumOver(bills, current.months)
   const billsBefore = sumOver(bills, previous.months)
-  const average = billsNow === 0 ? 0 : netNow / billsNow
-  const averageBefore = billsBefore === 0 ? 0 : netBefore / billsBefore
+  const billNetNow = billNet ? sumOver(billNet, current.months) : netNow
+  const billNetBefore = billNet ? sumOver(billNet, previous.months) : netBefore
+  const average = billsNow === 0 ? 0 : billNetNow / billsNow
+  const averageBefore = billsBefore === 0 ? 0 : billNetBefore / billsBefore
   const averageChange = percentPill(average, averageBefore, language)
   const steady =
     averageChange !== null && Math.abs(average - averageBefore) / Math.abs(averageBefore) < 0.01
@@ -219,9 +225,14 @@ function ExpenditureBody({
     }
     return [...totals.values()].sort((a, b) => b.value - a.value)
   }
+  // A key prefixed `participant:` or `name:` is a group of bills linked to no supplier (NEW-1,
+  // backend #824), not a supplier's id: it is never printed, nor made into a supplier link.
   const supplierRows = rank(
     suppliers,
-    (key, label) => label || key || t('reports.expenditure.ungrouped'),
+    (key, label) =>
+      label ||
+      (key && !key.startsWith('participant:') && !key.startsWith('name:') ? key : null) ||
+      t('reports.expenditure.ungrouped'),
   )
   const categoryRows = rank(categories, (key, label) =>
     key ? label || key : t('reports.expenditure.uncategorised'),

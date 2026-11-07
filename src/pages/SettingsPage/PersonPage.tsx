@@ -48,11 +48,19 @@ import {
 } from '../../api/settings/branchAccess'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { branchAccessRefusalKey } from '../../lib/branchAccessRefusals'
+import { BUSINESS_TIME_ZONE, formatInstant, formatInstantDay } from '../../lib/format'
 import { permissionWords } from '../../lib/permissionLabels'
 import { roleLabel } from '../../lib/roleLabels'
 import { OwnerPill } from './people'
 import { seesEveryBranch, useBranchNames, useManagesPeople, useRoleNames } from './peopleView'
 import { typedOneOfCompanyNames } from '../../lib/typedCompanyName'
+import {
+  POS_SELL,
+  ownSellLimit,
+  parseSellLimit,
+  roleSellLimit,
+  withSellLimit,
+} from '../../lib/posSellLimit'
 
 /**
  * Settings › Team members › one person (Business Rules BA-1, OW-1, OW-4, RL-1, RL-2, RL-3, LG-3).
@@ -499,6 +507,23 @@ function BranchesCard({ person, onSaved }: { person: CompanyUser; onSaved: () =>
 /** One permission row: the person has it from their role, given to them, or taken away. */
 type PermissionRow = { code: string; group: string; action: string; fromRole: boolean }
 
+function businessMidnight(iso: string): boolean {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return true
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: BUSINESS_TIME_ZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date)
+  const part = (type: string) => parts.find((entry) => entry.type === type)?.value
+  return (
+    part('hour') === '00' && part('minute') === '00' && part('second') === '00' &&
+    date.getUTCMilliseconds() === 0
+  )
+}
+
 function PermissionsCard({ person }: { person: CompanyUser }) {
   const { t, i18n } = useTranslation()
   const session = useSession()
@@ -519,6 +544,9 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
   ).read
   const roles = useApiRead<RoleDto[]>(fixed || !mayListRoles ? null : ROLES_PATH, loadRoles).read
   const [wanted, setWanted] = useState<Set<string> | null>(null)
+  // The till's discount ceiling typed for this person; null while untouched, so what is stored
+  // is sent back unchanged.
+  const [limitText, setLimitText] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -564,6 +592,26 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
 
   const view = permissions.read.data
   const grantCodes = new Set(view.grants.map((grant) => grant.code))
+  const carried = view.carriedLimits ?? []
+  const carriedCodes = new Set(carried.map((limit) => limit.code))
+  const carriedSell = carried.find(
+    (limit) => limit.code === POS_SELL && limit.qualifier === 'MAX_PERCENT',
+  )
+  // A7R-11: a carried discount limit shown while the company's notice has not taken effect would
+  // read as current. No block (a server before 4f1ddc683) and IN_FORCE show it plainly; NOTIFIED
+  // without a date, or a status this screen does not know, is never read as in force.
+  const notice = view.discountLimitNotice
+  const carriedWhen = !notice || notice.status === 'IN_FORCE'
+    ? null
+    : notice.status === 'NOTIFIED' && notice.effectiveAt
+      ? t('branchAccess.person.carriedAppliesFrom', {
+          // WC1R-3: effectiveAt is an instant. At Muscat midnight the day says it all; at any other
+          // time the limit is not in force for part of that day, so the time is printed too.
+          date: businessMidnight(notice.effectiveAt)
+            ? formatInstantDay(notice.effectiveAt, i18n.language)
+            : formatInstant(notice.effectiveAt, i18n.language),
+        })
+      : t('branchAccess.person.carriedNotInForce')
   const roleCodes = (() => {
     // Every role the person holds, not only the job role: someone from before one role per person
     // (RL-1) may also hold Approver or Viewer, whose codes are theirs from that role, never their
@@ -607,8 +655,27 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
   // tick, and says so while it differs from what is saved (E15).
   const branchAdministratorPending =
     isBranchAdministrator !== effective.has(BRANCH_ADMINISTRATOR_GRANT)
+  const heldRoles = view.roleCodes.length ? view.roleCodes : view.role ? [view.role] : []
+  const fromRoles = roles.status === 'ready' ? roleSellLimit(roles.data, heldRoles) : undefined
+  const ownLimit = ownSellLimit(view.grants)
+  // Without the role list `roleCodes` holds only what was not granted to the person, so an own
+  // pos.sell then reads as not from a role: blank is refused rather than guessed (fails narrow).
+  const sellFromRole = roleCodes.has(POS_SELL)
+  const parsedLimit = limitText === null ? undefined : parseSellLimit(limitText)
+  // A stored ceiling with no role behind it cannot be blanked: the only thing left would be an
+  // unlimited grant (PRV-F review). Taking the right away is unticking it.
+  const typedLimit =
+    parsedLimit === null && !sellFromRole && typeof ownLimit === 'number' ? 'required' : parsedLimit
+  const limitChanged =
+    current.has(POS_SELL) &&
+    typedLimit !== undefined &&
+    typedLimit !== 'invalid' &&
+    typedLimit !== 'required' &&
+    typedLimit !== (ownLimit ?? null)
   const changed =
-    current.size !== effective.size || [...current].some((code) => !effective.has(code))
+    current.size !== effective.size ||
+    [...current].some((code) => !effective.has(code)) ||
+    limitChanged
 
   const toggle = (code: string, on: boolean) => {
     setSaved(false)
@@ -625,15 +692,27 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
     setSaving(true)
     setFailure(null)
     const previous = new Map(view.grants.map((grant) => [grant.code, grant]))
-    const grants: PersonGrant[] = [...current]
+    const kept: PersonGrant[] = [...current]
       .filter((code) => !roleCodes.has(code) || previous.has(code))
       // A reserved code is never given to a person (RL-5); one they already hold stays as it was.
       .filter((code) => !isReservedPermission(code) || previous.has(code))
+      // A carried limit (FR2-1) is not in `grants`, so a ticked carried code would otherwise go out
+      // as a plain grant: naming it replaces the 0% with no limit at all. Left unnamed, the server
+      // keeps it. A typed till limit below still names pos.sell, deliberately.
+      .filter((code) => !carriedCodes.has(code))
       .map((code) => previous.get(code) ?? { code, qualifier: null, value: null })
-    const denials = [...roleCodes].filter((code) => !current.has(code))
+    const grants = limitChanged
+      ? withSellLimit(kept, typedLimit, sellFromRole)
+      : kept
+    // Owner Q14 B (WC-1(c)): unticking a carried code removes only the carried row, through
+    // clearCarried, never a denial. A denial would also block the code from any role, and the server
+    // refuses a code named both ways (400), so a carried code never goes out as a denial here.
+    const clearCarried = [...carriedCodes].filter((code) => !current.has(code))
+    const denials = [...roleCodes].filter((code) => !current.has(code) && !carriedCodes.has(code))
     try {
-      await savePersonPermissions(person.id, grants, denials)
+      await savePersonPermissions(person.id, grants, denials, clearCarried)
       setWanted(null)
+      setLimitText(null)
       setSaved(true)
       permissions.retry()
     } catch (error) {
@@ -692,13 +771,38 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
             </p>
           ) : null}
           <InlineFailure text={failure} />
+          {carried.length ? (
+            <ul className="flex flex-col gap-2">
+              {carried.map((limit) => {
+                const words = permissionWords(limit.code, t, i18n)
+                const permission = `${words.group}: ${words.action}`
+                return (
+                  <li
+                    key={limit.code}
+                    className="rounded-sm bg-surface-background px-4 py-3 text-sm font-medium text-text-tertiary"
+                  >
+                    {limit.qualifier === 'MAX_PERCENT'
+                      ? t('branchAccess.person.carriedLimit', { permission, percent: limit.value })
+                      : t('branchAccess.person.carriedLimitOther', { permission })}
+                    {limit.qualifier === 'MAX_PERCENT' && carriedWhen ? ` ${carriedWhen}` : ''}
+                  </li>
+                )
+              })}
+            </ul>
+          ) : null}
           {[...groups.entries()].map(([group, entries]) => (
             <fieldset key={group} className="flex flex-col gap-2">
               <legend className="mb-1 text-sm font-semibold text-text-primary">{group}</legend>
               <div className="grid gap-2 md:grid-cols-2">
                 {entries.map((row) => {
                   const has = current.has(row.code)
-                  const note = row.fromRole
+                  // Unticking a carried code removes only the carried row (owner Q14 B); a role that
+                  // gives the code still does, and the note says so before the save.
+                  const note = carriedCodes.has(row.code)
+                    ? has
+                      ? t('branchAccess.person.carriedTicked')
+                      : t('branchAccess.person.carriedUnticked')
+                    : row.fromRole
                     ? has
                       ? t('branchAccess.person.fromRole')
                       : t('branchAccess.person.takenAway')
@@ -730,6 +834,60 @@ function PermissionsCard({ person }: { person: CompanyUser }) {
                   )
                 })}
               </div>
+              {entries.some((row) => row.code === POS_SELL) && current.has(POS_SELL) ? (
+                <div className="max-w-[320px]">
+                  <Input
+                    bordered
+                    name="posSellLimit"
+                    inputMode="decimal"
+                    dir="ltr"
+                    label={t('branchAccess.person.sellLimit')}
+                    value={
+                      limitText ?? (ownLimit != null ? String(ownLimit) : '')
+                    }
+                    onChange={(event) => {
+                      setSaved(false)
+                      setFailure(null)
+                      setLimitText(event.target.value)
+                    }}
+                    placeholder={
+                      sellFromRole
+                        ? t('branchAccess.person.sellLimitPlaceholder')
+                        : typeof ownLimit === 'number'
+                          ? t('branchAccess.person.sellLimitPlaceholderOwn')
+                          : t('branchAccess.person.sellLimitPlaceholderNone')
+                    }
+                    error={
+                      typedLimit === 'invalid'
+                        ? t('branchAccess.person.sellLimitInvalid')
+                        : typedLimit === 'required'
+                          ? t('branchAccess.person.sellLimitRequired')
+                          : undefined
+                    }
+                    hint={
+                      // The carried 0% is what the till applies, whatever the role says, until a
+                      // typed limit replaces it.
+                      carriedSell && limitText === null
+                        ? `${t('branchAccess.person.sellLimitCarried', { percent: carriedSell.value })}${
+                            carriedWhen ? ` ${carriedWhen}` : ''
+                          }`
+                        : !sellFromRole
+                        ? typeof ownLimit === 'number'
+                          ? t('branchAccess.person.sellLimitOwnOnly', { percent: ownLimit })
+                          : t('branchAccess.person.sellLimitNoRole')
+                        : ownLimit !== undefined && limitText === null
+                          ? ownLimit === null
+                            ? t('branchAccess.person.sellLimitOwnNone')
+                            : t('branchAccess.person.sellLimitOwn', { percent: ownLimit })
+                          : fromRoles === undefined
+                            ? t('branchAccess.person.sellLimitRoleUnknown')
+                            : fromRoles === null
+                              ? t('branchAccess.person.sellLimitRoleNone')
+                              : t('branchAccess.person.sellLimitRole', { percent: fromRoles })
+                    }
+                  />
+                </div>
+              ) : null}
             </fieldset>
           ))}
         </div>

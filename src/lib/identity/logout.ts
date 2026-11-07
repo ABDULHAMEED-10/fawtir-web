@@ -1,5 +1,6 @@
 import { ApiError, apiRequest } from '../../api'
 import { forgetEntitlements } from './entitlements'
+import { forgetSigningKeys } from '../posSigning/signingKey'
 
 export const LOGOUT_PATH = '/v1/auth/logout'
 
@@ -20,4 +21,7 @@ export async function signOut(): Promise<void> {
   // Only once the backend confirms no session remains: a failed sign-out keeps its session, and
   // with it everything that described that session.
   forgetEntitlements()
+  // The till's offline signing key is bound to this session (WEB-5); queued sales stay. Not
+  // awaited: a vault that never opens must not hold up sign-out.
+  void forgetSigningKeys()
 }

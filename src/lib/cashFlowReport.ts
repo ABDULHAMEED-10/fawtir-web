@@ -1,4 +1,4 @@
-import type { CashFlowRowDto } from '../api/reports/reports'
+import type { CashFlowRowDto, TillPaidOutFigures } from '../api/reports/reports'
 
 /**
  * Shaping for the cash flow report (`CashFlowReportRow`), kept out of the page so the arithmetic
@@ -9,6 +9,29 @@ import type { CashFlowRowDto } from '../api/reports/reports'
  * period it was recorded in — so a period can read negative in one direction without anything
  * being wrong, and a closed month never changes after the fact.
  */
+
+/** The four drawer columns, each 0 where an older server leaves it out. */
+export function tillPaidOuts(row: TillPaidOutFigures): {
+  expense: number
+  advance: number
+  transferred: number
+  unclassified: number
+} {
+  return {
+    expense: row.cashPaidOutExpense ?? 0,
+    advance: row.cashPaidOutAdvance ?? 0,
+    transferred: row.cashTransferred ?? 0,
+    unclassified: row.cashPaidOutUnclassified ?? 0,
+  }
+}
+
+/**
+ * The currencies money is stated in. The null bucket (till paid-outs before RC5) is not one: it is
+ * named apart and never counted, chosen or added as the company's currency.
+ */
+export function recordedCurrencies(totals: { currency: string | null }[]): string[] {
+  return totals.flatMap((entry) => (entry.currency === null ? [] : [entry.currency]))
+}
 
 export function periodsOfCashFlow(rows: CashFlowRowDto[]): string[] {
   const seen: string[] = []

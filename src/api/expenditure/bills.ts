@@ -127,10 +127,19 @@ export type BillRowDto = {
    * from a server before it, and then nothing is said about it.
    */
   inputVat?: BillInputVatDto
-  /** The Peppol bill this upload certainly duplicates (same supplier VAT number, number and total). Not shown yet. */
+  /** The Peppol bill this upload certainly duplicates (same supplier VAT number, number and total). */
   duplicateOf?: string | null
-  /** A Peppol bill this one may duplicate (a less certain match, for the user to confirm). Not shown yet. */
+  /**
+   * The other copy of a less certain Peppol and upload pair, on either side (same supplier and
+   * number, but another total or no VAT number to compare), for the user to confirm.
+   */
   possibleDuplicateOf?: string | null
+  /**
+   * On an uploaded or scanned bill: its Peppol copy, held on an open duplicate hold that names it
+   * (undecided, or CONFIRMED_DUPLICATE, which never closes). While set, `duplicateOf` is null:
+   * this is the bill to pay (EXP batch 39, PRV-b39 E-1). Absent from a server before it.
+   */
+  heldCopyId?: string | null
 }
 
 export type DuplicateResolutionDto = 'CONFIRMED_DUPLICATE' | 'NOT_DUPLICATE'
@@ -303,6 +312,15 @@ export function rejectBill(billId: string, reason: string): Promise<unknown> {
   return apiRequest(`${billPath(billId)}/approval/reject`, { method: 'POST', body: { reason } })
 }
 
+/**
+ * Takes a rejection back (`bill.reopen`, backend V523). It approves nothing: the bill then reads
+ * PENDING with no approvals counted, because approvals given before the rejection never come back.
+ * A repeat answers the reopen already recorded, so a lost response is safe to send again.
+ */
+export function reopenBill(billId: string, reason: string): Promise<unknown> {
+  return apiRequest(`${billPath(billId)}/approval/reopen`, { method: 'POST', body: { reason } })
+}
+
 export function holdBill(billId: string, reason: string): Promise<unknown> {
   return apiRequest(`${billPath(billId)}/hold`, { method: 'POST', body: { reason } })
 }
@@ -376,21 +394,50 @@ export type BillHoldDto = {
   duplicateResolutionNote?: string | null
 }
 
+/**
+ * A potential coincidence beside a possible-duplicate hold (batch 43 round 28, O-A Option 1):
+ * another supplier's Peppol document with the bill's number, type, total, currency and issue date,
+ * sharing nothing that ties it to this supplier. Revalidated by the server on every read. The
+ * figures are all null when the id is no longer on file as one of this company's Peppol documents.
+ */
+export type DuplicateCoincidenceDto = {
+  billId: string
+  status: 'ATTACHED_STILL_MATCHES' | 'ATTACHED_NO_LONGER_MATCHES' | 'FOUND_SINCE_HOLD'
+  billNumber: string | null
+  issueDate: string | null
+  totalIncludingVat: number | null
+  currencyCode: string | null
+  source: 'PEPPOL' | null
+}
+
+/** `BillController.DuplicateEvidenceView`. `version` is echoed with the decision. */
+export type DuplicateEvidenceDto = {
+  duplicateOfBillId: string
+  coincidences: DuplicateCoincidenceDto[]
+  version: string
+}
+
 /** `BillHold.MAXIMUM_RESOLUTION_NOTE_LENGTH`, counted by the server after trimming. */
 export const DUPLICATE_NOTE_MAX_LENGTH = 500
 
 /**
  * Decides whether a held copy is a duplicate (`invoice.approve`). CONFIRMED_DUPLICATE keeps it
  * held for good; NOT_DUPLICATE releases it into an ordinary bill. Either is final.
+ *
+ * `evidenceVersion` is the `duplicateEvidence.version` the approver was shown (round 28): the
+ * server refuses the decision (`BILL_DUPLICATE_EVIDENCE_CHANGED`) unless it is the version as it
+ * stands then, so a coincidence that appeared or changed meanwhile is never decided unseen. Sent
+ * only when the bill carried evidence; a bill without any is decided as before.
  */
 export function resolveDuplicateBill(
   billId: string,
   decision: DuplicateResolutionDto,
   note: string,
+  evidenceVersion?: string | null,
 ): Promise<BillHoldDto> {
   return apiRequest<BillHoldDto>(`${billPath(billId)}/duplicate-resolution`, {
     method: 'POST',
-    body: { decision, note },
+    body: typeof evidenceVersion === 'string' ? { decision, note, evidenceVersion } : { decision, note },
   })
 }
 
@@ -428,9 +475,16 @@ export type BillDetailDto = {
     exemptionReason?: string | null
   }[]
   readiness: BillRowDto['readiness']
-  approvals: { id: string; decision: 'APPROVED' | 'REJECTED'; reason: string | null; decidedBy: string; decidedAt: string }[]
+  /** Newest first, in commit order (backend V523): kept as sent, never re-sorted by `decidedAt`. */
+  approvals: { id: string; decision: 'APPROVED' | 'REJECTED' | 'REOPENED'; reason: string | null; decidedBy: string; decidedAt: string }[]
   hold: BillHoldDto | null
   holdHistory: BillHoldDto[]
+  /**
+   * The potential coincidences beside the open possible-duplicate hold (batch 43 round 28):
+   * weaker evidence than the copy the hold names, never confirmed duplicates. Null when there are
+   * none; absent from an older server.
+   */
+  duplicateEvidence?: DuplicateEvidenceDto | null
   settlement: {
     billTotal: number | null
     paidAmount: number
@@ -481,6 +535,12 @@ export type BillDetailDto = {
     creditNoteId: string | null
     creditNoteOutstanding: number
   } | null
+  /**
+   * Batch 39 EXP (`BillDetail.peppol`): our side of the Peppol exchange behind a received bill,
+   * three separate facts. Null unless the bill came over Peppol, and null for a person limited to
+   * some branches; absent from a server before it.
+   */
+  peppol?: BillPeppolStatusDto | null
   intake: { id: string; source: BillSourceDto; filename: string | null; contentType: string | null; uploadedAt: string } | null
   /**
    * Present exactly when the bill is self-billed: the document this company issued through
@@ -533,8 +593,29 @@ export type BillDetailDto = {
       // the copy's own record. The activity panel already has words for both.
       | 'NOT_DUPLICATE'
       | 'CONFIRMED_DUPLICATE'
+      // A rejection taken back (backend V523); its detail is the reason given.
+      | 'REOPENED'
+      // Recorded over the possible duplicates it was refused for (backend 9e768276b).
+      | 'DUPLICATE_OVERRIDDEN'
+      // The recorder listed only copies the bill is held against, with a reason: a submission
+      // for review, naming no bill (owner Round 36 item 6). The server decides it; this page
+      // could not tell it from a listing whose every bill failed to resolve.
+      | 'DUPLICATE_SUBMITTED_FOR_REVIEW'
     detail: string | null
     actor: string | null
+    /** `actor` by the team list's name; null when no person acted or they left the company. */
+    actorName?: string | null
+    /**
+     * On `DUPLICATE_OVERRIDDEN` and `DUPLICATE_SUBMITTED_FOR_REVIEW` only. The server sends `reason` only to a reader holding
+     * `invoice.approve` (owner batch 12); `reasonRecorded` says one was kept whoever reads. A
+     * historical single-field override took no reason (owner batch 13). A bill that no longer
+     * resolves is left out.
+     */
+    duplicateOverride?: {
+      overriddenBills: { billId: string; billNumber: string | null; issueDate: string | null }[]
+      reasonRecorded: boolean
+      reason?: string
+    }
   }[]
 }
 
@@ -587,17 +668,28 @@ export function loadBillOverpayment(billId: string): Promise<BillOverpaymentDto>
   return apiRequest<BillOverpaymentDto>(billOverpaymentPath(billId))
 }
 
+/** A key for one refund or application the person means to record (16-128 of `[A-Za-z0-9._:-]`). */
+export function newOverpaymentKey(): string {
+  return `overpayment-${crypto.randomUUID()}`
+}
+
 /**
  * Records money the supplier paid back of what the bill was overpaid by
  * (`bill.settle`). `refundedOn` is the day it arrived, never after today in Muscat.
+ *
+ * The `Idempotency-Key` is optional on the server: without it a retry of a part refund that still
+ * fits is recorded twice. With it the same key and body answer the first refund, at any later time
+ * (backend fd2e1d483); a server before it ignores the header.
  */
 export function recordOverpaymentRefund(
   billId: string,
+  idempotencyKey: string,
   refund: { amount: number; refundedOn: string; reference: string | null },
 ): Promise<BillOverpaymentActionDto> {
   return apiRequest<BillOverpaymentActionDto>(`${billOverpaymentPath(billId)}/refunds`, {
     method: 'POST',
     body: refund,
+    headers: { 'Idempotency-Key': idempotencyKey },
   })
 }
 
@@ -617,16 +709,19 @@ export function keepOverpaymentAsCredit(
 
 /**
  * Sets credit kept from this bill against another bill of the same supplier and currency
- * (`bill.settle`). With no amount the server applies the largest that fits both.
+ * (`bill.settle`). With no amount the server applies the largest that fits both. Keyed as
+ * {@link recordOverpaymentRefund} is: a typed amount sent again would be applied twice.
  */
 export function applyOverpaymentCredit(
   billId: string,
+  idempotencyKey: string,
   targetBillId: string,
   amount: number | null,
 ): Promise<BillOverpaymentActionDto> {
   return apiRequest<BillOverpaymentActionDto>(`${billOverpaymentPath(billId)}/apply`, {
     method: 'POST',
     body: amount === null ? { targetBillId } : { targetBillId, amount },
+    headers: { 'Idempotency-Key': idempotencyKey },
   })
 }
 
@@ -696,4 +791,38 @@ export function billOriginalPath(detail: Pick<BillDetailDto, 'intake'> & { bill:
 
 export function downloadBillOriginal(path: string): Promise<ApiDownload> {
   return apiDownload(path)
+}
+
+/** Backend `MessageState`: the transport of our MLS row (typed since batch 39). */
+export type MlsTransportState =
+  | 'PENDING'
+  | 'SENDING'
+  | 'SENT_AWAITING_MDN'
+  | 'DELIVERED'
+  | 'MDN_FAILED'
+  | 'RETRY_SCHEDULED'
+  | 'DEAD_LETTERED'
+  | 'INBOUND_RECEIVED'
+  | 'INBOUND_PROCESSED'
+
+/** Backend `TddSubmissionStatus`: C5's receipt of our TDD, never a tax verdict. */
+export type TddSubmissionStatus =
+  | 'PENDING'
+  | 'SUBMITTED'
+  | 'GENERATION_FAILED'
+  | 'ACCEPTED'
+  | 'DELIVERED_UNCONFIRMED'
+  | 'REJECTED'
+  | 'TO_DISREGARD'
+  | 'DISREGARD_SUBMITTED'
+  | 'DEAD_LETTERED'
+  | 'NOT_TESTED'
+
+/** `BillController.PeppolStatusView`. */
+export type BillPeppolStatusDto = {
+  deliveryId: string
+  mlsCode: 'AP' | 'AB' | 'RE' | null
+  mlsTransportState: MlsTransportState | (string & {}) | null
+  mlsDeliveredAt: string | null
+  tddStatus: TddSubmissionStatus | null
 }

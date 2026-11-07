@@ -28,6 +28,7 @@ import {
 } from './invoiceMath'
 import { issueProblems, muscatToday, plusDays } from './invoiceIssue'
 import { netDaysFor } from './reference/referenceData'
+import { DEBIT_NOTE_REFUSALS } from './debitNoteRefusals'
 import type { ReferenceDataDto } from '../api/reference/referenceData'
 
 /**
@@ -961,6 +962,8 @@ export const NOTE_REFUSALS: Record<string, string> = {
   TAX_CATEGORY_METADATA_CONFLICT: CATEGORY_REASON_CONFLICT,
   TAX_CATEGORY_REASON_CONFLICT: CATEGORY_REASON_CONFLICT,
   BACK_ON_SHELF_ONLY_ON_CREDIT_NOTES: 'salesNote.backOnShelf.onlyOnCreditNotes',
+  // D-26: a credit note naming a debit note, or any route that reaches an issued one.
+  ...DEBIT_NOTE_REFUSALS,
 }
 
 /* ---------------------------------------------------------------------------------------------
@@ -986,10 +989,14 @@ export type NoteListStatus =
  * the like are not, and neither is RE: a rejection is not a delivery. One rule for both lists: the
  * credit-notes list read only the manual send while the invoices list also read the response
  * (TEST verification 2026-10-29). Detail pages never read `peppolResponse` (api/invoices/detail.ts).
+ * The ledger's DELIVERED and DELIVERED_UNCONFIRMED (backend #824) are the same AP and AB facts
+ * (lib/activityDetail.ts); SENT is only the receiving access point's receipt, so not yet.
  */
 export function delivered(row: Pick<InvoiceRowDto, 'deliveryState' | 'peppolResponse'>): boolean {
   return (
     row.deliveryState === 'SENT_MANUALLY' ||
+    row.deliveryState === 'DELIVERED' ||
+    row.deliveryState === 'DELIVERED_UNCONFIRMED' ||
     row.peppolResponse === 'AB' ||
     row.peppolResponse === 'AP'
   )
@@ -1114,13 +1121,16 @@ export function debitSummaryOf(summary: InvoiceSummaryDto): NoteSummary {
 
 /**
  * The credit notes list's tab counts, subtitle and figures, from `GET /v1/authored-invoices/summary
- * ?type=CREDIT_NOTE` (INCOME.md 4.1). Credited · 30 days is `issuedLast30Days`; Applied to
- * invoices (card and tab) is `issuedTotal`, which since backend V477 also holds POS-refunded
- * credit notes and so overstates what was applied by those refunds; the summary has no refunded
- * figure to take out (ACC-3, INCOME.md update of 2026-10-29). The subtitle's quarter is
- * `issuedThisQuarter`. A figure the summary does not carry is left out, and its card reads as
+ * ?type=CREDIT_NOTE` (INCOME.md 4.1). Credited · 30 days is `issuedLast30Days`. Applied to
+ * invoices is `issuedTotal` less `refundedTotal` (ACC-3, backend #824): `issuedTotal` has held
+ * till-refunded notes since V477, so on its own it overstated what was applied. The Refunded card
+ * is `refundedTotal` itself. A server before #824 sends no `refundedTotal`: the Applied card then
+ * keeps `issuedTotal` as it always read, and Refunded reads as unavailable rather than 0. The
+ * Applied tab lists every issued note, so its count stays `issuedTotal`'s. The subtitle's quarter
+ * is `issuedThisQuarter`. A figure the summary does not carry is left out, and its card reads as
  * unavailable.
- * TODO(backend): Refund due and Refunded, cards and tabs, need refund tracking (INCOME.md 4.2).
+ * TODO(backend): Refund due, card and tab, and the Refunded tab's rows need refund tracking per
+ * note (INCOME.md 4.2).
  */
 export function creditSummaryOf(summary: InvoiceSummaryDto): NoteSummary {
   const counts: Record<string, number> = { all: summary.all, drafts: summary.drafts }
@@ -1130,10 +1140,26 @@ export function creditSummaryOf(summary: InvoiceSummaryDto): NoteSummary {
     value ? { amount: value.total, count: value.count } : null
   const cards: Record<string, NoteFigure> = {}
   const credited = figure(summary.issuedLast30Days)
-  const applied = figure(summary.issuedTotal)
+  const issued = figure(summary.issuedTotal)
+  const refunded = figure(summary.refundedTotal)
   if (credited) cards.credited = credited
-  if (applied) cards.applied = applied
+  if (issued && refunded) {
+    // The count is notes with no money paid back: the server counts a note in refundedTotal once
+    // any of it was paid back, and a till refund pays out the whole note it issues (V477).
+    cards.applied = {
+      amount: roundMinor(issued.amount - refunded.amount),
+      count: Math.max(0, issued.count - refunded.count),
+    }
+  } else if (issued) {
+    cards.applied = issued
+  }
+  if (refunded) cards.refunded = refunded
   return { counts, quarter: figure(summary.issuedThisQuarter), cards }
+}
+
+/** Binary subtraction leaves 144.831 - 20.5 as 124.33099999999999; the rial has three decimals. */
+function roundMinor(value: number): number {
+  return Math.round(value * 1000) / 1000
 }
 
 /** The design's "Refund" column on a credit note row. */
@@ -1155,7 +1181,7 @@ export function creditRefundOf(row: InvoiceRowDto): CreditRefundCell {
 
 /** The design's "Payment" column on a debit note row. */
 export type DebitPaymentCell =
-  | { kind: 'due'; date: string; addedToInvoice: boolean; daysLeft: number | null }
+  | { kind: 'due'; date: string; separateFromInvoice: boolean; daysLeft: number | null }
   | { kind: 'late'; date: string; days: number }
   | { kind: 'paid'; date: string | null }
   | null
@@ -1164,8 +1190,8 @@ export function debitPaymentOf(row: InvoiceRowDto, today = muscatToday()): Debit
   const status = noteStatusOf('DEBIT_NOTE', row)
   if (status === 'draft' || status === 'cancelled') return null
   // Read from the payment, not from `status`: an undelivered note's status is "to send", and that
-  // hid a note already paid (or late) behind "Due ... added to invoice balance". Delivery only
-  // decides the added-to-invoice hint below.
+  // hid a note already paid (or late) behind the undelivered note's hint. Delivery only decides
+  // that hint below.
   const payment = row.payment
   // The paid date, when the row carries it (INCOME.md 4.7); absent, the cell reads "Paid".
   // TODO(backend): the method (`lastPaymentMethodCode`) has no drawn place in the cell yet (4.7).
@@ -1181,7 +1207,7 @@ export function debitPaymentOf(row: InvoiceRowDto, today = muscatToday()): Debit
   return {
     kind: 'due',
     date: row.dueDate,
-    addedToInvoice: status === 'toSend',
+    separateFromInvoice: status === 'toSend',
     daysLeft: status === 'awaiting' ? daysBetween(today, row.dueDate) : null,
   }
 }

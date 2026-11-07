@@ -118,6 +118,9 @@ export function ReportsVatPage() {
         { format: 'csv', path: reportExportPath('vat', 'csv', range), name: 'vat-report' },
       ]}
     >
+      {/* Owner v2 §D (VAT-LABEL, K22), verbatim: this page recalculates; it never stands for the
+          return filed with the Tax Authority (Package 6 is out of the release). Shown in every state. */}
+      <p className="text-sm font-medium text-text-tertiary">{t('reports.vat.notAReturn')}</p>
       {monthly.read.status === 'loading' || types.read.status === 'loading' ? (
         <LoadingNotice />
       ) : null}

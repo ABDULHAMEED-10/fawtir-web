@@ -754,3 +754,191 @@ describe('the purchase-orders switch (PL-8, owner, 24 Oct 2026)', () => {
     expect(await screen.findByRole('button', { name: 'Send for approval' })).toBeTruthy()
   })
 })
+
+// Backend #844 (V519, DEC-30-08): a product line written before V519 recorded no stock unit, and a
+// receipt of a counted product on it must state one or the whole receipt is refused (409).
+describe('the unit a line written before V519 is booked in (backend #844)', () => {
+  const READER: Entitlements = {
+    ...APPROVER,
+    permissions: [...APPROVER.permissions, 'product.read'],
+  }
+  /** As a server with #844 answers it: `productStockUnit` on every line, null when none was recorded. */
+  const legacyOrder = (productStockUnit: string | null = null) => {
+    const base = order({ state: 'SENT' })
+    const product = { variantId: null, stockUnitsPerOrderUnit: 1 }
+    return order({
+      state: 'SENT',
+      lines: [
+        { ...base.lines[0], ...product, productId: 'p-beans', productStockUnit },
+        { ...base.lines[1], ...product, productId: null, productStockUnit: null },
+      ],
+    })
+  }
+  const productReads = () =>
+    fetchMock.mock.calls.filter(([input]) => String(input).includes('/api/v1/products/p-beans'))
+      .length
+  const bookedLines = () => (bookedBody as { lines: Record<string, unknown>[] }).lines
+
+  it('states nothing to a server before #844, which refuses the unknown field', async () => {
+    who = READER
+    const base = order({ state: 'SENT' })
+    current = order({
+      state: 'SENT',
+      lines: [{ ...base.lines[0], productId: 'p-beans', stockUnitsPerOrderUnit: 1 }, base.lines[1]],
+    })
+    renderDetail()
+    await screen.findByText('PO-0001')
+
+    fireEvent.change(screen.getByLabelText('Received for Arabica beans'), {
+      target: { value: '4' },
+    })
+    expect(screen.queryByText(/I counted these in/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Book these in' }))
+    await waitFor(() => expect(bookedBody).not.toBeNull())
+    expect(bookedLines()[0]).not.toHaveProperty('statedUnit')
+    expect(productReads()).toBe(0)
+  })
+
+  it('asks nothing of a line that recorded its unit', async () => {
+    who = READER
+    current = legacyOrder('KGM')
+    renderDetail()
+    await screen.findByText('PO-0001')
+
+    fireEvent.change(screen.getByLabelText('Received for Arabica beans'), {
+      target: { value: '4' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Book these in' }))
+    await waitFor(() => expect(bookedBody).not.toBeNull())
+    expect(bookedLines()[0]).not.toHaveProperty('statedUnit')
+    expect(productReads()).toBe(0)
+  })
+
+  it('has the person confirm the catalogue unit, unticked, before the line can go', async () => {
+    who = READER
+    current = legacyOrder()
+    renderDetail()
+    await screen.findByText('PO-0001')
+
+    const confirm = (await screen.findByLabelText(/I counted these in KG/)) as HTMLInputElement
+    expect(confirm.checked).toBe(false)
+    fireEvent.change(screen.getByLabelText('Received for Arabica beans'), {
+      target: { value: '4' },
+    })
+    expect(screen.getByRole('button', { name: 'Book these in' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('alert').textContent).toContain('Arabica beans')
+
+    fireEvent.click(confirm)
+    const book = screen.getByRole('button', { name: 'Book these in' })
+    await waitFor(() => expect(book).toHaveProperty('disabled', false))
+    // One press, one receipt: a double click in the same tick must not book the goods in twice.
+    fireEvent.click(book)
+    fireEvent.click(book)
+    await waitFor(() => expect(bookedBody).not.toBeNull())
+    expect(bookedLines()).toEqual([
+      { purchaseOrderLineId: LINE_A, quantityReceived: 4, statedUnit: 'KGM' },
+    ])
+    const posts = fetchMock.mock.calls.filter(
+      ([input, init]) =>
+        String(input).includes('/receipts') && (init as RequestInit | undefined)?.method === 'POST',
+    )
+    expect(posts).toHaveLength(1)
+  })
+
+  it('has the person pick the unit when they may not read the product, and reads none', async () => {
+    who = APPROVER
+    current = legacyOrder()
+    renderDetail()
+    await screen.findByText('PO-0001')
+
+    expect(await screen.findByLabelText('Unit you counted Arabica beans in')).toBeTruthy()
+    expect(screen.queryByText(/I counted these in/)).toBeNull()
+    expect(productReads()).toBe(0)
+  })
+
+  it('reads the product again after a unit refusal and asks afresh, without the server text', async () => {
+    who = READER
+    current = legacyOrder()
+    const answer = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes('/receipts') && init?.method === 'POST') {
+        return json(409, {
+          type: 'https://fawtir.om/problems/resource-conflict',
+          status: 409,
+          detail: 'Nothing was received: the line is in KGM, and Yirgacheffe beans is counted in H87',
+          error: 'PRODUCT_STOCK_UNIT_MISMATCH',
+        })
+      }
+      return answer(input, init)
+    })
+    renderDetail()
+    await screen.findByText('PO-0001')
+
+    const confirm = (await screen.findByLabelText(/I counted these in KG/)) as HTMLInputElement
+    fireEvent.change(screen.getByLabelText('Received for Arabica beans'), {
+      target: { value: '4' },
+    })
+    fireEvent.click(confirm)
+    const before = productReads()
+    fireEvent.click(screen.getByRole('button', { name: 'Book these in' }))
+
+    await waitFor(() => expect(productReads()).toBeGreaterThan(before))
+    await waitFor(() =>
+      expect((screen.getByLabelText(/I counted these in KG/) as HTMLInputElement).checked).toBe(
+        false,
+      ),
+    )
+    expect(screen.queryByText(/counted in H87/)).toBeNull()
+  })
+})
+
+describe('stated-unit rules (backend #844)', () => {
+  it('reads the capability from the key, not its value', async () => {
+    const { readsStockUnits } = await import('../../lib/purchaseOrders')
+    const base = order()
+    expect(readsStockUnits(base)).toBe(false)
+    expect(
+      readsStockUnits({ lines: [{ ...base.lines[0], productStockUnit: null }, base.lines[1]] }),
+    ).toBe(true)
+  })
+
+  it('asks only a product line without a recorded unit, and never for a product not counted', async () => {
+    const { statedUnitAsk, statedUnitOf, receiptLineRequest } = await import(
+      '../../lib/purchaseOrders'
+    )
+    const base = order().lines[0]
+    const legacy = { ...base, productId: 'p-beans', productStockUnit: null }
+    const known = (keepCount?: boolean) => ({
+      status: 'known' as const,
+      products: new Map([['p-beans', { defaultUnitCode: 'KGM', keepCount }]]),
+    })
+
+    expect(statedUnitAsk(legacy, false, known(true))).toEqual({ kind: 'none' })
+    expect(statedUnitAsk({ ...legacy, productStockUnit: 'KGM' }, true, known(true))).toEqual({
+      kind: 'none',
+    })
+    expect(statedUnitAsk({ ...legacy, productId: null }, true, known(true))).toEqual({
+      kind: 'none',
+    })
+    expect(statedUnitAsk(legacy, true, known(false))).toEqual({ kind: 'none' })
+    expect(statedUnitAsk(legacy, true, known(undefined))).toEqual({ kind: 'confirm', unit: 'KGM' })
+    expect(statedUnitAsk(legacy, true, { status: 'checking' })).toEqual({ kind: 'checking' })
+    expect(statedUnitAsk(legacy, true, { status: 'unknown' })).toEqual({ kind: 'choose' })
+
+    expect(statedUnitOf({ kind: 'confirm', unit: 'KGM' }, undefined)).toBeNull()
+    expect(statedUnitOf({ kind: 'confirm', unit: 'KGM' }, 'H87')).toBeNull()
+    expect(statedUnitOf({ kind: 'confirm', unit: 'KGM' }, 'KGM')).toBe('KGM')
+    expect(statedUnitOf({ kind: 'choose' }, ' H87 ')).toBe('H87')
+    expect(statedUnitOf({ kind: 'choose' }, '')).toBeNull()
+
+    expect(receiptLineRequest(base, 2, null)).toEqual({
+      purchaseOrderLineId: LINE_A,
+      quantityReceived: 2,
+    })
+    expect(receiptLineRequest(base, 2, 'KGM')).toEqual({
+      purchaseOrderLineId: LINE_A,
+      quantityReceived: 2,
+      statedUnit: 'KGM',
+    })
+  })
+})

@@ -2782,6 +2782,196 @@ describe('an overpaid bill', () => {
     ).toBeTruthy()
   })
 
+  // Backend fd2e1d483: an optional Idempotency-Key on the refund and apply routes, with coded 409s.
+  describe('keyed, so a retry is recorded once', () => {
+    const posts = (path: string) =>
+      fetchMock.mock.calls.filter(
+        ([url, init]) => String(url) === path && (init as RequestInit)?.method === 'POST',
+      )
+    const keyOf = (call: unknown[]) =>
+      ((call[1] as RequestInit).headers as Record<string, string>)['Idempotency-Key']
+    const bodyOf = (call: unknown[]) => JSON.parse(String((call[1] as RequestInit).body))
+    const overpaymentReads = () => calls().filter((call) => call === `GET ${OVERPAYMENT_URL}`).length
+    const lost = () => {
+      throw new TypeError('Failed to fetch')
+    }
+    const conflict = (code: string) => () =>
+      json(409, { type: 'https://api.fawtir.om/problems/resource-conflict', error: code })
+    const REFUNDS = `${OVERPAYMENT_URL}/refunds`
+    const APPLY = `${OVERPAYMENT_URL}/apply`
+
+    async function openRefund() {
+      fireEvent.click(await screen.findByRole('button', { name: "Record the supplier's refund" }))
+      return screen.findByRole('dialog', { name: "Record the supplier's refund" })
+    }
+    const press = (dialog: HTMLElement) =>
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Record the refund' }))
+    const ready = (dialog: HTMLElement) =>
+      waitFor(() =>
+        expect(
+          (within(dialog).getByRole('button', { name: 'Record the refund' }) as HTMLButtonElement)
+            .disabled,
+        ).toBe(false),
+      )
+
+    it('sends a lost refund again under the same key, and opens the next with a new one', async () => {
+      actionResponse = lost
+      renderBill()
+      const dialog = await openRefund()
+      press(dialog)
+      await waitFor(() => expect(posts(REFUNDS)).toHaveLength(1))
+      await ready(dialog)
+
+      actionResponse = () => json(200, {})
+      press(dialog)
+      expect(await screen.findByText('The refund was recorded.')).toBeTruthy()
+      const [first, second] = posts(REFUNDS)
+      expect(keyOf(first)).toMatch(/^overpayment-[A-Za-z0-9._:-]{16,116}$/)
+      expect(keyOf(second)).toBe(keyOf(first))
+      expect(bodyOf(second)).toEqual(bodyOf(first))
+
+      press(await openRefund())
+      await waitFor(() => expect(posts(REFUNDS)).toHaveLength(3))
+      expect(keyOf(posts(REFUNDS)[2])).not.toBe(keyOf(first))
+    })
+
+    it('sends one refund for a double click', async () => {
+      renderBill()
+      const dialog = await openRefund()
+      const save = within(dialog).getByRole('button', { name: 'Record the refund' })
+      // Both in one act: React renders `disabled` only after it, as a second click in the same frame finds it.
+      act(() => {
+        save.click()
+        save.click()
+      })
+      expect(await screen.findByText('The refund was recorded.')).toBeTruthy()
+      expect(posts(REFUNDS)).toHaveLength(1)
+    })
+
+    it('says a changed refund may already be recorded, takes a new key, and reads the bill on close', async () => {
+      actionResponse = lost
+      renderBill()
+      const dialog = await openRefund()
+      press(dialog)
+      await ready(dialog)
+      fireEvent.change(within(dialog).getByRole('spinbutton', { name: 'Amount' }), {
+        target: { value: '20' },
+      })
+      actionResponse = conflict('BILL_OVERPAYMENT_IDEMPOTENCY_KEY_REUSED')
+      press(dialog)
+      expect(
+        await within(dialog).findByText(
+          'This was changed after an earlier attempt that may already be recorded. Close this and check the bill before recording it again: the next attempt counts as a new one.',
+        ),
+      ).toBeTruthy()
+      // Not read under the open dialog, which the read would unmount.
+      const readsBefore = overpaymentReads()
+      expect(screen.getByRole('dialog')).toBeTruthy()
+
+      await ready(dialog)
+      actionResponse = () => json(200, {})
+      press(dialog)
+      expect(await screen.findByText('The refund was recorded.')).toBeTruthy()
+      const [first, second, third] = posts(REFUNDS)
+      expect(keyOf(second)).toBe(keyOf(first))
+      expect(keyOf(third)).not.toBe(keyOf(first))
+      expect(bodyOf(third).amount).toBe(20)
+      expect(overpaymentReads()).toBeGreaterThan(readsBefore)
+    })
+
+    it('re-reads the bill when the dialog is closed after a spent key', async () => {
+      actionResponse = conflict('BILL_OVERPAYMENT_IDEMPOTENCY_KEY_REUSED')
+      renderBill()
+      const dialog = await openRefund()
+      press(dialog)
+      await within(dialog).findByText(/may already be recorded/)
+      const readsBefore = overpaymentReads()
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+      await waitFor(() => expect(overpaymentReads()).toBeGreaterThan(readsBefore))
+    })
+
+    it('keeps the key while the first refund is still running, and reads nothing', async () => {
+      actionResponse = conflict('BILL_OVERPAYMENT_IN_PROGRESS')
+      renderBill()
+      const dialog = await openRefund()
+      press(dialog)
+      expect(
+        await within(dialog).findByText(
+          'This is still being recorded. Wait a moment, then press again without changing it.',
+        ),
+      ).toBeTruthy()
+      await ready(dialog)
+      actionResponse = () => json(200, {})
+      press(dialog)
+      expect(await screen.findByText('The refund was recorded.')).toBeTruthy()
+      expect(keyOf(posts(REFUNDS)[1])).toBe(keyOf(posts(REFUNDS)[0]))
+    })
+
+    it('keeps the key after a refusal: nothing was spent, so the corrected figure goes under it', async () => {
+      actionResponse = () =>
+        json(400, {
+          type: 'https://api.fawtir.om/problems/expenditure-refused',
+          error: 'BILL_OVERPAYMENT_EXCEEDS_OVERPAID',
+        })
+      renderBill()
+      const dialog = await openRefund()
+      press(dialog)
+      await waitFor(() => expect(posts(REFUNDS)).toHaveLength(1))
+      await ready(dialog)
+      fireEvent.change(within(dialog).getByRole('spinbutton', { name: 'Amount' }), {
+        target: { value: '10' },
+      })
+      actionResponse = () => json(200, {})
+      press(dialog)
+      expect(await screen.findByText('The refund was recorded.')).toBeTruthy()
+      expect(keyOf(posts(REFUNDS)[1])).toBe(keyOf(posts(REFUNDS)[0]))
+    })
+
+    it('keys a credit set against a bill the same way, typed amount included', async () => {
+      standing = { ...standing, keptAsCredit: 40, undecided: 0 }
+      actionResponse = lost
+      renderBill()
+      fireEvent.click(await screen.findByRole('button', { name: 'Set against a bill' }))
+      const dialog = await screen.findByRole('dialog', { name: 'Set against a bill' })
+      fireEvent.click(await within(dialog).findByRole('button', { name: /QMS-7790/ }))
+      fireEvent.change(within(dialog).getByRole('spinbutton', { name: 'Amount (optional)' }), {
+        target: { value: '5' },
+      })
+      const use = within(dialog).getByRole('button', { name: 'Use it' })
+      fireEvent.click(use)
+      fireEvent.click(use)
+      await waitFor(() => expect(posts(APPLY)).toHaveLength(1))
+      await waitFor(() => expect((use as HTMLButtonElement).disabled).toBe(false))
+
+      actionResponse = () => json(200, {})
+      fireEvent.click(use)
+      expect(await screen.findByText('The credit was used against that bill.')).toBeTruthy()
+      const [first, second] = posts(APPLY)
+      expect(keyOf(first)).toMatch(/^overpayment-/)
+      expect(keyOf(second)).toBe(keyOf(first))
+      expect(bodyOf(second)).toEqual({ targetBillId: 'b-2', amount: 5 })
+    })
+
+    it('says both in Arabic', async () => {
+      await i18n.changeLanguage('ar')
+      actionResponse = conflict('BILL_OVERPAYMENT_IN_PROGRESS')
+      renderBill()
+      fireEvent.click(await screen.findByRole('button', { name: 'تسجيل استرداد من المورّد' }))
+      const dialog = await screen.findByRole('dialog')
+      const save = within(dialog).getAllByRole('button').at(-1)!
+      fireEvent.click(save)
+      expect(
+        await within(dialog).findByText(
+          'لا يزال هذا قيد التسجيل. انتظر قليلًا، ثم اضغط مرة أخرى دون تغييره.',
+        ),
+      ).toBeTruthy()
+      actionResponse = conflict('BILL_OVERPAYMENT_IDEMPOTENCY_KEY_REUSED')
+      await waitFor(() => expect((save as HTMLButtonElement).disabled).toBe(false))
+      fireEvent.click(save)
+      expect(await within(dialog).findByText(/ربما سُجّلت بالفعل/)).toBeTruthy()
+    })
+  })
+
   it('reads in Arabic, with the rial sign and three decimals', async () => {
     await i18n.changeLanguage('ar')
     standing = { ...standing, keptAsCredit: 15, undecided: 25 }
@@ -3497,5 +3687,262 @@ describe('The credit notes on a bill, in Linked documents', () => {
     renderBill()
     await screen.findByText(i18n.t('billDetail.linked.title'))
     expect(creditNoteReads).toEqual([])
+  })
+})
+
+describe('the reply line from the bill’s own peppol block (batch 39 EXP)', () => {
+  const peppol = {
+    deliveryId: 'd-1',
+    mlsCode: 'AP' as const,
+    mlsTransportState: 'DELIVERED' as const,
+    mlsDeliveredAt: '2026-11-01T08:00:00Z',
+    tddStatus: 'SUBMITTED' as const,
+  }
+
+  it('says how we answered the supplier when the delivery record is not read yet', () => {
+    const keys = complianceOf({ ...detail(), peppol }, undefined, { kind: 'loading' }).map((n) => n.key)
+    expect(keys).toContain('billDetail.compliance.reply.AP')
+  })
+
+  it('prefers it to "unavailable" when the delivery record cannot be read', () => {
+    const keys = complianceOf({ ...detail(), peppol }, undefined, { kind: 'unavailable' }).map((n) => n.key)
+    expect(keys).toContain('billDetail.compliance.reply.AP')
+    expect(keys).not.toContain('billDetail.compliance.reply.unavailable')
+  })
+
+  it('keeps the transport apart from the decision: RE decided but not delivered is not delivered', () => {
+    const notes = complianceOf(
+      { ...detail(), peppol: { ...peppol, mlsCode: 'RE', mlsTransportState: 'RETRY_SCHEDULED' } },
+      undefined,
+      { kind: 'loading' },
+    )
+    expect(notes.map((n) => n.key)).toContain('billDetail.compliance.reply.retrying')
+  })
+
+  it('changes nothing for a null or absent block (non-Peppol, branch-limited, older server)', () => {
+    expect(complianceOf({ ...detail(), peppol: null }).map((n) => n.key)).toEqual(
+      complianceOf(detail()).map((n) => n.key),
+    )
+    expect(
+      complianceOf({ ...detail(), peppol: null }, undefined, { kind: 'unavailable' }).map((n) => n.key),
+    ).toContain('billDetail.compliance.reply.unavailable')
+  })
+
+  it('never reads the TDD status into the reporting line: that stays the proven record or receipt report', () => {
+    expect(complianceOf({ ...detail(), peppol }).map((n) => n.key)).toContain(
+      'billDetail.compliance.receipt.unavailable',
+    )
+  })
+})
+
+// NOT RUN (batch 41, static only). FIN-6: RD 5312a71b ported onto wave B-2 without the #824 names;
+// owner batches 12 and 13 approved the reason, actor, time and overridden bills in Activity.
+describe('a bill recorded over possible duplicates, in its activity', () => {
+  const OTHER_A = '22222222-2222-2222-2222-22222222aaaa'
+  const OTHER_B = '22222222-2222-2222-2222-22222222bbbb'
+  const overridden = (
+    duplicateOverride?: NonNullable<BillDetailDto['activity'][number]['duplicateOverride']>,
+    detailText = 'INV-7, INV-8',
+    actor = 'u-2',
+  ) =>
+    json(
+      200,
+      detail({
+        activity: [
+          {
+            at: '2026-10-30T09:15:00Z',
+            kind: 'DUPLICATE_OVERRIDDEN',
+            detail: detailText,
+            actor,
+            actorName: 'Huda',
+            ...(duplicateOverride ? { duplicateOverride } : {}),
+          },
+        ],
+      }),
+    )
+  const bills = [
+    { billId: OTHER_A, billNumber: 'INV-7', issueDate: '2026-10-01' },
+    { billId: OTHER_B, billNumber: null, issueDate: null },
+  ]
+  const event = async () =>
+    (await screen.findByText(/Listed by the person who recorded it/)).closest('li') as HTMLElement
+
+  it('links each bill it was said to differ from, names who did it and shows an approver the reason', async () => {
+    billResponse = () =>
+      overridden({ overriddenBills: bills, reasonRecorded: true, reason: 'Second delivery, same week' })
+    renderBill()
+    const item = await event()
+    expect(within(item).getByRole('link', { name: 'INV-7' }).getAttribute('href')).toBe(
+      `/expenditure/bills/${OTHER_A}`,
+    )
+    // A bill with no number is still linked, by the word the credit-note rows use.
+    expect(
+      within(item).getByRole('link', { name: i18n.t('supplierCreditNotes.rows.unnumbered') }).getAttribute('href'),
+    ).toBe(`/expenditure/bills/${OTHER_B}`)
+    expect(within(item).getByText(/by Huda/)).toBeTruthy()
+    expect(within(item).getByText('Why: Second delivery, same week')).toBeTruthy()
+    expect(within(item).queryByText(/A reason was recorded/)).toBeNull()
+    // The server's own text of the same numbers is not drawn beside the links.
+    expect(within(item).queryByText(/INV-7, INV-8/)).toBeNull()
+    // A real listing keeps its own label: it is not a submission for review (Round 36 item 6).
+    expect(screen.queryByText(/Submitted for review/)).toBeNull()
+  })
+
+  it('tells a reader who cannot approve only that a reason was kept', async () => {
+    billResponse = () => overridden({ overriddenBills: bills, reasonRecorded: true })
+    renderBill()
+    const item = await event()
+    expect(within(item).getByRole('link', { name: 'INV-7' })).toBeTruthy()
+    expect(within(item).getByText('A reason was recorded. Approvers can read it.')).toBeTruthy()
+    expect(within(item).queryByText(/^Why:/)).toBeNull()
+  })
+
+  it('shows no reason line for a historical override that took none', async () => {
+    billResponse = () => overridden({ overriddenBills: bills.slice(0, 1), reasonRecorded: false })
+    renderBill()
+    const item = await event()
+    expect(within(item).getByRole('link', { name: 'INV-7' })).toBeTruthy()
+    expect(within(item).queryByText(/^Why:/)).toBeNull()
+    expect(within(item).queryByText(/A reason was recorded/)).toBeNull()
+    expect(item.querySelectorAll('p')).toHaveLength(2)
+  })
+
+  it('says "by you" rather than the name when the reader made the override', async () => {
+    billResponse = () => overridden({ overriddenBills: bills.slice(0, 1), reasonRecorded: false }, 'INV-7', 'u-1')
+    renderBill()
+    const item = await event()
+    expect(within(item).getByText(/by you/)).toBeTruthy()
+    expect(within(item).queryByText(/by Huda/)).toBeNull()
+  })
+
+  // PRV43-EXP6 M-1 (owner Round 33, Option 3) and Round 36 item 6: a recorder who listed only the
+  // copy the hold names, with a reason, submitted the bill for review. The server sends that as its
+  // own step, naming no bill and carrying the reason; the approver's later decision is a step of
+  // its own, by its own person. The label is PENDING owner approval.
+  it('shows a submission for review as its own step with the reason, apart from the later decision', async () => {
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          activity: [
+            {
+              at: '2026-10-31T10:00:00Z',
+              kind: 'NOT_DUPLICATE',
+              detail: 'Two deliveries',
+              actor: 'u-3',
+              actorName: 'Salim',
+            },
+            {
+              at: '2026-10-30T09:15:00Z',
+              kind: 'DUPLICATE_SUBMITTED_FOR_REVIEW',
+              detail: null,
+              actor: 'u-2',
+              actorName: 'Huda',
+              duplicateOverride: { overriddenBills: [], reasonRecorded: true, reason: 'Please check' },
+            },
+          ],
+        }),
+      )
+    renderBill()
+    const listed = (await screen.findByText(/Submitted for review by the person who recorded it/)).closest(
+      'li',
+    ) as HTMLElement
+    expect(screen.queryByText(/Listed by the person who recorded it/)).toBeNull()
+    expect(within(listed).queryByRole('link')).toBeNull()
+    expect(within(listed).getByText(/by Huda/)).toBeTruthy()
+    expect(within(listed).getByText('Why: Please check')).toBeTruthy()
+    expect(within(listed).queryByText(/Decided not a duplicate|Two deliveries|Salim/)).toBeNull()
+    const decided = screen.getByText(new RegExp(i18n.t('billDetail.activity.kind.NOT_DUPLICATE'))).closest(
+      'li',
+    ) as HTMLElement
+    expect(decided).not.toBe(listed)
+    expect(within(decided).getByText(/Two deliveries/)).toBeTruthy()
+    expect(within(decided).queryByText(/Submitted for review|Please check/)).toBeNull()
+  })
+
+  it('tells a reader who cannot approve only that a reason was kept on a submission for review', async () => {
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          activity: [
+            {
+              at: '2026-10-30T09:15:00Z',
+              kind: 'DUPLICATE_SUBMITTED_FOR_REVIEW',
+              detail: null,
+              actor: 'u-2',
+              actorName: 'Huda',
+              duplicateOverride: { overriddenBills: [], reasonRecorded: true },
+            },
+          ],
+        }),
+      )
+    renderBill()
+    const item = (await screen.findByText(/Submitted for review by the person who recorded it/)).closest(
+      'li',
+    ) as HTMLElement
+    expect(within(item).getByText('A reason was recorded. Approvers can read it.')).toBeTruthy()
+    expect(within(item).queryByText(/^Why:/)).toBeNull()
+  })
+
+  it('reads a submission for review in Arabic', async () => {
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          activity: [
+            {
+              at: '2026-10-30T09:15:00Z',
+              kind: 'DUPLICATE_SUBMITTED_FOR_REVIEW',
+              detail: null,
+              actor: 'u-2',
+              actorName: 'Huda',
+              duplicateOverride: { overriddenBills: [], reasonRecorded: true },
+            },
+          ],
+        }),
+      )
+    await i18n.changeLanguage('ar')
+    renderBill()
+    expect(await screen.findByText(/أرسلها للمراجعة الشخص الذي سجّلها/)).toBeTruthy()
+    expect(screen.queryByText(/Submitted for review|أدرجها الشخص الذي سجّلها/)).toBeNull()
+  })
+
+  it('reads an entry without the override block as text, as any other step', async () => {
+    billResponse = () => overridden(undefined, 'INV-7')
+    renderBill()
+    const item = await event()
+    expect(within(item).getByText(/^INV-7 · /)).toBeTruthy()
+    expect(within(item).queryByRole('link')).toBeNull()
+    expect(within(item).queryByText(/by Huda/)).toBeNull()
+    expect(item.querySelectorAll('p')).toHaveLength(2)
+  })
+
+  it('draws no override when the bill has none, and an unknown step keeps its fallback', async () => {
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          activity: [{ at: '2026-10-30T09:15:00Z', kind: 'BRAND_NEW', detail: null, actor: null }],
+          // A kind this build does not know, as a newer server may send: deliberately outside the
+          // typed union, which is the point of the test, so it goes through unknown.
+        } as unknown as Parameters<typeof detail>[0]),
+      )
+    renderBill()
+    expect(await screen.findByText(new RegExp(i18n.t('invoiceDetails.event.other')))).toBeTruthy()
+    expect(screen.queryByText(/Listed by the person who recorded it/)).toBeNull()
+    expect(screen.queryByText(/Submitted for review by the person who recorded it/)).toBeNull()
+    expect(screen.queryByText(/^Why:/)).toBeNull()
+    expect(screen.queryByText(/A reason was recorded/)).toBeNull()
+  })
+
+  it('reads in Arabic', async () => {
+    billResponse = () => overridden({ overriddenBills: bills, reasonRecorded: true })
+    await i18n.changeLanguage('ar')
+    renderBill()
+    const item = (await screen.findByText(/أدرجها الشخص الذي سجّلها/)).closest('li') as HTMLElement
+    expect(within(item).getByRole('link', { name: 'INV-7' })).toBeTruthy()
+    expect(within(item).getByText('سُجّل سبب. يمكن للمعتمِدين الاطلاع عليه.')).toBeTruthy()
+    expect(within(item).queryByText(/Listed by the person|A reason was recorded/)).toBeNull()
   })
 })

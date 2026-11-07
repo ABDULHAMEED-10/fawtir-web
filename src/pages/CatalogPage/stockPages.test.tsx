@@ -119,6 +119,8 @@ const MOVEMENTS = {
 let permissions: string[]
 let extra: Partial<Entitlements>
 let branchesRefused: boolean
+/** What `GET /v1/branches` answers a reader without `branch.read` (B5-C3): only id and name. */
+let branchesProjection: unknown[] | null
 let summary: typeof SUMMARY
 let detail: typeof DETAIL
 let movements: { content: unknown[]; page: number; size: number; totalElements: number }
@@ -131,6 +133,7 @@ beforeEach(async () => {
   permissions = ['stock.read', 'stock.adjust', 'stock.manage']
   extra = {}
   branchesRefused = false
+  branchesProjection = null
   summary = SUMMARY
   detail = DETAIL
   movements = MOVEMENTS
@@ -149,7 +152,7 @@ beforeEach(async () => {
               },
               403,
             )
-          : json(BRANCHES)
+          : json(branchesProjection ?? BRANCHES)
       }
       if (init.method === 'POST' && url === '/api/v1/stock/counts')
         return json({ adjustmentId: 'a', number: 'STK-2026-000123', kind: 'COUNT', lines: [] }, 201)
@@ -300,19 +303,29 @@ describe('Stock list', () => {
     expect(screen.queryByRole('button', { name: 'Count the shelves' })).toBeNull()
   })
 
-  it('opens for a View-only reader the branch list refuses, on their own branch (E2E F-3)', async () => {
+  it('opens for a View-only reader on the branch the scoped list gives them, from id and name only (B5-C3)', async () => {
     permissions = ['stock.read', 'pos.read']
     extra = { allBranches: false, branchIds: ['b-seeb'] }
-    branchesRefused = true
+    branchesProjection = [{ id: 'b-seeb', name: 'Seeb' }]
     open('/stock')
     expect(await screen.findByText('Coffee Beans · 1 kg')).toBeTruthy()
     const urls = requests().map((r) => r.url)
-    // The branch list is still asked (and refused); the stock is read for their own branch.
-    expect(urls).toContain('/api/v1/branches')
     expect(urls).toContain('/api/v1/stock?branchId=b-seeb&size=20')
     expect(urls).toContain('/api/v1/stock/summary?branchId=b-seeb')
     expect(screen.queryByText(i18n.t('appAccess.noAccess'))).toBeNull()
     expect(screen.queryByRole('button', { name: 'Count the shelves' })).toBeNull()
+  })
+
+  it('has no working branch when the branch list is refused, and reads no stock for a guessed one (B5-C3)', async () => {
+    permissions = ['stock.read', 'pos.read']
+    extra = { allBranches: false, branchIds: ['b-seeb'] }
+    branchesRefused = true
+    open('/stock')
+    // The refusal is shown as it is; nothing stands in for the branch the server would not name.
+    expect(await screen.findByText(i18n.t('appAccess.noAccess'))).toBeTruthy()
+    expect(requests().map((r) => r.url)).toContain('/api/v1/branches')
+    expect(screen.queryByText('Coffee Beans · 1 kg')).toBeNull()
+    expect(requests().some((r) => r.url.startsWith('/api/v1/stock'))).toBe(false)
   })
 
   it('says so without stock.read, and reads nothing', async () => {
