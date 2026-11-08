@@ -2405,9 +2405,11 @@ describe('a rejected credit note (R8)', () => {
   it('offers no set-against on a rejected note, but still a refund and keeping it', async () => {
     ownBill = ownRecord({ standalone: true, vatNotice: 'REJECTED_VAT_STILL_REDUCED' })
     renderDetail()
+    // On the decision card and in the effect banner (SC-3, SC-4); the row is not rejected here, so
+    // the activity keeps its own entry.
     expect(
-      await screen.findByText("This credit note was rejected, so it can't be set against a bill."),
-    ).toBeTruthy()
+      await screen.findAllByText("This credit note was rejected, so it can't be set against a bill."),
+    ).toHaveLength(2)
     expect(screen.queryByRole('button', { name: 'Set against the bill' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Ask for a refund' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Keep as credit' })).toBeTruthy()
@@ -2555,6 +2557,35 @@ describe('a rejected credit note on the list (R8)', () => {
     expect(within(trail).queryByText('Rejected')).toBeNull()
   })
 
+  // QA re-run SC-4: the banner read "OMR 200.000 of credit to use" and "Set it against one".
+  it('offers no credit to use and no set-against advice in the banner of a rejected unused note', async () => {
+    notes = [note({ approval: 'REJECTED' })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    expect(screen.queryByRole('heading', { name: /of credit to use/ })).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Rejected' })).toBeTruthy()
+    expect(screen.queryByText(/Set it against one/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Ask for a refund' })).toBeTruthy()
+  })
+
+  // QA re-run SC-3: "Set the rest against another bill" on a rejected note left partly refunded.
+  it('offers no set-against advice in the banner of a rejected partly used note', async () => {
+    notes = [note({ approval: 'REJECTED', balance: { applied: 0, refunded: 150, remaining: 50 } })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    expect(screen.queryByRole('heading', { name: /of credit to use/ })).toBeNull()
+    expect(screen.queryByText(/Set the rest against another bill/)).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Rejected' })).toBeTruthy()
+  })
+
+  it('keeps credit to use and its advice in the banner of a note that is not rejected', async () => {
+    notes = [note({ approval: 'APPROVED', balance: { applied: 0, refunded: 150, remaining: 50 } })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    expect(screen.getByRole('heading', { name: /of credit to use/ })).toBeTruthy()
+    expect(screen.getByText(/Set the rest against another bill/)).toBeTruthy()
+  })
+
   it('names it rejected in Arabic too', async () => {
     await i18n.changeLanguage('ar')
     notes = [note({ approval: 'REJECTED', credits: namedBill })]
@@ -2569,10 +2600,10 @@ describe('a rejected credit note on the list (R8)', () => {
     renderDetail()
     await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
     expect(screen.queryByRole('button', { name: 'Set against the bill' })).toBeNull()
-    // Once on the decision card and once as the activity's current entry (N27).
+    // On the decision card, as the activity's current entry (N27), and in the effect banner.
     expect(
       screen.getAllByText("This credit note was rejected, so it can't be set against a bill."),
-    ).toHaveLength(2)
+    ).toHaveLength(3)
     expect(screen.getByRole('button', { name: 'Ask for a refund' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Keep as credit' })).toBeTruthy()
   })

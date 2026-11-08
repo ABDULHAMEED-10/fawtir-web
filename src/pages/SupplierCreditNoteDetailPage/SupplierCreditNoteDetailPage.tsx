@@ -258,7 +258,18 @@ function CreditNoteDetail() {
   // A rejected bill is owed nothing and reads outstanding 0 since backend #824 (OBS-1): neither
   // "you'll pay less" nor "already paid" is true of it.
   const targetRejected = bill !== null && bill.workflowState === 'REJECTED'
-  const bannerTitle = closesRefused
+  // R8: a rejected note is refused at every apply (409 CREDIT_NOTE_REJECTED); a refund is not, so
+  // only "Set against" goes. Read from the note's own bill record under the R5 contract, and from
+  // the note row's `approval`, which is loaded first, so "Set against" is never drawn while the
+  // record is still on its way (E2E 2026-11-08, E-11).
+  const noteRejected = creditNoteRejected(own) || item.rejected
+  // With credit left, the banner said "of credit to use" and advised setting it against a bill,
+  // which the server refuses (QA re-run SC-3, SC-4). It says what the chip and the decision card
+  // say instead; a spent note keeps the words of where its credit went.
+  const rejectedWithCredit = noteRejected && state !== 'APPLIED' && state !== 'REFUNDED'
+  const bannerTitle = rejectedWithCredit
+    ? t('supplierCreditNotes.state.rejected')
+    : closesRefused
     ? t('supplierCreditNotes.detail.closesRefusedTitle', { number: billNumber ?? '' })
     : state === 'REFUNDED'
       ? t('supplierCreditNotes.detail.refundedTitle', { amount: money(row.balance.refunded) })
@@ -269,7 +280,9 @@ function CreditNoteDetail() {
         : bill && state !== 'PARTLY_USED' && !targetRejected
           ? t('supplierCreditNotes.detail.youllPayLess', { amount: money(remaining) })
           : t('supplierCreditNotes.detail.creditToUse', { amount: money(remaining) })
-  const bannerBody = closesRefused
+  const bannerBody = rejectedWithCredit
+    ? t('supplierCreditNotes.refused.rejected')
+    : closesRefused
     ? t('supplierCreditNotes.detail.closesRefusedBody')
     : state === 'REFUNDED'
       ? t('supplierCreditNotes.detail.refundedBody')
@@ -296,11 +309,6 @@ function CreditNoteDetail() {
   // A note held as a duplicate keeps a balance, but `/apply` and `/refund` refuse it (409
   // CREDIT_NOTE_HELD_AS_DUPLICATE) until the hold is decided, so neither is offered.
   const settleable = canSettle && remaining > 0 && !item.heldAsDuplicate
-  // R8: a rejected note is refused at every apply (409 CREDIT_NOTE_REJECTED); a refund is not, so
-  // only "Set against" goes. Read from the note's own bill record under the R5 contract, and from
-  // the note row's `approval`, which is loaded first, so "Set against" is never drawn while the
-  // record is still on its way (E2E 2026-11-08, E-11).
-  const noteRejected = creditNoteRejected(own) || item.rejected
   const chip = creditChipOf(item)
   // "Its bill" is the note's own bill record, not the bill it corrects: a credit note is a row of
   // the bills, and its duplicate hold is read and decided at /bills/{noteId} (backend V493). Linked
