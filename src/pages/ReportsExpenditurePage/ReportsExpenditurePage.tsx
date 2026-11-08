@@ -201,7 +201,8 @@ function ExpenditureBody({
   // approved (R5), and a Peppol copy held until its duplicate check is decided, which the sentence
   // names because the upload it pairs with is already in spend (SPEND-MEDIUM-LOW M2). Rejected is
   // what was rejected or refused (D-27). An older server sends neither figure, and then nothing is
-  // said rather than a zero.
+  // said rather than a zero. Only pending is net of credit notes: a credit note on a rejected
+  // document is in no figure, so the sentence must not call rejected net of them (Agent 10 B2).
   const decisionsReported = rows.every(
     (row) => Object.hasOwn(row, 'pendingNetAmount') && Object.hasOwn(row, 'rejectedNetAmount'),
   )

@@ -121,7 +121,10 @@ export type ExpenditureRowDto = {
  * alone until its duplicate check is decided (backend aaa3ae735). Rejected covers rejected bills,
  * refused debit notes, a debit note whose approval was rejected, a standalone credit note rejected
  * on its own, and a credit note carrying a rejection recorded before credit notes could no longer be
- * decided. Absent from an older server, which is "not available", never zero.
+ * decided. A credit note whose target is rejected is in neither figure (backend STATE gives it
+ * NULL), so a rejected document counts at its full amount and only a credit note rejected on its own
+ * makes rejected smaller or negative (Agent 10 B2). Absent from an older server, which is "not
+ * available", never zero.
  */
 export type ExpenditureDecisionFigures = {
   pendingDocuments?: number
