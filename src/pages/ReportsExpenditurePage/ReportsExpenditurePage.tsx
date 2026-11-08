@@ -364,18 +364,28 @@ function ExpenditureBody({
           )}
         />
       </KpiRow>
-      {decisionsReported ? (
-        <p className="text-sm font-medium text-text-tertiary">
-          {t('reports.expenditure.notInBilled', {
-            when: t(`reports.thisPeriod.${period}`),
-            currency,
-            pending: money(outsideNow((row) => row.pendingNetAmount)),
-            pendingCount: formatCount(outsideNow((row) => row.pendingDocuments), language),
-            rejected: money(outsideNow((row) => row.rejectedNetAmount)),
-            rejectedCount: formatCount(outsideNow((row) => row.rejectedDocuments), language),
-          })}
-        </p>
-      ) : null}
+      {/* Net and total are dated by the document's issue date, VAT by the date it was received
+          (D9 2026-10-12, ER Art. 65; backend vatAmount sums the input VAT entries dated in the
+          period). The VAT card's rate and the monthly bars set the two side by side, so the page
+          says they are not on one date (EXP-VAT-DATE-DISCLOSURE). It shares the D-27 paragraph
+          rather than a card note so the KPI cards keep their height. */}
+      <p className="text-sm font-medium text-text-tertiary">
+        {decisionsReported ? (
+          <>
+            <span>
+              {t('reports.expenditure.notInBilled', {
+                when: t(`reports.thisPeriod.${period}`),
+                currency,
+                pending: money(outsideNow((row) => row.pendingNetAmount)),
+                pendingCount: formatCount(outsideNow((row) => row.pendingDocuments), language),
+                rejected: money(outsideNow((row) => row.rejectedNetAmount)),
+                rejectedCount: formatCount(outsideNow((row) => row.rejectedDocuments), language),
+              })}
+            </span>{' '}
+          </>
+        ) : null}
+        <span>{t('reports.expenditure.vatDates')}</span>
+      </p>
 
       <ChartGrid>
         <ChartCard

@@ -126,6 +126,11 @@ describe('"Bills received" and "Average bill" (ACC-5, backend #824)', () => {
   })
 })
 
+// Net is dated by issue date and VAT by received date (D9 2026-10-12, EXP-VAT-DATE-DISCLOSURE),
+// so the page says so whether or not the server reports the D-27 figures.
+const VAT_DATES =
+  "VAT is counted by the date each document was received, and the net by the document's own date, so a month's VAT need not match that month's net."
+
 describe('what the spend leaves out (D-27)', () => {
   const DECIDED = {
     pendingDocuments: 2,
@@ -160,6 +165,15 @@ describe('what the spend leaves out (D-27)', () => {
     renderPage()
     expect(await figure('Billed to you, net of VAT')).toBe('900.000')
     expect(screen.queryByText(/Not in the billed figure/)).toBeNull()
+    expect(screen.getByText(VAT_DATES)).toBeTruthy()
+  })
+
+  it('says beside the D-27 sentence that VAT and net are not on one date, each readable alone', async () => {
+    summary = report([row({ ...BILLS, ...DECIDED })])
+    renderPage()
+    expect(await figure('Billed to you, net of VAT')).toBe('900.000')
+    expect(screen.getByText(VAT_DATES)).toBeTruthy()
+    expect(screen.getByText(/^Not in the billed figure this year:/)).toBeTruthy()
   })
 })
 
