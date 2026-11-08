@@ -6899,7 +6899,8 @@
       "reopenReasonRequired": "Reopening needs a reason.",
       "creditNoteTargeted": "This credit note is against a bill, so it is not approved on its own.",
       "creditNoteAppliedCredit": "This credit note can't be rejected: part of its credit is set against a bill. That credit has to be released first.",
-      "creditNoteRefund": "This credit note can't be rejected: a refund is recorded on it."
+      "creditNoteRefund": "This credit note can't be rejected: a refund is recorded on it.",
+      "creditNotePrecedingDocument": "This credit note refers to an earlier invoice, so it can't be rejected yet. You can approve it or leave it pending."
     },
     "done": {
       "approved": "Approved.",

@@ -201,6 +201,10 @@ describe('a rejected note is not set against a bill (R8)', () => {
     expect(creditNoteRejected(null)).toBe(false)
   })
 
+  it('says why rejecting a note that names an earlier invoice was refused', () => {
+    expect(refusalMessageKey(conflict('CREDIT_NOTE_REJECTION_NAMES_PRECEDING_DOCUMENT'))).toBe('billDetail.refused.creditNotePrecedingDocument')
+  })
+
   it('says why a set-against was refused', () => {
     expect(refusalMessageKey(conflict('CREDIT_NOTE_REJECTED'))).toBe(
       'supplierCreditNotes.refused.rejected',

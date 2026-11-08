@@ -179,6 +179,12 @@ const CONFLICT_REFUSALS: Record<string, string> = {
   // R8: `/apply`, `/apply-what-fits` or `/apply-on-recording` on a rejected note. The list's rows
   // carry no decision, so this sentence is all a row's "Set against" can say.
   CREDIT_NOTE_REJECTED: 'supplierCreditNotes.refused.rejected',
+  // Rejecting a standalone note that names the document it corrects, or a self-billed note tied
+  // to an issued invoice (backend 1afc80536, review finding B1): once that document is on file
+  // the credit is set against it whatever the decision, so the server refuses the rejection,
+  // interim and fail-closed pending an owner decision. Approval is not refused, so the sentence
+  // offers it.
+  CREDIT_NOTE_REJECTION_NAMES_PRECEDING_DOCUMENT: 'billDetail.refused.creditNotePrecedingDocument',
   // Booking goods in (backend V519, DEC-30-08): the whole receipt is refused and nothing is received.
   PRODUCT_STOCK_UNIT_MISMATCH: 'apiErrors.refused.receiptStockUnitMismatch',
   // A line written before V519 recorded no unit, and the receipt stated none (`statedUnit`): the
