@@ -2413,7 +2413,7 @@ describe('a rejected credit note (R8)', () => {
     expect(screen.getByRole('button', { name: 'Keep as credit' })).toBeTruthy()
   })
 
-  it('keeps the set-against for a server before R5, whatever its record says', async () => {
+  it('keeps the set-against for a server before R5 when the row is not REJECTED, whatever its record says', async () => {
     ownBill = ownRecord(null)
     renderDetail()
     await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
@@ -2534,6 +2534,27 @@ describe('a rejected credit note on the list (R8)', () => {
     expect(within(row).queryByText(/left to use/)).toBeNull()
   })
 
+  // N27: the activity said "Waiting to be set against the bill" under a Rejected chip.
+  it('says in the activity that it was rejected, never that it waits to be set against the bill', async () => {
+    notes = [note({ approval: 'REJECTED', credits: namedBill })]
+    renderDetail()
+    const trail = await screen.findByRole('list', { name: 'Activity' })
+    expect(within(trail).getByText('Rejected')).toBeTruthy()
+    expect(
+      within(trail).getByText("This credit note was rejected, so it can't be set against a bill."),
+    ).toBeTruthy()
+    expect(within(trail).queryByText('Waiting to be set against the bill')).toBeNull()
+    expect(within(trail).queryByText(/still shows its full amount/)).toBeNull()
+  })
+
+  it('keeps the waiting entry in the activity for a note that is not rejected', async () => {
+    notes = [note({ approval: 'APPROVED', credits: namedBill })]
+    renderDetail()
+    const trail = await screen.findByRole('list', { name: 'Activity' })
+    expect(within(trail).getByText('Waiting to be set against the bill')).toBeTruthy()
+    expect(within(trail).queryByText('Rejected')).toBeNull()
+  })
+
   it('names it rejected in Arabic too', async () => {
     await i18n.changeLanguage('ar')
     notes = [note({ approval: 'REJECTED', credits: namedBill })]
@@ -2548,9 +2569,10 @@ describe('a rejected credit note on the list (R8)', () => {
     renderDetail()
     await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
     expect(screen.queryByRole('button', { name: 'Set against the bill' })).toBeNull()
+    // Once on the decision card and once as the activity's current entry (N27).
     expect(
-      screen.getByText("This credit note was rejected, so it can't be set against a bill."),
-    ).toBeTruthy()
+      screen.getAllByText("This credit note was rejected, so it can't be set against a bill."),
+    ).toHaveLength(2)
     expect(screen.getByRole('button', { name: 'Ask for a refund' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Keep as credit' })).toBeTruthy()
   })

@@ -1,7 +1,7 @@
 import type { CreditNoteRowDto, CreditNoteSettlementDto } from '../api/expenditure/notes'
 import type { BillRowDto } from '../api/expenditure/bills'
 import { receiptReportNote } from './billDetail'
-import { creditStateOf, isHeldUnspent } from './supplierNoteList'
+import { creditStateOf, isHeldUnspent, isRejectedUnspent, rejectedRow } from './supplierNoteList'
 
 /**
  * Credit notes a supplier issued to us: Expenditure > Credit notes (Figma 163:18691, 163:19080,
@@ -144,8 +144,22 @@ export function creditActivity(
   const bill = row.credits.billNumber ?? ''
   const credited = row.creditedAmount ?? 0
   const state = creditStateOf(row)
-  const current: NoteActivity =
-    state === 'PARTLY_USED'
+  // R8: "Waiting to be set against the bill" contradicted the Rejected chip (Agent 10 N27), since
+  // the server refuses every apply of a rejected note. Its current entry says that instead, in the
+  // words the decision card already uses; a spent note keeps the entry of where its credit went.
+  const rejectedNow = isRejectedUnspent({
+    status: state,
+    heldAsDuplicate: row.heldAsDuplicate === true,
+    rejected: rejectedRow(row),
+  })
+  const current: NoteActivity = rejectedNow
+    ? {
+        id: 'now',
+        titleKey: 'supplierCreditNotes.state.rejected',
+        detailKey: 'supplierCreditNotes.refused.rejected',
+        tone: 'current',
+      }
+    : state === 'PARTLY_USED'
       ? {
           // Part of it is used or refunded (the rows below say which): what is left waits.
           id: 'now',

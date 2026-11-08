@@ -176,8 +176,9 @@ const CONFLICT_REFUSALS: Record<string, string> = {
   BILL_APPROVAL_REJECTED_NEEDS_REOPEN: 'billDetail.refused.needsReopen',
   BILL_REOPEN_NOT_REJECTED: 'billDetail.refused.changed',
   BILL_REOPEN_HELD_AS_DUPLICATE: 'billDetail.duplicate.refused.reopenHeld',
-  // R8: `/apply`, `/apply-what-fits` or `/apply-on-recording` on a rejected note. The list's rows
-  // carry no decision, so this sentence is all a row's "Set against" can say.
+  // R8: `/apply`, `/apply-what-fits` or `/apply-on-recording` on a rejected note. A row whose
+  // `approval` reads REJECTED offers no "Set against" (5160f592), so this answers the rest: a note
+  // rejected after the screen was read, or a row from a server that sends no `approval`.
   CREDIT_NOTE_REJECTED: 'supplierCreditNotes.refused.rejected',
   // Rejecting a standalone note that names the document it corrects, or a self-billed note tied
   // to an issued invoice (backend 1afc80536, review finding B1): once that document is on file

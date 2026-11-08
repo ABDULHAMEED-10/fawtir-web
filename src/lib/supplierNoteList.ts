@@ -289,7 +289,7 @@ export type CreditNoteItem = {
 }
 
 // Object.hasOwn: a row without the field is read as not rejected rather than throwing on it.
-function rejectedRow(row: CreditNoteRowDto): boolean {
+export function rejectedRow(row: Pick<CreditNoteRowDto, 'approval'>): boolean {
   return Object.hasOwn(row, 'approval') && row.approval === 'REJECTED'
 }
 
