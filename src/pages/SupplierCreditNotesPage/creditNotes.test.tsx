@@ -1764,6 +1764,46 @@ describe("releasing a note's credit from a bill (backend #827)", () => {
     expect(await screen.findByText("Credit can't be removed from a bill yet.")).toBeTruthy()
   })
 
+  // Agent 10 ruling 1.5(a): credit a legacy-rejected note left on a bill contradicts R8, and the
+  // release is the only way to take it back off, so it stays offered while R8 still hides every
+  // apply. Hiding it would lock the inconsistent state in.
+  it('keeps Remove from bill on a rejected note, with no Set against before or after it', async () => {
+    notes = [note({ approval: 'REJECTED' })]
+    settlements = [APPLIED]
+    renderDetail()
+    const dialog = await openRelease()
+    expect(screen.queryByRole('button', { name: 'Set against the bill' })).toBeNull()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove credit' }))
+    await screen.findByText('The credit was removed from that bill.')
+    await waitFor(() => expect(screen.getByText('Removed from QMS-7781')).toBeTruthy())
+    expect(screen.queryByRole('button', { name: 'Set against the bill' })).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Rejected' })).toBeTruthy()
+  })
+
+  // The server refuses a reason over 1000 characters (CREDIT_NOTE_RELEASE_REASON_TOO_LONG, and the
+  // request's @Size before it); the field stops it, so no sentence is mapped (ruling 1.5(b)).
+  it('caps the reason at the 1000 characters the server takes', async () => {
+    settlements = [APPLIED]
+    renderDetail()
+    const dialog = await openRelease()
+    expect(within(dialog).getByRole('textbox').getAttribute('maxlength')).toBe('1000')
+  })
+
+  // Only a server without the route answers an unnamed 404; a named one is a refusal of its own.
+  it('does not call a named 404 an unavailable feature', async () => {
+    settlements = [APPLIED]
+    releaseResponse = () =>
+      new Response(
+        JSON.stringify({ status: 404, error: 'BILL_NOT_FOUND' }),
+        { status: 404, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+    renderDetail()
+    const dialog = await openRelease()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove credit' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(screen.queryByText("Credit can't be removed from a bill yet.")).toBeNull()
+  })
+
   it('has every sentence in Arabic', () => {
     for (const key of ['heading', 'action', 'title', 'body', 'reason', 'confirm', 'done', 'unavailable']) {
       const full = `supplierCreditNoteDetail.release.${key}`
