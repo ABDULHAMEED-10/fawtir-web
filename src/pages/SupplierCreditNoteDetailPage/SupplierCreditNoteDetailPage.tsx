@@ -297,8 +297,10 @@ function CreditNoteDetail() {
   // CREDIT_NOTE_HELD_AS_DUPLICATE) until the hold is decided, so neither is offered.
   const settleable = canSettle && remaining > 0 && !item.heldAsDuplicate
   // R8: a rejected note is refused at every apply (409 CREDIT_NOTE_REJECTED); a refund is not, so
-  // only "Set against" goes. Read from the note's own bill record, the one place its decision is.
-  const noteRejected = creditNoteRejected(own)
+  // only "Set against" goes. Read from the note's own bill record under the R5 contract, and from
+  // the note row's `approval`, which is loaded first, so "Set against" is never drawn while the
+  // record is still on its way (E2E 2026-11-08, E-11).
+  const noteRejected = creditNoteRejected(own) || item.rejected
   const chip = creditChipOf(item)
   // "Its bill" is the note's own bill record, not the bill it corrects: a credit note is a row of
   // the bills, and its duplicate hold is read and decided at /bills/{noteId} (backend V493). Linked

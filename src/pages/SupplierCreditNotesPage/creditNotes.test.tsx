@@ -2447,3 +2447,111 @@ describe('a rejected credit note (R8)', () => {
     ).toBeTruthy()
   })
 })
+
+// R8 on the list (E2E 2026-11-08, E-11): a rejected note with credit left read "Not yet used",
+// "Set against the bill" and "you'd pay less". Its status stays UNAPPLIED (backend def9c5b12 maps
+// the four statuses exhaustively), and an older server lists it under Unapplied too, so the row's
+// `approval` decides.
+describe('a rejected credit note on the list (R8)', () => {
+  const namedBill = {
+    billNumber: 'QMS-7781',
+    issueDate: '2026-09-01',
+    documentUuid: null,
+    billId: BILL_ID,
+    applied: false,
+  }
+  const REJECTED_ID = '70000000-0000-0000-0000-000000000011'
+
+  it('reads a rejected row as rejected and out of usable credit, and a row without approval as not', () => {
+    const rejected = toCreditNoteItem(note({ approval: 'REJECTED' }))
+    expect(rejected.rejected).toBe(true)
+    expect(rejected.usable).toBe(false)
+    expect(rejected.status).toBe('UNAPPLIED')
+
+    const row = note()
+    delete (row as Partial<CreditNoteRowDto>).approval
+    const old = toCreditNoteItem(row)
+    expect(old.rejected).toBe(false)
+    expect(old.usable).toBe(true)
+
+    for (const approval of ['NONE', 'PENDING', 'APPROVED'] as const) {
+      expect(toCreditNoteItem(note({ approval })).rejected).toBe(false)
+    }
+  })
+
+  it('opens a rejected note with credit left instead of setting it, and keeps a spent one its action', () => {
+    for (const status of ['UNAPPLIED', 'WAITING_FOR_BILL', 'PARTLY_USED'] as const) {
+      expect(creditRowActionOf({ status, heldAsDuplicate: false, rejected: true })).toEqual({
+        labelKey: 'supplierCreditNotes.actions.openNote',
+        goesTo: 'note',
+      })
+    }
+    expect(creditRowActionOf({ status: 'APPLIED', heldAsDuplicate: false, rejected: true })).toEqual({
+      labelKey: 'supplierCreditNotes.actions.viewBill',
+      goesTo: 'bill',
+    })
+  })
+
+  it('names the rejected row as rejected, with no Set against and no promise of paying less', async () => {
+    notes = [
+      note({ credits: namedBill }),
+      note({
+        id: REJECTED_ID,
+        creditNoteNumber: 'QMS-CN-REJ',
+        approval: 'REJECTED',
+        credits: namedBill,
+      }),
+    ]
+    renderList()
+    const normalRow = (await screen.findByRole('link', { name: 'QMS-CN-1' })).closest('tr')!
+    const rejectedRow = screen.getByRole('link', { name: 'QMS-CN-REJ' }).closest('tr')!
+
+    expect(within(normalRow).getByText('Not yet used')).toBeTruthy()
+    expect(within(normalRow).getByRole('button', { name: 'Set against the bill' })).toBeTruthy()
+
+    expect(within(rejectedRow).getByText('Rejected')).toBeTruthy()
+    expect(within(rejectedRow).queryByText('Not yet used')).toBeNull()
+    expect(within(rejectedRow).queryByRole('button', { name: 'Set against the bill' })).toBeNull()
+    expect(within(rejectedRow).queryByText('Set against the bill')).toBeNull()
+    expect(within(rejectedRow).queryByText("you'd pay less")).toBeNull()
+    const open = within(rejectedRow).getByRole('link', { name: /Open the note/ })
+    expect(open.getAttribute('href')).toBe(`/expenditure/credit-notes/${REJECTED_ID}`)
+  })
+
+  it('offers no Set against on a rejected note left partly used, nor "left to use"', async () => {
+    notes = [
+      note({
+        approval: 'REJECTED',
+        balance: { applied: 0, refunded: 150, remaining: 50 },
+        credits: namedBill,
+      }),
+    ]
+    renderList()
+    const row = (await screen.findByRole('link', { name: 'QMS-CN-1' })).closest('tr')!
+    expect(within(row).getByText('Rejected')).toBeTruthy()
+    expect(within(row).queryByText('Partly used')).toBeNull()
+    expect(within(row).queryByRole('button', { name: 'Set against the bill' })).toBeNull()
+    expect(within(row).queryByText(/left to use/)).toBeNull()
+  })
+
+  it('names it rejected in Arabic too', async () => {
+    await i18n.changeLanguage('ar')
+    notes = [note({ approval: 'REJECTED', credits: namedBill })]
+    renderList()
+    const row = (await screen.findByRole('link', { name: 'QMS-CN-1' })).closest('tr')!
+    expect(within(row).getByText('مرفوض')).toBeTruthy()
+    expect(within(row).queryByText('لم يُستخدم بعد')).toBeNull()
+  })
+
+  it('offers no Set against on its own screen from the row alone, before or without the R5 record', async () => {
+    notes = [note({ approval: 'REJECTED', credits: namedBill })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    expect(screen.queryByRole('button', { name: 'Set against the bill' })).toBeNull()
+    expect(
+      screen.getByText("This credit note was rejected, so it can't be set against a bill."),
+    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Ask for a refund' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Keep as credit' })).toBeTruthy()
+  })
+})

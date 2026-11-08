@@ -7778,7 +7778,8 @@
       "WAITING_FOR_BILL": "Waiting for a bill",
       "APPLIED": "Used",
       "REFUNDED": "Refunded",
-      "partlyUsed": "Partly used"
+      "partlyUsed": "Partly used",
+      "rejected": "Rejected"
     },
     "actions": {
       "setAgainst": "Set against the bill",

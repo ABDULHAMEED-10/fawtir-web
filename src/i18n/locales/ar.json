@@ -8303,7 +8303,8 @@
       "WAITING_FOR_BILL": "بانتظار فاتورة",
       "APPLIED": "مستخدمة",
       "REFUNDED": "مُستردة",
-      "partlyUsed": "مستخدم جزئيًا"
+      "partlyUsed": "مستخدم جزئيًا",
+      "rejected": "مرفوض"
     },
     "actions": {
       "setAgainst": "خصمه من الفاتورة",
