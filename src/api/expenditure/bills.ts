@@ -62,7 +62,8 @@ export type BillRowDto = {
   workflowState: BillWorkflowState
   /**
    * The decision as the server names it ("APPROVED" on a bill people approved, also while it
-   * reads `MISMATCH`). Not read by the screens: what is left to approve comes from `readiness`.
+   * reads `MISMATCH`). Not read for a bill: what is left to approve comes from `readiness`. Read
+   * for a credit note (R5/R8), where APPROVED, REJECTED or PENDING is the note's own decision.
    */
   approval?: string
   readiness: {
@@ -121,6 +122,17 @@ export type BillRowDto = {
     status: CreditNoteStatusDto | string
     usage: CreditNoteUsageDto | string | null
     balance: { applied: number; refunded: number; remaining: number }
+    /**
+     * R5: a note against no bill of ours (WAITING_FOR_BILL counts until its bill arrives) is
+     * approved or rejected on its own; a note against a bill is not. Absent from a server before
+     * R5, and then the screens behave as they did before it.
+     */
+    standalone?: boolean
+    /**
+     * A display-only sentence code about the input VAT this note reduced on receipt (ER Art. 65).
+     * Null when there is nothing to say; absent from a server before R5.
+     */
+    vatNotice?: string | null
   } | null
   /**
    * Whether this document's VAT is in the input VAT figure, and why not when it is out. Absent

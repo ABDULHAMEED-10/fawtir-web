@@ -63,7 +63,7 @@ import {
 } from '../../lib/supplierCreditNotes'
 import { billStateKey, linkedBillDetailKey } from '../../lib/supplierDebitNotes'
 import { describeApiFailure } from '../../lib/apiFailure'
-import { lineVatOf } from '../../lib/billDetail'
+import { creditNoteRejected, lineVatOf } from '../../lib/billDetail'
 import { muscatToday } from '../../lib/invoiceIssue'
 import { formatAmount, formatDate, formatInstant, formatInstantDay } from '../../lib/format'
 import { saveDownload } from '../../lib/supplierRecord'
@@ -296,6 +296,9 @@ function CreditNoteDetail() {
   // A note held as a duplicate keeps a balance, but `/apply` and `/refund` refuse it (409
   // CREDIT_NOTE_HELD_AS_DUPLICATE) until the hold is decided, so neither is offered.
   const settleable = canSettle && remaining > 0 && !item.heldAsDuplicate
+  // R8: a rejected note is refused at every apply (409 CREDIT_NOTE_REJECTED); a refund is not, so
+  // only "Set against" goes. Read from the note's own bill record, the one place its decision is.
+  const noteRejected = creditNoteRejected(own)
   const chip = creditChipOf(item)
   // "Its bill" is the note's own bill record, not the bill it corrects: a credit note is a row of
   // the bills, and its duplicate hold is read and decided at /bills/{noteId} (backend V493). Linked
@@ -416,7 +419,7 @@ function CreditNoteDetail() {
               {t('supplierCreditNotes.detail.download')}
             </button>
           ) : null}
-          {settleable ? (
+          {settleable && !noteRejected ? (
             <button
               type="button"
               onClick={() => setMode('apply')}
@@ -699,7 +702,9 @@ function CreditNoteDetail() {
                     ? t('supplierCreditNoteDetail.nothingLeft')
                     : !canSettle
                       ? t('appAccess.missingPermission')
-                      : billNumber && !usedOnBill
+                      : noteRejected
+                        ? t('supplierCreditNotes.refused.rejected')
+                        : billNumber && !usedOnBill
                         ? billOnHold
                           ? t('supplierCreditNotes.detail.billOnHold', { bill: billNumber })
                           : t('supplierCreditNotes.detail.decisionNote', { bill: billNumber })
@@ -748,14 +753,16 @@ function CreditNoteDetail() {
                 />
               ) : (
                 <>
-                  <button
-                    type="button"
-                    onClick={() => setMode('apply')}
-                    className="mt-4 inline-flex h-[48px] w-full items-center justify-center gap-2 rounded-sm bg-primary-700 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-                  >
-                    <img src={setIcon} alt="" className="size-5" />
-                    {t(setAgainstKey)}
-                  </button>
+                  {noteRejected ? null : (
+                    <button
+                      type="button"
+                      onClick={() => setMode('apply')}
+                      className="mt-4 inline-flex h-[48px] w-full items-center justify-center gap-2 rounded-sm bg-primary-700 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+                    >
+                      <img src={setIcon} alt="" className="size-5" />
+                      {t(setAgainstKey)}
+                    </button>
+                  )}
                   <div className="mt-2.5 flex gap-2.5">
                     <button
                       type="button"

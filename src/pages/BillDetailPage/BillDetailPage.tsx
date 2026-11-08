@@ -68,6 +68,7 @@ import {
   decisionsOf,
   discountLineOf,
   inputVatNoteKey,
+  isCreditNote,
   isSelfBilled,
   overpaidOf,
   paidBeyondTotal,
@@ -75,9 +76,11 @@ import {
   reopenedAwaitingApproval,
   replyIsPending,
   singleVatRate,
+  standaloneCreditNote,
   stepsOf,
   termsDaysOf,
   threeWayOf,
+  vatNoticeOf,
   type BillStepState,
   type ComplianceNote,
   type Note,
@@ -178,6 +181,15 @@ const REFUSALS: Record<string, string> = {
   // rejected bill, so this answers only a bill rejected after the page loaded.
   BILL_APPROVAL_REJECTED_NEEDS_REOPEN: 'billDetail.refused.needsReopen',
   APPROVAL_REOPEN_REASON_REQUIRED: 'billDetail.refused.reopenReasonRequired',
+  // R5: a note against a bill is not decided on its own. The page offers no decision there, so
+  // this answers only a note that became targeted after the page loaded.
+  APPROVAL_CREDIT_NOTE: 'billDetail.refused.creditNoteTargeted',
+  // Rejecting a standalone note whose credit is set against a bill: it is released first
+  // (POST /credit-notes/{id}/release). No screen offers that release yet, so the sentence names
+  // no button to press.
+  CREDIT_NOTE_REJECTION_HAS_APPLIED_CREDIT: 'billDetail.refused.creditNoteAppliedCredit',
+  // Fail-closed on the server until the owner decides what rejecting a refunded note means.
+  CREDIT_NOTE_REJECTION_HAS_REFUND: 'billDetail.refused.creditNoteRefund',
   // Someone else reopened or approved it meanwhile; the page reads the bill again.
   BILL_REOPEN_NOT_REJECTED: 'billDetail.refused.changed',
   BILL_HOLD_ALREADY_OPEN: 'billDetail.refused.changed',
@@ -425,6 +437,9 @@ function BillScreen() {
     instantDay: (iso) => formatInstantDay(iso, language),
   })
   const decisions = decisionsOf(detail, (permission) => can(session, permission))
+  const vatNotice = vatNoticeOf(detail)
+  // Only a standalone note is rejected on its own page (R5): "Reject this bill" misnames it.
+  const noteDialog = asking === 'reject' && standaloneCreditNote(detail) ? 'CreditNote' : ''
   const payable = canRecordPayment(detail, (permission) => can(session, permission))
   const selfBilled = isSelfBilled(detail)
   const duplicateCheck = duplicateCheckOf(detail)
@@ -479,8 +494,9 @@ function BillScreen() {
 
   // Credit already set against the bill blocks a rejection (BILL_REJECTION_HAS_APPLIED_CREDIT): the
   // page knows the credited amount, so it says so instead of opening a dialog the server refuses.
+  // A credit note's own refusals (R5) are the server's to say: it is the one that knows them.
   const askToReject = () =>
-    detail.settlement.creditedAmount > 0
+    !isCreditNote(detail) && detail.settlement.creditedAmount > 0
       ? setNotice({ key: 'billDetail.refused.appliedCredit' })
       : setAsking('reject')
 
@@ -499,7 +515,10 @@ function BillScreen() {
       asking === 'reject'
         ? 'billDetail.done.rejected'
         : asking === 'reopen'
-          ? 'billDetail.done.reopened'
+          ? // A note is never paid, so the bill's "before it can be paid" would be wrong on it.
+            isCreditNote(detail)
+            ? 'billDetail.done.reopenedCreditNote'
+            : 'billDetail.done.reopened'
           : 'billDetail.done.held',
     ).finally(() => {
       confirming.current = false
@@ -1001,6 +1020,12 @@ function BillScreen() {
             </p>
             <p className="mt-2 text-sm font-medium leading-[1.5] text-text-tertiary">
               <NoteText note={decisionNoteOf(detail, session?.userId ?? null)} />
+              {vatNotice ? (
+                <>
+                  {' '}
+                  <NoteText note={vatNotice} />
+                </>
+              ) : null}
             </p>
 
             <div className="mt-4 flex flex-col gap-3">
@@ -1012,7 +1037,11 @@ function BillScreen() {
                   className={PRIMARY_BUTTON}
                 >
                   <img src={hdrBtnIcon} alt="" className="size-[17px]" />
-                  {t('billDetail.decision.approveForPayment')}
+                  {t(
+                    isCreditNote(detail)
+                      ? 'billDetail.decision.approveCreditNote'
+                      : 'billDetail.decision.approveForPayment',
+                  )}
                 </button>
               ) : null}
               {decisions.reopen ? (
@@ -1195,7 +1224,7 @@ function BillScreen() {
           setAsking(null)
           setReason('')
         }}
-        title={t(`billDetail.${dialogOf(asking)}.title`)}
+        title={t(`billDetail.${dialogOf(asking)}.title${noteDialog}`)}
         footer={
           <div className="flex justify-end gap-3">
             <button
@@ -1217,7 +1246,7 @@ function BillScreen() {
                 asking === 'reject' ? 'bg-danger-700 hover:bg-danger-700/90' : '',
               ].join(' ')}
             >
-              {t(`billDetail.${dialogOf(asking)}.confirm`)}
+              {t(`billDetail.${dialogOf(asking)}.confirm${noteDialog}`)}
             </button>
           </div>
         }

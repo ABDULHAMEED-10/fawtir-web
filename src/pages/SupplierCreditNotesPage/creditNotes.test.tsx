@@ -130,6 +130,10 @@ let downloads: string[]
 let billDetail: unknown
 /** `GET /suppliers/s-1/overview`, when a test needs the supplier panel's figures. */
 let overview: unknown
+/** `GET /bills/{NOTE_ID}`, the note's own bill record, when a test needs its decision (R8). */
+let ownBill: unknown
+/** A 409 resource-conflict code for `/apply`, when a test needs one (R8). */
+let applyConflict: string | null
 
 const calls = (prefix: string) =>
   fetchMock.mock.calls.map(([url]) => String(url)).filter((url) => url.startsWith(prefix))
@@ -147,6 +151,8 @@ beforeEach(async () => {
   downloads = []
   billDetail = null
   overview = null
+  ownBill = null
+  applyConflict = null
 
   fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(
@@ -168,6 +174,16 @@ beforeEach(async () => {
     if (url.includes(`/credit-notes/${NOTE_ID}/settlements`)) return json(200, settlements)
     if (url.includes(`/credit-notes/${NOTE_ID}/apply`)) {
       applyBody = JSON.parse(String(init?.body))
+      if (applyConflict !== null) {
+        return new Response(
+          JSON.stringify({
+            error: applyConflict,
+            status: 409,
+            type: 'https://api.fawtir.om/problems/resource-conflict',
+          }),
+          { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+        )
+      }
       if (applyRefusal !== null) {
         return new Response(
           JSON.stringify({
@@ -213,6 +229,7 @@ beforeEach(async () => {
       })
     }
     if (billDetail !== null && url.includes(`/bills/${BILL_ID}`)) return json(200, billDetail)
+    if (ownBill !== null && url.includes(`/bills/${NOTE_ID}`)) return json(200, ownBill)
     if (url.includes('/bills')) {
       return json(200, {
         items: [
@@ -2332,5 +2349,101 @@ describe('a supplier refund is recorded once, whatever the network does', () => 
     expect(sent[1].key).toBe(sent[0].key)
     expect(sent[1].body).toEqual(sent[0].body)
     expect(recorded.size).toBe(1)
+  })
+})
+
+// R8 (VAT-CN-R1-R8 plan §7.5): a rejected note is refused at every apply (409 CREDIT_NOTE_REJECTED)
+// but not at a refund. Its decision is on its own bill record, under the R5 contract only.
+describe('a rejected credit note (R8)', () => {
+  function ownRecord(fields: { standalone?: boolean; vatNotice?: string | null } | null) {
+    const readiness = { state: 'REJECTED' as const, distinctApprovals: 0, required: 1, autoApproved: false }
+    return {
+      bill: {
+        ...OURS,
+        id: NOTE_ID,
+        source: 'PEPPOL',
+        documentTypeCode: '381',
+        supplierBillNumber: 'QMS-CN-1',
+        outstandingAmount: 0,
+        approval: 'REJECTED',
+        readiness,
+        creditNote: {
+          status: 'UNAPPLIED',
+          usage: null,
+          balance: { applied: 0, refunded: 0, remaining: 200 },
+          ...(fields ?? {}),
+        },
+        inboundDeliveryId: null,
+        networkVerified: true,
+        amountDue: null,
+        creditedAmount: 0,
+        complianceObligation: 'NOT_APPLICABLE',
+      },
+      lines: [],
+      readiness,
+      approvals: [],
+      hold: null,
+      holdHistory: [],
+      settlement: {
+        billTotal: 200,
+        paidAmount: 0,
+        creditedAmount: 0,
+        outstandingAmount: 0,
+        currency: 'OMR',
+        paymentState: 'UNPAID',
+        overdue: false,
+        dueDate: null,
+      },
+      payments: [],
+      paymentRunReference: null,
+      intake: null,
+      compliance: { source: 'PEPPOL', networkVerified: true, obligation: 'NOT_APPLICABLE' },
+      activity: [],
+    }
+  }
+
+  it('offers no set-against on a rejected note, but still a refund and keeping it', async () => {
+    ownBill = ownRecord({ standalone: true, vatNotice: 'REJECTED_VAT_STILL_REDUCED' })
+    renderDetail()
+    expect(
+      await screen.findByText("This credit note was rejected, so it can't be set against a bill."),
+    ).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Set against the bill' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Ask for a refund' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Keep as credit' })).toBeTruthy()
+  })
+
+  it('keeps the set-against for a server before R5, whatever its record says', async () => {
+    ownBill = ownRecord(null)
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    await waitFor(() => expect(calls('/api/v1/bills/' + NOTE_ID).length).toBeGreaterThan(0))
+    expect(screen.getAllByRole('button', { name: 'Set against the bill' }).length).toBeGreaterThan(0)
+    expect(
+      screen.queryByText("This credit note was rejected, so it can't be set against a bill."),
+    ).toBeNull()
+  })
+
+  it("says why a row's set-against was refused", async () => {
+    applyConflict = 'CREDIT_NOTE_REJECTED'
+    notes = [
+      note({
+        credits: {
+          billNumber: 'QMS-7781',
+          issueDate: '2026-09-01',
+          documentUuid: null,
+          billId: BILL_ID,
+          applied: false,
+        },
+      }),
+    ]
+    renderList()
+    await screen.findByText('QMS-CN-1')
+    fireEvent.click(
+      within(screen.getByRole('table')).getByRole('button', { name: 'Set against the bill' }),
+    )
+    expect(
+      await screen.findByText(/^This credit note was rejected, so it can't be set against a bill./),
+    ).toBeTruthy()
   })
 })

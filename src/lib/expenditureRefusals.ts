@@ -176,6 +176,9 @@ const CONFLICT_REFUSALS: Record<string, string> = {
   BILL_APPROVAL_REJECTED_NEEDS_REOPEN: 'billDetail.refused.needsReopen',
   BILL_REOPEN_NOT_REJECTED: 'billDetail.refused.changed',
   BILL_REOPEN_HELD_AS_DUPLICATE: 'billDetail.duplicate.refused.reopenHeld',
+  // R8: `/apply`, `/apply-what-fits` or `/apply-on-recording` on a rejected note. The list's rows
+  // carry no decision, so this sentence is all a row's "Set against" can say.
+  CREDIT_NOTE_REJECTED: 'supplierCreditNotes.refused.rejected',
   // Booking goods in (backend V519, DEC-30-08): the whole receipt is refused and nothing is received.
   PRODUCT_STOCK_UNIT_MISMATCH: 'apiErrors.refused.receiptStockUnitMismatch',
   // A line written before V519 recorded no unit, and the receipt stated none (`statedUnit`): the

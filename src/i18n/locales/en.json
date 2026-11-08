@@ -6781,7 +6781,10 @@
       "settledByCredit": "Settled in full by credit. Nothing was paid.",
       "reopen": "Reopen for approval",
       "reopened": "Reopened: “{{reason}}”. It is not approved. It needs approving again before it can be paid.",
-      "reopenedNeedsMore": "Reopened: “{{reason}}”. It is not approved. It cannot be paid until {{required}} different people have approved it again."
+      "reopenedNeedsMore": "Reopened: “{{reason}}”. It is not approved. It cannot be paid until {{required}} different people have approved it again.",
+      "approveCreditNote": "Approve credit note",
+      "creditNoteStandalone": "This credit note is not against a bill of yours, so it is approved or rejected on its own.",
+      "creditNoteApproved": "Credit note approved."
     },
     "compliance": {
       "title": "Compliance",
@@ -6860,7 +6863,9 @@
       "title": "Reject this bill",
       "body": "The rejection is recorded in your books with its reason. Nothing is sent to the supplier. Tell them yourself.",
       "reason": "Reason",
-      "confirm": "Reject the bill"
+      "confirm": "Reject the bill",
+      "titleCreditNote": "Reject this credit note",
+      "confirmCreditNote": "Reject the credit note"
     },
     "hold": {
       "title": "Put this bill on hold",
@@ -6891,7 +6896,10 @@
       "holdReasonTooLong": "That reason is too long. Shorten it and put the bill on hold again.",
       "appliedCredit": "This bill can't be rejected: supplier credit is set against it, and credit can't be released yet.",
       "needsReopen": "This bill was rejected. It has to be reopened, with a reason, before it can be approved.",
-      "reopenReasonRequired": "Reopening needs a reason."
+      "reopenReasonRequired": "Reopening needs a reason.",
+      "creditNoteTargeted": "This credit note is against a bill, so it is not approved on its own.",
+      "creditNoteAppliedCredit": "This credit note can't be rejected: part of its credit is set against a bill. That credit has to be released first.",
+      "creditNoteRefund": "This credit note can't be rejected: a refund is recorded on it."
     },
     "done": {
       "approved": "Approved.",
@@ -6901,7 +6909,8 @@
       "matched": "Matched to the order.",
       "unmatched": "The match was removed.",
       "recorded": "Payment recorded.",
-      "reopened": "Reopened. It needs approving before it can be paid."
+      "reopened": "Reopened. It needs approving before it can be paid.",
+      "reopenedCreditNote": "Reopened."
     },
     "notStated": "Not stated",
     "terms": {
@@ -7040,6 +7049,10 @@
       "title": "Reopen this bill",
       "body": "Reopening takes the rejection back so the bill can be approved again. It does not approve the bill: it still needs approving before it can be paid, and approvals given before the rejection do not count. The rejection and this reason stay in the bill's history.",
       "confirm": "Reopen the bill"
+    },
+    "vatNotice": {
+      "REJECTED_VAT_STILL_REDUCED": "Rejected — VAT reduction still applied (ER Art. 65: on receipt)",
+      "VAT_REDUCED_ON_RECEIPT": "VAT already reduced on receipt"
     }
   },
   "uploadBill": {
@@ -7994,6 +8007,9 @@
       "status": "Held as duplicate",
       "decision": "This looks like a copy of a credit note already on file, so it can't be used until the duplicate check is resolved on its bill.",
       "refused": "This credit note is held as a possible duplicate, so it can't be used yet. Check its bill first."
+    },
+    "refused": {
+      "rejected": "This credit note was rejected, so it can't be set against a bill."
     }
   },
   "supplierDebitNotes": {

@@ -4116,3 +4116,195 @@ describe('a rejected bill reads nothing owed since backend #824 (OBS-1)', () => 
     expect(toBillListItem({ ...rejected, paidAmount: 100 }).status).toBe('rejected')
   })
 })
+
+// R5/R7/R8 (VAT-CN-R1-R8 plan §7.5): a standalone supplier credit note is approved or rejected on
+// its own page; a note against a bill, or one from a server before R5, offers no decision.
+describe('a supplier credit note decided on its own (R5, R7, R8)', () => {
+  const REOPENER: Entitlements = { ...ADMIN, permissions: [...ADMIN.permissions, 'bill.reopen'] }
+  const REJECTION = {
+    id: 'a-9',
+    decision: 'REJECTED' as const,
+    reason: 'Not agreed',
+    decidedBy: 'u-1',
+    decidedAt: '2026-11-07T08:00:00Z',
+  }
+
+  function creditNote(
+    fields: { standalone?: boolean; vatNotice?: string | null } | null,
+    approval: 'PENDING' | 'APPROVED' | 'REJECTED',
+  ): BillDetailDto {
+    const base = detail()
+    const readiness = {
+      state: approval === 'APPROVED' ? ('READY' as const) : approval,
+      distinctApprovals: approval === 'APPROVED' ? 1 : 0,
+      required: 1,
+      autoApproved: false,
+    }
+    return {
+      ...base,
+      bill: {
+        ...base.bill,
+        documentTypeCode: '381',
+        purchaseOrderReference: null,
+        match: null,
+        approval,
+        readiness,
+        creditNote: {
+          status: 'UNAPPLIED',
+          usage: null,
+          balance: { applied: 0, refunded: 0, remaining: 2354.31 },
+          ...(fields ?? {}),
+        },
+      },
+      readiness,
+      approvals: approval === 'REJECTED' ? [REJECTION] : [],
+      activity: [],
+    }
+  }
+
+  const conflict = (error: string) => () =>
+    json(409, { type: 'https://api.fawtir.om/problems/resource-conflict', status: 409, error })
+
+  async function decisionPanel() {
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    return screen
+      .getByRole('heading', { name: i18n.t('billDetail.decision.title') })
+      .closest('section')!
+  }
+
+  async function rejectNote() {
+    const panel = await decisionPanel()
+    fireEvent.click(within(panel).getByRole('button', { name: 'Query it' }))
+    const dialog = await screen.findByRole('dialog')
+    // A standalone note is named as a credit note, not as a bill.
+    expect(within(dialog).getByText('Reject this credit note')).toBeTruthy()
+    expect(within(dialog).queryByRole('button', { name: 'Reject the bill' })).toBeNull()
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'Not agreed' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Reject the credit note' }))
+    await waitFor(() => expect(calls()).toContain(`POST ${BILL_URL}/approval/reject`))
+  }
+
+  it('approves a standalone note by hand, never as a payment', async () => {
+    billResponse = () => json(200, creditNote({ standalone: true, vatNotice: null }, 'PENDING'))
+    renderBill()
+    const panel = await decisionPanel()
+    expect(
+      within(panel).getByText(
+        'This credit note is not against a bill of yours, so it is approved or rejected on its own.',
+      ),
+    ).toBeTruthy()
+    expect(within(panel).queryByRole('button', { name: 'Approve for payment' })).toBeNull()
+    expect(within(panel).getByRole('button', { name: 'Query it' })).toBeTruthy()
+    fireEvent.click(within(panel).getByRole('button', { name: 'Approve credit note' }))
+    await waitFor(() => expect(calls()).toContain(`POST ${BILL_URL}/approval/approve`))
+  })
+
+  it('offers no decision on a note against a bill', async () => {
+    billResponse = () => json(200, creditNote({ standalone: false, vatNotice: null }, 'PENDING'))
+    renderBill()
+    const panel = await decisionPanel()
+    expect(within(panel).getByText(/There is nothing to approve or pay on it/)).toBeTruthy()
+    expect(within(panel).queryByRole('button', { name: 'Approve credit note' })).toBeNull()
+    expect(within(panel).queryByRole('button', { name: 'Query it' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Reject' })).toBeNull()
+  })
+
+  it('keeps the page as it was for a server before R5', async () => {
+    billResponse = () => json(200, creditNote(null, 'REJECTED'))
+    who = REOPENER
+    renderBill()
+    const panel = await decisionPanel()
+    expect(within(panel).getByText(/There is nothing to approve or pay on it/)).toBeTruthy()
+    for (const name of ['Approve credit note', 'Query it', 'Reopen for approval']) {
+      expect(within(panel).queryByRole('button', { name })).toBeNull()
+    }
+  })
+
+  it('shows a rejected note with its reason, its VAT notice and a reopen, but no approval', async () => {
+    billResponse = () =>
+      json(200, creditNote({ standalone: true, vatNotice: 'REJECTED_VAT_STILL_REDUCED' }, 'REJECTED'))
+    who = REOPENER
+    renderBill()
+    const panel = await decisionPanel()
+    expect(
+      within(panel).getByText(
+        /^Rejected in your books: “Not agreed”\..* Rejected — VAT reduction still applied \(ER Art\. 65: on receipt\)$/,
+      ),
+    ).toBeTruthy()
+    expect(within(panel).queryByRole('button', { name: 'Approve credit note' })).toBeNull()
+    expect(within(panel).queryByRole('button', { name: 'Query it' })).toBeNull()
+    expect(within(panel).getByRole('button', { name: 'Reopen for approval' })).toBeTruthy()
+  })
+
+  it('says the VAT was reduced on receipt, in Arabic too', async () => {
+    billResponse = () =>
+      json(200, creditNote({ standalone: true, vatNotice: 'VAT_REDUCED_ON_RECEIPT' }, 'APPROVED'))
+    renderBill()
+    let panel = await decisionPanel()
+    expect(within(panel).getByText('Credit note approved. VAT already reduced on receipt')).toBeTruthy()
+    cleanup()
+    await i18n.changeLanguage('ar')
+    try {
+      renderBill()
+      panel = await decisionPanel()
+      expect(within(panel).getByText(/خُفِّضت ضريبة القيمة المضافة عند الاستلام$/)).toBeTruthy()
+    } finally {
+      await i18n.changeLanguage('en')
+    }
+  })
+
+  it('says nothing for a VAT notice it does not know', async () => {
+    billResponse = () =>
+      json(200, creditNote({ standalone: true, vatNotice: 'SOMETHING_NEW' }, 'APPROVED'))
+    renderBill()
+    const panel = await decisionPanel()
+    expect(within(panel).getByText('Credit note approved.')).toBeTruthy()
+    expect(within(panel).queryByText(/SOMETHING_NEW/)).toBeNull()
+  })
+
+  it.each([
+    [
+      'CREDIT_NOTE_REJECTION_HAS_APPLIED_CREDIT',
+      "This credit note can't be rejected: part of its credit is set against a bill. That credit has to be released first.",
+    ],
+    [
+      'CREDIT_NOTE_REJECTION_HAS_REFUND',
+      "This credit note can't be rejected: a refund is recorded on it.",
+    ],
+  ])('says why a rejection was refused: %s', async (code, sentence) => {
+    billResponse = () => json(200, creditNote({ standalone: true, vatNotice: null }, 'APPROVED'))
+    actionResponse = conflict(code)
+    renderBill()
+    await rejectNote()
+    expect(await screen.findByText(sentence)).toBeTruthy()
+  })
+
+  it('says a note that became targeted is not approved on its own', async () => {
+    billResponse = () => json(200, creditNote({ standalone: true, vatNotice: null }, 'PENDING'))
+    actionResponse = () =>
+      json(400, {
+        type: 'https://api.fawtir.om/problems/expenditure-refused',
+        status: 400,
+        error: 'APPROVAL_CREDIT_NOTE',
+      })
+    renderBill()
+    const panel = await decisionPanel()
+    fireEvent.click(within(panel).getByRole('button', { name: 'Approve credit note' }))
+    expect(
+      await screen.findByText('This credit note is against a bill, so it is not approved on its own.'),
+    ).toBeTruthy()
+  })
+
+  it('reopens a rejected note without saying it can be paid', async () => {
+    billResponse = () => json(200, creditNote({ standalone: true, vatNotice: null }, 'REJECTED'))
+    who = REOPENER
+    renderBill()
+    const panel = await decisionPanel()
+    fireEvent.click(within(panel).getByRole('button', { name: 'Reopen for approval' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'Agreed after all' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('billDetail.reopen.confirm') }))
+    await waitFor(() => expect(calls()).toContain(`POST ${BILL_URL}/approval/reopen`))
+    expect(await screen.findByText('Reopened.')).toBeTruthy()
+  })
+})
