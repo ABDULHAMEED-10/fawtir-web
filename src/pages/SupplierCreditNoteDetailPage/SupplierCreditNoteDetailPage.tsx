@@ -979,13 +979,19 @@ function CreditNoteDetail() {
           </div>
         }
       >
-        <p className="text-sm font-medium leading-[1.5] text-text-secondary">
-          {withRial(
-            t('supplierCreditNoteDetail.release.body', {
-              amount: releasing ? money(releasing.amount) : '',
-            }),
-          )}
-        </p>
+        {/* R8 (Agent 10 W1 on the #360 port): the body promises the credit back "to use on another
+            bill or to refund". A rejected note's credit is never usable, and its refund is the
+            client's open OD-5, so the sentence is left out for one until the owner gives text for
+            that case; the title still names the act. */}
+        {noteRejected ? null : (
+          <p className="text-sm font-medium leading-[1.5] text-text-secondary">
+            {withRial(
+              t('supplierCreditNoteDetail.release.body', {
+                amount: releasing ? money(releasing.amount) : '',
+              }),
+            )}
+          </p>
+        )}
         <label className="mt-4 block">
           <span className="text-sm font-semibold text-text-secondary">
             {t('supplierCreditNoteDetail.release.reason')}

@@ -1766,22 +1766,31 @@ describe("releasing a note's credit from a bill (backend #827)", () => {
 
   // Agent 10 ruling 1.5(a): credit a legacy-rejected note left on a bill contradicts R8, and the
   // release is the only way to take it back off, so it stays offered while R8 still hides every
-  // apply. Hiding it would lock the inconsistent state in.
+  // apply. Hiding it would lock the inconsistent state in. W1: its confirmation must not promise the
+  // credit back for use on another bill or a refund.
   it('keeps Remove from bill on a rejected note, with no Set against before or after it', async () => {
     notes = [note({ approval: 'REJECTED' })]
     settlements = [APPLIED]
     renderDetail()
     const dialog = await openRelease()
-    expect(screen.queryByRole('button', { name: 'Set against the bill' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /set against/i })).toBeNull()
+    expect(dialog.textContent).not.toMatch(/another bill|refund/i)
     fireEvent.click(within(dialog).getByRole('button', { name: 'Remove credit' }))
     await screen.findByText('The credit was removed from that bill.')
     await waitFor(() => expect(screen.getByText('Removed from QMS-7781')).toBeTruthy())
-    expect(screen.queryByRole('button', { name: 'Set against the bill' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /set against/i })).toBeNull()
     expect(screen.getByRole('heading', { name: 'Rejected' })).toBeTruthy()
   })
 
   // The server refuses a reason over 1000 characters (CREDIT_NOTE_RELEASE_REASON_TOO_LONG, and the
   // request's @Size before it); the field stops it, so no sentence is mapped (ruling 1.5(b)).
+  it('keeps what the release does in the confirmation of a note that is not rejected', async () => {
+    settlements = [APPLIED]
+    renderDetail()
+    const dialog = await openRelease()
+    expect(dialog.textContent).toMatch(/to use on another bill or to refund/)
+  })
+
   it('caps the reason at the 1000 characters the server takes', async () => {
     settlements = [APPLIED]
     renderDetail()

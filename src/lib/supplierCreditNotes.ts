@@ -132,10 +132,6 @@ const SOURCE_ARRIVAL: Record<CreditNoteRowDto['source'], string> = {
   SELF_BILLED: 'supplierNotes.activity.arrivedSelfBilled',
 }
 
-/**
- * The Activity list, newest first: where the note stands now, what has been done with it (the
- * settlement rows), whether it was reported, and how it arrived.
- */
 /** Credit of this note that stands on one bill, and can be released from it. */
 export type StandingCredit = {
   billId: string
@@ -176,6 +172,10 @@ export function standingCredits(
   )
 }
 
+/**
+ * The Activity list, newest first: where the note stands now, what has been done with it (the
+ * settlement rows), whether it was reported, and how it arrived.
+ */
 export function creditActivity(
   row: CreditNoteRowDto,
   settlements: CreditNoteSettlementDto[],
