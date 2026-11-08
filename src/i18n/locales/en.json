@@ -9222,7 +9222,7 @@
       "peppolDown": "Peppol down <b>{{points}} points</b> since {{quarter}}",
       "peppolSteady": "Peppol steady since {{quarter}}",
       "nothingBilled": "Nothing was billed in this period.",
-      "notInBilled": "Not in the billed figure {{when}}: supplier debit notes not yet decided, {{currency}} {{pending}} ({{pendingCount}}); rejected bills and debit notes, {{currency}} {{rejected}} ({{rejectedCount}})."
+      "notInBilled": "Not in the billed figure {{when}}: documents awaiting approval or a decision (including a Peppol copy held until its duplicate check is resolved), {{currency}} {{pending}} ({{pendingCount}}); documents rejected or refused, {{currency}} {{rejected}} ({{rejectedCount}}). Both are net of credit notes, so either can be negative."
     },
     "cashFlow": {
       "title": "Cash flow",

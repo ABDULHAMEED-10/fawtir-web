@@ -194,9 +194,14 @@ function ExpenditureBody({
 
   const netNow = sumOver(net, current.months)
   const netBefore = sumOver(net, previous.months)
-  // Spend leaves out, among others, undecided supplier debit notes (shown as pending) and rejected
-  // or refused documents (shown as rejected) (D-27); bills awaiting approval stay in it pending an
-  // owner ruling. An older server sends neither figure, and then nothing is said rather than a zero.
+  // Spend counts only approved expenditure (owner ruling 2026-11-07f, backend 04cddf824). Pending is
+  // what awaits approval or a decision: a bill or debit note awaiting approval, a supplier debit note
+  // nobody has accepted or refused, a supplier credit note whose bill awaits approval (a credit
+  // note follows the approval state of the document it corrects), a standalone credit note not yet
+  // approved (R5), and a Peppol copy held until its duplicate check is decided, which the sentence
+  // names because the upload it pairs with is already in spend (SPEND-MEDIUM-LOW M2). Rejected is
+  // what was rejected or refused (D-27). An older server sends neither figure, and then nothing is
+  // said rather than a zero.
   const decisionsReported = rows.every(
     (row) => Object.hasOwn(row, 'pendingNetAmount') && Object.hasOwn(row, 'rejectedNetAmount'),
   )

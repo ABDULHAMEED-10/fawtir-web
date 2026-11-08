@@ -9835,7 +9835,7 @@
       "peppolDown": "انخفض Peppol <b>{{points}} نقطة</b> منذ {{quarter}}",
       "peppolSteady": "Peppol ثابت منذ {{quarter}}",
       "nothingBilled": "لم يُفوتر شيء في هذه الفترة.",
-      "notInBilled": "غير محسوب في المفوتر {{when}}: إشعارات مدينة من الموردين لم يُبتّ فيها، {{currency}} {{pending}} ({{pendingCount}})؛ وفواتير وإشعارات مدينة مرفوضة، {{currency}} {{rejected}} ({{rejectedCount}})."
+      "notInBilled": "غير محسوب في المفوتر {{when}}: مستندات بانتظار الموافقة أو البتّ فيها (ومنها نسخة Peppol محجوزة حتى يُحسم فحص التكرار)، {{currency}} {{pending}} ({{pendingCount}})؛ ومستندات مرفوضة، {{currency}} {{rejected}} ({{rejectedCount}}). المبلغان بعد خصم الإشعارات الدائنة، لذا قد يكون أيٌّ منهما سالبًا."
     },
     "cashFlow": {
       "title": "التدفق النقدي",

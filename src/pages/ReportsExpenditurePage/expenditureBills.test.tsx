@@ -142,9 +142,18 @@ describe('what the spend leaves out (D-27)', () => {
     expect(await figure('Billed to you, net of VAT')).toBe('900.000')
     expect(
       screen.getByText(
-        'Not in the billed figure this year: supplier debit notes not yet decided, OMR 120.000 (2); rejected bills and debit notes, OMR 300.000 (1).',
+        'Not in the billed figure this year: documents awaiting approval or a decision (including a Peppol copy held until its duplicate check is resolved), OMR 120.000 (2); documents rejected or refused, OMR 300.000 (1). Both are net of credit notes, so either can be negative.',
       ),
     ).toBeTruthy()
+  })
+
+  // Both figures are signed (backend 04cddf824): a credit note against a pending bill reduces
+  // pending, and one carrying a legacy rejection alone makes rejected negative.
+  it('prints a negative rejected figure as the server sends it, under the net-of-credit-notes sentence', async () => {
+    summary = report([row({ ...BILLS, ...DECIDED, rejectedNetAmount: -60, rejectedTotalAmount: -63 })])
+    renderPage()
+    expect(await figure('Billed to you, net of VAT')).toBe('900.000')
+    expect(screen.getByText(/documents rejected or refused, OMR -60\.000 \(1\)\. Both are net of credit notes/)).toBeTruthy()
   })
 
   it('says nothing about them to a server that does not send them', async () => {
