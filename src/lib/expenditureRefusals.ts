@@ -117,6 +117,9 @@ const REFUSALS: Record<string, string> = {
   // The note a decision on a held Peppol copy carries (backend V493).
   BILL_DUPLICATE_RESOLUTION_NOTE_REQUIRED: 'billDetail.duplicate.refused.noteRequired',
   BILL_DUPLICATE_RESOLUTION_NOTE_TOO_LONG: 'billDetail.duplicate.refused.noteTooLong',
+  // A13 (backend, 400): a release with no reason. The dialog does not send one, so this answers a
+  // bundle cached from before the reason was required, or any other caller.
+  CREDIT_NOTE_RELEASE_REASON_REQUIRED: 'supplierCreditNoteDetail.release.refused.reasonRequired',
 }
 
 /**

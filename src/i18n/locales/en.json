@@ -23300,7 +23300,7 @@
       "action": "Remove from bill",
       "title": "Remove the credit from {{bill}}?",
       "body": "That bill will owe OMR {{amount}} again, and this note will have it back to use on another bill or to refund. No money moves, and this note can't be set against that bill again.",
-      "reason": "Reason (optional)",
+      "reason": "Reason",
       "confirm": "Remove credit",
       "done": "The credit was removed from that bill.",
       "unavailable": "Credit can't be removed from a bill yet.",
@@ -23309,7 +23309,8 @@
         "inRun": "This bill is in payment run {{run}}. Take it out of the run before removing credit from it.",
         "overpayment": "This credit can't be removed: part of what the bill was overpaid by has already been refunded or used on another bill.",
         "debitNote": "Credit set against a supplier debit note can't be removed.",
-        "reapply": "This credit was removed from that bill, so it can't be set against it again."
+        "reapply": "This credit was removed from that bill, so it can't be set against it again.",
+        "reasonRequired": "Removing credit from a bill has to say why. Press Remove from bill again and give a reason."
       }
     }
   },

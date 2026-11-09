@@ -192,10 +192,10 @@ function CreditNoteDetail() {
   }
 
   const release = async () => {
-    if (!releasing) return
+    if (!releasing || releaseReason.trim() === '') return
     setReleaseBusy(true)
     try {
-      await releaseCreditNote(id, releasing.billId, releaseReason.trim() || null)
+      await releaseCreditNote(id, releasing.billId, releaseReason.trim())
       closeRelease()
       afterAction('supplierCreditNoteDetail.release.done')
     } catch (error) {
@@ -970,7 +970,9 @@ function CreditNoteDetail() {
             </button>
             <button
               type="button"
-              disabled={releaseBusy}
+              // A13: the server refuses a release with no reason, or only spaces, for every caller;
+              // the button waits for one rather than send a request that cannot succeed.
+              disabled={releaseBusy || releaseReason.trim() === ''}
               onClick={() => void release()}
               className="inline-flex h-[46px] items-center justify-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-60"
             >
@@ -999,6 +1001,8 @@ function CreditNoteDetail() {
           <textarea
             value={releaseReason}
             onChange={(event) => setReleaseReason(event.target.value)}
+            required
+            aria-required="true"
             maxLength={1000}
             rows={3}
             className="mt-1.5 w-full rounded-sm border border-border-subtle p-3 text-sm text-text-primary outline-none focus:border-primary-500"

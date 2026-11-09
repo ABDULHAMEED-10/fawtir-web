@@ -271,11 +271,15 @@ export function refundCreditNote(
   })
 }
 
-/** Takes this note's credit back off one bill (backend #827). It never happens by itself. */
+/**
+ * Takes this note's credit back off one bill (backend #827). It never happens by itself. The
+ * reason is mandatory (A13, client decision 2026-11-08): the server refuses a missing or blank one
+ * as CREDIT_NOTE_RELEASE_REASON_REQUIRED, so the type no longer offers null.
+ */
 export function releaseCreditNote(
   id: string,
   billId: string,
-  reason: string | null,
+  reason: string,
 ): Promise<CreditNoteActionDto> {
   return apiRequest<CreditNoteActionDto>(`${creditNotePath(id)}/release`, {
     method: 'POST',

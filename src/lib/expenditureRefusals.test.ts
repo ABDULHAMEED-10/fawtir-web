@@ -422,3 +422,11 @@ describe('a 409 the Expenditure module answers by name', () => {
     expect(refusalMessageKey(notConflict)).toBeNull()
   })
 })
+
+describe('A13: a release without a reason (backend 400)', () => {
+  it('has its own sentence, not the generic refusal', () => {
+    expect(refusalMessageKey(refusal('CREDIT_NOTE_RELEASE_REASON_REQUIRED'))).toBe(
+      'supplierCreditNoteDetail.release.refused.reasonRequired',
+    )
+  })
+})

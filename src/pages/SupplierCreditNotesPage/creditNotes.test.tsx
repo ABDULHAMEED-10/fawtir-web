@@ -1644,6 +1644,9 @@ describe("releasing a note's credit from a bill (backend #827)", () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Remove from bill' }))
     return screen.findByRole('dialog')
   }
+  // A13: the reason is mandatory, so every case that means to send the release gives one.
+  const giveReason = (dialog: HTMLElement, reason = 'Wrong bill') =>
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: reason } })
 
   it('releases an application only once asked, sends the reason, then offers it no more', async () => {
     settlements = [APPLIED]
@@ -1695,13 +1698,46 @@ describe("releasing a note's credit from a bill (backend #827)", () => {
     expect(screen.getAllByText('Waiting for a bill').length).toBeGreaterThan(0)
   })
 
-  it('sends no reason when none was given', async () => {
+  // A13 (client decision 2026-11-08): the server refuses a release without a reason, so the
+  // confirmation cannot be pressed until one is given; spaces alone are not one.
+  it('waits for a reason before it can remove the credit', async () => {
     settlements = [APPLIED]
     renderDetail()
     const dialog = await openRelease()
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove credit' }))
+    const confirm = within(dialog).getByRole('button', { name: 'Remove credit' }) as HTMLButtonElement
+    const field = within(dialog).getByRole('textbox', { name: 'Reason' })
+    expect(field.hasAttribute('required')).toBe(true)
+    expect(confirm.disabled).toBe(true)
+    fireEvent.click(confirm)
+    giveReason(dialog, '   ')
+    expect(confirm.disabled).toBe(true)
+    fireEvent.click(confirm)
+    expect(releaseBody).toBeNull()
+    giveReason(dialog, ' Duplicate credit ')
+    expect(confirm.disabled).toBe(false)
+    fireEvent.click(confirm)
     await screen.findByText('The credit was removed from that bill.')
-    expect(releaseBody).toEqual({ billId: 'b-9', reason: null })
+    expect(releaseBody).toEqual({ billId: 'b-9', reason: 'Duplicate credit' })
+  })
+
+  it('says why when the server still refuses a release for its missing reason', async () => {
+    settlements = [APPLIED]
+    releaseResponse = () =>
+      new Response(
+        JSON.stringify({
+          type: 'https://api.fawtir.om/problems/expenditure-refused',
+          status: 400,
+          error: 'CREDIT_NOTE_RELEASE_REASON_REQUIRED',
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+    renderDetail()
+    const dialog = await openRelease()
+    giveReason(dialog)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove credit' }))
+    expect(
+      await screen.findByText(/Removing credit from a bill has to say why. Press Remove from bill again and give a reason./),
+    ).toBeTruthy()
   })
 
   it("offers a linked note's credit, which has no row yet", async () => {
@@ -1751,6 +1787,7 @@ describe("releasing a note's credit from a bill (backend #827)", () => {
     releaseResponse = conflict(code, { paymentRunReference: 'PR-7' })
     renderDetail()
     const dialog = await openRelease()
+    giveReason(dialog)
     fireEvent.click(within(dialog).getByRole('button', { name: 'Remove credit' }))
     expect(await screen.findByText(new RegExp(sentence.replace(/[.]/g, '\\.')))).toBeTruthy()
   })
@@ -1760,6 +1797,7 @@ describe("releasing a note's credit from a bill (backend #827)", () => {
     releaseResponse = () => new Response(null, { status: 404 })
     renderDetail()
     const dialog = await openRelease()
+    giveReason(dialog)
     fireEvent.click(within(dialog).getByRole('button', { name: 'Remove credit' }))
     expect(await screen.findByText("Credit can't be removed from a bill yet.")).toBeTruthy()
   })
@@ -1775,6 +1813,7 @@ describe("releasing a note's credit from a bill (backend #827)", () => {
     const dialog = await openRelease()
     expect(screen.queryByRole('button', { name: /set against/i })).toBeNull()
     expect(dialog.textContent).not.toMatch(/another bill|refund/i)
+    giveReason(dialog)
     fireEvent.click(within(dialog).getByRole('button', { name: 'Remove credit' }))
     await screen.findByText('The credit was removed from that bill.')
     await waitFor(() => expect(screen.getByText('Removed from QMS-7781')).toBeTruthy())
@@ -1808,13 +1847,14 @@ describe("releasing a note's credit from a bill (backend #827)", () => {
       )
     renderDetail()
     const dialog = await openRelease()
+    giveReason(dialog)
     fireEvent.click(within(dialog).getByRole('button', { name: 'Remove credit' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(screen.queryByText("Credit can't be removed from a bill yet.")).toBeNull()
   })
 
   it('has every sentence in Arabic', () => {
-    for (const key of ['heading', 'action', 'title', 'body', 'reason', 'confirm', 'done', 'unavailable']) {
+    for (const key of ['heading', 'action', 'title', 'body', 'reason', 'confirm', 'done', 'unavailable', 'refused.reasonRequired']) {
       const full = `supplierCreditNoteDetail.release.${key}`
       expect(i18n.exists(full, { lng: 'ar', fallbackLng: [] })).toBe(true)
     }
