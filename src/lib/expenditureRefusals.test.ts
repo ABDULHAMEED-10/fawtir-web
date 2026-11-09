@@ -400,6 +400,12 @@ describe('a 409 the Expenditure module answers by name', () => {
     await i18n.changeLanguage('en')
   })
 
+  it('gives a refund of a rejected note its own sentence (N23, E11)', () => {
+    expect(refusalMessageKey(conflict('CREDIT_NOTE_REFUND_REJECTED'))).toBe(
+      'supplierCreditNoteDetail.refundRejected',
+    )
+  })
+
   it('reads the code, never the English detail', () => {
     const worded = conflict(null, { detail: 'Credit note is held as a possible duplicate' })
     expect(refusalMessageKey(worded)).toBeNull()

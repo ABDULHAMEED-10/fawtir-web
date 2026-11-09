@@ -2456,7 +2456,7 @@ describe('the recovered card counts notes in the right number (C-9)', () => {
  * answer, and fresh for the next refund. The stub below plays the server: it records once per key.
  */
 describe('a supplier refund is recorded once, whatever the network does', () => {
-  type Answer = 'ok' | 'slow' | 'lost' | 'reused' | 'inProgress'
+  type Answer = 'ok' | 'slow' | 'lost' | 'reused' | 'inProgress' | 'rejected'
   let sent: { key: string | null; body: unknown }[]
   let answers: Answer[]
   let recorded: Map<string, string>
@@ -2485,6 +2485,7 @@ describe('a supplier refund is recorded once, whatever the network does', () => 
         const answer = answers.shift() ?? 'ok'
         if (answer === 'reused') return conflict('CREDIT_NOTE_REFUND_IDEMPOTENCY_KEY_REUSED')
         if (answer === 'inProgress') return conflict('CREDIT_NOTE_REFUND_IN_PROGRESS')
+        if (answer === 'rejected') return conflict('CREDIT_NOTE_REFUND_REJECTED')
         if (answer === 'slow') await new Promise((resolve) => setTimeout(resolve, 50))
         if (key !== null && !recorded.has(key)) recorded.set(key, String(init.body))
         if (answer === 'lost') throw new TypeError('Failed to fetch')
@@ -2523,6 +2524,20 @@ describe('a supplier refund is recorded once, whatever the network does', () => 
   }
 
   const settled = () => waitFor(() => expect(recordButton()).toHaveProperty('disabled', false))
+
+  // N23: a note rejected after the page was read is refused its refund by name (E11). The sentence
+  // names no next step: reopening needs bill.reopen, which a refunder holding only bill.settle may
+  // lack (Agent 10's DOC-08 point on "Reopen it first."), and a retry would meet the same 409.
+  it('says the note was rejected when the server refuses its refund, and offers no step it may not have', async () => {
+    answers = ['rejected']
+    renderDetail()
+    await fill()
+    fireEvent.click(recordButton())
+    expect(
+      await screen.findByText(/This credit note was rejected, so a refund can't be recorded on it./),
+    ).toBeTruthy()
+    expect(screen.queryByText(/Reopen it first|try again/i)).toBeNull()
+  })
 
   it('sends one request with one key for a double click', async () => {
     answers = ['slow']
@@ -2672,7 +2687,9 @@ describe('a rejected credit note (R8)', () => {
     }
   }
 
-  it('offers no set-against on a rejected note, but still a refund and keeping it', async () => {
+  // N23 (E11, client decision 2026-11-08: rejected credit notes cannot be refunded): the server
+  // refuses the refund as well (409 CREDIT_NOTE_REFUND_REJECTED), so it is not offered either.
+  it('offers neither a set-against nor a refund on a rejected note', async () => {
     ownBill = ownRecord({ standalone: true, vatNotice: 'REJECTED_VAT_STILL_REDUCED' })
     renderDetail()
     // On the decision card and in the effect banner (SC-3, SC-4); the row is not rejected here, so
@@ -2681,8 +2698,15 @@ describe('a rejected credit note (R8)', () => {
       await screen.findAllByText("This credit note was rejected, so it can't be set against a bill."),
     ).toHaveLength(2)
     expect(screen.queryByRole('button', { name: 'Set against the bill' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Ask for a refund' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Ask for a refund' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Keep as credit' })).toBeTruthy()
+  })
+
+  it('offers no refund on a note the list already reads as rejected', async () => {
+    notes = [note({ approval: 'REJECTED' })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    expect(screen.queryByRole('button', { name: 'Ask for a refund' })).toBeNull()
   })
 
   it('keeps the set-against for a server before R5 when the row is not REJECTED, whatever its record says', async () => {
@@ -2835,7 +2859,8 @@ describe('a rejected credit note on the list (R8)', () => {
     expect(screen.queryByRole('heading', { name: /of credit to use/ })).toBeNull()
     expect(screen.getByRole('heading', { name: 'Rejected' })).toBeTruthy()
     expect(screen.queryByText(/Set it against one/)).toBeNull()
-    expect(screen.getByRole('button', { name: 'Ask for a refund' })).toBeTruthy()
+    // N23 (E11): a rejected note is never refunded, so the button that would only meet a 409 is gone.
+    expect(screen.queryByRole('button', { name: 'Ask for a refund' })).toBeNull()
   })
 
   // QA re-run SC-3: "Set the rest against another bill" on a rejected note left partly refunded.
@@ -2874,7 +2899,8 @@ describe('a rejected credit note on the list (R8)', () => {
     expect(
       screen.getAllByText("This credit note was rejected, so it can't be set against a bill."),
     ).toHaveLength(3)
-    expect(screen.getByRole('button', { name: 'Ask for a refund' })).toBeTruthy()
+    // N23 (E11): a rejected note is never refunded, so the button that would only meet a 409 is gone.
+    expect(screen.queryByRole('button', { name: 'Ask for a refund' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Keep as credit' })).toBeTruthy()
   })
 })

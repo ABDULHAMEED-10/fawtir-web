@@ -160,6 +160,9 @@ const CONFLICT_REFUSALS: Record<string, string> = {
   // check what was recorded, the second to press again unchanged, which the server replays.
   CREDIT_NOTE_REFUND_IDEMPOTENCY_KEY_REUSED: 'supplierCreditNoteDetail.refundKeyReused',
   CREDIT_NOTE_REFUND_IN_PROGRESS: 'supplierCreditNoteDetail.refundInProgress',
+  // E11 (client decision 2026-11-08): a rejected note is refused its refund. The page offers none on
+  // a note it reads as rejected (N23), so this answers one rejected after the page was read.
+  CREDIT_NOTE_REFUND_REJECTED: 'supplierCreditNoteDetail.refundRejected',
   // Releasing a note's credit from a bill (backend #827), each about what the two hold now.
   CREDIT_NOTE_NOT_APPLIED_TO_BILL: 'supplierCreditNoteDetail.release.refused.changed',
   CREDIT_NOTE_APPLICATION_ALREADY_RELEASED: 'supplierCreditNoteDetail.release.refused.changed',

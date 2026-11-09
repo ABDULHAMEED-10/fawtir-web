@@ -305,8 +305,9 @@ function CreditNoteDetail() {
   // A rejected bill is owed nothing and reads outstanding 0 since backend #824 (OBS-1): neither
   // "you'll pay less" nor "already paid" is true of it.
   const targetRejected = bill !== null && bill.workflowState === 'REJECTED'
-  // R8: a rejected note is refused at every apply (409 CREDIT_NOTE_REJECTED); a refund is not, so
-  // only "Set against" goes. Read from the note's own bill record under the R5 contract, and from
+  // R8: a rejected note is refused at every apply (409 CREDIT_NOTE_REJECTED), and since E11 every
+  // refund too (409 CREDIT_NOTE_REFUND_REJECTED, client decision 2026-11-08), so neither "Set
+  // against" nor "Ask for a refund" is offered (N23). Read from the note's own bill record under the R5 contract, and from
   // the note row's `approval`, which is loaded first, so "Set against" is never drawn while the
   // record is still on its way (E2E 2026-11-08, E-11).
   const noteRejected = creditNoteRejected(own) || item.rejected
@@ -824,13 +825,15 @@ function CreditNoteDetail() {
                     >
                       {t('supplierCreditNotes.detail.keepAsCredit')}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setMode('refund')}
-                      className="inline-flex h-[42px] flex-1 items-center justify-center rounded-sm border border-border-subtle bg-white px-2 text-sm font-medium text-text-secondary transition-colors hover:border-primary-300"
-                    >
-                      {t('supplierCreditNotes.detail.askRefund')}
-                    </button>
+                    {noteRejected ? null : (
+                      <button
+                        type="button"
+                        onClick={() => setMode('refund')}
+                        className="inline-flex h-[42px] flex-1 items-center justify-center rounded-sm border border-border-subtle bg-white px-2 text-sm font-medium text-text-secondary transition-colors hover:border-primary-300"
+                      >
+                        {t('supplierCreditNotes.detail.askRefund')}
+                      </button>
+                    )}
                   </div>
                 </>
               )
@@ -982,8 +985,8 @@ function CreditNoteDetail() {
         }
       >
         {/* R8 (Agent 10 W1 on the #360 port): the body promises the credit back "to use on another
-            bill or to refund". A rejected note's credit is never usable, and its refund is the
-            client's open OD-5, so the sentence is left out for one until the owner gives text for
+            bill or to refund". A rejected note's credit is never usable, and it is never refunded
+            (E11, client decision 2026-11-08), so the sentence is left out for one until the owner gives text for
             that case; the title still names the act. */}
         {noteRejected ? null : (
           <p className="text-sm font-medium leading-[1.5] text-text-secondary">

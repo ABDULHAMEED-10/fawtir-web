@@ -23294,6 +23294,7 @@
     "refundedDone": "The refund was recorded.",
     "refundKeyReused": "This refund was changed after an earlier attempt that may already be recorded. Check the refunds on this note before recording it again: the next attempt counts as a new refund.",
     "refundInProgress": "This refund is still being recorded. Wait a moment, then press Record the refund again without changing it.",
+    "refundRejected": "This credit note was rejected, so a refund can't be recorded on it.",
     "release": {
       "heading": "Set against",
       "thatBill": "that bill",
