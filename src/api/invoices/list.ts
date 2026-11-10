@@ -63,8 +63,14 @@ export type InvoiceRowDto = {
   type: InvoiceTypeDto
   version: number
   authoringState: InvoiceStateDto
-  /** `SENT_MANUALLY` is a recorded fact; anything else is not yet a real delivery status (B4). */
+  /**
+   * On an ISSUED row, the Peppol ledger state the single read reports (A-4b, backend #824), or
+   * `SENT_MANUALLY`. A server before #824 answers `NOT_SUBMITTED` on every row but a manual send,
+   * so `NOT_SUBMITTED` alone never says "nothing was sent".
+   */
   deliveryState: string
+  /** `CANONICAL_HANDOFF_NOT_ENABLED` while nothing was submitted and this deployment cannot hand over. */
+  deliveryBlocker?: string | null
   /**
    * TODO(backend): the design's PEPPOL/OTA column prints the Peppol response code of the last
    * delivery (AB acknowledged, AP accepted, RE rejected). Not answered today; drawn when present.
@@ -160,6 +166,18 @@ export type InvoiceSummaryDto = {
   awaitingSupplier?: { count: number; oldestIssueDate: string | null }
   /** Drafts waiting for sales approval (RL-6): the "To approve" tab's count. */
   awaitingApproval?: number
+  /**
+   * Issued credit notes on which money was paid back to the customer, and what was paid back, in
+   * `currencyCode` (ACC-3, backend #824). "Applied to invoices" is `issuedTotal` less this. Absent
+   * from an API that predates it.
+   */
+  refundedTotal?: { count: number; total: number }
+  /**
+   * Issued invoices with cash received on them, and those payments net of reversals, in
+   * `currencyCode` (ACC-10, backend #824). Unlike `paidTotal`, an invoice a credit note cleared
+   * adds nothing. Absent from an API that predates it.
+   */
+  collectedTotal?: { count: number; total: number }
 }
 
 /** What a tab, the toolbar and the search ask the server for. */

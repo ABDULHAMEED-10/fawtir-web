@@ -82,6 +82,7 @@ import {
   sizesFrom,
   productFieldsFrom,
   productFormProblems,
+  PRODUCT_STOCK_UNIT_LOCKED,
   productRefusal,
   productRequestFrom,
 } from '../../lib/productForm'
@@ -341,6 +342,12 @@ function ItemEditor({
     refusalBanner.current?.scrollIntoView?.({ block: 'center' })
     refusalBanner.current?.focus({ preventScroll: true })
   }, [banner])
+  // The unit the server refused (PRODUCT_STOCK_UNIT_LOCKED): said on the field, while it stays picked.
+  const [lockedUnit, setLockedUnit] = useState<string | null>(null)
+  const unitLockedLine = useRef<HTMLSpanElement>(null)
+  useEffect(() => {
+    if (lockedUnit) unitLockedLine.current?.scrollIntoView?.({ block: 'center' })
+  }, [lockedUnit])
   const [confirmArchive, setConfirmArchive] = useState(false)
   // Zero-rating (Z.15): the last save's warnings, else the re-check's flag on the stored item.
   const [zeroRatingWarnings, setZeroRatingWarnings] = useState<ZeroRatingNote[]>(() =>
@@ -556,6 +563,7 @@ function ItemEditor({
   const save = async (another: boolean) => {
     if (readOnly || saving) return
     setBanner(null)
+    setLockedUnit(null)
     const current = fields()
     const problems = productFormProblems(current)
     // Chosen branches only, with none ticked, is refused (PRODUCT_BRANCHES_REQUIRED).
@@ -620,7 +628,8 @@ function ItemEditor({
         setSaved(true)
       }
     } catch (error) {
-      refused(error)
+      if (productRefusal(error)?.code === PRODUCT_STOCK_UNIT_LOCKED) setLockedUnit(current.unit)
+      else refused(error)
     } finally {
       setSaving(false)
     }
@@ -962,7 +971,17 @@ function ItemEditor({
                       value={soldAs}
                       onChange={setSoldAs}
                       options={units}
+                      ariaInvalid={lockedUnit !== null && lockedUnit === soldAs}
                     />
+                    {lockedUnit !== null && lockedUnit === soldAs ? (
+                      <span
+                        ref={unitLockedLine}
+                        role="alert"
+                        className="mt-1.5 block text-xs font-medium text-danger-700"
+                      >
+                        {t('itemForm.refused.unitLocked')}
+                      </span>
+                    ) : null}
                   </label>
                 </div>
 

@@ -1,14 +1,15 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { DateField, Modal, RialMark, withRial } from '../../components/ui'
 import { LoadingNotice, ApiReadFailure } from '../../components/feedback/ApiNotice'
 import { selectAllOnFocus } from '../../components/invoice'
 import { useApiRead } from '../../hooks'
-import type { Page } from '../../api'
+import { ApiError, type Page } from '../../api'
 import {
   applyOverpaymentCredit,
   billListPath,
   loadBillPage,
+  newOverpaymentKey,
   recordOverpaymentRefund,
   type BillDetailDto,
   type BillRowDto,
@@ -33,6 +34,41 @@ const parsed = (value: string) => {
 const typed = (amount: number) => (Math.round(amount * 1000) / 1000).toFixed(3)
 
 /**
+ * One key per settlement the person means to record, for the life of the dialog, as the credit
+ * note's refund form keys a refund (e59550fc): a second click, or a retry after a timeout or a lost
+ * answer, is the same settlement and the server records it once. The dialog closes after a
+ * success, so the next one opens with a fresh key. A refusal spends no key (backend fd2e1d483), so
+ * a corrected figure goes under the same one.
+ *
+ * KEY_REUSED means the figures changed after an attempt whose answer never arrived, so that attempt
+ * may be recorded: the old key cannot carry the new figures, the next press is a new settlement,
+ * and the page reads the bill again once the dialog closes (reading it now would unmount the
+ * dialog under its sentence). IN_PROGRESS keeps the key: the first request is still running.
+ */
+function useSettlementKey(onKeySpent: () => void) {
+  const [key, setKey] = useState(newOverpaymentKey)
+  // Set before the first await, so a second click in the same frame finds it; `busy` disables the
+  // button only once React has rendered again.
+  const inFlight = useRef(false)
+  return async (run: (key: string) => Promise<unknown>): Promise<boolean> => {
+    if (inFlight.current) return false
+    inFlight.current = true
+    try {
+      await run(key)
+      return true
+    } catch (error) {
+      if (error instanceof ApiError && error.code === 'BILL_OVERPAYMENT_IDEMPOTENCY_KEY_REUSED') {
+        setKey(newOverpaymentKey())
+        onKeySpent()
+      }
+      throw error
+    } finally {
+      inFlight.current = false
+    }
+  }
+}
+
+/**
  * "Record the supplier's refund" (owner's answer 13, 8 Oct 2026): the money the supplier paid
  * back of what the bill was overpaid by. The form is the credit note page's refund form: the
  * amount (filled with what is still undecided, else all that was overpaid), the day it arrived
@@ -47,6 +83,7 @@ export function OverpaymentRefundModal({
   refusal,
   onClose,
   onDone,
+  onKeySpent,
 }: {
   billId: string
   currency: string
@@ -56,6 +93,7 @@ export function OverpaymentRefundModal({
   refusal: (error: unknown) => string
   onClose: () => void
   onDone: () => void
+  onKeySpent: () => void
 }) {
   const { t, i18n } = useTranslation()
   const language = i18n.language
@@ -66,18 +104,21 @@ export function OverpaymentRefundModal({
   const [failure, setFailure] = useState<string | null>(null)
   const value = parsed(amount)
   const over = value !== null && value > overpaid
+  const send = useSettlementKey(onKeySpent)
 
   const save = async () => {
     if (value === null || over || refundedOn === '') return
     setBusy(true)
     setFailure(null)
     try {
-      await recordOverpaymentRefund(billId, {
-        amount: value,
-        refundedOn,
-        reference: reference.trim() || null,
-      })
-      onDone()
+      const sent = await send((key) =>
+        recordOverpaymentRefund(billId, key, {
+          amount: value,
+          refundedOn,
+          reference: reference.trim() || null,
+        }),
+      )
+      if (sent) onDone()
     } catch (error) {
       setFailure(refusal(error))
     } finally {
@@ -179,12 +220,14 @@ export function OverpaymentApplyModal({
   refusal,
   onClose,
   onDone,
+  onKeySpent,
 }: {
   detail: BillDetailDto
   kept: number
   refusal: (error: unknown) => string
   onClose: () => void
   onDone: () => void
+  onKeySpent: () => void
 }) {
   const { t, i18n } = useTranslation()
   const language = i18n.language
@@ -213,14 +256,15 @@ export function OverpaymentApplyModal({
   const value = parsed(amount)
   const over = value !== null && value > kept
   const money = (figure: number) => formatAmount(figure, bill.currencyCode, language)
+  const send = useSettlementKey(onKeySpent)
 
   const apply = async () => {
     if (!chosen || over) return
     setBusy(true)
     setFailure(null)
     try {
-      await applyOverpaymentCredit(bill.id, chosen.id, value)
-      onDone()
+      const sent = await send((key) => applyOverpaymentCredit(bill.id, key, chosen.id, value))
+      if (sent) onDone()
     } catch (error) {
       setFailure(refusal(error))
     } finally {

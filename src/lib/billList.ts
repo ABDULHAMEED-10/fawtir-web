@@ -71,6 +71,17 @@ export type BillListItem = {
    * releases it; the server refuses the plain release (BILL_HOLD_DUPLICATE_RELEASE_REFUSED).
    */
   duplicate: { originalId: string; originalNumber: string | null } | null
+  /**
+   * Another bill on file the server reads as the same supplier document, one copy over Peppol and
+   * the other uploaded or scanned (`BillRow.duplicateOf` / `possibleDuplicateOf`, owner D8). A flag
+   * for a person to look at, never a decision, so the row offers no action of its own. Until ACC-8
+   * (RC5) both copies stay owed bills; after it the Peppol copy is held. Null while a duplicate hold
+   * already says more.
+   *
+   * `heldCopy` is the upload whose Peppol copy is held against it (`BillRow.heldCopyId`): the bill
+   * to pay, so it is told where its copy is, never that it is "the same as another bill".
+   */
+  twin?: BillTwin | null
   canApprove: boolean
   currency: string
   amount: number | null
@@ -158,6 +169,24 @@ function statusOf(row: BillRowDto): BillStatusChip {
   return STATUS[state]
 }
 
+/**
+ * The interim duplicate-payable flag (EXP-38-1, batch 38 WEB X1): an upload followed by its Peppol
+ * copy is two owed bills, and these read-time fields were their only sign, with no screen. A sure
+ * pair wins over a possible one.
+ */
+export type BillTwin = { certainty: 'heldCopy' | 'sure' | 'possible'; otherId: string }
+
+export function twinOf(
+  row: Pick<BillRowDto, 'duplicateOf' | 'possibleDuplicateOf' | 'heldCopyId'>,
+): BillTwin | null {
+  // Checked first: the server nulls duplicateOf while it is set, and a stale or older reply that
+  // sent both must still not call the bill to pay a duplicate.
+  if (row.heldCopyId) return { certainty: 'heldCopy', otherId: row.heldCopyId }
+  if (row.duplicateOf) return { certainty: 'sure', otherId: row.duplicateOf }
+  if (row.possibleDuplicateOf) return { certainty: 'possible', otherId: row.possibleDuplicateOf }
+  return null
+}
+
 /** Nothing owed, none of it paid in money: credit (or a run's discount) settled the bill. */
 export function settledWithoutPayment(figures: { paidAmount: number; outstandingAmount: number }): boolean {
   return figures.paidAmount === 0 && figures.outstandingAmount <= 0
@@ -206,6 +235,7 @@ export function toBillListItem(row: BillRowDto): BillListItem {
     duplicate: duplicate
       ? { originalId: duplicate.originalId, originalNumber: duplicate.originalNumber }
       : null,
+    twin: duplicate ? null : twinOf(row),
     // A mismatch is approved only after its difference has been looked at, which is the detail's job.
     // A credit note has nothing to approve, and the server refuses it (APPROVAL_CREDIT_NOTE).
     canApprove:

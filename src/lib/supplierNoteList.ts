@@ -180,6 +180,20 @@ export function isHeldUnspent(note: Pick<CreditNoteItem, 'status' | 'heldAsDupli
   )
 }
 
+type NoteFlags = Pick<CreditNoteItem, 'status' | 'heldAsDuplicate'> &
+  Partial<Pick<CreditNoteItem, 'rejected'>>
+
+/**
+ * Rejected with credit still on it. R8: the server refuses every apply of a rejected note (409
+ * CREDIT_NOTE_REJECTED), so nothing on the list may offer one or promise the credit reduces a bill.
+ * A spent state keeps its own words and action, which settle nothing. The status alone cannot say
+ * this: the server maps a rejected note with credit left to UNAPPLIED (backend def9c5b12), and an
+ * older server also lists it under Unapplied, so only `approval` tells.
+ */
+export function isRejectedUnspent(note: NoteFlags): boolean {
+  return note.rejected === true && note.status !== 'APPLIED' && note.status !== 'REFUNDED'
+}
+
 const HELD_CREDIT_ROW_ACTION: CreditRowAction = {
   labelKey: 'supplierCreditNotes.actions.openNote',
   goesTo: 'note',
@@ -191,10 +205,10 @@ const HELD_CREDIT_ROW_ACTION: CreditRowAction = {
  * "Set against the bill" would only fail: the row opens the note, where the hold is decided.
  * Spent states are left alone, since their actions settle nothing.
  */
-export function creditRowActionOf(
-  note: Pick<CreditNoteItem, 'status' | 'heldAsDuplicate'>,
-): CreditRowAction {
-  return isHeldUnspent(note) ? HELD_CREDIT_ROW_ACTION : CREDIT_ROW_ACTION[note.status]
+export function creditRowActionOf(note: NoteFlags): CreditRowAction {
+  return isHeldUnspent(note) || isRejectedUnspent(note)
+    ? HELD_CREDIT_ROW_ACTION
+    : CREDIT_ROW_ACTION[note.status]
 }
 
 /**
@@ -202,10 +216,15 @@ export function creditRowActionOf(
  * 28 Oct 2026): it reads as credit ready to spend, which the server refuses. The amber of a
  * pending note is reused rather than a new style.
  */
-export function creditChipOf(note: Pick<CreditNoteItem, 'status' | 'heldAsDuplicate'>): {
+export function creditChipOf(note: NoteFlags): {
   tone: CreditChipTone
   labelKey: string
 } {
+  // "Not yet used" read as credit ready to spend on a rejected note (E2E 2026-11-08, E-11). The
+  // pending amber is reused, as for a held note, rather than a new style.
+  if (isRejectedUnspent(note)) {
+    return { tone: 'waiting', labelKey: 'supplierCreditNotes.state.rejected' }
+  }
   if (note.heldAsDuplicate && note.status === 'UNAPPLIED') {
     return { tone: 'waiting', labelKey: 'supplierCreditNotes.held.status' }
   }
@@ -225,10 +244,8 @@ export const CREDIT_AMOUNT_NOTE: Record<CreditState, string> = {
  * The words under a row's amount, or null for none. "You'd pay less" is a promise a held note
  * cannot keep: its credit reduces nothing until the hold is decided.
  */
-export function creditAmountNoteOf(
-  note: Pick<CreditNoteItem, 'status' | 'heldAsDuplicate'>,
-): string | null {
-  return isHeldUnspent(note) ? null : CREDIT_AMOUNT_NOTE[note.status]
+export function creditAmountNoteOf(note: NoteFlags): string | null {
+  return isHeldUnspent(note) || isRejectedUnspent(note) ? null : CREDIT_AMOUNT_NOTE[note.status]
 }
 
 export type CreditNoteItem = {
@@ -262,6 +279,18 @@ export type CreditNoteItem = {
   usable: boolean
   /** Held as a possible or confirmed duplicate (backend #784): it credits nothing while held. */
   heldAsDuplicate: boolean
+  /** Its approval is REJECTED (R8): no apply is offered, whatever its balance says. */
+  rejected: boolean
+  /**
+   * The held Peppol copy this note waits on, until that pair is decided (PRV-b39 W-C2). A reason
+   * this client does not know reads as null, so the note shows as it did before.
+   */
+  waitingForDecisionOn: string | null
+}
+
+// Object.hasOwn: a row without the field is read as not rejected rather than throwing on it.
+export function rejectedRow(row: Pick<CreditNoteRowDto, 'approval'>): boolean {
+  return Object.hasOwn(row, 'approval') && row.approval === 'REJECTED'
 }
 
 export function toCreditNoteItem(row: CreditNoteRowDto): CreditNoteItem {
@@ -286,9 +315,13 @@ export function toCreditNoteItem(row: CreditNoteRowDto): CreditNoteItem {
     currency: row.currencyCode,
     credited: row.creditedAmount,
     remaining: row.balance.remaining,
-    // The server leaves a held note out of usable credit whatever its balance says.
-    usable: row.heldAsDuplicate !== true && row.balance.remaining > 0,
+    // The server leaves a held note, and a rejected one (backend def9c5b12), out of usable credit
+    // whatever its balance says.
+    usable: row.heldAsDuplicate !== true && !rejectedRow(row) && row.balance.remaining > 0,
     heldAsDuplicate: row.heldAsDuplicate === true,
+    rejected: rejectedRow(row),
+    waitingForDecisionOn:
+      row.waitingFor?.reason === 'DUPLICATE_DECISION' ? row.waitingFor.billId : null,
   }
 }
 

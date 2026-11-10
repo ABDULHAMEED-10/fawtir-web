@@ -486,3 +486,26 @@ describe('a server value named like an Object.prototype member', () => {
     ).toEqual({ key: 'invoiceDispatch.buyer.unknown' })
   })
 })
+
+describe('a dead letter for a printed QR that differs (QR E-4, backend V541)', () => {
+  it('is a hold with nothing filed, on the page and in a Send answer, never a refusal', () => {
+    const notes = dispatchNotes(dispatch('DEAD_LETTERED', 'PRINTED_QR_DIFFERS'))
+    expect(notes.state).toEqual({ key: 'invoiceDispatch.state.heldPrintedQr' })
+    expect(notes.reason).toEqual({ key: 'invoiceDispatch.reason.printedQrDiffers' })
+    const base = { invoiceId: 'i', invoiceNumber: 'INV-1', dispatch: dispatch('DEAD_LETTERED') }
+    expect(sendResultNote({ ...base, outcome: 'DEAD_LETTERED', reasonCode: 'PRINTED_QR_DIFFERS' })).toEqual({
+      key: 'invoiceDispatch.reason.printedQrDiffers',
+    })
+    for (const text of [en.invoiceDispatch.state.heldPrintedQr, en.invoiceDispatch.reason.printedQrDiffers]) {
+      expect(text).toMatch(/held for review/i)
+      expect(text).toMatch(/nothing (has been )?filed yet/)
+      expect(text).not.toMatch(/refused|rejected|failed|needs attention/i)
+    }
+    expect(ar.invoiceDispatch.state.heldPrintedQr).not.toMatch(/[A-Za-z]/)
+    expect(ar.invoiceDispatch.reason.printedQrDiffers).toMatch(/فوتر/)
+    // Any other dead letter keeps its words.
+    expect(dispatchNotes(dispatch('DEAD_LETTERED', 'SELLER_ADDRESS_INCOMPLETE')).state).toEqual({
+      key: 'invoiceDispatch.state.deadLettered',
+    })
+  })
+})

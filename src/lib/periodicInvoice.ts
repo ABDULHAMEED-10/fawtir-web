@@ -835,4 +835,6 @@ export const PERIODIC_REFUSALS: Record<string, string> = {
   PERIODIC_RUN_IN_PROGRESS: 'periodicInvoice.error.runInProgress',
   PERIODIC_SCHEDULE_HAS_OPEN_RUN: 'periodicInvoice.error.hasOpenRun',
   PERIODIC_SCHEDULE_FINISHED: 'periodicInvoice.error.finished',
+  // Backend 8f04050ab: a schedule's runs issue unattended, so the template is checked when saved.
+  GOODS_OR_SERVICE_REQUIRED: 'periodicInvoice.error.goodsOrServiceRequired',
 }

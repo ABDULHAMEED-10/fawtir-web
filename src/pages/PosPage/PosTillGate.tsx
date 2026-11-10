@@ -1,11 +1,15 @@
-import { useState, type ReactNode } from 'react'
+import { useLayoutEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { registerPosTill } from '../../api/pos/pos'
 import { usePosTill, type TillState } from '../../lib/posTill'
-import { posRefusalKey } from '../../lib/posRefusals'
+import { refusalSentence } from '../../lib/posRefusals'
 import { noteTillServer, usePosQueue } from '../../lib/posQueue'
+import { restoreUncertainSale, useOtherTillHolds } from '../../lib/posSale'
+import { useOfflineSigningKey } from '../../lib/posSigning/useOfflineSigningKey'
 import { PosQueuePanel } from './PosQueuePanel'
+import { PosStorageNotice } from './PosStorageNotice'
+import { PosTabLockNotice } from './PosTabLockNotice'
 
 type Ready = Extract<TillState, { status: 'ready' }>
 
@@ -29,7 +33,16 @@ export function PosTillGate({
   if (state.status === 'noTill') return <NoTill state={state} />
   return (
     <>
-      <QueueSender till={state.till} />
+      <HeldSaleRestorer
+        tenantId={state.tenantId ?? null}
+        tillId={state.till.id}
+        tillLabel={state.till.name || state.till.code}
+      />
+      <OtherTillHolds tenantId={state.tenantId ?? null} tillId={state.till.id} />
+      <QueueSender till={state.till} userId={state.userId} />
+      <OfflineSigningKey state={state} />
+      <PosTabLockNotice tillId={state.till.id} />
+      <PosStorageNotice tillId={state.till.id} />
       {showQueue ? <PosQueuePanel till={state} /> : null}
       {children(state)}
     </>
@@ -37,13 +50,70 @@ export function PosTillGate({
 }
 
 /**
- * Sends the till's offline sales (and their slip photos) on every till screen, as soon as the
- * browser is back online and every minute until they are all filed. Draws nothing.
+ * Brings back this till's sale held with an unknown outcome (E01R-1) before the screen paints, and
+ * puts another till's aside (RBW2-4), so the till offers only the same sale again. Draws nothing.
  */
-function QueueSender({ till }: { till: Ready['till'] }) {
-  noteTillServer(till)
-  usePosQueue(till.id)
+function HeldSaleRestorer({
+  tenantId,
+  tillId,
+  tillLabel,
+}: {
+  tenantId: string | null
+  tillId: string
+  tillLabel: string
+}) {
+  useLayoutEffect(() => restoreUncertainSale(tenantId, tillId, tillLabel), [tenantId, tillId, tillLabel])
   return null
+}
+
+/**
+ * Another till's held sale is never shown or sent here (RBW2-4), but whoever stands at this till
+ * is told, so nothing is rung on that till again before Today is checked there.
+ */
+function OtherTillHolds({ tenantId, tillId }: { tenantId: string | null; tillId: string }) {
+  const { t } = useTranslation()
+  const others = useOtherTillHolds(tenantId, tillId)
+  if (others.length === 0) return null
+  return (
+    <div className="mx-auto mb-4 flex w-full max-w-[1144px] flex-col gap-1">
+      {others.map((label) => (
+        <p
+          key={label}
+          role="status"
+          className="rounded-sm bg-warning-100 px-4 py-3 text-sm font-semibold text-text-primary"
+        >
+          {t('pos.pay.uncertain.otherTill', { till: label })}
+        </p>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * Sends the offline sales the signed-in person made on this till (and their slip photos) on every
+ * till screen, as soon as the browser is back online and every minute until they are filed. Draws
+ * nothing. A sale someone else made waits for an explicit Send for (owner round 5, P3b).
+ */
+function QueueSender({ till, userId }: { till: Ready['till']; userId: string | null }) {
+  noteTillServer(till)
+  usePosQueue(till.id, userId)
+  return null
+}
+
+/**
+ * Keeps the cashier's offline signing key registered. Says something only when the cashier can fix
+ * what stops it: the device clock. Every other state is silent, because a till that cannot sign
+ * still sells, and its queued sales are held for a manager instead.
+ */
+function OfflineSigningKey({ state }: { state: Ready }) {
+  const { t } = useTranslation()
+  const key = useOfflineSigningKey(state.till, state.userId, state.mine)
+  if (key !== 'clockSkew') return null
+  return (
+    <p role="status" className="mx-auto mb-3 w-full max-w-[1144px] rounded-md bg-surface-card px-4 py-3 text-sm text-text-secondary">
+      {t('pos.offline.clockSkew')}
+    </p>
+  )
 }
 
 function TillNotice({ textKey, action }: { textKey: string; action?: ReactNode }) {
@@ -86,7 +156,7 @@ function NoTill({ state }: { state: Extract<TillState, { status: 'noTill' }> }) 
             {t('pos.till.register')}
           </button>
           {error ? (
-            <p className="text-xs font-medium text-danger-700">{t(posRefusalKey(error))}</p>
+            <p className="text-xs font-medium text-danger-700">{refusalSentence(t, error)}</p>
           ) : null}
         </>
       }

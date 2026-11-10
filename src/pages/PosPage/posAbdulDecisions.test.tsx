@@ -9,7 +9,13 @@ import { PosQueuePanel } from './PosQueuePanel'
 import { PosRefundPage } from './PosRefundPage'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import { resetOpenSale, setFinishedSale } from '../../lib/posSale'
-import { flushQueue, queuedFor, resetPosQueue, submitSale } from '../../lib/posQueue'
+import {
+  flushQueue,
+  noteQueueSender,
+  queuedFor,
+  resetPosQueue,
+  submitSale,
+} from '../../lib/posQueue'
 import { approvalCodeOk } from '../../lib/posPayment'
 import { startingCount } from '../../lib/posClose'
 import { NO_SALE_DISCOUNT, totalsFor } from '../../lib/pos'
@@ -19,6 +25,13 @@ import { resetSharedRequests } from '../../api'
 import { forgetWorkingBranch } from '../../lib/workingBranch'
 import type { PosSaleRequest, PosTillDto } from '../../api/pos/pos'
 import type { TillState } from '../../lib/posTill'
+
+// Queue mechanics, not the QR: a consumer sale is queued offline only with its QR (owner
+// directive 2026-11-06), so the builder answers with a fixed stand-in here. The real build and
+// its refusals are tested in posOfflineQr.test.ts and posOfflineQrIssuance.test.ts.
+vi.mock('../../lib/posOfflineQr', () => ({
+  offlinePrintedQr: async () => ({ payload: 'AQ==', sellerUuid: 'stand-in', profileVersion: '0'.repeat(64) }),
+}))
 
 /** Abdul's decisions of 1 Nov 2026 on the till, on the API's own shapes. */
 
@@ -127,6 +140,16 @@ const json = (body: unknown, status = 200) =>
   })
 
 const NOT_FOUND = () => json({ type: 'about:blank', status: 404 }, 404)
+const CASH_QUOTE = () =>
+  json({
+    total: 21,
+    lastRefund: true,
+    suggested: [{ method: 'CASH', amount: 21 }],
+    cardLimit: 0,
+    payOutLimit: 21,
+    reduceBalance: 0,
+    toChoose: 0,
+  })
 
 let lookup: unknown
 let quote: () => Response
@@ -140,12 +163,14 @@ beforeEach(async () => {
   await i18n.changeLanguage('en')
   resetOpenSale([])
   resetPosQueue()
+  // The person signed in on this device: only the sales they queue go by themselves (round 5, P3b).
+  noteQueueSender('u-1')
   resetSharedRequests()
   forgetEntitlements()
   forgetWorkingBranch()
   window.localStorage.clear()
   lookup = LOOKUP
-  quote = NOT_FOUND
+  quote = CASH_QUOTE
   drawer = 100
   refunds = []
   closes = []
@@ -211,7 +236,7 @@ const refundPage = () => at('/pos/refund?invoice=NZW-T01-INV-2026-000001')
 
 const warnings = () =>
   screen
-    .queryAllByRole('status')
+    .queryAllByRole('alert')
     .map((element) => element.textContent ?? '')
     .filter((text) => text.includes('2.500') && text.includes('21.000'))
 
@@ -260,7 +285,7 @@ describe('a drawer below zero (decision 1)', () => {
   })
 
   it.each(['en', 'ar'])(
-    'warns at a cash refund the drawer cannot cover, on the server without a quote, and still lets it go (%s)',
+    'stops a cash refund the drawer cannot cover, as RC2 refuses it (DEC-30-05) (%s)',
     async (language) => {
       await i18n.changeLanguage(language)
       drawer = 2.5
@@ -270,15 +295,14 @@ describe('a drawer below zero (decision 1)', () => {
       const go = screen.getByRole('button', {
         name: i18n.t('pos.refund.refundAmount', { amount: '21.000' }),
       }) as HTMLButtonElement
-      expect(go.disabled).toBe(false)
+      expect(go.disabled).toBe(true)
       fireEvent.click(go)
-      await waitFor(() => expect(refunds).toHaveLength(1))
-      expect(refunds[0].moneyBack).toEqual([{ method: 'CASH', amount: 21 }])
+      expect(refunds).toEqual([])
       await i18n.changeLanguage('en')
     },
   )
 
-  it('warns on the cash part of a split, and stops when the cashier moves it to the card', async () => {
+  it('warns on the cash part of a split, which the cashier cannot move to the card (FIN-A5)', async () => {
     drawer = 2.5
     lookup = {
       ...LOOKUP,
@@ -303,12 +327,18 @@ describe('a drawer below zero (decision 1)', () => {
     refundPage()
     fireEvent.click(await screen.findByRole('checkbox'))
     await drawerWarning()
-    const card = screen.getByLabelText(new RegExp(i18n.t('pos.refund.method.CARD')))
+    // The quote's route is mandatory: the card field is shown, not typed into, so the cash stays.
+    const card = screen.getByLabelText(
+      new RegExp(i18n.t('pos.refund.method.CARD')),
+    ) as HTMLInputElement
+    expect(card.readOnly).toBe(true)
     fireEvent.change(card, { target: { value: '20' } })
-    await screen.findByRole('button', {
+    fireEvent.blur(card)
+    const go = (await screen.findByRole('button', {
       name: i18n.t('pos.refund.refundAmount', { amount: '21.000' }),
-    })
-    await waitFor(() => expect(warnings()).toEqual([]))
+    })) as HTMLButtonElement
+    expect(warnings()).not.toEqual([])
+    expect(go.disabled).toBe(true)
   })
 
   it('says nothing when the drawer covers it, or when nothing goes back in cash', async () => {
@@ -392,7 +422,10 @@ const READY = {
   till: TILL_DTO,
   branchId: 'b-1',
   branchName: 'Nizwa',
-  can: { sell: true, close: true, refund: true, manage: true },
+  // The person signed in, who queued the sales (noteQueueSender above): since round 5 P3b (d9a7fbc5)
+  // only their own entry offers Try again; anyone else's offers Send for.
+  userId: 'u-1',
+  can: { sell: true, close: true, refund: true, manage: true, payOut: true, billSettle: false },
 } as unknown as Extract<TillState, { status: 'ready' }>
 
 const buyerSale = (): PosSaleRequest =>
@@ -484,7 +517,8 @@ const SOLD = {
   transactionType: 'FULL_TAX',
   receivedAt: '2026-11-01T10:00:00Z',
   cashier: { userId: 'u-1', name: 'Maryam' },
-  receipt: { invoiceTotal: 5.649, tip: 0, qr: { status: 'NONE' } },
+  // READY: a consumer receipt prints only with its QR (QW4R-2).
+  receipt: { invoiceTotal: 5.649, tip: 0, qr: { status: 'READY', payload: 'AQ==' } },
   filing: { dispatchState: 'SENT', acceptedAt: null },
   warnings: [],
 }
@@ -500,7 +534,8 @@ describe('the civil ID on the receipt (decision 4)', () => {
   })
 
   it.each([
-    ['queued', {}],
+    // A consumer's queued receipt carries its QR (owner directive 2026-11-06); without one none prints.
+    ['queued', { queuedQr: 'AQ==' }],
     ['online', { sale: SOLD, queuedNumber: null }],
   ])('a %s receipt never prints the whole number', async (_kind, patch) => {
     finished(patch)
@@ -565,17 +600,12 @@ describe('the civil ID on the receipt (decision 4)', () => {
 describe('the warnings of a queued sale with no HS code (decision 5)', () => {
   it.each(['en', 'ar'])('both have real wording (%s)', async (language) => {
     await i18n.changeLanguage(language)
-    for (const code of ['POS_GOODS_FLAG_CLEARED', 'POS_HS_CODE_MISSING_ACCEPTED']) {
-      expect(i18n.exists(`pos.warning.${code}`)).toBe(true)
-      expect(i18n.t(`pos.warning.${code}`, { line: 2 })).toContain(
-        language === 'ar' ? '2' : 'Line 2',
-      )
-    }
-    if (language === 'en') {
-      expect(i18n.t('pos.warning.POS_HS_CODE_MISSING_ACCEPTED', { line: 2 })).toMatch(
-        /not filed until.*Someone who can edit items/,
-      )
-    }
+    expect(i18n.exists('pos.warning.POS_GOODS_FLAG_CLEARED')).toBe(true)
+    expect(i18n.t('pos.warning.POS_GOODS_FLAG_CLEARED', { line: 2 })).toContain(
+      language === 'ar' ? '2' : 'Line 2',
+    )
+    // RC2 never sends it, and its "filed once the item has a code" was false (held-invoice contract §4).
+    expect(i18n.exists('pos.warning.POS_HS_CODE_MISSING_ACCEPTED')).toBe(false)
     await i18n.changeLanguage('en')
   })
 
@@ -585,10 +615,7 @@ describe('the warnings of a queued sale with no HS code (decision 5)', () => {
       customer: { kind: 'WALK_IN' },
     }) as unknown as PosSaleRequest
 
-  it.each([
-    ['POS_HS_CODE_MISSING_ACCEPTED', 'the sale kept'],
-    ['POS_GOODS_FLAG_CLEARED', 'filed without the flag'],
-  ])('%s from the background send reaches the next sale, named (%s)', async (code) => {
+  it.each([['POS_GOODS_FLAG_CLEARED', 'filed without the flag']])('%s from the background send reaches the next sale, named (%s)', async (code) => {
     saleReply = () => {
       throw new TypeError('Failed to fetch')
     }
@@ -624,7 +651,9 @@ describe('the warnings of a queued sale with no HS code (decision 5)', () => {
     expect(container.textContent).toContain('NZW-T01-INV-2026-000049')
   })
 
-  it('another warning of a queued sale leaves nothing for the next sale, as before', async () => {
+  // B37 OFF-8 (e06009ed) carries every warning of a background send to the next sale, not only the
+  // HS-code one; this case used to pin the older rule that dropped the rest.
+  it('another warning of a queued sale also reaches the next sale, named, once (B37 OFF-8)', async () => {
     saleReply = () => {
       throw new TypeError('Failed to fetch')
     }
@@ -634,7 +663,11 @@ describe('the warnings of a queued sale with no HS code (decision 5)', () => {
     await flushQueue('till-1')
     saleReply = () => json(SOLD, 201)
     const next = await submitSale(TILL_DTO, walkIn(), 'pos-sale-key-hs-5')
-    expect('sale' in next && next.sale.warnings).toEqual([])
+    expect('sale' in next && next.sale.warnings).toEqual([
+      { code: 'STOCK_BELOW_ZERO', line: 1, filed: 'NZW-T01-INV-2026-000050' },
+    ])
+    const after = await submitSale(TILL_DTO, walkIn(), 'pos-sale-key-hs-6')
+    expect('sale' in after && after.sale.warnings).toEqual([])
   })
 })
 
@@ -642,13 +675,14 @@ describe('a given-away line alone on a server that cannot take it (decision 6)',
   const GIVEN = { ...LINE, discount: { type: 'PERCENTAGE', value: 100 } }
 
   it.each(['en', 'ar'])(
-    'says so in plain words and sends nothing, in place of the money refusal (%s)',
+    'sends nothing without the quote, and says the refund cannot be worked out (%s)',
     async (language) => {
       await i18n.changeLanguage(language)
+      quote = NOT_FOUND
       lookup = { ...LOOKUP, lines: [GIVEN], total: 0 }
       refundPage()
       fireEvent.click(await screen.findByRole('checkbox'))
-      expect(await screen.findByText(i18n.t('pos.refund.givenAwayOldServer'))).toBeTruthy()
+      expect(await screen.findByText(i18n.t('pos.refund.quoteUnavailable'))).toBeTruthy()
       const go = screen.getByRole('button', {
         name: i18n.t('pos.refund.refundAmount', { amount: '0.000' }),
       }) as HTMLButtonElement
@@ -666,7 +700,7 @@ describe('a given-away line alone on a server that cannot take it (decision 6)',
     await screen.findByRole('button', {
       name: i18n.t('pos.refund.refundAmount', { amount: '21.000' }),
     })
-    expect(screen.queryByText(i18n.t('pos.refund.givenAwayOldServer'))).toBeNull()
+    expect(screen.queryByText(i18n.t('pos.refund.quoteUnavailable'))).toBeNull()
   })
 
   it('a line the server marks given free is the stock return, not this', async () => {
@@ -674,6 +708,6 @@ describe('a given-away line alone on a server that cannot take it (decision 6)',
     refundPage()
     fireEvent.click(await screen.findByRole('checkbox'))
     await screen.findByRole('button', { name: i18n.t('pos.refund.stockReturnButton') })
-    expect(screen.queryByText(i18n.t('pos.refund.givenAwayOldServer'))).toBeNull()
+    expect(screen.queryByText(i18n.t('pos.refund.quoteUnavailable'))).toBeNull()
   })
 })

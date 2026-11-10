@@ -1187,6 +1187,20 @@ describe("the debit note's check on its bill (B-12)", () => {
       'supplierDebitNotes.checks.realBillOpen',
     )
   })
+
+  it('says a rejected bill was rejected, not settled or paid, though it reads nothing owed (OBS-1)', () => {
+    // Backend #824 answers outstanding 0 on a rejected bill; paymentState keeps UNPAID.
+    expect(realBill({ ...BILL, workflowState: 'REJECTED', outstandingAmount: 0 })).toBe(
+      'supplierDebitNotes.checks.realBillRejected',
+    )
+    expect(
+      realBill({ ...BILL, workflowState: 'REJECTED', paidAmount: 50, outstandingAmount: 0 }),
+    ).toBe('supplierDebitNotes.checks.realBillRejected')
+    // A server before #824 still states what was owed; the rejection is said all the same.
+    expect(realBill({ ...BILL, workflowState: 'REJECTED', outstandingAmount: 300 })).toBe(
+      'supplierDebitNotes.checks.realBillRejected',
+    )
+  })
 })
 
 describe("the debit note's VAT check (B-13)", () => {

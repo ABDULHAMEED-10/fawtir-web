@@ -85,6 +85,19 @@ describe('a file the server refuses for size', () => {
     expect(onUploaded).not.toHaveBeenCalled()
   })
 
+  // W5-SHARED audit: a Spring default body puts its reason phrase in `error`. Read as a code, it
+  // made refusedForSize (413 and no code) false, and the person saw "something went wrong".
+  it('is named the same when the 413 carries only a reason phrase', async () => {
+    vi.mocked(fetch).mockImplementation(async () =>
+      json({ timestamp: '2026-11-05T08:00:00Z', status: 413, error: 'Payload Too Large', path: '/x' }, 413),
+    )
+    const { input } = setup()
+    await userEvent.upload(input, pdf('big.pdf'))
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toMatch(/big.pdf is too large/)
+    expect(alert.textContent).not.toContain(i18n.t('identityErrors.unexpected'))
+  })
+
   it('does not stop the others, and the parent is told which one did not make it', async () => {
     const { input, onUploaded } = setup()
     await userEvent.upload(input, [pdf('small1.pdf'), pdf('big.pdf'), pdf('small2.pdf')])

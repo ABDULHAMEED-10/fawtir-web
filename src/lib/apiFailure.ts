@@ -6,6 +6,8 @@ import { subscriptionRestrictedMessageKey } from './subscriptionRestricted'
 import { PLAN_FEATURE_NOT_INCLUDED, planFeatureMessageKey } from './planFeatureRefusal'
 import { salesApprovalMessageKey } from './salesApproval'
 import { taxReasonRefusalKey } from './taxReasonRefusals'
+import { debitNoteRefusalKey } from './debitNoteRefusals'
+import { refusalValues } from './posRefusals'
 
 /**
  * The localized sentence for a failed customer-app request, and the reference support needs.
@@ -35,6 +37,9 @@ export function describeApiFailure(error: unknown): FormMessage & { reference: s
     // A line's no-VAT reason: answered 400 by code, which would otherwise read "check the form".
     const taxReason = taxReasonRefusalKey(error)
     if (taxReason !== null) return { key: taxReason, reference }
+    // D-26 answers 409 by name: "reload and try again" can never unlock an issued debit note.
+    const debitNote = debitNoteRefusalKey(error)
+    if (debitNote !== null) return { key: debitNote, reference }
     // Before the 409 branch on purpose: seven self-billing refusals answer Conflict, and telling
     // someone with no agreement to "reload to see the latest version" is false, not merely vague.
     const selfBilling = selfBillingMessageKey(error)
@@ -43,6 +48,20 @@ export function describeApiFailure(error: unknown): FormMessage & { reference: s
     // from any screen (composer, bulk upload, detail) says why, not "reload".
     const salesApproval = salesApprovalMessageKey(error)
     if (salesApproval !== null) return { key: salesApproval, reference }
+    // A discount above the person's `invoice.draft` ceiling (draft create and replace, schedule
+    // templates). From RC3 (#841) the 403 names it and both figures; "ask for permission" was wrong
+    // advice, since the person may draft, just not that deep. b48e85031 sends no code, so it keeps
+    // the permission sentence below.
+    if (error.status === 403 && error.code === 'DISCOUNT_ABOVE_LIMIT') {
+      const { requestedPercent, limitPercent } = refusalValues(error)
+      if (requestedPercent && limitPercent) {
+        return {
+          key: 'apiErrors.discountAboveLimit',
+          values: { requestedPercent, limitPercent },
+          reference,
+        }
+      }
+    }
     // ERP switched off for the company is a platform decision, not a missing role: "ask an
     // administrator in your company" sent people to someone who cannot change it.
     if (error.status === 403 && error.problemType === 'erp-entitlement-required') {

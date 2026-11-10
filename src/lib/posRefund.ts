@@ -1,10 +1,12 @@
 import type {
+  PosRefundDto,
   PosRefundLookupDto,
   PosRefundLookupLine,
   PosRefundMoneyMethod,
   PosRefundQuoteDto,
   PosRefundReason,
   PosRefundRequest,
+  PosWarning,
 } from '../api/pos/pos'
 import { BAISA, toBaisa, toRials } from './pos'
 
@@ -156,8 +158,10 @@ export function waysPaid(sale: PosRefundLookupDto): string[] {
 }
 
 /**
- * The money back of a refund, in baisa (Abdul, 1 Nov 2026): filled from the server's quote, for the
- * cashier to change. What a company owes is not theirs to change: it goes back to the account.
+ * The money back of a refund, in baisa (Abdul, 1 Nov 2026), filled from the server's quote. The
+ * quote's route is mandatory (owner FIN-A5, 2026-11-05: "Payment-specific refund routes are
+ * mandatory, not cashier-overridable defaults"), so the cashier changes nothing the quote routed;
+ * what a company owes goes back to the account as before.
  */
 export type MoneySplit = { card: number; cash: number; transfer: number; reduce: number }
 
@@ -175,37 +179,60 @@ export function splitFromQuote(quote: PosRefundQuoteDto): MoneySplit {
 }
 
 /**
- * The cashier typed one figure; the others make up the rest. Card or transfer changed: cash takes
- * the difference. Cash changed: the card takes the rest up to its limit, then transfer. A figure
- * that cannot be made up is left for `splitProblem` to say so.
+ * The cashier puts the quote's `toChoose` (money no way the sale was paid can take back) under cash,
+ * on top of the cash the quote routed. Nothing else moves: cash used to absorb whatever the cashier
+ * took off the card or the transfer, which turned a card refund into drawer cash (FIN-A5). Cash is
+ * held between its routed amount and that plus `toChoose`. Transfer is not offered for `toChoose`:
+ * a transfer refund needs a beneficiary verification record that has no backend contract yet.
  */
-export function changeSplit(
+export function chooseCash(
   split: MoneySplit,
-  total: number,
-  cardLimit: number,
-  edited: 'card' | 'cash' | 'transfer',
+  route: MoneySplit,
+  toChoose: number,
   value: number,
 ): MoneySplit {
-  const payOut = total - split.reduce
-  const next = { ...split, [edited]: value }
-  if (edited === 'cash') {
-    const rest = Math.max(0, payOut - value)
-    next.card = Math.min(rest, cardLimit)
-    next.transfer = rest - next.card
-  } else {
-    next.cash = Math.max(0, payOut - next.card - next.transfer)
-  }
-  return next
+  return { ...split, cash: Math.min(Math.max(value, route.cash), route.cash + Math.max(0, toChoose)) }
 }
 
-/** Why this money back cannot go: over what the card can take, or not adding up to the note. */
+/**
+ * Why this money back cannot go, in the order a cashier can act on it:
+ * - `overCard`: more to the card than it can take back (the quote itself would be wrong);
+ * - `offRoute`: a routed amount differs from the quote's route;
+ * - `toChooseLeft`: some of `toChoose` is not yet put under cash;
+ * - `notAsQuoted`: the route does not add up to the refund and the server named nothing to choose,
+ *   so there is no remainder the cashier may route and the refund is blocked;
+ * - `transferUnverified`: money would go back by transfer, which needs the beneficiary verification
+ *   record (owner FIN-A5b: ownership verified, masked account, evidence, actor, time) that has no
+ *   backend contract yet. Blocked rather than sent with an unverified reference.
+ */
+export type SplitProblem =
+  | 'overCard'
+  | 'offRoute'
+  | 'toChooseLeft'
+  | 'notAsQuoted'
+  | 'transferUnverified'
+
 export function splitProblem(
   split: MoneySplit,
+  route: MoneySplit,
+  toChoose: number,
   total: number,
   cardLimit: number,
-): 'overCard' | 'doesNotAdd' | null {
+): SplitProblem | null {
   if (split.card > cardLimit) return 'overCard'
-  if (split.card + split.cash + split.transfer + split.reduce !== total) return 'doesNotAdd'
+  if (
+    split.card !== route.card ||
+    split.transfer !== route.transfer ||
+    split.reduce !== route.reduce ||
+    split.cash < route.cash
+  ) {
+    return 'offRoute'
+  }
+  const chosen = split.cash - route.cash
+  const routed = route.card + route.cash + route.transfer + route.reduce
+  if (toChoose > 0 && routed + toChoose === total && chosen < toChoose) return 'toChooseLeft'
+  if (split.card + split.cash + split.transfer + split.reduce !== total) return 'notAsQuoted'
+  if (split.transfer > 0) return 'transferUnverified'
   return null
 }
 
@@ -245,34 +272,63 @@ export function onlyGivenAway(sale: PosRefundLookupDto, returning: ReturnLine[])
   return chosen.length > 0 && chosen.every((line) => line?.givenFree === true)
 }
 
+/**
+ * The lines of a quote or a refund, numbered by the sale line. A code is stated only for a line the
+ * server asked about (`HS_CODE_REQUIRED` names the sale line); RC2 takes it for that line alone.
+ */
+export function refundLines(
+  returning: ReturnLine[],
+  backOnShelf: boolean,
+  hsCodes: Record<number, string> = {},
+): PosRefundRequest['lines'] {
+  return returning
+    .filter((entry) => entry.qty > 0)
+    .map((entry) => {
+      const hsCode = hsCodes[entry.lineNumber]?.trim()
+      const line = { lineNumber: entry.lineNumber, quantity: entry.qty, backOnShelf }
+      return hsCode ? { ...line, hsCode } : line
+    })
+}
+
+/**
+ * Money back only as the quote and the cashier settled it. There is deliberately no single-method
+ * fallback: without a quote it paid a card or split sale back all in cash (A-03), so the screen sends
+ * nothing then.
+ */
 export function refundRequest(input: {
   tillId: string
   why: WhyId
   note: string
   returning: ReturnLine[]
   backOnShelf: boolean
-  method: 'CASH' | 'CARD' | 'TRANSFER' | 'REDUCE_BALANCE'
-  amount: number
+  hsCodes?: Record<number, string>
   /** Only given-away lines: there is no money to say anything about. */
   noMoney?: boolean
-  /** The split the cashier confirmed; without it, one line as a server without quotes takes. */
-  moneyBack?: PosRefundRequest['moneyBack']
+  moneyBack: PosRefundRequest['moneyBack']
 }): PosRefundRequest {
   return {
     tillId: input.tillId,
     reason: REASON_CODE[input.why],
     reasonNote: input.note.trim() || null,
-    lines: input.returning
-      .filter((entry) => entry.qty > 0)
-      .map((entry) => ({
-        lineNumber: entry.lineNumber,
-        quantity: entry.qty,
-        backOnShelf: input.backOnShelf,
-      })),
-    moneyBack: input.noMoney
-      ? []
-      : (input.moneyBack ?? [{ method: input.method, amount: toRials(input.amount) }]),
+    lines: refundLines(input.returning, input.backOnShelf, input.hsCodes),
+    moneyBack: input.noMoney ? [] : input.moneyBack,
   }
+}
+
+/**
+ * The sale line a refund warning is about, as the page lists the sale's lines. The server's STOCK_*
+ * warnings name the credit note's line (1..n in sale-line order), so refunding sale lines 3 and 5
+ * read "Line 2" for line 5 (contract matrix §3, "Line numbering"); POS_GOODS_FLAG_CLEARED and
+ * POS_REFUND_PIECE_CARRIED already name the sale line. Without the response's `lines` the server's
+ * number is kept, as before.
+ */
+export function saleLineOfRefundWarning(
+  warning: Pick<PosWarning, 'code' | 'line'>,
+  refund: Pick<PosRefundDto, 'lines'>,
+): number | null {
+  if (warning.line == null || !warning.code.startsWith('STOCK_')) return warning.line
+  const line = refund.lines?.find((entry) => entry.lineNumber === warning.line)
+  return line ? line.originalLineNumber : warning.line
 }
 
 /** What the original invoice is worth once the credit note is filed against it. */

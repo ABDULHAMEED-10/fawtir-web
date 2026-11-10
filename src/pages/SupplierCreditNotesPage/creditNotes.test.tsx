@@ -120,6 +120,8 @@ function json(status: number, body?: unknown) {
 let fetchMock: ReturnType<typeof vi.fn>
 let who: Entitlements
 let notes: CreditNoteRowDto[]
+let releaseBody: unknown
+let releaseResponse: (() => Response) | null
 let settlements: unknown[]
 let applyBody: unknown
 let applyRefusal: Record<string, unknown> | null
@@ -130,6 +132,10 @@ let downloads: string[]
 let billDetail: unknown
 /** `GET /suppliers/s-1/overview`, when a test needs the supplier panel's figures. */
 let overview: unknown
+/** `GET /bills/{NOTE_ID}`, the note's own bill record, when a test needs its decision (R8). */
+let ownBill: unknown
+/** A 409 resource-conflict code for `/apply`, when a test needs one (R8). */
+let applyConflict: string | null
 
 const calls = (prefix: string) =>
   fetchMock.mock.calls.map(([url]) => String(url)).filter((url) => url.startsWith(prefix))
@@ -140,6 +146,8 @@ beforeEach(async () => {
   who = ADMIN
   notes = [note()]
   settlements = []
+  releaseBody = null
+  releaseResponse = null
   applyBody = null
   applyRefusal = null
   refundBody = null
@@ -147,6 +155,8 @@ beforeEach(async () => {
   downloads = []
   billDetail = null
   overview = null
+  ownBill = null
+  applyConflict = null
 
   fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(
@@ -166,8 +176,38 @@ beforeEach(async () => {
       return new Response('<CreditNote/>', { status: 200 })
     }
     if (url.includes(`/credit-notes/${NOTE_ID}/settlements`)) return json(200, settlements)
+    if (url.includes(`/credit-notes/${NOTE_ID}/release`)) {
+      releaseBody = JSON.parse(String(init?.body))
+      if (releaseResponse !== null) return releaseResponse()
+      const applied = settlements[0] as { id: string }
+      settlements = [
+        ...settlements,
+        {
+          ...applied,
+          id: 'rel-1',
+          kind: 'RELEASED',
+          releasedSettlementId: applied.id,
+          reason: 'Wrong bill',
+        },
+      ]
+      return json(200, {
+        settlement: {},
+        status: 'UNAPPLIED',
+        balance: { applied: 0, refunded: 0, remaining: 200 },
+      })
+    }
     if (url.includes(`/credit-notes/${NOTE_ID}/apply`)) {
       applyBody = JSON.parse(String(init?.body))
+      if (applyConflict !== null) {
+        return new Response(
+          JSON.stringify({
+            error: applyConflict,
+            status: 409,
+            type: 'https://api.fawtir.om/problems/resource-conflict',
+          }),
+          { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+        )
+      }
       if (applyRefusal !== null) {
         return new Response(
           JSON.stringify({
@@ -213,6 +253,7 @@ beforeEach(async () => {
       })
     }
     if (billDetail !== null && url.includes(`/bills/${BILL_ID}`)) return json(200, billDetail)
+    if (ownBill !== null && url.includes(`/bills/${NOTE_ID}`)) return json(200, ownBill)
     if (url.includes('/bills')) {
       return json(200, {
         items: [
@@ -1574,6 +1615,252 @@ describe('One credit note', () => {
 
 // Owner, 9 Oct 2026 (E1): set against a debit note on upload, the note's page says what was done,
 // once, in the page's own notice.
+describe("releasing a note's credit from a bill (backend #827)", () => {
+  const APPLIED = {
+    id: 'set-1',
+    creditNoteId: NOTE_ID,
+    billId: 'b-9',
+    billNumber: 'QMS-7781',
+    billDocumentTypeCode: '380',
+    kind: 'APPLIED' as const,
+    amount: 200,
+    paymentReference: null,
+    settledOn: '2026-10-01',
+    actorId: 'u-1',
+    occurredAt: '2026-10-01T08:00:00Z',
+  }
+  const conflict = (error: string, extra: object = {}) => () =>
+    new Response(
+      JSON.stringify({
+        type: 'https://api.fawtir.om/problems/resource-conflict',
+        status: 409,
+        error,
+        ...extra,
+      }),
+      { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+    )
+  const openRelease = async () => {
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove from bill' }))
+    return screen.findByRole('dialog')
+  }
+  // A13: the reason is mandatory, so every case that means to send the release gives one.
+  const giveReason = (dialog: HTMLElement, reason = 'Wrong bill') =>
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: reason } })
+
+  it('releases an application only once asked, sends the reason, then offers it no more', async () => {
+    settlements = [APPLIED]
+    renderDetail()
+    const dialog = await openRelease()
+    expect(releaseBody).toBeNull()
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: ' Wrong bill ' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove credit' }))
+    expect(await screen.findByText('The credit was removed from that bill.')).toBeTruthy()
+    expect(releaseBody).toEqual({ billId: 'b-9', reason: 'Wrong bill' })
+    await waitFor(() => expect(screen.getByText('Removed from QMS-7781')).toBeTruthy())
+    expect(screen.queryByRole('button', { name: 'Remove from bill' })).toBeNull()
+  })
+
+  it.each([
+    ['en', 'Remove from bill', 'Remove the credit from QMS-7781?', 'Removed from QMS-7781'],
+    ['ar', 'إلغاء الخصم من الفاتورة', 'إلغاء خصم الرصيد من QMS-7781؟', 'أُلغي خصمه من فاتورة QMS-7781'],
+  ])('shows the rial sign, not the letters, in the confirmation and the trail (%s)', async (language, action, title, trail) => {
+    await i18n.changeLanguage(language)
+    settlements = [APPLIED, { ...APPLIED, id: 'released-1', kind: 'RELEASED', reason: 'Wrong bill', releasedSettlementId: 'other' }]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    const line = (await screen.findByText(trail)).parentElement!.querySelector('p:last-child')!
+    expect(line.querySelector('svg')).not.toBeNull()
+    expect(line.querySelector('.sr-only')?.textContent).toBe('OMR')
+    fireEvent.click(await screen.findByRole('button', { name: action }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(title)).toBeTruthy()
+    const body = dialog.querySelector('p.leading-\\[1\\.5\\]')!
+    expect(body.querySelector('svg')).not.toBeNull()
+    expect(body.querySelector('.sr-only')?.textContent).toBe('OMR')
+  })
+
+  it('does not name the bill as what the credit waits for once released from it', async () => {
+    notes = [
+      note({
+        status: 'UNAPPLIED',
+        balance: { applied: 0, refunded: 0, remaining: 200 },
+        credits: { ...note().credits, billId: null, billNumber: 'QMS-7781', applied: false },
+      }),
+    ]
+    settlements = [
+      APPLIED,
+      { ...APPLIED, id: 'released-1', kind: 'RELEASED', releasedSettlementId: APPLIED.id },
+    ]
+    renderDetail()
+    expect(await screen.findByText('Removed from QMS-7781')).toBeTruthy()
+    expect(screen.queryByText('Until it is, QMS-7781 still shows its full amount')).toBeNull()
+    expect(screen.getAllByText('Waiting for a bill').length).toBeGreaterThan(0)
+  })
+
+  // A13 (client decision 2026-11-08): the server refuses a release without a reason, so the
+  // confirmation cannot be pressed until one is given; spaces alone are not one.
+  it('waits for a reason before it can remove the credit', async () => {
+    settlements = [APPLIED]
+    renderDetail()
+    const dialog = await openRelease()
+    const confirm = within(dialog).getByRole('button', { name: 'Remove credit' }) as HTMLButtonElement
+    const field = within(dialog).getByRole('textbox', { name: 'Reason' })
+    expect(field.hasAttribute('required')).toBe(true)
+    expect(confirm.disabled).toBe(true)
+    fireEvent.click(confirm)
+    giveReason(dialog, '   ')
+    expect(confirm.disabled).toBe(true)
+    fireEvent.click(confirm)
+    expect(releaseBody).toBeNull()
+    giveReason(dialog, ' Duplicate credit ')
+    expect(confirm.disabled).toBe(false)
+    fireEvent.click(confirm)
+    await screen.findByText('The credit was removed from that bill.')
+    expect(releaseBody).toEqual({ billId: 'b-9', reason: 'Duplicate credit' })
+  })
+
+  it('says why when the server still refuses a release for its missing reason', async () => {
+    settlements = [APPLIED]
+    releaseResponse = () =>
+      new Response(
+        JSON.stringify({
+          type: 'https://api.fawtir.om/problems/expenditure-refused',
+          status: 400,
+          error: 'CREDIT_NOTE_RELEASE_REASON_REQUIRED',
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+    renderDetail()
+    const dialog = await openRelease()
+    giveReason(dialog)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove credit' }))
+    expect(
+      await screen.findByText(/Removing credit from a bill has to say why. Press Remove from bill again and give a reason./),
+    ).toBeTruthy()
+  })
+
+  it("offers a linked note's credit, which has no row yet", async () => {
+    notes = [
+      note({
+        status: 'APPLIED',
+        balance: { applied: 200, refunded: 0, remaining: 0 },
+        credits: { ...note().credits, billId: 'b-9', billNumber: 'QMS-7781', applied: true },
+      }),
+    ]
+    renderDetail()
+    await openRelease()
+    expect(screen.getByRole('dialog').textContent).toContain('200.000')
+  })
+
+  it('offers nothing on a supplier debit note, which the server refuses', async () => {
+    settlements = [{ ...APPLIED, billDocumentTypeCode: '383' }]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    await screen.findByText('Used against QMS-7781')
+    expect(screen.queryByRole('button', { name: 'Remove from bill' })).toBeNull()
+  })
+
+  it('offers nothing to someone without the right to settle', async () => {
+    who = READER
+    settlements = [APPLIED]
+    renderDetail()
+    await screen.findByText('Used against QMS-7781')
+    expect(screen.queryByRole('button', { name: 'Remove from bill' })).toBeNull()
+  })
+
+  it.each([
+    [
+      'CREDIT_NOTE_RELEASE_BILL_IN_PAYMENT_RUN',
+      'This bill is in payment run PR-7. Take it out of the run before removing credit from it.',
+    ],
+    [
+      'CREDIT_NOTE_RELEASE_OVERPAYMENT_SETTLED',
+      "This credit can't be removed: part of what the bill was overpaid by has already been refunded or used on another bill.",
+    ],
+    [
+      'CREDIT_NOTE_APPLICATION_ALREADY_RELEASED',
+      'This credit has changed since the page loaded. Check the activity and try again.',
+    ],
+  ])('says why when the server refuses: %s', async (code, sentence) => {
+    settlements = [APPLIED]
+    releaseResponse = conflict(code, { paymentRunReference: 'PR-7' })
+    renderDetail()
+    const dialog = await openRelease()
+    giveReason(dialog)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove credit' }))
+    expect(await screen.findByText(new RegExp(sentence.replace(/[.]/g, '\\.')))).toBeTruthy()
+  })
+
+  it('says it is not available on a server without the route', async () => {
+    settlements = [APPLIED]
+    releaseResponse = () => new Response(null, { status: 404 })
+    renderDetail()
+    const dialog = await openRelease()
+    giveReason(dialog)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove credit' }))
+    expect(await screen.findByText("Credit can't be removed from a bill yet.")).toBeTruthy()
+  })
+
+  // Agent 10 ruling 1.5(a): credit a legacy-rejected note left on a bill contradicts R8, and the
+  // release is the only way to take it back off, so it stays offered while R8 still hides every
+  // apply. Hiding it would lock the inconsistent state in. W1: its confirmation must not promise the
+  // credit back for use on another bill or a refund.
+  it('keeps Remove from bill on a rejected note, with no Set against before or after it', async () => {
+    notes = [note({ approval: 'REJECTED' })]
+    settlements = [APPLIED]
+    renderDetail()
+    const dialog = await openRelease()
+    expect(screen.queryByRole('button', { name: /set against/i })).toBeNull()
+    expect(dialog.textContent).not.toMatch(/another bill|refund/i)
+    giveReason(dialog)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove credit' }))
+    await screen.findByText('The credit was removed from that bill.')
+    await waitFor(() => expect(screen.getByText('Removed from QMS-7781')).toBeTruthy())
+    expect(screen.queryByRole('button', { name: /set against/i })).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Rejected' })).toBeTruthy()
+  })
+
+  // The server refuses a reason over 1000 characters (CREDIT_NOTE_RELEASE_REASON_TOO_LONG, and the
+  // request's @Size before it); the field stops it, so no sentence is mapped (ruling 1.5(b)).
+  it('keeps what the release does in the confirmation of a note that is not rejected', async () => {
+    settlements = [APPLIED]
+    renderDetail()
+    const dialog = await openRelease()
+    expect(dialog.textContent).toMatch(/to use on another bill or to refund/)
+  })
+
+  it('caps the reason at the 1000 characters the server takes', async () => {
+    settlements = [APPLIED]
+    renderDetail()
+    const dialog = await openRelease()
+    expect(within(dialog).getByRole('textbox').getAttribute('maxlength')).toBe('1000')
+  })
+
+  // Only a server without the route answers an unnamed 404; a named one is a refusal of its own.
+  it('does not call a named 404 an unavailable feature', async () => {
+    settlements = [APPLIED]
+    releaseResponse = () =>
+      new Response(
+        JSON.stringify({ status: 404, error: 'BILL_NOT_FOUND' }),
+        { status: 404, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+    renderDetail()
+    const dialog = await openRelease()
+    giveReason(dialog)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove credit' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(screen.queryByText("Credit can't be removed from a bill yet.")).toBeNull()
+  })
+
+  it('has every sentence in Arabic', () => {
+    for (const key of ['heading', 'action', 'title', 'body', 'reason', 'confirm', 'done', 'unavailable', 'refused.reasonRequired']) {
+      const full = `supplierCreditNoteDetail.release.${key}`
+      expect(i18n.exists(full, { lng: 'ar', fallbackLng: [] })).toBe(true)
+    }
+  })
+})
+
 describe('arriving from the upload', () => {
   /** The history entry's state, as a reload or a step back would find it. */
   function StateProbe() {
@@ -2062,6 +2349,25 @@ describe("A held duplicate's wording", () => {
     expect(await screen.findByText(body)).toBeTruthy()
   })
 
+  it('says the bill it corrects was rejected, not paid, when that bill reads nothing owed (OBS-1)', async () => {
+    notes = [note({ credits: namedBill })]
+    billDetail = {
+      bill: {
+        ...OURS,
+        id: BILL_ID,
+        supplierBillNumber: 'QMS-7781',
+        workflowState: 'REJECTED',
+        paidAmount: 0,
+        outstandingAmount: 0,
+      },
+      lines: [],
+    }
+    renderDetail()
+    expect(await screen.findByText(/was rejected in your books, so nothing is owed on it/)).toBeTruthy()
+    expect(screen.queryByText(/has already been paid/)).toBeNull()
+    expect(screen.queryByText(/you pay that much less/)).toBeNull()
+  })
+
   // A held copy is left out of input VAT (PEPPOL_DUPLICATE_HELD) even when the bill it corrects
   // is counted, so no reduction may be claimed for it.
   it.each([
@@ -2141,5 +2447,460 @@ describe('the recovered card counts notes in the right number (C-9)', () => {
     ['ar', 11, '11 إشعارًا استُخدم أو استُرد'],
   ] as const)('%s, %i', (language, count, words) => {
     expect(i18n.getFixedT(language)('supplierCreditNotes.kpi.recoveredMeta', { count })).toBe(words)
+  })
+})
+
+/**
+ * A supplier refund carries an Idempotency-Key (backend P0, 2026-10-31; owner option 3): one key
+ * per refund the person means to record, kept across a second click and a retry after a lost
+ * answer, and fresh for the next refund. The stub below plays the server: it records once per key.
+ */
+describe('a supplier refund is recorded once, whatever the network does', () => {
+  type Answer = 'ok' | 'slow' | 'lost' | 'reused' | 'inProgress' | 'rejected'
+  let sent: { key: string | null; body: unknown }[]
+  let answers: Answer[]
+  let recorded: Map<string, string>
+
+  const conflict = (code: string) =>
+    new Response(
+      JSON.stringify({
+        type: 'https://api.fawtir.om/problems/resource-conflict',
+        status: 409,
+        error: code,
+        trace_id: 'trace-9',
+      }),
+      { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+    )
+
+  beforeEach(() => {
+    sent = []
+    answers = []
+    recorded = new Map()
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.includes(`/credit-notes/${NOTE_ID}/refund`) && init?.method === 'POST') {
+        const key = new Headers(init.headers).get('Idempotency-Key')
+        sent.push({ key, body: JSON.parse(String(init.body)) })
+        const answer = answers.shift() ?? 'ok'
+        if (answer === 'reused') return conflict('CREDIT_NOTE_REFUND_IDEMPOTENCY_KEY_REUSED')
+        if (answer === 'inProgress') return conflict('CREDIT_NOTE_REFUND_IN_PROGRESS')
+        if (answer === 'rejected') return conflict('CREDIT_NOTE_REFUND_REJECTED')
+        if (answer === 'slow') await new Promise((resolve) => setTimeout(resolve, 50))
+        if (key !== null && !recorded.has(key)) recorded.set(key, String(init.body))
+        if (answer === 'lost') throw new TypeError('Failed to fetch')
+        return json(200, {
+          settlement: {},
+          status: 'UNAPPLIED',
+          balance: { applied: 0, refunded: 50, remaining: 150 },
+        })
+      }
+      return base(input, init)
+    })
+  })
+
+  const noteReads = () =>
+    fetchMock.mock.calls.filter(([input, init]) => {
+      const url = String(input)
+      return url.endsWith(`/credit-notes/${NOTE_ID}`) && (init?.method ?? 'GET') === 'GET'
+    }).length
+
+  const recordButton = () =>
+    screen.getByRole('button', { name: i18n.t('supplierCreditNoteDetail.refundCta') })
+
+  /** Opens the form when it is not already open, and fills it the same way each time. */
+  async function fill(amount = '50') {
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    if (!screen.queryByRole('button', { name: i18n.t('supplierCreditNoteDetail.refundCta') })) {
+      fireEvent.click(
+        await screen.findByRole('button', { name: i18n.t('supplierCreditNotes.detail.askRefund') }),
+      )
+    }
+    fireEvent.change(screen.getByLabelText(i18n.t('supplierCreditNoteDetail.amount')), {
+      target: { value: amount },
+    })
+    fireEvent.click(screen.getByLabelText(i18n.t('supplierCreditNoteDetail.paidOn')))
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('common.datePicker.today') }))
+  }
+
+  const settled = () => waitFor(() => expect(recordButton()).toHaveProperty('disabled', false))
+
+  // N23: a note rejected after the page was read is refused its refund by name (E11). The sentence
+  // names no next step: reopening needs bill.reopen, which a refunder holding only bill.settle may
+  // lack (Agent 10's DOC-08 point on "Reopen it first."), and a retry would meet the same 409.
+  it('says the note was rejected when the server refuses its refund, and offers no step it may not have', async () => {
+    answers = ['rejected']
+    renderDetail()
+    await fill()
+    fireEvent.click(recordButton())
+    expect(
+      await screen.findByText(/This credit note was rejected, so a refund can't be recorded on it./),
+    ).toBeTruthy()
+    expect(screen.queryByText(/Reopen it first|try again/i)).toBeNull()
+  })
+
+  it('sends one request with one key for a double click', async () => {
+    answers = ['slow']
+    renderDetail()
+    await fill()
+    // The same element twice: once pressed it reads Saving, so it cannot be found by its name.
+    const button = recordButton()
+    fireEvent.click(button)
+    fireEvent.click(button)
+    await waitFor(() => expect(recorded.size).toBe(1))
+    expect(sent).toHaveLength(1)
+    expect(sent[0].key).toMatch(/^credit-refund-[A-Za-z0-9._:-]{16,}$/)
+  })
+
+  it('retries a lost answer under the same key, and the server replays instead of recording twice', async () => {
+    answers = ['lost', 'ok']
+    renderDetail()
+    await fill()
+    fireEvent.click(recordButton())
+    // The first request was recorded, but its answer never came back.
+    await waitFor(() => expect(sent).toHaveLength(1))
+    await settled()
+    fireEvent.click(recordButton())
+    await waitFor(() => expect(sent).toHaveLength(2))
+    expect(sent[1].key).toBe(sent[0].key)
+    expect(sent[1].body).toEqual(sent[0].body)
+    expect(recorded.size).toBe(1)
+  })
+
+  it('gives each intended refund its own key, and the next refund after a success a fresh one', async () => {
+    renderDetail()
+    await fill('50')
+    fireEvent.click(recordButton())
+    await waitFor(() => expect(sent).toHaveLength(1))
+    // The form closes on success; asking again is a new refund.
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: i18n.t('supplierCreditNoteDetail.refundCta') })).toBeNull(),
+    )
+    await fill('50')
+    fireEvent.click(recordButton())
+    await waitFor(() => expect(sent).toHaveLength(2))
+    expect(sent[1].key).not.toBe(sent[0].key)
+    expect(recorded.size).toBe(2)
+  })
+
+  it.each([
+    [
+      'en',
+      'This refund was changed after an earlier attempt that may already be recorded. Check the refunds on this note before recording it again: the next attempt counts as a new refund.',
+    ],
+    [
+      'ar',
+      'تغيّر هذا الاسترداد بعد محاولة سابقة ربما سُجّلت بالفعل. راجع عمليات الاسترداد على هذا الإشعار قبل تسجيله مرة أخرى: ستُعدّ المحاولة التالية استردادًا جديدًا.',
+    ],
+  ])('on KEY_REUSED says so, reads the note again and mints a new key (%s)', async (lang, sentence) => {
+    await i18n.changeLanguage(lang)
+    answers = ['reused', 'ok']
+    renderDetail()
+    await fill()
+    const readsBefore = noteReads()
+    fireEvent.click(recordButton())
+    expect(await screen.findByText(new RegExp(`^${sentence}`))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('apiErrors.conflict'))).toBeNull()
+    await waitFor(() => expect(noteReads()).toBeGreaterThan(readsBefore))
+    await fill()
+    fireEvent.click(recordButton())
+    await waitFor(() => expect(sent).toHaveLength(2))
+    expect(sent[1].key).not.toBe(sent[0].key)
+    expect(recorded.size).toBe(1)
+  })
+
+  it.each([
+    [
+      'en',
+      'This refund is still being recorded. Wait a moment, then press Record the refund again without changing it.',
+    ],
+    [
+      'ar',
+      'لا يزال هذا الاسترداد قيد التسجيل. انتظر قليلًا، ثم اضغط «سجّل الاسترداد» مرة أخرى دون تغييره.',
+    ],
+  ])('on IN_PROGRESS says to wait and press again, and keeps the key (%s)', async (lang, sentence) => {
+    await i18n.changeLanguage(lang)
+    answers = ['inProgress', 'ok']
+    renderDetail()
+    await fill()
+    const readsBefore = noteReads()
+    fireEvent.click(recordButton())
+    expect(await screen.findByText(new RegExp(`^${sentence}`))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('apiErrors.conflict'))).toBeNull()
+    await settled()
+    expect(noteReads()).toBe(readsBefore)
+    fireEvent.click(recordButton())
+    await waitFor(() => expect(sent).toHaveLength(2))
+    expect(sent[1].key).toBe(sent[0].key)
+    expect(sent[1].body).toEqual(sent[0].body)
+    expect(recorded.size).toBe(1)
+  })
+})
+
+// R8 (VAT-CN-R1-R8 plan §7.5): a rejected note is refused at every apply (409 CREDIT_NOTE_REJECTED)
+// but not at a refund. Its decision is on its own bill record, under the R5 contract only.
+describe('a rejected credit note (R8)', () => {
+  function ownRecord(fields: { standalone?: boolean; vatNotice?: string | null } | null) {
+    const readiness = { state: 'REJECTED' as const, distinctApprovals: 0, required: 1, autoApproved: false }
+    return {
+      bill: {
+        ...OURS,
+        id: NOTE_ID,
+        source: 'PEPPOL',
+        documentTypeCode: '381',
+        supplierBillNumber: 'QMS-CN-1',
+        outstandingAmount: 0,
+        approval: 'REJECTED',
+        readiness,
+        creditNote: {
+          status: 'UNAPPLIED',
+          usage: null,
+          balance: { applied: 0, refunded: 0, remaining: 200 },
+          ...(fields ?? {}),
+        },
+        inboundDeliveryId: null,
+        networkVerified: true,
+        amountDue: null,
+        creditedAmount: 0,
+        complianceObligation: 'NOT_APPLICABLE',
+      },
+      lines: [],
+      readiness,
+      approvals: [],
+      hold: null,
+      holdHistory: [],
+      settlement: {
+        billTotal: 200,
+        paidAmount: 0,
+        creditedAmount: 0,
+        outstandingAmount: 0,
+        currency: 'OMR',
+        paymentState: 'UNPAID',
+        overdue: false,
+        dueDate: null,
+      },
+      payments: [],
+      paymentRunReference: null,
+      intake: null,
+      compliance: { source: 'PEPPOL', networkVerified: true, obligation: 'NOT_APPLICABLE' },
+      activity: [],
+    }
+  }
+
+  // N23 (E11, client decision 2026-11-08: rejected credit notes cannot be refunded): the server
+  // refuses the refund as well (409 CREDIT_NOTE_REFUND_REJECTED), so it is not offered either.
+  it('offers neither a set-against nor a refund on a rejected note', async () => {
+    ownBill = ownRecord({ standalone: true, vatNotice: 'REJECTED_VAT_STILL_REDUCED' })
+    renderDetail()
+    // On the decision card and in the effect banner (SC-3, SC-4); the row is not rejected here, so
+    // the activity keeps its own entry.
+    expect(
+      await screen.findAllByText("This credit note was rejected, so it can't be set against a bill."),
+    ).toHaveLength(2)
+    expect(screen.queryByRole('button', { name: 'Set against the bill' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Ask for a refund' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Keep as credit' })).toBeTruthy()
+  })
+
+  it('offers no refund on a note the list already reads as rejected', async () => {
+    notes = [note({ approval: 'REJECTED' })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    expect(screen.queryByRole('button', { name: 'Ask for a refund' })).toBeNull()
+  })
+
+  it('keeps the set-against for a server before R5 when the row is not REJECTED, whatever its record says', async () => {
+    ownBill = ownRecord(null)
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    await waitFor(() => expect(calls('/api/v1/bills/' + NOTE_ID).length).toBeGreaterThan(0))
+    expect(screen.getAllByRole('button', { name: 'Set against the bill' }).length).toBeGreaterThan(0)
+    expect(
+      screen.queryByText("This credit note was rejected, so it can't be set against a bill."),
+    ).toBeNull()
+  })
+
+  it("says why a row's set-against was refused", async () => {
+    applyConflict = 'CREDIT_NOTE_REJECTED'
+    notes = [
+      note({
+        credits: {
+          billNumber: 'QMS-7781',
+          issueDate: '2026-09-01',
+          documentUuid: null,
+          billId: BILL_ID,
+          applied: false,
+        },
+      }),
+    ]
+    renderList()
+    await screen.findByText('QMS-CN-1')
+    fireEvent.click(
+      within(screen.getByRole('table')).getByRole('button', { name: 'Set against the bill' }),
+    )
+    expect(
+      await screen.findByText(/^This credit note was rejected, so it can't be set against a bill./),
+    ).toBeTruthy()
+  })
+})
+
+// R8 on the list (E2E 2026-11-08, E-11): a rejected note with credit left read "Not yet used",
+// "Set against the bill" and "you'd pay less". Its status stays UNAPPLIED (backend def9c5b12 maps
+// the four statuses exhaustively), and an older server lists it under Unapplied too, so the row's
+// `approval` decides.
+describe('a rejected credit note on the list (R8)', () => {
+  const namedBill = {
+    billNumber: 'QMS-7781',
+    issueDate: '2026-09-01',
+    documentUuid: null,
+    billId: BILL_ID,
+    applied: false,
+  }
+  const REJECTED_ID = '70000000-0000-0000-0000-000000000011'
+
+  it('reads a rejected row as rejected and out of usable credit, and a row without approval as not', () => {
+    const rejected = toCreditNoteItem(note({ approval: 'REJECTED' }))
+    expect(rejected.rejected).toBe(true)
+    expect(rejected.usable).toBe(false)
+    expect(rejected.status).toBe('UNAPPLIED')
+
+    const row = note()
+    delete (row as Partial<CreditNoteRowDto>).approval
+    const old = toCreditNoteItem(row)
+    expect(old.rejected).toBe(false)
+    expect(old.usable).toBe(true)
+
+    for (const approval of ['NONE', 'PENDING', 'APPROVED'] as const) {
+      expect(toCreditNoteItem(note({ approval })).rejected).toBe(false)
+    }
+  })
+
+  it('opens a rejected note with credit left instead of setting it, and keeps a spent one its action', () => {
+    for (const status of ['UNAPPLIED', 'WAITING_FOR_BILL', 'PARTLY_USED'] as const) {
+      expect(creditRowActionOf({ status, heldAsDuplicate: false, rejected: true })).toEqual({
+        labelKey: 'supplierCreditNotes.actions.openNote',
+        goesTo: 'note',
+      })
+    }
+    expect(creditRowActionOf({ status: 'APPLIED', heldAsDuplicate: false, rejected: true })).toEqual({
+      labelKey: 'supplierCreditNotes.actions.viewBill',
+      goesTo: 'bill',
+    })
+  })
+
+  it('names the rejected row as rejected, with no Set against and no promise of paying less', async () => {
+    notes = [
+      note({ credits: namedBill }),
+      note({
+        id: REJECTED_ID,
+        creditNoteNumber: 'QMS-CN-REJ',
+        approval: 'REJECTED',
+        credits: namedBill,
+      }),
+    ]
+    renderList()
+    const normalRow = (await screen.findByRole('link', { name: 'QMS-CN-1' })).closest('tr')!
+    const rejectedRow = screen.getByRole('link', { name: 'QMS-CN-REJ' }).closest('tr')!
+
+    expect(within(normalRow).getByText('Not yet used')).toBeTruthy()
+    expect(within(normalRow).getByRole('button', { name: 'Set against the bill' })).toBeTruthy()
+
+    expect(within(rejectedRow).getByText('Rejected')).toBeTruthy()
+    expect(within(rejectedRow).queryByText('Not yet used')).toBeNull()
+    expect(within(rejectedRow).queryByRole('button', { name: 'Set against the bill' })).toBeNull()
+    expect(within(rejectedRow).queryByText('Set against the bill')).toBeNull()
+    expect(within(rejectedRow).queryByText("you'd pay less")).toBeNull()
+    const open = within(rejectedRow).getByRole('link', { name: /Open the note/ })
+    expect(open.getAttribute('href')).toBe(`/expenditure/credit-notes/${REJECTED_ID}`)
+  })
+
+  it('offers no Set against on a rejected note left partly used, nor "left to use"', async () => {
+    notes = [
+      note({
+        approval: 'REJECTED',
+        balance: { applied: 0, refunded: 150, remaining: 50 },
+        credits: namedBill,
+      }),
+    ]
+    renderList()
+    const row = (await screen.findByRole('link', { name: 'QMS-CN-1' })).closest('tr')!
+    expect(within(row).getByText('Rejected')).toBeTruthy()
+    expect(within(row).queryByText('Partly used')).toBeNull()
+    expect(within(row).queryByRole('button', { name: 'Set against the bill' })).toBeNull()
+    expect(within(row).queryByText(/left to use/)).toBeNull()
+  })
+
+  // N27: the activity said "Waiting to be set against the bill" under a Rejected chip.
+  it('says in the activity that it was rejected, never that it waits to be set against the bill', async () => {
+    notes = [note({ approval: 'REJECTED', credits: namedBill })]
+    renderDetail()
+    const trail = await screen.findByRole('list', { name: 'Activity' })
+    expect(within(trail).getByText('Rejected')).toBeTruthy()
+    expect(
+      within(trail).getByText("This credit note was rejected, so it can't be set against a bill."),
+    ).toBeTruthy()
+    expect(within(trail).queryByText('Waiting to be set against the bill')).toBeNull()
+    expect(within(trail).queryByText(/still shows its full amount/)).toBeNull()
+  })
+
+  it('keeps the waiting entry in the activity for a note that is not rejected', async () => {
+    notes = [note({ approval: 'APPROVED', credits: namedBill })]
+    renderDetail()
+    const trail = await screen.findByRole('list', { name: 'Activity' })
+    expect(within(trail).getByText('Waiting to be set against the bill')).toBeTruthy()
+    expect(within(trail).queryByText('Rejected')).toBeNull()
+  })
+
+  // QA re-run SC-4: the banner read "OMR 200.000 of credit to use" and "Set it against one".
+  it('offers no credit to use and no set-against advice in the banner of a rejected unused note', async () => {
+    notes = [note({ approval: 'REJECTED' })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    expect(screen.queryByRole('heading', { name: /of credit to use/ })).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Rejected' })).toBeTruthy()
+    expect(screen.queryByText(/Set it against one/)).toBeNull()
+    // N23 (E11): a rejected note is never refunded, so the button that would only meet a 409 is gone.
+    expect(screen.queryByRole('button', { name: 'Ask for a refund' })).toBeNull()
+  })
+
+  // QA re-run SC-3: "Set the rest against another bill" on a rejected note left partly refunded.
+  it('offers no set-against advice in the banner of a rejected partly used note', async () => {
+    notes = [note({ approval: 'REJECTED', balance: { applied: 0, refunded: 150, remaining: 50 } })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    expect(screen.queryByRole('heading', { name: /of credit to use/ })).toBeNull()
+    expect(screen.queryByText(/Set the rest against another bill/)).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Rejected' })).toBeTruthy()
+  })
+
+  it('keeps credit to use and its advice in the banner of a note that is not rejected', async () => {
+    notes = [note({ approval: 'APPROVED', balance: { applied: 0, refunded: 150, remaining: 50 } })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    expect(screen.getByRole('heading', { name: /of credit to use/ })).toBeTruthy()
+    expect(screen.getByText(/Set the rest against another bill/)).toBeTruthy()
+  })
+
+  it('names it rejected in Arabic too', async () => {
+    await i18n.changeLanguage('ar')
+    notes = [note({ approval: 'REJECTED', credits: namedBill })]
+    renderList()
+    const row = (await screen.findByRole('link', { name: 'QMS-CN-1' })).closest('tr')!
+    expect(within(row).getByText('مرفوض')).toBeTruthy()
+    expect(within(row).queryByText('لم يُستخدم بعد')).toBeNull()
+  })
+
+  it('offers no Set against on its own screen from the row alone, before or without the R5 record', async () => {
+    notes = [note({ approval: 'REJECTED', credits: namedBill })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-CN-1' })
+    expect(screen.queryByRole('button', { name: 'Set against the bill' })).toBeNull()
+    // On the decision card, as the activity's current entry (N27), and in the effect banner.
+    expect(
+      screen.getAllByText("This credit note was rejected, so it can't be set against a bill."),
+    ).toHaveLength(3)
+    // N23 (E11): a rejected note is never refunded, so the button that would only meet a 409 is gone.
+    expect(screen.queryByRole('button', { name: 'Ask for a refund' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Keep as credit' })).toBeTruthy()
   })
 })

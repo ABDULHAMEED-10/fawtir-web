@@ -77,6 +77,16 @@ describe('toApiError', () => {
     expect(error).toMatchObject({ problemType: 'expenditure-refused', code: 'BILL_ON_HOLD', correlationId: 't-9' })
   })
 
+  // W5-SHARED audit: a reason phrase in `error` (Spring or gateway default body) is no code, while
+  // an identifier there is (Expenditure), and `code` itself is taken as sent.
+  it('takes no code from a reason phrase in `error`', () => {
+    for (const phrase of ['Payload Too Large', 'Not Found', 'Bad Request', 'Internal Server Error', 'invalid_grant']) {
+      expect(respond(400, { status: 400, error: phrase, path: '/x' }).code).toBeNull()
+    }
+    expect(respond(503, { error: 'BILL_PAYMENT_ON_HOLD' }).code).toBe('BILL_PAYMENT_ON_HOLD')
+    expect(respond(400, { code: 'lowerCaseCode', error: 'BILL_ON_HOLD' }).code).toBe('lowerCaseCode')
+  })
+
   it('has neither when the body has neither', () => {
     expect(respond(500, undefined)).toMatchObject({ code: null, correlationId: null, problemType: null })
   })

@@ -72,6 +72,17 @@ import {
   loadWaitingCount,
   type WaitingCountDto,
 } from '../../api/expenditure/waitingDocuments'
+import {
+  loadRejectedDocuments,
+  rejectedDocumentsPath,
+  type RejectedPageDto,
+} from '../../api/expenditure/rejectedDocuments'
+import {
+  readRejectedSeen,
+  rejectedBannerShows,
+  rejectedSeenKey,
+  writeRejectedSeen,
+} from '../../lib/rejectedDocuments'
 import { formatAmount, formatCount, formatDate, formatInstantDay } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
 import kpiAttentionIcon from '../../assets/bills/kpi-attention.svg'
@@ -427,6 +438,7 @@ function BillsScreen() {
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
         {header}
         <WaitingDocumentsBanner />
+        <RejectedDocumentsBanner />
         {summary.read.status === 'loading' ? (
           <LoadingNotice />
         ) : (
@@ -459,6 +471,7 @@ function BillsScreen() {
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
       {header}
       <WaitingDocumentsBanner />
+      <RejectedDocumentsBanner />
       <BillKpiCards
         totals={totals}
         canStartRun={canCapture}
@@ -930,6 +943,69 @@ function WaitingDocumentsBanner() {
   )
 }
 
+/**
+ * Supplier documents our access point refused on arrival (batch 39 EXP), and the way to the list.
+ * A branch-limited person is refused that list (403, BA-1), so it is not read for them at all.
+ * Nothing is drawn while none were refused, while the read is on its way, or when it fails: a
+ * server before batch 39 answers 404 and the page stays as it was.
+ */
+function RejectedDocumentsBanner() {
+  const session = useSession()
+  if (session?.allBranches === false || !can(session, 'invoice.read')) return null
+  return <RejectedDocumentsCount />
+}
+
+// One row is enough: the banner needs only the total, and the server has no count route.
+const REJECTED_BANNER_PATH = rejectedDocumentsPath(0, 1)
+
+function RejectedDocumentsCount() {
+  const { t, i18n } = useTranslation()
+  const rejected = useApiRead<RejectedPageDto>(REJECTED_BANNER_PATH, () =>
+    loadRejectedDocuments(REJECTED_BANNER_PATH),
+  )
+  const session = useSession()
+  const seenKey = session ? rejectedSeenKey(session.tenantId, session.userId) : null
+  const [seen, setSeen] = useState(() => (seenKey ? readRejectedSeen(seenKey) : 0))
+  if (rejected.read.status !== 'ready') return null
+  const total = rejected.read.data.total
+  if (!rejectedBannerShows(total, seen)) return null
+  const dismiss = () => {
+    if (seenKey) writeRejectedSeen(seenKey, total)
+    setSeen(total)
+  }
+  return (
+    <div
+      role="status"
+      data-testid="rejected-documents-banner"
+      className="flex flex-wrap items-center justify-between gap-3 rounded-sm bg-surface-background px-4 py-3 text-text-secondary"
+    >
+      <p className="min-w-0 flex-1 text-sm font-medium leading-[1.6] md:min-w-[320px]">
+        <b className="font-semibold">
+          {t('rejectedDocuments.banner.title', {
+            count: total,
+            n: formatCount(total, i18n.language),
+          })}
+        </b>{' '}
+        {t('rejectedDocuments.banner.body')}
+      </p>
+      <Link
+        to="/expenditure/bills/rejected"
+        className="inline-flex h-[38px] shrink-0 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+      >
+        {t('rejectedDocuments.banner.open')}
+      </Link>
+      <button
+        type="button"
+        onClick={dismiss}
+        data-testid="rejected-documents-banner-dismiss"
+        className="inline-flex h-[38px] shrink-0 items-center rounded-sm px-3 text-sm font-semibold text-text-tertiary transition-colors hover:text-text-secondary"
+      >
+        {t('rejectedDocuments.banner.dismiss')}
+      </button>
+    </div>
+  )
+}
+
 function BillTable({
   page,
   drafts,
@@ -1217,6 +1293,15 @@ function BillTableRow({
           <p className="mt-1 text-xs font-medium leading-[1.2] text-text-tertiary">
             {t('billsPage.rows.issued', { date: formatDate(row.issueDate, language) })}
           </p>
+        ) : null}
+        {row.twin ? (
+          <Link
+            to={`/expenditure/bills/${row.twin.otherId}`}
+            data-testid="bill-row-twin"
+            className="mt-1 block text-xs font-semibold leading-[1.2] text-pending-700 hover:underline"
+          >
+            {t(`billsPage.rows.twin.${row.twin.certainty}`)}
+          </Link>
         ) : null}
       </td>
 

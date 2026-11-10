@@ -8,6 +8,7 @@ import type {
   PaymentRunState,
 } from '../api/expenditure/paymentRuns'
 import { describeApiFailure } from './apiFailure'
+import { PERIOD_CLOSED_CHOSEN_DATE_KEY } from './expenditureRefusals'
 import { muscatToday, plusDays } from './invoiceIssue'
 
 /**
@@ -25,6 +26,29 @@ export type RunBill = {
   outstanding: number
   discount: number
   amount: number
+  /** On a candidate only (batch 39 EXP): as `BillRow.duplicateOf`, the sure twin's bill id. */
+  duplicateOf?: string | null
+  /** On a candidate only (batch 39 EXP): as `BillRow.possibleDuplicateOf`. */
+  possibleDuplicateOf?: string | null
+  /** On a candidate only (PRV-b39 E-1): as `BillRow.heldCopyId`. */
+  heldCopyId?: string | null
+}
+
+/**
+ * The bill a candidate may be the same supplier document as, so whoever builds a run sees it
+ * before paying both copies (ACC-8 interim; batch 39 EXP §5). A sure pair wins over a possible one.
+ * A held copy never reaches the candidates, so this never names a decided hold. The upload it is
+ * held against does, and it is the bill to pay: it is told where its copy is (`heldCopy`), never
+ * that it is the same as another (PRV-b39 E-1); read first, so a reply still carrying
+ * `duplicateOf` cannot say otherwise.
+ */
+export function candidateTwinOf(
+  bill: Pick<RunBill, 'duplicateOf' | 'possibleDuplicateOf' | 'heldCopyId'>,
+): { certainty: 'heldCopy' | 'sure' | 'possible'; otherId: string } | null {
+  if (bill.heldCopyId) return { certainty: 'heldCopy', otherId: bill.heldCopyId }
+  if (bill.duplicateOf) return { certainty: 'sure', otherId: bill.duplicateOf }
+  if (bill.possibleDuplicateOf) return { certainty: 'possible', otherId: bill.possibleDuplicateOf }
+  return null
 }
 
 export type SupplierGroup = {
@@ -258,6 +282,9 @@ const BY_ACTION: Record<string, Partial<Record<RunAction, string>>> = {
   // name, the hold keeps the sentence that names none.
   PAYMENT_RUN_BILL_ON_HOLD: { markPaid: 'paymentRuns.refused.onHoldMarkPaidNamed' },
   PAYMENT_RUN_BILL_NOT_READY: { markPaid: 'paymentRuns.refused.rejectedMarkPaid' },
+  // Marking paid is dated by the person (the dialog's date, else the run's), so another date is a
+  // way past a closed period; no other run action posts cash.
+  PERIOD_CLOSED: { markPaid: PERIOD_CLOSED_CHOSEN_DATE_KEY },
 }
 
 /** Sentences that name the bill: without its number the code's own sentence is said instead. */

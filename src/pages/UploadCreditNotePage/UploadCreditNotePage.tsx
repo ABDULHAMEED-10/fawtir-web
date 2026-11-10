@@ -15,6 +15,10 @@ import type { SavedNoteState } from '../SupplierCreditNoteDetailPage/SupplierCre
 const DEBIT_NOTE_DONE = new Set([
   'supplierCreditNotes.upload.savedAppliedDebitNote',
   'supplierCreditNotes.upload.savedClosesRefusedDebitNote',
+  // PRV43-EXP5 L-4: the note page does not otherwise say that the save left it held as a possible
+  // duplicate, or that the server did not say whether it did.
+  'supplierCreditNotes.upload.savedHeldAsDuplicate',
+  'supplierCreditNotes.upload.savedStatusUnknown',
 ])
 
 /**
