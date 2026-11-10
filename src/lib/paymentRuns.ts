@@ -8,6 +8,7 @@ import type {
   PaymentRunState,
 } from '../api/expenditure/paymentRuns'
 import { describeApiFailure } from './apiFailure'
+import { PERIOD_CLOSED_CHOSEN_DATE_KEY } from './expenditureRefusals'
 import { muscatToday, plusDays } from './invoiceIssue'
 
 /**
@@ -281,6 +282,9 @@ const BY_ACTION: Record<string, Partial<Record<RunAction, string>>> = {
   // name, the hold keeps the sentence that names none.
   PAYMENT_RUN_BILL_ON_HOLD: { markPaid: 'paymentRuns.refused.onHoldMarkPaidNamed' },
   PAYMENT_RUN_BILL_NOT_READY: { markPaid: 'paymentRuns.refused.rejectedMarkPaid' },
+  // Marking paid is dated by the person (the dialog's date, else the run's), so another date is a
+  // way past a closed period; no other run action posts cash.
+  PERIOD_CLOSED: { markPaid: PERIOD_CLOSED_CHOSEN_DATE_KEY },
 }
 
 /** Sentences that name the bill: without its number the code's own sentence is said instead. */

@@ -89,6 +89,7 @@ import {
 import { toBillListItem } from '../../lib/billList'
 import { muscatToday } from '../../lib/invoiceIssue'
 import { describeApiFailure, isPermissionDenied } from '../../lib/apiFailure'
+import { isPeriodClosedRefusal, PERIOD_CLOSED_CHOSEN_DATE_KEY } from '../../lib/expenditureRefusals'
 import { formatAmount, formatDate, formatInstant, formatInstantDay } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
 import stepIcon from '../../assets/bill-detail/step.svg'
@@ -1325,7 +1326,11 @@ function BillScreen() {
           // The server's undecided part only, never the whole overpaid amount (FLAKE-WATCH-BILLDETAIL).
           suggested={standingOverpayment.undecided}
           today={muscatToday()}
-          refusal={(error) => refusalText(t, error)}
+          // The refund is dated on the day the person enters, so another date is a way past a
+          // closed period; keep-as-credit and apply are dated today and keep the page's sentence.
+          refusal={(error) =>
+            isPeriodClosedRefusal(error) ? t(PERIOD_CLOSED_CHOSEN_DATE_KEY) : refusalText(t, error)
+          }
           onClose={closeSettling}
           onDone={() => afterSettling('supplierCreditNoteDetail.refundedDone')}
           onKeySpent={settlementKeySpent}

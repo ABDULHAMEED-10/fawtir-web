@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest'
 import i18n from '../i18n'
 import { ApiError, NetworkError } from '../api'
 import { describeApiFailure } from './apiFailure'
-import { MAPPED_REFUSAL_CODES, REFUSAL_FALLBACK_KEY, refusalMessageKey } from './expenditureRefusals'
+import {
+  isPeriodClosedRefusal,
+  MAPPED_REFUSAL_CODES,
+  PERIOD_CLOSED_CHOSEN_DATE_KEY,
+  REFUSAL_FALLBACK_KEY,
+  refusalMessageKey,
+} from './expenditureRefusals'
 import { refusalOf } from './paymentRuns'
 
 const refusal = (code: string | null, problem?: Record<string, unknown>) =>
@@ -426,6 +432,45 @@ describe('a 409 the Expenditure module answers by name', () => {
       code: 'CREDIT_NOTE_HELD_AS_DUPLICATE',
     })
     expect(refusalMessageKey(notConflict)).toBeNull()
+  })
+
+  // V545 OD-P5: supplier cash dated in a closed period. Before this it read "someone changed this,
+  // reload", which can never get past a closed period.
+  it('words PERIOD_CLOSED by whether the person chose the date, in both languages', async () => {
+    const closed = conflict('PERIOD_CLOSED')
+    expect(describeApiFailure(closed).key).toBe('apiErrors.refused.periodClosed')
+    expect(isPeriodClosedRefusal(closed)).toBe(true)
+    expect(isPeriodClosedRefusal(conflict('SOME_OTHER_CONFLICT'))).toBe(false)
+    expect(
+      isPeriodClosedRefusal(
+        new ApiError({ status: 400, problemType: 'validation-failed', code: 'PERIOD_CLOSED' }),
+      ),
+    ).toBe(false)
+
+    await i18n.changeLanguage('en')
+    const today = i18n.t('apiErrors.refused.periodClosed')
+    const chosen = i18n.t(PERIOD_CLOSED_CHOSEN_DATE_KEY)
+    expect(today).toBe(
+      'The day this would be recorded on is in a closed accounting period, so nothing was recorded. It can be recorded once the period is reopened.',
+    )
+    expect(chosen).toBe(
+      'That date is in a closed accounting period, so nothing was recorded. Choose a date in an open period, or record it once the period is reopened.',
+    )
+    // The server dates keep-as-credit and apply-credit today: no date for the person to change.
+    expect(today).not.toMatch(/date|try again|reload/i)
+    expect(chosen).not.toMatch(/try again|reload/i)
+    // Marking a run paid is dated by the person; any other run action keeps the general sentence.
+    expect(refusalOf(closed, i18n.t, 'markPaid')).toBe(chosen)
+    expect(refusalOf(closed, i18n.t)).toBe(today)
+
+    await i18n.changeLanguage('ar')
+    expect(i18n.t('apiErrors.refused.periodClosed')).toBe(
+      'اليوم الذي سيُسجَّل فيه هذا يقع في فترة محاسبية مغلقة، لذا لم يُسجَّل شيء. يمكن تسجيله بعد إعادة فتح الفترة.',
+    )
+    expect(i18n.t(PERIOD_CLOSED_CHOSEN_DATE_KEY)).toBe(
+      'هذا التاريخ يقع في فترة محاسبية مغلقة، لذا لم يُسجَّل شيء. اختر تاريخًا في فترة مفتوحة، أو سجّله بعد إعادة فتح الفترة.',
+    )
+    await i18n.changeLanguage('en')
   })
 })
 

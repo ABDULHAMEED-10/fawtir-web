@@ -66,6 +66,7 @@ import {
 } from '../../lib/supplierCreditNotes'
 import { billStateKey, linkedBillDetailKey } from '../../lib/supplierDebitNotes'
 import { describeApiFailure } from '../../lib/apiFailure'
+import { isPeriodClosedRefusal, PERIOD_CLOSED_CHOSEN_DATE_KEY } from '../../lib/expenditureRefusals'
 import { creditNoteRejected, lineVatOf } from '../../lib/billDetail'
 import { muscatToday } from '../../lib/invoiceIssue'
 import { formatAmount, formatDate, formatInstant, formatInstantDay } from '../../lib/format'
@@ -177,9 +178,15 @@ function CreditNoteDetail() {
     settlements.retry()
   }
 
-  const onFailure = (error: unknown) => {
+  // `chosenDate`: the refund form, where the person enters the date, so another date is a way past
+  // a closed period. No other action on this page posts supplier cash.
+  const onFailure = (error: unknown, chosenDate = false) => {
     setNotice(null)
-    const message = describeApiFailure(error)
+    const described = describeApiFailure(error)
+    const message =
+      chosenDate && isPeriodClosedRefusal(error)
+        ? { ...described, key: PERIOD_CLOSED_CHOSEN_DATE_KEY }
+        : described
     const body = t(message.key, message.values)
     setFailure(
       message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body,
@@ -1243,7 +1250,7 @@ function RefundForm({
   currency: string
   remaining: number
   onDone: (key: string) => void
-  onFailure: (error: unknown) => void
+  onFailure: (error: unknown, chosenDate?: boolean) => void
   onKeySpent: () => void
   onCancel: () => void
 }) {
@@ -1277,7 +1284,7 @@ function RefundForm({
         setRefundKey(newCreditNoteRefundKey())
         onKeySpent()
       }
-      onFailure(error)
+      onFailure(error, true)
     } finally {
       setBusy(false)
     }

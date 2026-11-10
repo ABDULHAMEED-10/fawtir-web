@@ -208,6 +208,21 @@ const CONFLICT_REFUSALS: Record<string, string> = {
   // A line written before V519 recorded no unit, and the receipt stated none (`statedUnit`): the
   // sentence asks for the unit the goods were counted in, the one way past it (DEC-30-08).
   GOODS_RECEIPT_STOCK_UNIT_REQUIRED: 'apiErrors.refused.receiptStockUnitRequired',
+  // Supplier cash dated in a closed accounting period (backend V545 OD-P5, ClosedPeriodPostingGuard).
+  // Keep-as-credit, apply-credit and a payment reversal are dated today by the server, so this
+  // sentence names no date to change; the screens where the person picks the date say
+  // PERIOD_CLOSED_CHOSEN_DATE_KEY instead. "Reload and try again" could never get past it.
+  PERIOD_CLOSED: 'apiErrors.refused.periodClosed',
+}
+
+/**
+ * The closed-period refusal on a screen where the person chose the date (a refund, marking a run
+ * paid), so choosing another date is a way past it.
+ */
+export const PERIOD_CLOSED_CHOSEN_DATE_KEY = 'apiErrors.refused.periodClosedChosenDate'
+
+export function isPeriodClosedRefusal(error: unknown): boolean {
+  return conflictRefusalKey(error) !== null && (error as ApiError).code === 'PERIOD_CLOSED'
 }
 
 function conflictRefusalKey(error: unknown): string | null {
