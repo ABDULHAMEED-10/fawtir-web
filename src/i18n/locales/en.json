@@ -23989,7 +23989,7 @@
       "sub": "The Tax Authority requires a QR code on every consumer invoice. Fawtir adds it for you.",
       "p1": {
         "title": "Made at the sale",
-        "body": "No extra step. It is printed on the receipt."
+        "body": "No extra step. It is on the receipt printed from the issued invoice."
       },
       "p2": {
         "title": "On every receipt",
@@ -24492,7 +24492,7 @@
             "body": "Every document kept as the VAT law requires, never editable."
           },
           "b2c": {
-            "title": "Consumer invoices",
+            "title": "Consumer invoices on time",
             "body": "Simplified tax invoices are prepared for reporting to the Tax Authority."
           },
           "proof": {
