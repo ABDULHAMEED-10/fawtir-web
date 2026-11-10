@@ -4228,7 +4228,7 @@ describe('a supplier credit note decided on its own (R5, R7, R8)', () => {
     const panel = await decisionPanel()
     expect(
       within(panel).getByText(
-        /^Rejected in your books: “Not agreed”\..* Rejected — VAT reduction still applied \(ER Art\. 65: on receipt\)$/,
+        /^Rejected in your books: “Not agreed”\..* Rejected, but the VAT reduction still applies \(Executive Regulations Art\. 65: it counts when received\)$/,
       ),
     ).toBeTruthy()
     expect(within(panel).queryByRole('button', { name: 'Approve credit note' })).toBeNull()

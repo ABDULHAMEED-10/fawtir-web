@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
-import { Rial, withRial } from '../../components/ui'
+import { Rial, Select, withRial } from '../../components/ui'
 import { selectAllOnFocus } from '../../components/invoice/numericInput'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { PosFootNote } from './PosFootNote'
@@ -89,7 +89,7 @@ function Line({
   tone,
   icon,
 }: {
-  label: string
+  label: ReactNode
   note?: string
   value: string
   tone?: 'add' | 'take' | 'sum'
@@ -715,9 +715,11 @@ function CloseForm({
                   close that includes this cash records the over, and this line explains it. */}
               {(preview.lateCashFromHandedOverShift ?? 0) > 0 ? (
                 <Line
-                  label={t('pos.close.lateCash', {
-                    amount: omr(toBaisa(preview.lateCashFromHandedOverShift ?? 0)),
-                  })}
+                  label={withRial(
+                    t('pos.close.lateCash', {
+                      amount: omr(toBaisa(preview.lateCashFromHandedOverShift ?? 0)),
+                    }),
+                  )}
                   note={t('pos.close.lateCashHint')}
                   value=""
                 />
@@ -1214,19 +1216,15 @@ function CashMovements({
                   <span className="text-xs font-medium text-text-tertiary">
                     {t('pos.close.paidInCurrency')}
                   </span>
-                  <select
+                  <Select
+                    quiet
+                    compact
                     value={currency}
-                    aria-label={t('pos.close.paidInCurrency')}
-                    onChange={(event) => setCurrency(event.target.value)}
-                    className={FIELD}
-                  >
-                    <option value="">{t('pos.close.paidOutForm.choose')}</option>
-                    {CURRENCIES.map((code) => (
-                      <option key={code} value={code}>
-                        {code}
-                      </option>
-                    ))}
-                  </select>
+                    ariaLabel={t('pos.close.paidInCurrency')}
+                    placeholder={t('pos.close.paidOutForm.choose')}
+                    onChange={setCurrency}
+                    options={CURRENCIES.map((code) => ({ value: code, label: code }))}
+                  />
                 </label>
               ) : null}
               {type !== 'FLOAT' ? (
@@ -1642,19 +1640,15 @@ function PaidOutForm({
           <span className="text-xs font-medium text-text-tertiary">
             {t('pos.close.paidOutForm.currency')}
           </span>
-          <select
+          <Select
+            quiet
+            compact
             value={currency}
-            aria-label={t('pos.close.paidOutForm.currency')}
-            onChange={(event) => setCurrency(event.target.value)}
-            className={FIELD}
-          >
-            <option value="">{t('pos.close.paidOutForm.choose')}</option>
-            {CURRENCIES.map((code) => (
-              <option key={code} value={code}>
-                {code}
-              </option>
-            ))}
-          </select>
+            ariaLabel={t('pos.close.paidOutForm.currency')}
+            placeholder={t('pos.close.paidOutForm.choose')}
+            onChange={setCurrency}
+            options={CURRENCIES.map((code) => ({ value: code, label: code }))}
+          />
         </label>
         <label className="flex min-w-0 flex-[2] basis-[200px] flex-col gap-1.5">
           <span className="text-xs font-medium text-text-tertiary">{t('pos.close.whatFor')}</span>
@@ -1675,45 +1669,42 @@ function PaidOutForm({
           <span className="text-xs font-medium text-text-tertiary">
             {t('pos.close.paidOutForm.category')}
           </span>
-          <select
+          {/* Owner v2 K10: only staff who can settle supplier bills pay a supplier, linked or not.
+              Hidden here; the server is the check (K10-SUPPLIER backend). */}
+          <Select
+            quiet
+            compact
             value={category ?? ''}
-            aria-label={t('pos.close.paidOutForm.category')}
-            onChange={(event) => {
-              const next = (event.target.value || null) as PosPaidOutCategory | null
+            ariaLabel={t('pos.close.paidOutForm.category')}
+            placeholder={t('pos.close.paidOutForm.choose')}
+            onChange={(value) => {
+              const next = (value || null) as PosPaidOutCategory | null
               setCategory(next)
               setChosenClass(null)
               if (next !== 'SUPPLIER_PAYMENT') setBill(null)
             }}
-            className={FIELD}
-          >
-            <option value="">{t('pos.close.paidOutForm.choose')}</option>
-            {/* Owner v2 K10: only staff who can settle supplier bills pay a supplier, linked or not.
-                Hidden here; the server is the check (K10-SUPPLIER backend). */}
-            {PAID_OUT_CATEGORIES.filter((code) => code !== 'SUPPLIER_PAYMENT' || canLinkBill).map((code) => (
-              <option key={code} value={code}>
-                {t(`pos.close.paidOutForm.categories.${code}`)}
-              </option>
-            ))}
-          </select>
+            options={PAID_OUT_CATEGORIES.filter(
+              (code) => code !== 'SUPPLIER_PAYMENT' || canLinkBill,
+            ).map((code) => ({ value: code, label: t(`pos.close.paidOutForm.categories.${code}`) }))}
+          />
         </label>
         {category && choices.length > 0 ? (
           <label className="flex min-w-0 flex-1 basis-[200px] flex-col gap-1.5">
             <span className="text-xs font-medium text-text-tertiary">
               {t('pos.close.paidOutForm.class')}
             </span>
-            <select
+            <Select
+              quiet
+              compact
               value={chosenClass ?? ''}
-              aria-label={t('pos.close.paidOutForm.class')}
-              onChange={(event) => setChosenClass((event.target.value || null) as PosPaidOutClass | null)}
-              className={FIELD}
-            >
-              <option value="">{t('pos.close.paidOutForm.choose')}</option>
-              {choices.map((code) => (
-                <option key={code} value={code}>
-                  {t(`pos.close.paidOutForm.classes.${code}`)}
-                </option>
-              ))}
-            </select>
+              ariaLabel={t('pos.close.paidOutForm.class')}
+              placeholder={t('pos.close.paidOutForm.choose')}
+              onChange={(value) => setChosenClass((value || null) as PosPaidOutClass | null)}
+              options={choices.map((code) => ({
+                value: code,
+                label: t(`pos.close.paidOutForm.classes.${code}`),
+              }))}
+            />
           </label>
         ) : null}
       </div>

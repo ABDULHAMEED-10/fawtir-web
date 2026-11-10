@@ -206,6 +206,27 @@ const renderClose = () =>
   )
 
 const form = (name: string) => i18n.t(`pos.close.paidOutForm.${name}`)
+
+/** The till close page's dropdowns are the app's Select: a button that opens a listbox. */
+function selectValue(name: string) {
+  return screen.getByRole('button', { name }).getAttribute('data-value') ?? ''
+}
+
+function chooseIn(name: string, value: string) {
+  fireEvent.click(screen.getByRole('button', { name }))
+  const option = document.querySelector(`[role="option"][data-value="${value}"]`)
+  if (!option) throw new Error(`${name} offers no ${value}`)
+  fireEvent.click(option)
+}
+
+function optionValues(name: string) {
+  fireEvent.click(screen.getByRole('button', { name }))
+  const values = Array.from(document.querySelectorAll('[role="option"]')).map(
+    (option) => option.getAttribute('data-value') ?? '',
+  )
+  fireEvent.click(screen.getByRole('button', { name }))
+  return values
+}
 const recordButton = () => screen.getByRole('button', { name: i18n.t('pos.close.record') })
 
 /** A petty cash paid-out with every part but the receipt, which each test supplies. */
@@ -216,15 +237,11 @@ async function fillPettyCash() {
   fireEvent.change(screen.getByRole('textbox', { name: i18n.t('pos.close.whatFor') }), {
     target: { value: 'Milk' },
   })
-  fireEvent.change(screen.getByRole('combobox', { name: form('category') }), {
-    target: { value: 'PETTY_CASH_EXPENSE' },
-  })
+  chooseIn(form('category'), 'PETTY_CASH_EXPENSE')
 }
 
 function chooseCurrency(code: string) {
-  fireEvent.change(screen.getByRole('combobox', { name: form('currency') }), {
-    target: { value: code },
-  })
+  chooseIn(form('currency'), code)
 }
 
 function attachReceipt() {
@@ -252,7 +269,7 @@ describe('a paid-out', () => {
   it('assumes no currency: Record it waits until one is chosen', async () => {
     await fillPettyCash()
     attachReceipt()
-    expect((screen.getByRole('combobox', { name: form('currency') }) as HTMLSelectElement).value).toBe('')
+    expect(selectValue(form('currency'))).toBe('')
     expect((recordButton() as HTMLButtonElement).disabled).toBe(true)
     chooseCurrency('USD')
     expect((recordButton() as HTMLButtonElement).disabled).toBe(false)
@@ -369,7 +386,7 @@ describe('a paid-out', () => {
     // The details come back as they were sent, and can be changed again.
     const amount = screen.getByRole('textbox', { name: i18n.t('pos.pay.amount') }) as HTMLInputElement
     expect(amount.value).toBe('2.500')
-    expect((screen.getByRole('combobox', { name: form('currency') }) as HTMLSelectElement).value).toBe('OMR')
+    expect(selectValue(form('currency'))).toBe('OMR')
     expect(window.sessionStorage.getItem(HELD)).toBeNull()
     attachReceipt()
     answer = () => json(PAID_OUT, 201)
@@ -604,9 +621,9 @@ describe('a refused receipt or currency', () => {
       (screen.getByRole('textbox', { name: i18n.t('pos.pay.amount') }) as HTMLInputElement).value,
     ).toBe('2.5')
     expect(
-      (screen.getByRole('combobox', { name: form('category') }) as HTMLSelectElement).value,
+      selectValue(form('category')),
     ).toBe('PETTY_CASH_EXPENSE')
-    expect((screen.getByRole('combobox', { name: form('currency') }) as HTMLSelectElement).value).toBe(
+    expect(selectValue(form('currency'))).toBe(
       'OMR',
     )
     expect(previews).toBe(1)
@@ -624,20 +641,18 @@ describe('a refused receipt or currency', () => {
 describe('the supplier bill link', () => {
   async function supplierPayment() {
     renderClose()
-    await screen.findByRole('combobox', { name: form('category') })
-    fireEvent.change(screen.getByRole('combobox', { name: form('category') }), {
-      target: { value: 'SUPPLIER_PAYMENT' },
-    })
+    await screen.findByRole('button', { name: form('category') })
+    chooseIn(form('category'), 'SUPPLIER_PAYMENT')
   }
 
   // Owner v2 K10 ("Only staff who can settle supplier bills") replaces the earlier rule that let a
   // cashier without bill.settle pay a supplier unlinked: the category itself is not offered.
   it('is not offered without bill.settle: a payment to a supplier is not a category to choose', async () => {
     renderClose()
-    const category = (await screen.findByRole('combobox', { name: form('category') })) as HTMLSelectElement
-    const offered = Array.from(category.options).map((option) => option.value)
+    await screen.findByRole('button', { name: form('category') })
+    const offered = optionValues(form('category'))
     expect(offered).not.toContain('SUPPLIER_PAYMENT')
-    expect(offered).toEqual(['', 'PETTY_CASH_EXPENSE', 'CASH_TRANSFER', 'FLOAT_ADJUSTMENT', 'OTHER'])
+    expect(offered).toEqual(['PETTY_CASH_EXPENSE', 'CASH_TRANSFER', 'FLOAT_ADJUSTMENT', 'OTHER'])
     expect(screen.queryByRole('textbox', { name: form('billSearch') })).toBeNull()
   })
 
@@ -645,7 +660,7 @@ describe('the supplier bill link', () => {
     permissions = [...permissions, 'bill.settle']
     await supplierPayment()
     expect(screen.getByRole('textbox', { name: form('billSearch') })).toBeTruthy()
-    expect(screen.getByRole('combobox', { name: form('class') })).toBeTruthy()
+    expect(screen.getByRole('button', { name: form('class') })).toBeTruthy()
   })
 
   it('is offered with bill.settle and links an approved bill, fixing the class', async () => {
@@ -658,7 +673,7 @@ describe('the supplier bill link', () => {
     const row = await screen.findByRole('button', { name: /Nizwa Dairy · ND-77/ })
     expect(billSearches[0]).toContain('filter=APPROVED')
     fireEvent.click(row)
-    expect(screen.queryByRole('combobox', { name: form('class') })).toBeNull()
+    expect(screen.queryByRole('button', { name: form('class') })).toBeNull()
     expect(
       screen.getByText(
         i18n.t('pos.close.paidOutForm.classFixed', {
@@ -711,9 +726,7 @@ describe('the supplier bill link', () => {
     permissions = [...permissions, 'bill.settle']
     answer = () => problem(403, 'POS_SUPPLIER_PAYMENT_REQUIRES_BILL_SETTLE')
     await supplierPayment()
-    fireEvent.change(screen.getByRole('combobox', { name: form('class') }), {
-      target: { value: 'EXPENSE' },
-    })
+    chooseIn(form('class'), 'EXPENSE')
     fireEvent.change(screen.getByRole('textbox', { name: i18n.t('pos.pay.amount') }), {
       target: { value: '2.5' },
     })
@@ -759,9 +772,9 @@ describe('the supplier bill link', () => {
     expect(await screen.findByText(form('pending.title'))).toBeTruthy()
     await afterTheWait()
     fireEvent.click(unlockButton())
-    const category = (await screen.findByRole('combobox', { name: form('category') })) as HTMLSelectElement
-    expect(category.value).toBe('')
-    expect(screen.queryByRole('combobox', { name: form('class') })).toBeNull()
+    await screen.findByRole('button', { name: form('category') })
+    expect(selectValue(form('category'))).toBe('')
+    expect(screen.queryByRole('button', { name: form('class') })).toBeNull()
     expect((screen.getByRole('textbox', { name: i18n.t('pos.pay.amount') }) as HTMLInputElement).value).toBe(
       '2.500',
     )
@@ -1027,11 +1040,10 @@ async function openPaidIn() {
   return screen.getAllByPlaceholderText('0.000').at(-1) as HTMLInputElement
 }
 
-const paidInCurrency = () =>
-  screen.getByRole('combobox', { name: i18n.t('pos.close.paidInCurrency') }) as HTMLSelectElement
+const paidInCurrency = () => ({ value: selectValue(i18n.t('pos.close.paidInCurrency')) })
 
 function choosePaidInCurrency(code: string) {
-  fireEvent.change(paidInCurrency(), { target: { value: code } })
+  chooseIn(i18n.t('pos.close.paidInCurrency'), code)
 }
 
 // FIN-PAIDIN-CUR: since backend a2c9fcf0c a paid-in states its currency. The paid-out's pattern
@@ -1040,8 +1052,8 @@ describe('the currency of a paid-in', () => {
   it('assumes none: nothing is chosen, and every currency of the paid-out list is offered', async () => {
     await openPaidIn()
     expect(paidInCurrency().value).toBe('')
-    const offered = Array.from(paidInCurrency().options).map((option) => option.value)
-    expect(offered).toEqual(['', 'OMR', 'USD', 'EUR', 'AED', 'SAR'])
+    const offered = optionValues(i18n.t('pos.close.paidInCurrency'))
+    expect(offered).toEqual(['OMR', 'USD', 'EUR', 'AED', 'SAR'])
     expect(screen.getByText(i18n.t('pos.close.paidInCurrencyNote'))).toBeTruthy()
   })
 
@@ -1135,7 +1147,7 @@ describe('a paid-out or paid-in the shift currency refuses', () => {
     expect(
       (screen.getByRole('textbox', { name: i18n.t('pos.pay.amount') }) as HTMLInputElement).value,
     ).toBe('2.5')
-    expect((screen.getByRole('combobox', { name: form('currency') }) as HTMLSelectElement).value).toBe(
+    expect(selectValue(form('currency'))).toBe(
       'USD',
     )
     // Definite: nothing recorded, nothing held, no lock.
@@ -1204,7 +1216,7 @@ describe('a paid-out the server timed out', () => {
     expect(
       (screen.getByRole('textbox', { name: i18n.t('pos.pay.amount') }) as HTMLInputElement).value,
     ).toBe('2.5')
-    expect((screen.getByRole('combobox', { name: form('currency') }) as HTMLSelectElement).value).toBe(
+    expect(selectValue(form('currency'))).toBe(
       'OMR',
     )
     expect(screen.queryByText(form('pending.title'))).toBeNull()

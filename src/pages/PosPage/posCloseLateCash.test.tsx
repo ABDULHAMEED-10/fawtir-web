@@ -143,9 +143,11 @@ describe('late cash from the handed-over shift (WEB-9)', () => {
   it('shows the line under the expected cash and leaves the expected figure alone', async () => {
     preview = late(1.25)
     renderAt('/pos/close')
-    expect(
-      await screen.findByText(i18n.t('pos.close.lateCash', { amount: '1.250' })),
-    ).toBeTruthy()
+    // The amount is shown with the rial sign (house rule); "OMR" stays only as its hidden text.
+    const line = await screen.findByText(/Late cash filed into the previous shift/)
+    expect(line.textContent).toContain('1.250')
+    expect(line.querySelector('[aria-hidden="true"]')).not.toBeNull()
+    expect(line.querySelector('.sr-only')?.textContent).toBe('OMR')
     expect(screen.getByText(i18n.t('pos.close.lateCashHint'))).toBeTruthy()
     const field = (await screen.findByRole('textbox', {
       name: i18n.t('pos.close.actuallyIn'),

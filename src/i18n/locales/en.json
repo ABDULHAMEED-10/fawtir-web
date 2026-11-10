@@ -5522,7 +5522,7 @@
       "blockedTimes": "Later sales refused behind it: first {{first}}, last {{last}}.",
       "queueWaits": "The till waits for number {{number}}.",
       "timeUnknown": "not recorded",
-      "withheld": "Receipt not printed — manager review. The sale is filed under this number, but the till printed no tax receipt for it.",
+      "withheld": "Receipt not printed: a manager needs to review it. The sale is filed under this number, but the till printed no tax receipt for it.",
       "withheldTimes": "Marked first {{first}}, last {{last}}.",
       "otherKind": "Listed by the server for review.",
       "refused": "Refused by the server: this sale was not filed, and the till’s later sales are blocked behind number {{number}}. It is not overdue itself.",
@@ -7052,7 +7052,7 @@
       "confirm": "Reopen the bill"
     },
     "vatNotice": {
-      "REJECTED_VAT_STILL_REDUCED": "Rejected — VAT reduction still applied (ER Art. 65: on receipt)",
+      "REJECTED_VAT_STILL_REDUCED": "Rejected, but the VAT reduction still applies (Executive Regulations Art. 65: it counts when received)",
       "VAT_REDUCED_ON_RECEIPT": "VAT already reduced on receipt"
     }
   },
