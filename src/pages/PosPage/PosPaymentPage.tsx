@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Rial, Select } from '../../components/ui'
+import { Rial, Select, withRial } from '../../components/ui'
 import { TillMoneyInput } from './TillMoneyInput'
 import {
   holdUncertainSale,
@@ -1195,13 +1195,15 @@ function UncertainSalePanel({
         ) : null}
         {summary ? (
           <p className="text-sm font-medium text-text-secondary">
-            {t('pos.pay.uncertain.saleFigures', {
-              amount: `${summary.currency} ${formatAmount(summary.total, summary.currency, i18n.language)}`,
-              // RBW3-1b: Today opens on the current day; a sale held from an earlier day is
-              // found only by its date, so the time alone would send the cashier to the wrong list.
-              date: formatInstantDay(summary.soldAt, i18n.language),
-              time: heldTime(summary.soldAt, i18n.language),
-            })}
+            {withRial(
+              t('pos.pay.uncertain.saleFigures', {
+                amount: `${summary.currency} ${formatAmount(summary.total, summary.currency, i18n.language)}`,
+                // RBW3-1b: Today opens on the current day; a sale held from an earlier day is
+                // found only by its date, so the time alone would send the cashier to the wrong list.
+                date: formatInstantDay(summary.soldAt, i18n.language),
+                time: heldTime(summary.soldAt, i18n.language),
+              }),
+            )}
           </p>
         ) : null}
         {held.restoring ? (
@@ -1292,10 +1294,12 @@ function HeldDecidedPanel({ decided, onNewSale }: { decided: Decided; onNewSale:
         {sale ? (
           <>
             <p role="status" className="text-sm font-medium leading-[1.6] text-text-secondary">
-              {t('pos.pay.uncertain.recorded', {
-                invoice: sale.invoiceNumber,
-                amount: `OMR ${formatAmount(sale.totals.total, 'OMR', i18n.language)}`,
-              })}
+              {withRial(
+                t('pos.pay.uncertain.recorded', {
+                  invoice: sale.invoiceNumber,
+                  amount: `OMR ${formatAmount(sale.totals.total, 'OMR', i18n.language)}`,
+                }),
+              )}
             </p>
             {/* RW6-3: no reprint here; ReceiptReprint prints nothing while REPRINT_LINES_SETTLED
                 is off, so the cashier is pointed to Today's own reprint, which lifts with it. */}

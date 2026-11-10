@@ -752,11 +752,23 @@ export class PosOfflineSellingOff extends Error {
  */
 export class PosSaleOutcomeUnknown extends Error {
   readonly requested = true
+  /**
+   * Why no answer came, so the cashier knows what to check: `network` when the request got no
+   * answer at all (the connection dropped or the till is offline), `server` when a gateway or
+   * server fault came back without the server's code. `null` when the cause is not known.
+   */
+  readonly noAnswer: 'network' | 'server' | null
 
-  constructor() {
+  constructor(noAnswer: 'network' | 'server' | null = null) {
     super('The sale was sent and its outcome is not known')
     this.name = 'PosSaleOutcomeUnknown'
+    this.noAnswer = noAnswer
   }
+}
+
+/** Why a sent request came back with no definite answer (`PosSaleOutcomeUnknown.noAnswer`). */
+function noAnswerCause(error: unknown): 'network' | 'server' {
+  return error instanceof NetworkError ? 'network' : 'server'
 }
 
 /**
@@ -1456,14 +1468,16 @@ export async function submitSale(
         if (outcomeUnknown(error)) {
           // Online only: nothing is numbered on the device. The sale stays held under its key and
           // goes again as the same sale, so the server cannot record it twice (E-01).
-          if (!sellsOffline()) throw new PosSaleOutcomeUnknown()
+          if (!sellsOffline()) throw new PosSaleOutcomeUnknown(noAnswerCause(error))
           try {
             return await numberAndKeep()
           } catch (kept) {
             // The request already went out, so nothing the fallback throws can say the sale was not
             // recorded: an error that does not already say "sent, outcome unknown" becomes that, and
             // the sale stays held under its key (E01R-2), never "could not reach Fawtir".
-            throw saleOutcomeUncertain(kept) ? kept : new PosSaleOutcomeUnknown()
+            throw saleOutcomeUncertain(kept)
+              ? kept
+              : new PosSaleOutcomeUnknown(noAnswerCause(error))
           }
         }
         noteNumberingRefusal(error)

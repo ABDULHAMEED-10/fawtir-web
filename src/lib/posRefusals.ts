@@ -259,7 +259,13 @@ export function previewRefusalMessage(error: unknown): RefusalMessage {
 
 export function posRefusalKey(error: unknown): string {
   if (error instanceof NetworkError) return 'pos.refusal.offline'
-  if (error instanceof Error && error.name === 'PosSaleOutcomeUnknown') return 'pos.refusal.outcomeUnknown'
+  if (error instanceof Error && error.name === 'PosSaleOutcomeUnknown') {
+    // Says why no answer came, so the cashier knows whether to check the connection.
+    const cause = (error as { noAnswer?: unknown }).noAnswer
+    if (cause === 'network') return 'pos.refusal.outcomeUnknownNetwork'
+    if (cause === 'server') return 'pos.refusal.outcomeUnknownServer'
+    return 'pos.refusal.outcomeUnknown'
+  }
   // Matched by name, not instanceof: posQueue imports this module, so importing its class back
   // would make the two a cycle. No number was printed for the sale (POS-MEMQ S8), so the
   // general failure is not enough: the cashier must know no receipt number exists.

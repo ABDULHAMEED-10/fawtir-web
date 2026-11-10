@@ -50,6 +50,7 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
 let online = false
+let serverFault = false
 let posts: string[]
 const onlineOnly = globalThis as { __fawtirOnlineOnly?: boolean }
 
@@ -61,6 +62,7 @@ beforeEach(() => {
   noteQueueSender('u-1')
   resetSharedRequests()
   online = false
+  serverFault = false
   posts = []
   delete onlineOnly.__fawtirOnlineOnly
   vi.stubGlobal(
@@ -70,6 +72,7 @@ beforeEach(() => {
       if (url === '/api/v1/pos/sales' && init?.method === 'POST') {
         posts.push(String(init.body))
         if (!online) throw new TypeError('Failed to fetch')
+        if (serverFault) return new Response('Bad gateway', { status: 502 })
         const sent = JSON.parse(String(init.body)) as { invoiceNumber: string | null }
         return json(
           {
@@ -107,6 +110,22 @@ describe('the till as RC5 ships it: online only', () => {
     expect(saleOutcomeUncertain(error)).toBe(true)
     expect(queuedFor('till-1')).toEqual([])
     expect(JSON.parse(posts[0])).toMatchObject({ queuedOffline: false, invoiceNumber: null })
+  })
+
+  it('says the connection dropped when no answer came at all', async () => {
+    onlineOnly.__fawtirOnlineOnly = true
+    const error = await submitSale(TILL, BODY, 'key-cause-net').catch((e: unknown) => e)
+    expect(error).toMatchObject({ name: 'PosSaleOutcomeUnknown', noAnswer: 'network' })
+    expect(posRefusalKey(error)).toBe('pos.refusal.outcomeUnknownNetwork')
+  })
+
+  it("says Fawtir's server did not answer on an uncoded server fault", async () => {
+    onlineOnly.__fawtirOnlineOnly = true
+    online = true
+    serverFault = true
+    const error = await submitSale(TILL, BODY, 'key-cause-server').catch((e: unknown) => e)
+    expect(error).toMatchObject({ name: 'PosSaleOutcomeUnknown', noAnswer: 'server' })
+    expect(posRefusalKey(error)).toBe('pos.refusal.outcomeUnknownServer')
   })
 
   it('a sale behind waiting sales, still offline, is refused before anything is numbered', async () => {

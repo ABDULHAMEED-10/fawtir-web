@@ -5328,7 +5328,9 @@
         "cash": "Give the cash back to the customer."
       },
       "offlineSellingOff": "No connection. Selling resumes when you are back online. Nothing was numbered or printed, and the sale stays open.",
-      "offlineSellingOffBehind": "Earlier sales on this till have not reached Fawtir yet, so this one cannot be sent. Nothing was numbered or printed, and the sale stays open. Try again in a moment; if a waiting sale was refused, a manager corrects it first."
+      "offlineSellingOffBehind": "Earlier sales on this till have not reached Fawtir yet, so this one cannot be sent. Nothing was numbered or printed, and the sale stays open. Try again in a moment; if a waiting sale was refused, a manager corrects it first.",
+      "outcomeUnknownNetwork": "The internet connection dropped while sending this sale. It may already be recorded. Do not take payment again or ring it up again. Check the connection, then send the same sale again, or check today’s sales.",
+      "outcomeUnknownServer": "Fawtir's server did not answer in time. The sale may already be recorded. Do not take payment again or ring it up again. Send the same sale again in a moment, or check today’s sales."
     },
     "warning": {
       "STOCK_BELOW_ZERO": "Line {{line}} took the stock below zero. Count it when you can.",
