@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import en from '../i18n/locales/en.json'
 import ar from '../i18n/locales/ar.json'
-import { counterpartyKeys, isSelfBilled } from './invoiceDetail'
+import type { InvoiceDetailDto } from '../api/invoices/detail'
+import { counterpartyKeys, isSelfBilled, lineTotals } from './invoiceDetail'
 
 const key = (bundle: Record<string, unknown>, path: string) =>
   path.split('.').reduce<unknown>((node, part) => (node as Record<string, unknown>)?.[part], bundle)
@@ -42,5 +43,64 @@ describe('counterpartyKeys', () => {
         expect(key(ar, path), `ar ${path}`).toBeTypeOf('string')
       }
     }
+  })
+})
+
+describe('lineTotals', () => {
+  // RC5 browser E2E D-01: INV-2026-000001 as GET /authored-invoices/{id} serves it.
+  const base = {
+    productId: null,
+    productCode: null,
+    description: 'Item',
+    unitCode: 'EA',
+    taxCategoryCode: 'S5',
+    en16931Category: 'S',
+    taxRate: 5,
+    exemptionReason: null,
+  }
+  const invoice = (withAmounts: boolean) =>
+    ({
+      currency: 'OMR',
+      headerDiscount: { type: 'PERCENTAGE', value: 0 },
+      lines: [
+        {
+          ...base,
+          lineNumber: 1,
+          quantity: 2,
+          unitPrice: 125.5,
+          discountType: 'PERCENTAGE',
+          discountValue: 0,
+          ...(withAmounts && {
+            amounts: {
+              lineNumber: 1, grossAmount: 251, lineDiscount: 0, allocatedHeaderDiscount: 0,
+              taxableAmount: 250.999, vatAmount: 12.55, lineNetAmount: 263.549,
+            },
+          }),
+        },
+        {
+          ...base,
+          lineNumber: 2,
+          quantity: 3,
+          unitPrice: 10.125,
+          discountType: 'PERCENTAGE',
+          discountValue: 10,
+          ...(withAmounts && {
+            amounts: {
+              lineNumber: 2, grossAmount: 30.375, lineDiscount: 3.038, allocatedHeaderDiscount: 0,
+              taxableAmount: 27.338, vatAmount: 1.367, lineNetAmount: 28.705,
+            },
+          }),
+        },
+      ],
+    }) as unknown as InvoiceDetailDto
+
+  it("reads the server's line amounts, which foot to the net amount", () => {
+    const totals = lineTotals(invoice(true))
+    expect([...totals.values()]).toEqual([251, 27.337])
+    expect(Math.round([...totals.values()].reduce((sum, value) => sum + value, 0) * 1000)).toBe(278337)
+  })
+
+  it('computes the same figures, as the server rounds them, from a server that sends no amounts', () => {
+    expect([...lineTotals(invoice(false)).values()]).toEqual([251, 27.337])
   })
 })

@@ -54,6 +54,23 @@ export type InvoiceLineDto = {
    * (`readsLineLinks`).
    */
   originalLineNumber?: number | null
+  /**
+   * RC5 D-01: the line's amounts at the currency's scale, from the projection the totals come
+   * from, so the lines sum to them exactly. Absent from an older server; null with no totals.
+   */
+  amounts?: InvoiceLineAmountsDto | null
+}
+
+export type InvoiceLineAmountsDto = {
+  lineNumber: number
+  grossAmount: number
+  lineDiscount: number
+  allocatedHeaderDiscount: number
+  /** After both discounts, VAT-exclusive: the line net the Peppol document states (IBT-131). */
+  taxableAmount: number
+  vatAmount: number
+  /** taxableAmount plus VAT. */
+  lineNetAmount: number
 }
 
 export type InvoiceTotalsDto = {

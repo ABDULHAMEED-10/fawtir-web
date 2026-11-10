@@ -113,11 +113,21 @@ export function statusOf(
 }
 
 /**
- * What a line adds up to. The API sends the parts (quantity, price, discount) and no line total,
- * so it is computed here with the engine the composer uses, at the currency's scale.
+ * What a line adds up to after its own discount. A server that sends each line's `amounts` is
+ * read as it is (RC5 D-01: the same projection as the totals, so the lines foot to them); an older
+ * server sends only the parts, and the line is then computed with the engine the composer uses.
  */
 export function lineTotals(invoice: InvoiceDetailDto): Map<number, number> {
   const scale = minorUnitsOf(invoice.currency)
+  if (invoice.lines.length > 0 && invoice.lines.every((line) => line.amounts)) {
+    const minor = 10 ** scale
+    return new Map(
+      invoice.lines.map((line) => [
+        line.lineNumber,
+        (Math.round(line.amounts!.grossAmount * minor) - Math.round(line.amounts!.lineDiscount * minor)) / minor,
+      ]),
+    )
+  }
   const amounts = calculateInvoice(
     invoice.lines.map((line) => ({
       id: String(line.lineNumber),
