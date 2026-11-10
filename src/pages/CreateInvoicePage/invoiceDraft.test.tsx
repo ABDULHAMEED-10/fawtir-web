@@ -671,9 +671,9 @@ describe('issuing from the composer', () => {
     )
     expect(card.getByText(i18n.t('readiness.item.COMPANY_VERIFIED'))).toBeTruthy()
     expect(card.getByText(i18n.t('readiness.awaitingFawtir'))).toBeTruthy()
-    expect(card.getByRole('link', { name: i18n.t('readiness.fix') }).getAttribute('href')).toBe(
-      '/settings/branches/new',
-    )
+    expect(
+      card.getByRole('link', { name: i18n.t('readiness.action.ACTIVE_BRANCH') }).getAttribute('href'),
+    ).toBe('/settings/branches/new')
     expect(card.queryByText(i18n.t('readiness.item.CONTACT_PHONE'))).toBeNull()
     expect(
       (screen.getByRole('button', { name: 'Create invoice' }) as HTMLButtonElement).disabled,

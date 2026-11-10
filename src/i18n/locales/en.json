@@ -24397,7 +24397,7 @@
   },
   "readiness": {
     "title": "Before your first invoice",
-    "subtitle": "These still need doing before Fawtir can issue invoices for you.",
+    "subtitle": "Finish these steps and Fawtir can issue invoices for you.",
     "item": {
       "COMPANY_VERIFIED": "Company verified",
       "PARTICIPANT_VERIFIED": "Participant ID verified",
@@ -24408,13 +24408,31 @@
       "other": "Another step"
     },
     "fix": "Fix this",
-    "awaitingFawtir": "Waiting for Fawtir to review",
+    "awaitingFawtir": "Fawtir is checking this",
     "actionRequired": "Action required",
     "composer": {
       "title": "This invoice cannot be issued yet",
       "subtitle": "Fawtir will refuse to issue it until these are done. You can still save it as a draft."
     },
-    "done": "Done"
+    "done": "Done",
+    "progress": "{{done}} of {{total}} done",
+    "progressLabel": "Setup progress",
+    "hint": {
+      "COMPANY_VERIFIED": "Fawtir checks your company against the Tax Authority's records.",
+      "PARTICIPANT_VERIFIED": "Your Peppol ID, so your invoices reach buyers and the Tax Authority.",
+      "REGISTERED_ADDRESS": "Printed on every invoice as the seller's address.",
+      "CONTACT_PHONE": "Shown on your invoices so buyers can reach you.",
+      "BUSINESS_ACTIVITY": "What your company does, as it is registered.",
+      "ACTIVE_BRANCH": "Every invoice is issued from a branch."
+    },
+    "action": {
+      "COMPANY_VERIFIED": "Open company details",
+      "PARTICIPANT_VERIFIED": "Open Peppol settings",
+      "REGISTERED_ADDRESS": "Add the address",
+      "CONTACT_PHONE": "Add a phone number",
+      "BUSINESS_ACTIVITY": "Choose the activity",
+      "ACTIVE_BRANCH": "Add a branch"
+    }
   },
   "demoModule": {
     "ribbon": "Demo: sample data for a module that is not built yet. None of it is your company's, and nothing here is saved."
