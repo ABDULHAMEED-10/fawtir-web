@@ -5326,7 +5326,9 @@
         "card": "Refund the card on the terminal.",
         "transfer": "Return the bank transfer to the customer.",
         "cash": "Give the cash back to the customer."
-      }
+      },
+      "offlineSellingOff": "No connection. Selling resumes when you are back online. Nothing was numbered or printed, and the sale stays open.",
+      "offlineSellingOffBehind": "Earlier sales on this till have not reached Fawtir yet, so this one cannot be sent. Nothing was numbered or printed, and the sale stays open. Try again in a moment; if a waiting sale was refused, a manager corrects it first."
     },
     "warning": {
       "STOCK_BELOW_ZERO": "Line {{line}} took the stock below zero. Count it when you can.",

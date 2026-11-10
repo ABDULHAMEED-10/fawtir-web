@@ -729,6 +729,22 @@ export class PosOfflineQrUnavailable extends Error {
 }
 
 /**
+ * Thrown before anything is numbered, kept or printed when a sale would have to be sold offline
+ * (no answer from the server, or queued behind waiting sales) while this build sells online only
+ * (`sellsOffline`, RC5 scope agreed 8 Nov 2026). The cart stays open for the cashier to finish
+ * once the till is back online. `behind`: the till is online but earlier sales still wait.
+ */
+export class PosOfflineSellingOff extends Error {
+  readonly behind: boolean
+
+  constructor(behind = false) {
+    super('This till sells online only')
+    this.name = 'PosOfflineSellingOff'
+    this.behind = behind
+  }
+}
+
+/**
  * Thrown when this sale's own request went out, no definite answer came back (no answer, or a
  * gateway or server fault without the server's code), and the till could not keep it offline. The
  * server may have recorded it: the till must only send the same sale again under the same key, or
@@ -1411,7 +1427,12 @@ export async function submitSale(
       { invoiceNumber: number, soldAt: body.soldAt, customer: body.customer },
       printed,
     )
-  const enqueue = (behind = false) => span('offline', () => numberAndKeep(behind))
+  const refuseNoOffline = (behind: boolean): never => {
+    void dropSlipPhotos(key)
+    throw new PosOfflineSellingOff(behind)
+  }
+  const enqueue = (behind = false) =>
+    sellsOffline() ? span('offline', () => numberAndKeep(behind)) : refuseNoOffline(behind)
   const sendOnline = () =>
     span('online', async () => {
       // Checked before the report, whose unreadable year would otherwise read as a storage fault.
@@ -1433,6 +1454,9 @@ export async function submitSale(
         // connection: an uncoded 502/503/504 was shown as a refusal, a basket edit then minted a new
         // key, and a sale the server had committed could be rung and paid twice (Stage B E-01).
         if (outcomeUnknown(error)) {
+          // Online only: nothing is numbered on the device. The sale stays held under its key and
+          // goes again as the same sale, so the server cannot record it twice (E-01).
+          if (!sellsOffline()) throw new PosSaleOutcomeUnknown()
           try {
             return await numberAndKeep()
           } catch (kept) {
@@ -1568,6 +1592,23 @@ const idleWaiters = new Set<() => void>()
 function whenIdle(): Promise<void> {
   if (!flushing) return Promise.resolve()
   return new Promise((wake) => idleWaiters.add(wake))
+}
+
+/**
+ * Whether this build numbers and keeps sales on the device when the server cannot be reached:
+ * not in RC5 (online-only scope, agreed 8 Nov 2026). A literal, like `opensNumbers`, so no server
+ * answer, cached flag or setting turns it on. Sales already queued on a device are still sent
+ * under their printed number and time; only new offline sales stop. The offline code stays, and
+ * switching it back on is a reviewed change to this function with owner approval.
+ */
+export function sellsOffline(): boolean {
+  // `MODE` is replaced at build time, so a production or development build is a plain `false`.
+  // Only the test runner keeps the kept offline code under test; a test of the RC5 behaviour sets
+  // `__fawtirOnlineOnly` to see the till as it ships.
+  return (
+    import.meta.env.MODE === 'test' &&
+    (globalThis as { __fawtirOnlineOnly?: boolean }).__fawtirOnlineOnly !== true
+  )
 }
 
 /**

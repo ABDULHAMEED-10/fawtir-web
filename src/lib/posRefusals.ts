@@ -285,6 +285,12 @@ export function posRefusalKey(error: unknown): string {
     if (refused.behind === true) return 'pos.refusal.offlineQrUnavailableBehind'
     return 'pos.refusal.offlineQrUnavailable'
   }
+  // Online-only RC5: nothing was numbered or printed and the cart is kept.
+  if (error instanceof Error && error.name === 'PosOfflineSellingOff') {
+    return (error as { behind?: unknown }).behind === true
+      ? 'pos.refusal.offlineSellingOffBehind'
+      : 'pos.refusal.offlineSellingOff'
+  }
   // POS-TABLOCK refused the offline sale before it had a number: the cashier must know no receipt
   // number exists. posTillLock imports nothing of ours, so unlike posQueue it can be imported here.
   if (error instanceof PosTillLockUnavailable) {
