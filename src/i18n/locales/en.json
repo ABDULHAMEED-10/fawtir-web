@@ -9247,7 +9247,9 @@
         },
         "dueOut": "Due out in 30 days",
         "notForecast": "Not forecast yet",
-        "dueOutPending": "Waiting on bills and invoices due by date"
+        "dueOutPending": "Waiting on bills and invoices due by date",
+        "notShown": "Not shown",
+        "withheldNote": "not in your access"
       },
       "monthlyInOut": "Monthly in and out",
       "whatYouKept": "What you kept",
@@ -9285,7 +9287,8 @@
       "timeZoneUnavailable": "The cash flow report needs the company's time zone, which isn't set. Contact Fawtir support to set it, then open the report again.",
       "unrecorded": "Till paid-outs from before RC5 carry no currency ({{label}}): {{amount}} in this report. They are kept apart and never added to any currency.",
       "supplierRefunds": "Supplier refunds received {{when}}: {{currency}} {{amount}}. In left over, not in money in.",
-      "supplierRefundsUnclassified": "A further {{currency}} {{amount}} was refunded on self-billed credit notes whose cash direction is not recorded, so it is not in left over."
+      "supplierRefundsUnclassified": "A further {{currency}} {{amount}} was refunded on self-billed credit notes whose cash direction is not recorded, so it is not in left over.",
+      "expenditureWithheld": "Money out and what you kept are not shown: your access does not include supplier payments."
     },
     "vat": {
       "title": "VAT & Tax",

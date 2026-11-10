@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { CashFlowRowDto } from '../api/reports/reports'
 import {
+  expenditureShown,
   inAndOut,
   netByPeriod,
   periodsOfCashFlow,
@@ -59,5 +60,30 @@ describe('periodsWithNegativeDirection', () => {
 
   it('also catches a negative on the money-out side', () => {
     expect(periodsWithNegativeDirection([row({ period: '2026-11', paidOut: -5 })])).toEqual(['2026-11'])
+  })
+
+  it('reads a withheld money-out as unknown, not negative', () => {
+    expect(periodsWithNegativeDirection([row({ received: 10, paidOut: null, net: null })])).toEqual([])
+  })
+})
+
+// N-qq-FEC-1: backend B5 sends paidOut, supplier refunds and net as null to a reader without
+// expenditure access. Read as 0 they say nothing was paid out and net equals money in.
+describe('withheld expenditure', () => {
+  const withheld = row({ received: 1000, paidOut: null, net: null, supplierRefunds: null })
+
+  it('is not shown when the server says so or any row carries a null', () => {
+    expect(expenditureShown({ expenditureWithheld: true }, [september])).toBe(false)
+    expect(expenditureShown({}, [september, withheld])).toBe(false)
+    expect(expenditureShown({ expenditureWithheld: false }, [september, october])).toBe(true)
+    // A server before B5 sends no flag and real figures.
+    expect(expenditureShown({}, [september])).toBe(true)
+  })
+
+  it('keeps money in, and never turns a withheld figure into 0', () => {
+    expect(inAndOut([withheld], ['2026-09'])).toEqual([{ up: 1000, down: null }])
+    expect(netByPeriod([withheld], ['2026-09'])).toEqual([null])
+    // One withheld row withholds the period's sum rather than adding the rest.
+    expect(inAndOut([september, withheld], ['2026-09'])).toEqual([{ up: 2000, down: null }])
   })
 })

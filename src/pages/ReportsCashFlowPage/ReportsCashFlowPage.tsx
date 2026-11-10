@@ -28,6 +28,7 @@ import {
   type ExpenditureReportDto,
 } from '../../api/reports/reports'
 import {
+  expenditureShown,
   periodsWithNegativeDirection,
   recordedCurrencies,
   tillPaidOuts,
@@ -187,8 +188,12 @@ function CashFlowBody({
   const whole = (value: number) => wholeFigure(value, language)
   const { current, previous } = periodWindows(period, today)
   const received = sumByMonth(rows, (row) => row.received)
-  const paidOut = sumByMonth(rows, (row) => row.paidOut)
-  const net = sumByMonth(rows, (row) => row.net)
+  // N-qq-FEC-1: withheld figures (B5) arrive as null and are never summed as 0, which would read
+  // "nothing paid out" and a net equal to money in. Only shown rows reach these sums, where the
+  // `?? 0` never applies; the cards and charts that need them say "not shown" instead.
+  const shown = expenditureShown(report, rows)
+  const paidOut = sumByMonth(shown ? rows : [], (row) => row.paidOut ?? 0)
+  const net = sumByMonth(shown ? rows : [], (row) => row.net ?? 0)
 
   const inNow = sumOver(received, current.months)
   const outNow = sumOver(paidOut, current.months)
@@ -212,11 +217,13 @@ function CashFlowBody({
   }
   // Supplier refunds (D-29) are in the server's net but not in "Money in", so they are named on a
   // line of their own. An older server sends neither field: the line is left out, not shown as 0.
-  const refundsReported = rows.length > 0 && rows.every((row) => Object.hasOwn(row, 'supplierRefunds'))
+  // Withheld (null) refunds leave it out the same way.
+  const refundsReported =
+    shown && rows.length > 0 && rows.every((row) => Object.hasOwn(row, 'supplierRefunds'))
   const refundsNow = refundsReported
     ? sumOver(sumByMonth(rows, (row) => row.supplierRefunds ?? 0), current.months)
     : 0
-  const unclassifiedRefundsNow = rows.every((row) =>
+  const unclassifiedRefundsNow = shown && rows.every((row) =>
     Object.hasOwn(row, 'supplierRefundsUnclassified'),
   )
     ? sumOver(sumByMonth(rows, (row) => row.supplierRefundsUnclassified ?? 0), current.months)
@@ -270,20 +277,39 @@ function CashFlowBody({
           change={percentPill(inNow, sumOver(received, previous.months), language)}
           note={t('reports.cashFlow.kpi.inNote')}
         />
-        <KpiCard
-          label={t('reports.cashFlow.kpi.out')}
-          value={money(outNow)}
-          currency
-          change={percentPill(outNow, sumOver(paidOut, previous.months), language)}
-          note={t('reports.cashFlow.kpi.outNote')}
-        />
-        <KpiCard
-          label={t('reports.cashFlow.kpi.leftOver')}
-          value={money(netNow)}
-          currency
-          change={percentPill(netNow, sumOver(net, previous.months), language)}
-          note={t(`reports.cashFlow.kpi.across.${period}`)}
-        />
+        {shown ? (
+          <>
+            <KpiCard
+              label={t('reports.cashFlow.kpi.out')}
+              value={money(outNow)}
+              currency
+              change={percentPill(outNow, sumOver(paidOut, previous.months), language)}
+              note={t('reports.cashFlow.kpi.outNote')}
+            />
+            <KpiCard
+              label={t('reports.cashFlow.kpi.leftOver')}
+              value={money(netNow)}
+              currency
+              change={percentPill(netNow, sumOver(net, previous.months), language)}
+              note={t(`reports.cashFlow.kpi.across.${period}`)}
+            />
+          </>
+        ) : (
+          <>
+            <KpiCard
+              label={t('reports.cashFlow.kpi.out')}
+              value={t('reports.cashFlow.kpi.notShown')}
+              pending
+              note={t('reports.cashFlow.kpi.withheldNote')}
+            />
+            <KpiCard
+              label={t('reports.cashFlow.kpi.leftOver')}
+              value={t('reports.cashFlow.kpi.notShown')}
+              pending
+              note={t('reports.cashFlow.kpi.withheldNote')}
+            />
+          </>
+        )}
         {/* TODO(backend): money due out and expected in over the next 30 days (asks 1.9). */}
         <KpiCard
           label={t('reports.cashFlow.kpi.dueOut')}
@@ -314,14 +340,16 @@ function CashFlowBody({
           title={t('reports.cashFlow.monthlyInOut')}
           legend={[
             { label: t('reports.cashFlow.moneyIn'), color: SERIES.green },
-            { label: t('reports.cashFlow.moneyOut'), color: SERIES.brown },
+            ...(shown ? [{ label: t('reports.cashFlow.moneyOut'), color: SERIES.brown }] : []),
           ]}
           note={
             negative.length > 0
               ? t('reports.cashFlow.reversalHeavy', { periods: negative.join(', ') })
-              : positive === months.length
-                ? t('reports.cashFlow.positiveEveryMonth')
-                : t('reports.cashFlow.positiveMonths', { count: positive, total: months.length })
+              : !shown
+                ? t('reports.cashFlow.expenditureWithheld')
+                : positive === months.length
+                  ? t('reports.cashFlow.positiveEveryMonth')
+                  : t('reports.cashFlow.positiveMonths', { count: positive, total: months.length })
           }
         >
           <DivergingBars
@@ -345,7 +373,7 @@ function CashFlowBody({
             },
           ]}
           note={
-            monthlyNet[bestKept] > 0 ? (
+            shown && monthlyNet[bestKept] > 0 ? (
               <Trans
                 i18nKey="reports.cashFlow.bestMonth"
                 values={{ value: whole(monthlyNet[bestKept]) }}
@@ -354,13 +382,17 @@ function CashFlowBody({
             ) : null
           }
         >
-          <PlainBars
-            values={monthlyNet}
-            labels={monthLabels}
-            highlight={bestKept}
-            color={SERIES.greenSoft}
-            highlightColor={SERIES.green}
-          />
+          {shown ? (
+            <PlainBars
+              values={monthlyNet}
+              labels={monthLabels}
+              highlight={bestKept}
+              color={SERIES.greenSoft}
+              highlightColor={SERIES.green}
+            />
+          ) : (
+            <ChartPending message={t('reports.cashFlow.expenditureWithheld')} />
+          )}
         </ChartCard>
 
         <ChartCard

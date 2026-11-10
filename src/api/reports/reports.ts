@@ -173,8 +173,10 @@ export type CashFlowRowDto = {
    */
   currency: string | null
   received: number
-  paidOut: number
-  net: number
+  /** Null while expenditure is withheld from the reader ({@link CashFlowReportDto}). */
+  paidOut: number | null
+  /** Null while expenditure is withheld, as `paidOut` is. */
+  net: number | null
 } & TillPaidOutFigures &
   SupplierRefundFigures
 
@@ -197,20 +199,20 @@ export type SupplierRefundFigures = {
    * Refunds suppliers paid back (D-29): cash received beside `received` (customer payments), and
    * in `net`. Absent from an older server, which is "not available", never zero.
    */
-  supplierRefunds?: number
+  supplierRefunds?: number | null
   /**
    * Refunds recorded on self-billed credit notes where the tenant is the seller: their cash
    * direction is not recorded, so the server keeps them out of `net`.
    */
-  supplierRefundsUnclassified?: number
+  supplierRefundsUnclassified?: number | null
 }
 
 export type CashFlowTotalDto = {
   /** Null for the "currency not recorded (before RC5)" bucket. */
   currency: string | null
   received: number
-  paidOut: number
-  net: number
+  paidOut: number | null
+  net: number | null
 } & TillPaidOutFigures &
   SupplierRefundFigures
 
@@ -220,6 +222,12 @@ export type CashFlowReportDto = {
   granularity: ReportGranularity
   rows: CashFlowRowDto[]
   totals: CashFlowTotalDto[]
+  /**
+   * Backend B5, only while branch access is enforced: the reader has no expenditure access, so
+   * `paidOut`, `supplierRefunds`, `supplierRefundsUnclassified` and `net` are null in every row
+   * and total. `received` and the drawer columns stay. Absent from a server before B5.
+   */
+  expenditureWithheld?: boolean
 }
 
 /**

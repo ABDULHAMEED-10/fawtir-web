@@ -1,4 +1,4 @@
-import type { CashFlowRowDto, TillPaidOutFigures } from '../api/reports/reports'
+import type { CashFlowReportDto, CashFlowRowDto, TillPaidOutFigures } from '../api/reports/reports'
 
 /**
  * Shaping for the cash flow report (`CashFlowReportRow`), kept out of the page so the arithmetic
@@ -39,21 +39,49 @@ export function periodsOfCashFlow(rows: CashFlowRowDto[]): string[] {
   return seen.sort()
 }
 
-/** In and out per period, in the period order given, summed across currencies present. */
-export function inAndOut(rows: CashFlowRowDto[], periods: string[]): { up: number; down: number }[] {
+/**
+ * Whether money paid out, supplier refunds and net can be shown (N-qq-FEC-1). Backend B5 withholds
+ * them from a reader without expenditure access by sending null, and a null summed as 0 would
+ * state "nothing was paid out" and a net equal to what came in: a figure that is false, not merely
+ * missing. Any null withholds the whole set, so a total never mixes shown and withheld rows.
+ */
+export function expenditureShown(
+  report: Pick<CashFlowReportDto, 'expenditureWithheld'>,
+  rows: CashFlowRowDto[],
+): boolean {
+  return (
+    report.expenditureWithheld !== true &&
+    rows.every((row) => row.paidOut !== null && row.net !== null)
+  )
+}
+
+/**
+ * In and out per period, in the period order given, summed across currencies present. `down` is
+ * null for a period with a withheld (null) `paidOut`, never counted as 0 ({@link expenditureShown}).
+ */
+export function inAndOut(
+  rows: CashFlowRowDto[],
+  periods: string[],
+): { up: number; down: number | null }[] {
   return periods.map((period) => {
     const own = rows.filter((row) => row.period === period)
     return {
       up: own.reduce((sum, row) => sum + row.received, 0),
-      down: own.reduce((sum, row) => sum + row.paidOut, 0),
+      down: sumUnlessWithheld(own.map((row) => row.paidOut)),
     }
   })
 }
 
-export function netByPeriod(rows: CashFlowRowDto[], periods: string[]): number[] {
+/** Null for a period with a withheld `net`, never counted as 0 ({@link expenditureShown}). */
+export function netByPeriod(rows: CashFlowRowDto[], periods: string[]): (number | null)[] {
   return periods.map((period) =>
-    rows.filter((row) => row.period === period).reduce((sum, row) => sum + row.net, 0),
+    sumUnlessWithheld(rows.filter((row) => row.period === period).map((row) => row.net)),
   )
+}
+
+function sumUnlessWithheld(values: (number | null)[]): number | null {
+  if (values.some((value) => value === null)) return null
+  return (values as number[]).reduce((sum, value) => sum + value, 0)
 }
 
 /**
@@ -66,7 +94,8 @@ export function netByPeriod(rows: CashFlowRowDto[], periods: string[]): number[]
 export function periodsWithNegativeDirection(rows: CashFlowRowDto[]): string[] {
   const found: string[] = []
   for (const row of rows) {
-    if ((row.received < 0 || row.paidOut < 0) && !found.includes(row.period)) found.push(row.period)
+    const paidOutNegative = row.paidOut !== null && row.paidOut < 0
+    if ((row.received < 0 || paidOutNegative) && !found.includes(row.period)) found.push(row.period)
   }
   return found.sort()
 }
