@@ -551,13 +551,13 @@ function NoteEditor({
   const today = muscatToday()
   const total = Number(totals.total)
   const outstanding = receivable?.outstandingAmount ?? null
-  const effect = outstanding !== null ? creditEffect(outstanding, total) : null
   const documentTotal = receivable?.documentTotal ?? invoice.totals?.totalAmount ?? null
   const credited = receivable?.creditedAmount ?? 0
   const creditable =
     documentTotal === null
       ? null
       : Math.max(0, Math.round((documentTotal - credited) * 1000) / 1000)
+  const effect = outstanding !== null ? creditEffect(outstanding, total, creditable) : null
   const lines = visibleLines(form)
   // "Back on the shelf?" (V473): asked only on an ordinary credit note, for the lines whose
   // product the catalogue counts. Self-billed notes and debit notes never ask.
@@ -1278,7 +1278,7 @@ function NoteEditor({
                 <OmAmount
                   size="xs"
                   prefix={sign}
-                  amount={money(credit ? (effect ? total - effect.refund : total) : total)}
+                  amount={money(credit && effect ? effect.applied : total)}
                   amountClassName={`font-semibold ${toneClass} tabular-nums`}
                 />
               </dd>
@@ -1321,9 +1321,11 @@ function NoteEditor({
                 </div>
                 <p className="mt-1 text-xs font-medium leading-[1.5] text-text-tertiary">
                   {t(
-                    effect && effect.refund > 0
-                      ? 'salesNote.amount.refundHint'
-                      : 'salesNote.amount.refundNone',
+                    effect?.exceeds
+                      ? 'salesNote.refused.exceeds'
+                      : effect && effect.refund > 0
+                        ? 'salesNote.amount.refundHint'
+                        : 'salesNote.amount.refundNone',
                     { invoice: invoiceNumber },
                   )}
                 </p>
