@@ -160,7 +160,6 @@ describe('taking the payment (P.12)', () => {
         const url = String(input)
         calls.push({ url, init })
         if (url === '/api/v1/me/entitlements') return json(CASHIER)
-      if (url.startsWith('/api/v1/price-rules/active')) return json(activeRules)
         if (url === '/api/v1/branches') {
           return json([{ id: 'b-1', code: 'NZW', name: 'Nizwa', type: 'BRANCH', city: 'Nizwa' }])
         }
@@ -673,7 +672,6 @@ describe('POS follow-ups (Abdul, 28 Oct 2026)', () => {
         const url = String(input)
         calls.push({ url, init })
         if (url === '/api/v1/me/entitlements') return json(CASHIER)
-      if (url.startsWith('/api/v1/price-rules/active')) return json(activeRules)
         if (url === '/api/v1/branches') {
           return json([{ id: 'b-1', code: 'NZW', name: 'Nizwa', type: 'BRANCH', city: 'Nizwa' }])
         }
