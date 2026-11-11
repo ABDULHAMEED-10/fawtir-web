@@ -316,7 +316,9 @@ export function movementTime(
 
 export type MovementKind = 'sold' | 'writtenOff' | 'returned' | 'delivered' | 'corrected'
 
-export function movementKind(movement: Pick<StockMovementDto, 'type'>): MovementKind {
+export function movementKind(
+  movement: Pick<StockMovementDto, 'type' | 'quantityChange'>,
+): MovementKind {
   switch (movement.type) {
     case 'SALE':
       return 'sold'
@@ -326,13 +328,17 @@ export function movementKind(movement: Pick<StockMovementDto, 'type'>): Movement
       return 'returned'
     case 'RECEIPT':
       return 'delivered'
+    case 'CANCEL_REVERSAL':
+      return movement.quantityChange > 0 ? 'returned' : 'sold'
     default:
       return 'corrected'
   }
 }
 
 /** The movement's title in words. */
-export function movementTitleKey(movement: Pick<StockMovementDto, 'type' | 'source'>): string {
+export function movementTitleKey(
+  movement: Pick<StockMovementDto, 'type' | 'source' | 'quantityChange'>,
+): string {
   switch (movement.type) {
     case 'SALE':
       return movement.source.type === 'POS_SALE'
@@ -346,6 +352,10 @@ export function movementTitleKey(movement: Pick<StockMovementDto, 'type' | 'sour
       return movement.source.type === 'DELIVERY'
         ? 'stockItem.live.deliveryRecorded'
         : 'stockItem.deliveryCheckedIn'
+    case 'CANCEL_REVERSAL':
+      return movement.quantityChange > 0
+        ? 'stockItem.live.cancelSaleBack'
+        : 'stockItem.live.cancelReturnOff'
     default:
       return 'stockItem.countCorrected'
   }
@@ -414,6 +424,8 @@ const STOCK_REFUSALS: Record<string, string> = {
   STOCK_UNIT_COST_INVALID: 'stock.refused.unitCostInvalid',
   STOCK_RECEIVED_ON_INVALID: 'stock.refused.receivedOnInvalid',
   STOCK_WRITE_OFF_NOTE_REQUIRED: 'stock.refused.noteRequired',
+  // Batch 39 SEC W-6 (owner), emitted from STK's branch: a card number in a stock note.
+  STOCK_NOTE_CARD_NUMBER: 'stock.refused.noteCardNumber',
   STOCK_REORDER_LEVEL_INVALID: 'stock.refused.reorderLevelInvalid',
   STOCK_ITEM_NOT_FOUND: 'stock.refused.itemNotFound',
   STOCK_NOT_COUNTED_PRODUCT: 'stock.refused.notCountedProduct',

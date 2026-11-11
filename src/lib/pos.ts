@@ -289,9 +289,33 @@ export function omr(baisa: number): string {
   })
 }
 
+/**
+ * Rials as the server wrote them. A reprint row's amount comes already rounded HALF_UP to three
+ * places (backend PosSaleResponse.Line), the rounding the till's own row gets, so it is printed as
+ * written and never rounded a second time on the way through baisa (FU2R-4, review QW5R-3).
+ */
+export function omrOfRials(rials: number): string {
+  return rials.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+}
+
 /** A signed amount, for the lines that take money off. */
 export function omrSigned(baisa: number): string {
   return `${baisa < 0 ? '−' : ''}${omr(Math.abs(baisa))}`
+}
+
+/**
+ * The day and time on a till receipt, in Muscat. One function for the receipt and its reprint, so
+ * the reprint states the same moment in the same words (QR E-5).
+ */
+export function receiptStamp(iso: string, locale = 'en-GB'): string {
+  return new Date(iso).toLocaleString(locale, {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'Asia/Muscat',
+  })
 }
 
 /** A clock time in the company's zone (Muscat), as the till prints it. */

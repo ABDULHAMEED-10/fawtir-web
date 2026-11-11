@@ -22,6 +22,7 @@ serves yet.
 | 1.3 | "For partners" in the nav and footer | No partner programme page or sign-up. The link asks by email meanwhile |
 | 1.4 | "Privacy policy" and "Terms of service" in the footer | No published pages; drawn as plain text until the documents exist |
 | 1.5 | Social icons in the footer (Facebook, Instagram, LinkedIn, X) | Not a backend gap as such: Fawtir's accounts are not decided. Drawn, not linked, until they are |
+| 1.6 | Terms of service (`/terms`), Privacy policy (`/privacy`) and Refund policy (`/refund-policy`), linked from the footer and the sign-up consent line (owner, 4 Nov 2026; replaces 1.4) | Published as static text in both languages, following the handbook's refund, cancellation and retention decisions. The operator named is `site.legal.provider` and the date `site.legal.date`. Nothing to build now; if legal wants to edit them without a release, serve them from the console (`GET /v1/public/legal/{terms,privacy,refund}`) |
 
 ## 2. Plans
 

@@ -135,7 +135,17 @@ export type CreditNoteRowDto = {
    * and `/refund` refuse it (409 CREDIT_NOTE_HELD_AS_DUPLICATE). Absent from an older server.
    */
   heldAsDuplicate?: boolean
+  /**
+   * PRV-b39 W-C2 (EXP fa8387d25): set while the note names a Peppol copy held against an upload,
+   * the pair is undecided, and the note has no apply or refund row of its own. `billId` is the
+   * held copy, decided at `/bills/{billId}/duplicate-resolution`. `status` keeps its four values.
+   * Null after either decision; absent from an older server.
+   */
+  waitingFor?: CreditNoteWaitingForDto | null
 }
+
+/** A closed enum on the server; DUPLICATE_DECISION is its only value today. */
+export type CreditNoteWaitingForDto = { reason: 'DUPLICATE_DECISION'; billId: string }
 
 export type CreditNoteSummaryDto = {
   currencyCode: string
@@ -164,12 +174,17 @@ export type CreditNoteSettlementDto = {
   billNumber?: string | null
   /** The document type of `billId` (380, 383...); null on a refund, absent from an older server. */
   billDocumentTypeCode?: string | null
-  kind: 'APPLIED' | 'REFUNDED'
+  /** RELEASED undoes one APPLIED row (backend #827): that credit is the note's to use again. */
+  kind: 'APPLIED' | 'REFUNDED' | 'RELEASED'
   amount: number
   paymentReference: string | null
   settledOn: string
   actorId: string | null
   occurredAt: string
+  /** On a RELEASED row, the APPLIED row it undoes. Absent from a server before backend #827. */
+  releasedSettlementId?: string | null
+  /** Why a RELEASED row was recorded, when the person said. Absent from a server before #827. */
+  reason?: string | null
 }
 
 /** The row written, and where the note stands now that it has been. */
@@ -232,8 +247,19 @@ export function applyCreditNote(id: string, billId: string, amount: number | nul
   })
 }
 
+/** A key for one refund the person means to record (16-128 of `[A-Za-z0-9._:-]`). */
+export function newCreditNoteRefundKey(): string {
+  return `credit-refund-${crypto.randomUUID()}`
+}
+
+/**
+ * Records that the supplier refunded the note (`bill.settle`). The `Idempotency-Key` is optional
+ * on the server, so a retry without one records a second refund that still fits the credit; the
+ * same key and body within 24 hours answer the first refund instead (backend P0, 2026-10-31).
+ */
 export function refundCreditNote(
   id: string,
+  idempotencyKey: string,
   amount: number,
   paidOn: string,
   paymentReference: string | null,
@@ -241,6 +267,23 @@ export function refundCreditNote(
   return apiRequest<CreditNoteActionDto>(`${creditNotePath(id)}/refund`, {
     method: 'POST',
     body: { amount, paidOn, paymentReference },
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
+}
+
+/**
+ * Takes this note's credit back off one bill (backend #827). It never happens by itself. The
+ * reason is mandatory (A13, client decision 2026-11-08): the server refuses a missing or blank one
+ * as CREDIT_NOTE_RELEASE_REASON_REQUIRED, so the type no longer offers null.
+ */
+export function releaseCreditNote(
+  id: string,
+  billId: string,
+  reason: string,
+): Promise<CreditNoteActionDto> {
+  return apiRequest<CreditNoteActionDto>(`${creditNotePath(id)}/release`, {
+    method: 'POST',
+    body: { billId, reason },
   })
 }
 

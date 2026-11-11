@@ -1,3 +1,4 @@
+import { creditHeld, serverFigure } from './unappliedCredit'
 import type {
   CustomerDto,
   CustomerPageSize,
@@ -31,6 +32,9 @@ export type CustomerReceivableView = {
   /** Null when the customer owes nothing. */
   amount: number | null
   note: Note | null
+  /** D-30(a): the credit the customer holds, and the server's net; null when there is none. */
+  credit: number | null
+  net: number | null
 }
 
 const KIND: Record<CustomerTypeDto, CustomerKind> = {
@@ -91,8 +95,11 @@ function peppolStateOf(kind: CustomerKind, delivery: CustomerDto['peppolDelivery
 export function toReceivableView(
   receivable: CustomerReceivableDto | undefined,
 ): CustomerReceivableView {
+  // A customer only in credit owes nothing and still holds the credit: both are shown.
+  const credit = creditHeld(receivable?.unappliedCredit)
+  const held = { credit, net: credit === null ? null : serverFigure(receivable?.netBalance) }
   if (!receivable || receivable.outstanding <= 0) {
-    return { invoices: receivable?.invoices ?? 0, state: 'settled', amount: null, note: null }
+    return { invoices: receivable?.invoices ?? 0, state: 'settled', amount: null, note: null, ...held }
   }
   if (receivable.overdue > 0 && receivable.daysOverdue !== null) {
     return {
@@ -100,6 +107,7 @@ export function toReceivableView(
       state: 'overdue',
       amount: receivable.outstanding,
       note: { key: 'customersPage.note.daysOverdue', values: { count: receivable.daysOverdue } },
+      ...held,
     }
   }
   return {
@@ -107,6 +115,7 @@ export function toReceivableView(
     state: 'attention',
     amount: receivable.outstanding,
     note: receivable.partlyPaidInvoices > 0 ? { key: 'customersPage.note.partiallyPaid' } : null,
+    ...held,
   }
 }
 

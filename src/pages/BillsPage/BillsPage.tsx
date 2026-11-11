@@ -72,6 +72,17 @@ import {
   loadWaitingCount,
   type WaitingCountDto,
 } from '../../api/expenditure/waitingDocuments'
+import {
+  loadRejectedDocuments,
+  rejectedDocumentsPath,
+  type RejectedPageDto,
+} from '../../api/expenditure/rejectedDocuments'
+import {
+  readRejectedSeen,
+  rejectedBannerShows,
+  rejectedSeenKey,
+  writeRejectedSeen,
+} from '../../lib/rejectedDocuments'
 import { formatAmount, formatCount, formatDate, formatInstantDay } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
 import kpiAttentionIcon from '../../assets/bills/kpi-attention.svg'
@@ -293,12 +304,12 @@ function BillsScreen() {
   // server narrows the read, so the twenty it answers are twenty of the kind asked for.
   const draftSource =
     showing.source === 'UPLOADED' || showing.source === 'SCANNED' ? showing.source : null
-  const showDrafts =
-    (tab === 'needsAttention' || tab === 'all') &&
-    pageNumber === 1 &&
+  const draftsInScope =
     query === '' &&
     (showing.source === null || draftSource !== null) &&
     (known?.needsAttention.draft ?? 0) > 0
+  const showDrafts =
+    (tab === 'needsAttention' || tab === 'all') && pageNumber === 1 && draftsInScope
   const intakesPath = showDrafts ? unconfirmedIntakesPath(0, 20, draftSource) : null
   const intakes = useApiRead<IntakePageDto>(intakesPath, () => loadIntakes(intakesPath!))
 
@@ -427,6 +438,7 @@ function BillsScreen() {
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
         {header}
         <WaitingDocumentsBanner />
+        <RejectedDocumentsBanner />
         {summary.read.status === 'loading' ? (
           <LoadingNotice />
         ) : (
@@ -445,6 +457,13 @@ function BillsScreen() {
     draftSource === null
       ? unconfirmed
       : unconfirmed.filter((intake) => intake.source === draftSource)
+  // The summary's draft figure counts uploads and receipts together, so under "Uploaded" or
+  // "Scanned" only the drafts this page read, already narrowed to that kind, can be counted.
+  const draftCount = !draftsInScope
+    ? 0
+    : draftSource === null
+      ? totals.needsAttention.draft
+      : drafts.length
   // The whole ledger's counts with no filter on, and when the filtered read fails.
   const tabs =
     countsPath === null || counts.read.status === 'failed'
@@ -459,6 +478,7 @@ function BillsScreen() {
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
       {header}
       <WaitingDocumentsBanner />
+      <RejectedDocumentsBanner />
       <BillKpiCards
         totals={totals}
         canStartRun={canCapture}
@@ -493,7 +513,7 @@ function BillsScreen() {
                       : 'bg-primary-25 text-text-quaternary',
                   ].join(' ')}
                 >
-                  {count(billTabCount(tabs, entry.id))}
+                  {count(billTabCount(tabs, entry.id, draftCount))}
                 </span>
                 {active ? (
                   <span className="absolute inset-x-0 -bottom-px h-0.5 bg-primary-800" />
@@ -930,6 +950,69 @@ function WaitingDocumentsBanner() {
   )
 }
 
+/**
+ * Supplier documents our access point refused on arrival (batch 39 EXP), and the way to the list.
+ * A branch-limited person is refused that list (403, BA-1), so it is not read for them at all.
+ * Nothing is drawn while none were refused, while the read is on its way, or when it fails: a
+ * server before batch 39 answers 404 and the page stays as it was.
+ */
+function RejectedDocumentsBanner() {
+  const session = useSession()
+  if (session?.allBranches === false || !can(session, 'invoice.read')) return null
+  return <RejectedDocumentsCount />
+}
+
+// One row is enough: the banner needs only the total, and the server has no count route.
+const REJECTED_BANNER_PATH = rejectedDocumentsPath(0, 1)
+
+function RejectedDocumentsCount() {
+  const { t, i18n } = useTranslation()
+  const rejected = useApiRead<RejectedPageDto>(REJECTED_BANNER_PATH, () =>
+    loadRejectedDocuments(REJECTED_BANNER_PATH),
+  )
+  const session = useSession()
+  const seenKey = session ? rejectedSeenKey(session.tenantId, session.userId) : null
+  const [seen, setSeen] = useState(() => (seenKey ? readRejectedSeen(seenKey) : 0))
+  if (rejected.read.status !== 'ready') return null
+  const total = rejected.read.data.total
+  if (!rejectedBannerShows(total, seen)) return null
+  const dismiss = () => {
+    if (seenKey) writeRejectedSeen(seenKey, total)
+    setSeen(total)
+  }
+  return (
+    <div
+      role="status"
+      data-testid="rejected-documents-banner"
+      className="flex flex-wrap items-center justify-between gap-3 rounded-sm bg-surface-background px-4 py-3 text-text-secondary"
+    >
+      <p className="min-w-0 flex-1 text-sm font-medium leading-[1.6] md:min-w-[320px]">
+        <b className="font-semibold">
+          {t('rejectedDocuments.banner.title', {
+            count: total,
+            n: formatCount(total, i18n.language),
+          })}
+        </b>{' '}
+        {t('rejectedDocuments.banner.body')}
+      </p>
+      <Link
+        to="/expenditure/bills/rejected"
+        className="inline-flex h-[38px] shrink-0 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+      >
+        {t('rejectedDocuments.banner.open')}
+      </Link>
+      <button
+        type="button"
+        onClick={dismiss}
+        data-testid="rejected-documents-banner-dismiss"
+        className="inline-flex h-[38px] shrink-0 items-center rounded-sm px-3 text-sm font-semibold text-text-tertiary transition-colors hover:text-text-secondary"
+      >
+        {t('rejectedDocuments.banner.dismiss')}
+      </button>
+    </div>
+  )
+}
+
 function BillTable({
   page,
   drafts,
@@ -1217,6 +1300,15 @@ function BillTableRow({
           <p className="mt-1 text-xs font-medium leading-[1.2] text-text-tertiary">
             {t('billsPage.rows.issued', { date: formatDate(row.issueDate, language) })}
           </p>
+        ) : null}
+        {row.twin ? (
+          <Link
+            to={`/expenditure/bills/${row.twin.otherId}`}
+            data-testid="bill-row-twin"
+            className="mt-1 block text-xs font-semibold leading-[1.2] text-pending-700 hover:underline"
+          >
+            {t(`billsPage.rows.twin.${row.twin.certainty}`)}
+          </Link>
         ) : null}
       </td>
 

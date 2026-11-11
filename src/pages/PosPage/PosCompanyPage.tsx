@@ -30,7 +30,7 @@ import { useCan } from '../../lib/session/session'
 import { missingFieldsSentence, notEligiblePaths } from '../../lib/customerEligibility'
 import { placeCustomerErrors, type CustomerField } from '../../lib/customerForm'
 import { addPosCustomer, newPosKey, posSalesPath, type PosTodaySalesPage } from '../../api/pos/pos'
-import { posRefusalKey } from '../../lib/posRefusals'
+import { refusalSentence } from '../../lib/posRefusals'
 import type { TillState } from '../../lib/posTill'
 
 type Ready = Extract<TillState, { status: 'ready' }>
@@ -293,7 +293,7 @@ function OnTheCompany({ till }: { till: Ready }) {
               ) : null}
               {lookup.read.status === 'failed' || error ? (
                 <p role="alert" className="mt-2 text-xs font-medium text-danger-700">
-                  {t(posRefusalKey(lookup.read.status === 'failed' ? lookup.read.error : error))}
+                  {refusalSentence(t, lookup.read.status === 'failed' ? lookup.read.error : error)}
                 </p>
               ) : null}
 
@@ -618,7 +618,7 @@ function AddCompany({
               })
             : offField.length > 0
               ? offField.join(' ')
-              : t(posRefusalKey(error))}
+              : refusalSentence(t, error)}
         </p>
       ) : null}
       <div>
@@ -738,7 +738,7 @@ function CompleteAddress({
           </div>
           {error ? (
             <p role="alert" className="text-xs font-medium text-danger-700">
-              {t(posRefusalKey(error))}
+              {refusalSentence(t, error)}
             </p>
           ) : null}
           <div>

@@ -55,6 +55,26 @@ describe('invoice maths, against the server engine', () => {
     expect(formatAtScale(totals.taxable)).toBe('20.000')
   })
 
+  it('projects INV-2026-000001 as the server does, so the lines foot to the net amount (D-01, D-02)', () => {
+    // RC5 browser E2E: 2 × 125.500, and 3 × 10.125 less 10%. The server stored and served a net of
+    // 278.337 and a total of 292.254; rounding 27.3375 and 278.3375 alone gave 278.338 for both.
+    const totals = projected(
+      [line(1, '2', '125.500'), line(2, '3', '10.125', ['PERCENTAGE', '10'])],
+      ['PERCENTAGE', '0'],
+    )
+    expect(totals.lines.map((each) => formatAtScale(each.afterLineDiscount))).toEqual(['251.000', '27.337'])
+    // The taxable series is reconciled to 278.337 with the server's own clawback order
+    // (ResidualReconciler: smallest remainder first), which takes the baisa from line 1. That is what
+    // the server projects and what its Peppol document states as IBT-131.
+    expect(totals.lines.map((each) => formatAtScale(each.taxable))).toEqual(['250.999', '27.338'])
+    expect(formatAtScale(totals.itemDiscount)).toBe('3.038')
+    expect(formatAtScale(totals.taxable)).toBe('278.337')
+    expect(formatAtScale(totals.vat)).toBe('13.917')
+    expect(formatAtScale(totals.total)).toBe('292.254')
+    expect(formatAtScale(totals.lines.reduce((sum, each) => sum + each.afterLineDiscount, 0n))).toBe('278.337')
+    expect(totals.taxable + totals.vat).toBe(totals.total)
+  })
+
   it('reproduces the single decimal line', () => {
     const totals = projected([line(1, '2.5', '1.8')], ['PERCENTAGE', '0'])
     expect(formatAtScale(totals.subtotal)).toBe('4.500')

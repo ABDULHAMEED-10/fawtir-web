@@ -175,9 +175,12 @@ function ArchivedDocument({ invoiceUuid }: { invoiceUuid: string }) {
     }
   }
 
+  // The button counts what it saves: it counted every held artefact, the MLS replies (a page, not a
+  // file) and artefacts with no address among them, so it promised more files than came (A-7b).
+  const savable = held.filter((artefact) => artefact.href && !artefact.opens)
   /** TODO(backend): one ZIP of the record (ask 3.6). Until then, each served file in turn. */
   const downloadAll = async () => {
-    for (const artefact of held) await download(artefact)
+    for (const artefact of savable) await download(artefact)
   }
 
   const shareable = held
@@ -261,11 +264,11 @@ function ArchivedDocument({ invoiceUuid }: { invoiceUuid: string }) {
           <button
             type="button"
             onClick={() => void downloadAll()}
-            disabled={!held.some((artefact) => artefact.href && !artefact.opens)}
+            disabled={savable.length === 0}
             className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-5 text-base font-medium text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-50"
           >
             <img src={downloadIcon} alt="" className="size-5" />
-            {t('documents.detail.zip', { count: held.length })}
+            {t('documents.detail.zip', { count: savable.length })}
           </button>
           {mayShare ? (
             <button

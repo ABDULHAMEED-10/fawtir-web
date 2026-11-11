@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SESSION_EXPIRED_EVENT } from '../../api/sessionExpiry'
 import { forgetEntitlements } from './entitlements'
+import { forgetSigningKeys } from '../posSigning/signingKey'
 import { LOGIN_ROUTE } from './login'
 
 /** For the signed-in shells: on a reported expiry, forget who was signed in and go to sign-in. */
@@ -10,6 +11,7 @@ export function useSessionExpiryRedirect(): void {
   useEffect(() => {
     const onExpired = () => {
       forgetEntitlements()
+      void forgetSigningKeys()
       navigate(LOGIN_ROUTE, { replace: true })
     }
     window.addEventListener(SESSION_EXPIRED_EVENT, onExpired)

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { setSaleLines, useOpenSale } from '../../lib/posSale'
+import { setSaleLines, useOpenSale, useUncertainSale } from '../../lib/posSale'
 import { useTillPriceRules } from '../../lib/posPriceRules'
 import { Trans, useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
 import { PosArt } from './PosArt'
 import { PosSalePanel } from './PosSalePanel'
@@ -43,7 +43,7 @@ import {
 } from '../../api/catalog/products'
 import { getCatalogGroups, type CatalogGroupsDto } from '../../api/catalog/groups'
 import type { Page } from '../../api'
-import { posRefusalKey } from '../../lib/posRefusals'
+import { refusalSentence } from '../../lib/posRefusals'
 import { loadOrRecall } from '../../lib/posOffline'
 import { captureScans, findOnShelf, lookupBarcode, type ScanHit } from '../../lib/posScan'
 import { playErrorBeep } from '../../lib/posBeep'
@@ -188,6 +188,7 @@ export function PosPage() {
       <PosTillGate showQueue>
         {(till) => (
           <Shelf
+            tillId={till.till.id}
             branchId={till.branchId}
             canSell={till.can.sell}
             tillCtl={<CashierPicker till={till.till} mine={till.mine} />}
@@ -199,10 +200,12 @@ export function PosPage() {
 }
 
 function Shelf({
+  tillId,
   branchId,
   canSell,
   tillCtl,
 }: {
+  tillId: string
   branchId: string
   canSell: boolean
   tillCtl: ReactNode
@@ -371,6 +374,10 @@ function Shelf({
   const scanRef = useRef(scan)
   scanRef.current = scan
   useEffect(() => captureScans((code) => void scanRef.current(code)), [])
+  // A sale whose outcome is unknown cannot be changed (E-01): its screen offers only the same sale
+  // again or today's sales.
+  const uncertain = useUncertainSale(tillId)
+  if (uncertain) return <Navigate to="/pos/payment" replace />
 
   return (
     <div
@@ -493,7 +500,7 @@ function Shelf({
               role="alert"
               className="rounded-sm bg-danger-100 px-4 py-3 text-sm font-medium text-danger-700"
             >
-              {t(posRefusalKey(error))}
+              {refusalSentence(t, error)}
             </p>
           ) : null}
 

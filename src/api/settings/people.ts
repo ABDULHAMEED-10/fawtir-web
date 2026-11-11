@@ -139,6 +139,11 @@ export type RoleDto = {
   systemRole: boolean
   permissionCodes: string[]
   /**
+   * Every permission held with the limit it is held under (`RoleResponse.permissions`,
+   * `PermissionGrant`): `MAX_PERCENT` carries `value`. Read for the till's discount ceiling.
+   */
+  permissions?: { code: string; qualifier: 'OWN' | 'MAX_PERCENT' | null; value: number | null }[]
+  /**
    * ROLE, PERMISSION_SET (approval or view only), TECHNICAL (mobile, integration) or CUSTOM. Only
    * ROLE and CUSTOM are a person's one role (RL-1). Absent from older servers: see `roleKind`.
    */

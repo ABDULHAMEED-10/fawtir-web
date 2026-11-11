@@ -274,10 +274,18 @@ export function tenantRowActions(): ActionMenuItem[] {
   ]
 }
 
-/** A sale in the day's list at the till (Figma 143:20498). */
-export function posSaleRowActions(invoiceId: string): ActionMenuItem[] {
+/**
+ * A sale in the day's list at the till (Figma 143:20498). `printReceipt` is given only for a sale
+ * the server can reprint as printed (QR E-5); without it the item stays as it was.
+ */
+export function posSaleRowActions(invoiceId: string, printReceipt?: () => void): ActionMenuItem[] {
   return [
-    { id: 'receipt', labelKey: 'pos.today.printReceipt', icon: viewIcon },
+    {
+      id: 'receipt',
+      labelKey: 'pos.today.printReceipt',
+      icon: viewIcon,
+      ...(printReceipt ? { onSelect: printReceipt } : {}),
+    },
     { id: 'email', labelKey: 'pos.today.emailReceipt', icon: sendIcon },
     {
       id: 'open',

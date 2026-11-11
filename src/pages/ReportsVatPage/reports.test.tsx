@@ -450,6 +450,20 @@ describe('the catalogue href', () => {
 })
 
 describe('the VAT page', () => {
+  it('says, in the owner\'s words, that it is not a filed return (VAT-LABEL, K22)', async () => {
+    renderAt('/reports/vat-tax', <ReportsVatPage />)
+    expect(
+      await screen.findByText(
+        'Calculated from your records to help you prepare your return. It is not a filed return.',
+      ),
+    ).toBeTruthy()
+  })
+
+  it('says it in Arabic too', async () => {
+    expect(i18n.exists('reports.vat.notAReturn', { lng: 'ar', fallbackLng: false })).toBe(true)
+    expect(i18n.t('reports.vat.notAReturn', { lng: 'ar' })).not.toMatch(/[A-Za-z]{4,}/)
+  })
+
   it('shows the position and asks the server for both buckets the frame draws', async () => {
     renderAt('/reports/vat-tax', <ReportsVatPage />)
     // Output and net less the 25 on the tenant's own self-billed invoice (a purchase).
@@ -610,6 +624,135 @@ describe('the cash flow page', () => {
     })
     renderAt('/reports/cash-flow', <ReportsCashFlowPage />)
     expect(await screen.findByText('No payments were recorded in this range.')).toBeTruthy()
+  })
+
+  // NOT RUN (static only). Backend 9ce2bdcf4: no business time zone, with till paid-outs to date.
+  it('sends the reader to the company settings when the time zone is not set, without a retry', async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/me/entitlements')) return json(200, READER)
+      if (url.includes('/reports/cash-flow'))
+        return new Response(
+          JSON.stringify({
+            type: 'https://fawtir.om/problems/conflict',
+            status: 409,
+            code: 'TENANT_TIMEZONE_UNAVAILABLE',
+          }),
+          { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+        )
+      return json(404)
+    })
+    renderAt('/reports/cash-flow', <ReportsCashFlowPage />)
+    expect(
+      await screen.findByText(
+        "The cash flow report needs the company's time zone, which isn't set. Contact Fawtir support to set it, then open the report again.",
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByRole('button', { name: i18n.t('appAccess.retry') })).toBeNull()
+  })
+
+  // NOT RUN (static only). Backend cb9898ac3 (FIN-M3): the four drawer columns and the bucket of
+  // till paid-outs from before RC5, which carry no currency.
+  it('shows the till paid-outs by class and keeps the currency-less bucket apart', async () => {
+    const september = {
+      period: '2026-09',
+      periodStart: '2026-09-01',
+      periodEnd: '2026-09-30',
+      received: 0,
+      paidOut: 0,
+      net: 0,
+    }
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/me/entitlements')) return json(200, READER)
+      if (url.includes('/reports/cash-flow'))
+        return json(200, {
+          ...CASH_FLOW,
+          rows: [
+            ...CASH_FLOW.rows,
+            {
+              ...september,
+              currency: 'OMR',
+              cashPaidOutExpense: 4,
+              cashPaidOutAdvance: 2,
+              cashTransferred: 7,
+              cashPaidOutUnclassified: 0,
+            },
+            { ...september, currency: null, cashPaidOutUnclassified: 1.25 },
+          ],
+          totals: [
+            { currency: null, received: 0, paidOut: 0, net: 0, cashPaidOutUnclassified: 1.25 },
+            ...CASH_FLOW.totals,
+          ],
+        })
+      if (url.includes('/reports/expenditure')) return json(200, EXPENDITURE)
+      return json(404)
+    })
+    renderAt('/reports/cash-flow', <ReportsCashFlowPage />)
+    expect(await screen.findByText('Cash paid out of the tills')).toBeTruthy()
+    expect(screen.getByText('Expenses')).toBeTruthy()
+    expect(screen.getByText('4.000')).toBeTruthy()
+    expect(screen.getByText('7.000')).toBeTruthy()
+    expect(screen.getByText('Not classed (before RC5)')).toBeTruthy()
+    // The null bucket is never taken as the report's currency, nor counted as a second one.
+    expect(screen.getByText('1,300.000')).toBeTruthy()
+    expect(screen.queryByText(/more than one currency/)).toBeNull()
+    expect(
+      screen.getByText(
+        'Till paid-outs from before RC5 carry no currency (currency not recorded (before RC5)): 1.25 in this report. They are kept apart and never added to any currency.',
+      ),
+    ).toBeTruthy()
+  })
+})
+
+describe('supplier refunds on the cash flow page (D-29)', () => {
+  const answer = (cashFlow: CashFlowReportDto) =>
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/me/entitlements')) return json(200, READER)
+      if (url.includes('/reports/cash-flow')) return json(200, cashFlow)
+      if (url.includes('/reports/expenditure')) return json(200, EXPENDITURE)
+      return json(404)
+    })
+  // The server's net includes the refunds (1,100 + 50 and -500 + 25): received less paid out
+  // would say 600, so 675 can only come from reading net as given.
+  const withRefunds = (unclassified: number): CashFlowReportDto => ({
+    ...CASH_FLOW,
+    rows: [
+      { ...CASH_FLOW.rows[0], net: 1150, supplierRefunds: 50, supplierRefundsUnclassified: unclassified },
+      { ...CASH_FLOW.rows[1], net: -475, supplierRefunds: 25, supplierRefundsUnclassified: 0 },
+    ],
+    totals: [{ currency: 'OMR', received: 1300, paidOut: 700, net: 675, supplierRefunds: 75 }],
+  })
+
+  it('names the refunds on a line of their own and shows the server net as given', async () => {
+    answer(withRefunds(0))
+    renderAt('/reports/cash-flow', <ReportsCashFlowPage />)
+    expect(
+      await screen.findByText(
+        'Supplier refunds received this year: OMR 75.000. In left over, not in money in.',
+      ),
+    ).toBeTruthy()
+    expect(screen.getByText('1,300.000')).toBeTruthy()
+    expect(screen.getByText('675.000')).toBeTruthy()
+    expect(screen.queryByText('600.000')).toBeNull()
+    expect(screen.queryByText(/self-billed credit notes/)).toBeNull()
+  })
+
+  it('adds the refunds with no recorded direction only when there are some', async () => {
+    answer(withRefunds(3))
+    renderAt('/reports/cash-flow', <ReportsCashFlowPage />)
+    expect(
+      await screen.findByText(
+        'Supplier refunds received this year: OMR 75.000. In left over, not in money in. A further OMR 3.000 was refunded on self-billed credit notes whose cash direction is not recorded, so it is not in left over.',
+      ),
+    ).toBeTruthy()
+  })
+
+  it('says nothing about refunds to a server that does not send them', async () => {
+    renderAt('/reports/cash-flow', <ReportsCashFlowPage />)
+    expect(await screen.findByText('600.000')).toBeTruthy()
+    expect(screen.queryByText(/Supplier refunds/)).toBeNull()
   })
 })
 

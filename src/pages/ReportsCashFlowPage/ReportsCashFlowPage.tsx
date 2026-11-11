@@ -17,6 +17,7 @@ import {
 } from '../../components/reports'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { useApiRead, type ApiRead } from '../../hooks'
+import { ApiError } from '../../api/errors'
 import {
   cashFlowPath,
   expenditurePath,
@@ -26,7 +27,12 @@ import {
   type CashFlowReportDto,
   type ExpenditureReportDto,
 } from '../../api/reports/reports'
-import { periodsWithNegativeDirection } from '../../lib/cashFlowReport'
+import {
+  expenditureShown,
+  periodsWithNegativeDirection,
+  recordedCurrencies,
+  tillPaidOuts,
+} from '../../lib/cashFlowReport'
 import {
   MONTH_IDS,
   historyWindow,
@@ -102,7 +108,16 @@ export function ReportsCashFlowPage() {
     >
       {report.read.status === 'loading' ? <LoadingNotice /> : null}
       {report.read.status === 'failed' ? (
-        <ApiReadFailure error={report.read.error} retry={report.retry} />
+        // Backend 9ce2bdcf4: till paid-outs are dated in the company's zone, and with none set the
+        // report refuses rather than guess one. A retry cannot help; the setting can.
+        report.read.error instanceof ApiError &&
+        report.read.error.code === 'TENANT_TIMEZONE_UNAVAILABLE' ? (
+          <p className="rounded-md bg-pending-100 p-3 text-sm font-medium text-pending-700">
+            {t('reports.cashFlow.timeZoneUnavailable')}
+          </p>
+        ) : (
+          <ApiReadFailure error={report.read.error} retry={report.retry} />
+        )
       ) : null}
 
       {report.read.status === 'ready' ? (
@@ -134,22 +149,51 @@ function CashFlowBody({
   language: string
   t: (key: string, values?: Record<string, unknown>) => string
 }) {
-  if (report.rows.length === 0) {
-    return (
-      <p className="rounded-md bg-surface-card p-10 text-center text-sm font-medium text-text-quaternary">
-        {t('reports.cashFlow.empty')}
+  const currencies = recordedCurrencies(report.totals)
+  const currency =
+    currencies[0] ?? report.rows.find((row) => row.currency !== null)?.currency ?? null
+  // Till paid-outs from before RC5 carry no currency (backend cb9898ac3): named apart, as a plain
+  // figure, and never formatted, charted or added as any currency.
+  const unrecordedEntry = report.totals.find((entry) => entry.currency === null)
+  const unrecordedFigures = unrecordedEntry ? tillPaidOuts(unrecordedEntry) : null
+  const unrecordedSum = unrecordedFigures
+    ? unrecordedFigures.expense +
+      unrecordedFigures.advance +
+      unrecordedFigures.transferred +
+      unrecordedFigures.unclassified
+    : 0
+  const unrecorded =
+    unrecordedSum !== 0 ? (
+      <p className="rounded-md bg-pending-100 p-3 text-sm font-medium text-pending-700">
+        {t('reports.cashFlow.unrecorded', {
+          label: t('reports.cashFlow.currencyNotRecorded'),
+          amount: formatCount(unrecordedSum, language),
+        })}
       </p>
+    ) : null
+
+  if (report.rows.length === 0 || currency === null) {
+    return (
+      <>
+        {unrecorded}
+        <p className="rounded-md bg-surface-card p-10 text-center text-sm font-medium text-text-quaternary">
+          {t('reports.cashFlow.empty')}
+        </p>
+      </>
     )
   }
 
-  const currency = report.totals[0]?.currency ?? report.rows[0].currency
   const rows = report.rows.filter((row) => row.currency === currency)
   const money = (value: number) => formatAmount(value, currency, language)
   const whole = (value: number) => wholeFigure(value, language)
   const { current, previous } = periodWindows(period, today)
   const received = sumByMonth(rows, (row) => row.received)
-  const paidOut = sumByMonth(rows, (row) => row.paidOut)
-  const net = sumByMonth(rows, (row) => row.net)
+  // N-qq-FEC-1: withheld figures (B5) arrive as null and are never summed as 0, which would read
+  // "nothing paid out" and a net equal to money in. Only shown rows reach these sums, where the
+  // `?? 0` never applies; the cards and charts that need them say "not shown" instead.
+  const shown = expenditureShown(report, rows)
+  const paidOut = sumByMonth(shown ? rows : [], (row) => row.paidOut ?? 0)
+  const net = sumByMonth(shown ? rows : [], (row) => row.net ?? 0)
 
   const inNow = sumOver(received, current.months)
   const outNow = sumOver(paidOut, current.months)
@@ -165,6 +209,30 @@ function CashFlowBody({
   // A bar cannot be drawn below nothing, so a period where reversals outweighed payments is
   // named in the footer rather than drawn as if it were a small positive.
   const negative = periodsWithNegativeDirection(rows)
+  const drawer = {
+    expense: sumOver(sumByMonth(rows, (row) => tillPaidOuts(row).expense), current.months),
+    advance: sumOver(sumByMonth(rows, (row) => tillPaidOuts(row).advance), current.months),
+    transferred: sumOver(sumByMonth(rows, (row) => tillPaidOuts(row).transferred), current.months),
+    unclassified: sumOver(sumByMonth(rows, (row) => tillPaidOuts(row).unclassified), current.months),
+  }
+  // Supplier refunds (D-29) are in the server's net but not in "Money in", so they are named on a
+  // line of their own. An older server sends neither field: the line is left out, not shown as 0.
+  // Withheld (null) refunds leave it out the same way.
+  const refundsReported =
+    shown && rows.length > 0 && rows.every((row) => Object.hasOwn(row, 'supplierRefunds'))
+  const refundsNow = refundsReported
+    ? sumOver(sumByMonth(rows, (row) => row.supplierRefunds ?? 0), current.months)
+    : 0
+  const unclassifiedRefundsNow = shown && rows.every((row) =>
+    Object.hasOwn(row, 'supplierRefundsUnclassified'),
+  )
+    ? sumOver(sumByMonth(rows, (row) => row.supplierRefundsUnclassified ?? 0), current.months)
+    : 0
+  const drawerRows = (['expense', 'advance', 'transferred', 'unclassified'] as const).map((name) => ({
+    label: t(`reports.cashFlow.till.${name}`),
+    value: drawer[name],
+    display: money(drawer[name]),
+  }))
 
   const categoryRows =
     categories.status === 'ready'
@@ -194,13 +262,12 @@ function CashFlowBody({
 
   return (
     <>
-      {report.totals.length > 1 ? (
+      {currencies.length > 1 ? (
         <p className="rounded-md bg-pending-100 p-3 text-sm font-medium text-pending-700">
-          {t('reports.vat.mixedCurrency', {
-            currencies: report.totals.map((entry) => entry.currency).join(', '),
-          })}
+          {t('reports.vat.mixedCurrency', { currencies: currencies.join(', ') })}
         </p>
       ) : null}
+      {unrecorded}
 
       <KpiRow>
         <KpiCard
@@ -210,20 +277,39 @@ function CashFlowBody({
           change={percentPill(inNow, sumOver(received, previous.months), language)}
           note={t('reports.cashFlow.kpi.inNote')}
         />
-        <KpiCard
-          label={t('reports.cashFlow.kpi.out')}
-          value={money(outNow)}
-          currency
-          change={percentPill(outNow, sumOver(paidOut, previous.months), language)}
-          note={t('reports.cashFlow.kpi.outNote')}
-        />
-        <KpiCard
-          label={t('reports.cashFlow.kpi.leftOver')}
-          value={money(netNow)}
-          currency
-          change={percentPill(netNow, sumOver(net, previous.months), language)}
-          note={t(`reports.cashFlow.kpi.across.${period}`)}
-        />
+        {shown ? (
+          <>
+            <KpiCard
+              label={t('reports.cashFlow.kpi.out')}
+              value={money(outNow)}
+              currency
+              change={percentPill(outNow, sumOver(paidOut, previous.months), language)}
+              note={t('reports.cashFlow.kpi.outNote')}
+            />
+            <KpiCard
+              label={t('reports.cashFlow.kpi.leftOver')}
+              value={money(netNow)}
+              currency
+              change={percentPill(netNow, sumOver(net, previous.months), language)}
+              note={t(`reports.cashFlow.kpi.across.${period}`)}
+            />
+          </>
+        ) : (
+          <>
+            <KpiCard
+              label={t('reports.cashFlow.kpi.out')}
+              value={t('reports.cashFlow.kpi.notShown')}
+              pending
+              note={t('reports.cashFlow.kpi.withheldNote')}
+            />
+            <KpiCard
+              label={t('reports.cashFlow.kpi.leftOver')}
+              value={t('reports.cashFlow.kpi.notShown')}
+              pending
+              note={t('reports.cashFlow.kpi.withheldNote')}
+            />
+          </>
+        )}
         {/* TODO(backend): money due out and expected in over the next 30 days (asks 1.9). */}
         <KpiCard
           label={t('reports.cashFlow.kpi.dueOut')}
@@ -233,19 +319,37 @@ function CashFlowBody({
         />
       </KpiRow>
 
+      {refundsReported ? (
+        <p className="text-sm font-medium text-text-tertiary">
+          {t('reports.cashFlow.supplierRefunds', {
+            when: t(`reports.thisPeriod.${period}`),
+            currency,
+            amount: money(refundsNow),
+          })}
+          {unclassifiedRefundsNow !== 0
+            ? ` ${t('reports.cashFlow.supplierRefundsUnclassified', {
+                currency,
+                amount: money(unclassifiedRefundsNow),
+              })}`
+            : null}
+        </p>
+      ) : null}
+
       <ChartGrid>
         <ChartCard
           title={t('reports.cashFlow.monthlyInOut')}
           legend={[
             { label: t('reports.cashFlow.moneyIn'), color: SERIES.green },
-            { label: t('reports.cashFlow.moneyOut'), color: SERIES.brown },
+            ...(shown ? [{ label: t('reports.cashFlow.moneyOut'), color: SERIES.brown }] : []),
           ]}
           note={
             negative.length > 0
               ? t('reports.cashFlow.reversalHeavy', { periods: negative.join(', ') })
-              : positive === months.length
-                ? t('reports.cashFlow.positiveEveryMonth')
-                : t('reports.cashFlow.positiveMonths', { count: positive, total: months.length })
+              : !shown
+                ? t('reports.cashFlow.expenditureWithheld')
+                : positive === months.length
+                  ? t('reports.cashFlow.positiveEveryMonth')
+                  : t('reports.cashFlow.positiveMonths', { count: positive, total: months.length })
           }
         >
           <DivergingBars
@@ -269,7 +373,7 @@ function CashFlowBody({
             },
           ]}
           note={
-            monthlyNet[bestKept] > 0 ? (
+            shown && monthlyNet[bestKept] > 0 ? (
               <Trans
                 i18nKey="reports.cashFlow.bestMonth"
                 values={{ value: whole(monthlyNet[bestKept]) }}
@@ -278,13 +382,39 @@ function CashFlowBody({
             ) : null
           }
         >
-          <PlainBars
-            values={monthlyNet}
-            labels={monthLabels}
-            highlight={bestKept}
-            color={SERIES.greenSoft}
-            highlightColor={SERIES.green}
-          />
+          {shown ? (
+            <PlainBars
+              values={monthlyNet}
+              labels={monthLabels}
+              highlight={bestKept}
+              color={SERIES.greenSoft}
+              highlightColor={SERIES.green}
+            />
+          ) : (
+            <ChartPending message={t('reports.cashFlow.expenditureWithheld')} />
+          )}
+        </ChartCard>
+
+        <ChartCard
+          title={t('reports.cashFlow.till.title')}
+          legend={[
+            {
+              label: t('reports.cashFlow.till.legend', {
+                when: t(`reports.thisPeriod.${period}`),
+                currency,
+              }),
+              color: SERIES.strong,
+            },
+          ]}
+          note={t('reports.cashFlow.till.note')}
+        >
+          {drawerRows.some((row) => row.value !== 0) ? (
+            <HorizontalBars rows={drawerRows} />
+          ) : (
+            <p className="w-full text-center text-sm font-medium text-text-quaternary">
+              {t('reports.cashFlow.till.none')}
+            </p>
+          )}
         </ChartCard>
 
         {/* TODO(backend): receivables and payables due, by week (asks 1.10). */}

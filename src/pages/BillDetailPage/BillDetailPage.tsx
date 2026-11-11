@@ -1,4 +1,4 @@
-import { Fragment, useRef, useState } from 'react'
+import { Fragment, useRef, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
@@ -23,12 +23,19 @@ import {
   recordBillPayment,
   rejectBill,
   releaseBill,
+  reopenBill,
   unmatchBill,
   type BillDetailDto,
   type BillMatchDto,
   type BillOverpaymentDto,
   type PurchaseOrderOptionDto,
 } from '../../api/expenditure/bills'
+import {
+  creditNoteListPath,
+  loadCreditNotePage,
+  type CreditNoteRowDto,
+} from '../../api/expenditure/notes'
+import type { Page } from '../../api/page'
 import { loadSupplier, supplierPath, type SupplierDetailDto } from '../../api/expenditure/suppliers'
 import {
   inboundInvoicePath,
@@ -57,18 +64,23 @@ import {
   complianceOf,
   lineVatOf,
   decisionNoteOf,
+  creditNotesOn,
   decisionsOf,
   discountLineOf,
   inputVatNoteKey,
+  isCreditNote,
   isSelfBilled,
   overpaidOf,
   paidBeyondTotal,
   refusedDebitNote,
+  reopenedAwaitingApproval,
   replyIsPending,
   singleVatRate,
+  standaloneCreditNote,
   stepsOf,
   termsDaysOf,
   threeWayOf,
+  vatNoticeOf,
   type BillStepState,
   type ComplianceNote,
   type Note,
@@ -76,7 +88,8 @@ import {
 } from '../../lib/billDetail'
 import { toBillListItem } from '../../lib/billList'
 import { muscatToday } from '../../lib/invoiceIssue'
-import { describeApiFailure } from '../../lib/apiFailure'
+import { describeApiFailure, isPermissionDenied } from '../../lib/apiFailure'
+import { isPeriodClosedRefusal, PERIOD_CLOSED_CHOSEN_DATE_KEY } from '../../lib/expenditureRefusals'
 import { formatAmount, formatDate, formatInstant, formatInstantDay } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
 import stepIcon from '../../assets/bill-detail/step.svg'
@@ -141,6 +154,13 @@ const BILL_PAYMENT_REFUSALS: NonNullable<Parameters<typeof RecordPaymentModal>[0
     field: 'paymentDate',
     key: 'invoiceDetails.pay.error.dateFuture',
   },
+  // SEC 86912a7fa (batch 37, DEC-30-06): a card-coded bill payment's reference holding a card
+  // number, worded as the invoice dialog words PAYMENT_REFERENCE_CARD_NUMBER. Older servers never
+  // send it.
+  BILL_PAYMENT_REFERENCE_CARD_NUMBER: {
+    field: 'reference',
+    key: 'invoiceDetails.pay.error.referenceCardNumber',
+  },
 }
 
 /** The dialog's own check of the amount against what the bill still owes, in a bill's words. */
@@ -154,10 +174,25 @@ const REFUSALS: Record<string, string> = {
   // Rejecting a bill that has a payment, is in a run, or with a reason that is too long.
   APPROVAL_REJECT_PAYMENT_RECORDED: 'billDetail.refused.paymentRecorded',
   APPROVAL_REJECT_IN_PAYMENT_RUN: 'billDetail.refused.inRun',
-  // Supplier credit set against the bill (backend #817): there is no way yet to release it, so the
-  // sentence promises none.
+  // Supplier credit set against the bill (backend #817): a credit note's is released from the
+  // note first (#827), by the person, never by the rejection; an overpayment's cannot be yet.
   BILL_REJECTION_HAS_APPLIED_CREDIT: 'billDetail.refused.appliedCredit',
   APPROVAL_REASON_TOO_LONG: 'billDetail.refused.reasonTooLong',
+  // A rejection is taken back by a reopen, not an approval (backend V523). Approve is hidden on a
+  // rejected bill, so this answers only a bill rejected after the page loaded.
+  BILL_APPROVAL_REJECTED_NEEDS_REOPEN: 'billDetail.refused.needsReopen',
+  APPROVAL_REOPEN_REASON_REQUIRED: 'billDetail.refused.reopenReasonRequired',
+  // R5: a note against a bill is not decided on its own. The page offers no decision there, so
+  // this answers only a note that became targeted after the page loaded.
+  APPROVAL_CREDIT_NOTE: 'billDetail.refused.creditNoteTargeted',
+  // Rejecting a standalone note whose credit is set against a bill: it is released first
+  // (POST /credit-notes/{id}/release). No screen offers that release yet, so the sentence names
+  // no button to press.
+  CREDIT_NOTE_REJECTION_HAS_APPLIED_CREDIT: 'billDetail.refused.creditNoteAppliedCredit',
+  // Fail-closed on the server until the owner decides what rejecting a refunded note means.
+  CREDIT_NOTE_REJECTION_HAS_REFUND: 'billDetail.refused.creditNoteRefund',
+  // Someone else reopened or approved it meanwhile; the page reads the bill again.
+  BILL_REOPEN_NOT_REJECTED: 'billDetail.refused.changed',
   BILL_HOLD_ALREADY_OPEN: 'billDetail.refused.changed',
   BILL_HOLD_NOT_OPEN: 'billDetail.refused.changed',
   BILL_HOLD_ON_PAID_REFUSED: 'billDetail.refused.paidCannotHold',
@@ -191,6 +226,9 @@ const REFUSALS: Record<string, string> = {
   BILL_OVERPAYMENT_TARGET_DEBIT_NOTE_NOT_ACCEPTED: 'apiErrors.refused.debitNoteNotAccepted',
   BILL_OVERPAYMENT_TARGET_CANCELLED: 'apiErrors.refused.creditNoteTargetCancelled',
   BILL_OVERPAYMENT_TARGET_FULLY_CREDITED: 'apiErrors.refused.creditNoteTargetFullyCredited',
+  // Backend fd2e1d483: the dialog's key was used for other figures, or is still running.
+  BILL_OVERPAYMENT_IDEMPOTENCY_KEY_REUSED: 'billDetail.overpaid.keyReused',
+  BILL_OVERPAYMENT_IN_PROGRESS: 'billDetail.overpaid.inProgress',
 }
 
 type Translate = (key: string, values?: Record<string, unknown>) => string
@@ -237,6 +275,29 @@ function BillScreen() {
   const paidBeyond = bill.read.status === 'ready' && paidBeyondTotal(bill.read.data)
   const overpaymentPath = overpaid > 0 || paidBeyond ? billOverpaymentPath(id) : null
   const overpayment = useApiRead<BillOverpaymentDto>(overpaymentPath, () => loadBillOverpayment(id))
+
+  // Linked documents names the credit notes on the bill. Read only once credit stands on it; the
+  // newest page of the supplier's notes, the largest the list answers.
+  const creditedBill = bill.read.status === 'ready' ? bill.read.data : null
+  const creditNotesPath =
+    creditedBill &&
+    creditedBill.settlement.creditedAmount > 0 &&
+    can(session, 'invoice.read') &&
+    (creditedBill.bill.supplierId || creditedBill.bill.supplierBillNumber)
+      ? creditNoteListPath(
+          'ALL',
+          0,
+          {
+            q: creditedBill.bill.supplierId ? '' : (creditedBill.bill.supplierBillNumber ?? ''),
+            supplierId: creditedBill.bill.supplierId,
+            sort: 'NEWEST',
+          },
+          200,
+        )
+      : null
+  const creditNotes = useApiRead<Page<CreditNoteRowDto>>(creditNotesPath, () =>
+    loadCreditNotePage(creditNotesPath ?? ''),
+  )
 
   // The document a held Peppol copy is compared with. Its id is kept while the bill is read
   // again after a decision, so the page keeps the comparison instead of reading the earlier
@@ -319,7 +380,10 @@ function BillScreen() {
     { key: string; values?: Record<string, string> } | { body: string } | null
   >(null)
   const [busy, setBusy] = useState(false)
-  const [asking, setAsking] = useState<'reject' | 'hold' | null>(null)
+  const [asking, setAsking] = useState<'reject' | 'hold' | 'reopen' | null>(null)
+  // `busy` disables the confirm only after a render; a second click or Enter in the same tick
+  // would send the reason twice.
+  const confirming = useRef(false)
   const [reason, setReason] = useState('')
   const [matching, setMatching] = useState(false)
   const [paying, setPaying] = useState(false)
@@ -374,10 +438,13 @@ function BillScreen() {
     instantDay: (iso) => formatInstantDay(iso, language),
   })
   const decisions = decisionsOf(detail, (permission) => can(session, permission))
+  const vatNotice = vatNoticeOf(detail)
+  // Only a standalone note is rejected on its own page (R5): "Reject this bill" misnames it.
+  const noteDialog = asking === 'reject' && standaloneCreditNote(detail) ? 'CreditNote' : ''
   const payable = canRecordPayment(detail, (permission) => can(session, permission))
   const selfBilled = isSelfBilled(detail)
   const duplicateCheck = duplicateCheckOf(detail)
-  const inputVatNote = inputVatNoteKey(row.inputVat)
+  const inputVatNote = inputVatNoteKey(row.inputVat, reopenedAwaitingApproval(detail))
   const original = billOriginalPath(detail)
   const orderNumber =
     row.match?.verdict !== 'NO_ORDER' ? (row.match?.purchaseOrderNumber ?? null) : null
@@ -395,6 +462,19 @@ function BillScreen() {
     setNotice({ key })
     bill.retry()
     overpayment.retry()
+  }
+  // A settlement whose key was spent may have been recorded: read again once the dialog is gone,
+  // as a payment refusal that says the balance moved does (DB-10).
+  const closeSettling = () => {
+    setSettling(null)
+    if (balanceStale.current) {
+      balanceStale.current = false
+      bill.retry()
+      overpayment.retry()
+    }
+  }
+  const settlementKeySpent = () => {
+    balanceStale.current = true
   }
 
   const download = async () => {
@@ -415,27 +495,40 @@ function BillScreen() {
 
   // Credit already set against the bill blocks a rejection (BILL_REJECTION_HAS_APPLIED_CREDIT): the
   // page knows the credited amount, so it says so instead of opening a dialog the server refuses.
+  // A credit note's own refusals (R5) are the server's to say: it is the one that knows them.
   const askToReject = () =>
-    detail.settlement.creditedAmount > 0
+    !isCreditNote(detail) && detail.settlement.creditedAmount > 0
       ? setNotice({ key: 'billDetail.refused.appliedCredit' })
       : setAsking('reject')
 
   const confirmReason = async () => {
     const text = reason.trim()
-    if (text === '') return
+    if (text === '' || confirming.current) return
+    confirming.current = true
     let failure: unknown = null
+    const send = asking === 'reject' ? rejectBill : asking === 'reopen' ? reopenBill : holdBill
     const ok = await act(
       () =>
-        (asking === 'reject' ? rejectBill(id, text) : holdBill(id, text)).catch((error) => {
+        send(id, text).catch((error) => {
           failure = error
           throw error
         }),
-      asking === 'reject' ? 'billDetail.done.rejected' : 'billDetail.done.held',
-    )
+      asking === 'reject'
+        ? 'billDetail.done.rejected'
+        : asking === 'reopen'
+          ? // A note is never paid, so the bill's "before it can be paid" would be wrong on it.
+            isCreditNote(detail)
+            ? 'billDetail.done.reopenedCreditNote'
+            : 'billDetail.done.reopened'
+          : 'billDetail.done.held',
+    ).finally(() => {
+      confirming.current = false
+    })
     // A refusal because the bill moved on (a 409, such as a copy held as a duplicate since the
     // page loaded) is said on the page, which reads the bill again: left open, the dialog hid
-    // the sentence behind its overlay. A refused reason stays with the dialog to be corrected.
-    if (ok || refusalMeansStale(failure)) {
+    // the sentence behind its overlay. A permission refusal (a role changed since the page loaded)
+    // cannot be corrected in the dialog either. A refused reason stays with the dialog.
+    if (ok || refusalMeansStale(failure) || isPermissionDenied(failure)) {
       setAsking(null)
       setReason('')
     }
@@ -493,6 +586,16 @@ function BillScreen() {
               >
                 <img src={hdrBtnIcon} alt="" className="size-[17px]" />
                 {t('billDetail.actions.approve')}
+              </button>
+            ) : null}
+            {decisions.reopen ? (
+              <button
+                type="button"
+                onClick={() => setAsking('reopen')}
+                disabled={busy}
+                className={OUTLINE_BUTTON}
+              >
+                {t('billDetail.actions.reopen')}
               </button>
             ) : null}
             {payable ? (
@@ -796,6 +899,11 @@ function BillScreen() {
             onOpenMatch={() => setMatching(true)}
             onRemoveMatch={() => act(() => unmatchBill(id), 'billDetail.done.unmatched')}
             onDownload={original ? download : null}
+            creditNotes={
+              creditNotes.read.status === 'ready'
+                ? creditNotesOn(id, creditNotes.read.data.items)
+                : []
+            }
           />
 
           <Card title={t('billDetail.activity.title')}>
@@ -827,10 +935,32 @@ function BillScreen() {
                           {' '}
                           · {t('billDetail.activity.byYou')}
                         </span>
+                      ) : event.by ? (
+                        <span className="font-medium text-text-quaternary">
+                          {' '}
+                          · {t('billDetail.activity.byName', { name: event.by })}
+                        </span>
                       ) : null}
                     </p>
                     <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">
-                      {event.overpayment ? (
+                      {event.duplicateOverride ? (
+                        <>
+                          {event.duplicateOverride.bills.map((other, at) => (
+                            <Fragment key={other.billId}>
+                              {at > 0 ? ', ' : null}
+                              <Link
+                                to={`/expenditure/bills/${other.billId}`}
+                                className="font-semibold text-primary-700 hover:underline"
+                              >
+                                {other.number ?? t('supplierCreditNotes.rows.unnumbered')}
+                              </Link>
+                            </Fragment>
+                          ))}
+                          {event.at
+                            ? `${event.duplicateOverride.bills.length > 0 ? ' · ' : ''}${formatInstant(event.at, language)}`
+                            : null}
+                        </>
+                      ) : event.overpayment ? (
                         // What became of an overpayment: its amount with its currency's sign.
                         <RialInText
                           currency={event.overpayment.currency}
@@ -851,6 +981,18 @@ function BillScreen() {
                         )
                       )}
                     </p>
+                    {event.duplicateOverride?.reason ? (
+                      <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">
+                        {t('billDetail.activity.overrideReason', {
+                          reason: event.duplicateOverride.reason,
+                        })}
+                      </p>
+                    ) : event.duplicateOverride?.reasonRecorded ? (
+                      // The server withholds the text from a reader who does not approve bills.
+                      <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">
+                        {t('billDetail.activity.reasonRecorded')}
+                      </p>
+                    ) : null}
                   </div>
                 </li>
               ))}
@@ -878,7 +1020,13 @@ function BillScreen() {
               {money(row.totalIncludingVat)}
             </p>
             <p className="mt-2 text-sm font-medium leading-[1.5] text-text-tertiary">
-              <NoteText note={decisionNoteOf(detail)} />
+              <NoteText note={decisionNoteOf(detail, session?.userId ?? null)} />
+              {vatNotice ? (
+                <>
+                  {' '}
+                  <NoteText note={vatNotice} />
+                </>
+              ) : null}
             </p>
 
             <div className="mt-4 flex flex-col gap-3">
@@ -890,7 +1038,21 @@ function BillScreen() {
                   className={PRIMARY_BUTTON}
                 >
                   <img src={hdrBtnIcon} alt="" className="size-[17px]" />
-                  {t('billDetail.decision.approveForPayment')}
+                  {t(
+                    isCreditNote(detail)
+                      ? 'billDetail.decision.approveCreditNote'
+                      : 'billDetail.decision.approveForPayment',
+                  )}
+                </button>
+              ) : null}
+              {decisions.reopen ? (
+                <button
+                  type="button"
+                  onClick={() => setAsking('reopen')}
+                  disabled={busy}
+                  className={QUIET_BUTTON}
+                >
+                  {t('billDetail.decision.reopen')}
                 </button>
               ) : null}
               <div className="grid grid-cols-2 gap-3">
@@ -943,14 +1105,22 @@ function BillScreen() {
             settle={
               canSettleOverpayment ? (
                 <div className="mt-4 flex flex-col gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setSettling('refund')}
-                    disabled={busy}
-                    className={QUIET_BUTTON}
-                  >
-                    {t('billDetail.overpaid.recordRefund')}
-                  </button>
+                  {/* Offered only once the overpayment read has landed, as Keep and Set against
+                      are (FLAKE-WATCH-BILLDETAIL ruling). Opened earlier, the dialog filled in the
+                      whole overpaid amount, which the server accepts although part of it may
+                      already be kept as credit; a failed read keeps it unavailable. */}
+                  {standingOverpayment ? (
+                    <button
+                      type="button"
+                      onClick={() => setSettling('refund')}
+                      disabled={busy}
+                      className={QUIET_BUTTON}
+                    >
+                      {t('billDetail.overpaid.recordRefund')}
+                    </button>
+                  ) : overpayment.read.status === 'failed' ? (
+                    <ApiReadFailure error={overpayment.read.error} retry={overpayment.retry} />
+                  ) : null}
                   {standingOverpayment && standingOverpayment.undecided > 0 ? (
                     <button
                       type="button"
@@ -1055,7 +1225,7 @@ function BillScreen() {
           setAsking(null)
           setReason('')
         }}
-        title={t(asking === 'hold' ? 'billDetail.hold.title' : 'billDetail.reject.title')}
+        title={t(`billDetail.${dialogOf(asking)}.title${noteDialog}`)}
         footer={
           <div className="flex justify-end gap-3">
             <button
@@ -1077,13 +1247,13 @@ function BillScreen() {
                 asking === 'reject' ? 'bg-danger-700 hover:bg-danger-700/90' : '',
               ].join(' ')}
             >
-              {t(asking === 'hold' ? 'billDetail.hold.confirm' : 'billDetail.reject.confirm')}
+              {t(`billDetail.${dialogOf(asking)}.confirm${noteDialog}`)}
             </button>
           </div>
         }
       >
         <p className="text-sm font-medium leading-[1.5] text-text-secondary">
-          {t(asking === 'hold' ? 'billDetail.hold.body' : 'billDetail.reject.body')}
+          {t(`billDetail.${dialogOf(asking)}.body`)}
         </p>
         <label className="mt-4 block">
           <span className="text-sm font-semibold text-text-secondary">
@@ -1148,20 +1318,22 @@ function BillScreen() {
         />
       ) : null}
 
-      {settling === 'refund' ? (
+      {settling === 'refund' && standingOverpayment ? (
         <OverpaymentRefundModal
           billId={id}
           currency={detail.settlement.currency}
           overpaid={overpaid}
-          suggested={
-            standingOverpayment && standingOverpayment.undecided > 0
-              ? standingOverpayment.undecided
-              : overpaid
-          }
+          // The server's undecided part only, never the whole overpaid amount (FLAKE-WATCH-BILLDETAIL).
+          suggested={standingOverpayment.undecided}
           today={muscatToday()}
-          refusal={(error) => refusalText(t, error)}
-          onClose={() => setSettling(null)}
+          // The refund is dated on the day the person enters, so another date is a way past a
+          // closed period; keep-as-credit and apply are dated today and keep the page's sentence.
+          refusal={(error) =>
+            isPeriodClosedRefusal(error) ? t(PERIOD_CLOSED_CHOSEN_DATE_KEY) : refusalText(t, error)
+          }
+          onClose={closeSettling}
           onDone={() => afterSettling('supplierCreditNoteDetail.refundedDone')}
+          onKeySpent={settlementKeySpent}
         />
       ) : null}
       {settling === 'apply' && standingOverpayment ? (
@@ -1169,8 +1341,9 @@ function BillScreen() {
           detail={detail}
           kept={standingOverpayment.keptAsCredit}
           refusal={(error) => refusalText(t, error)}
-          onClose={() => setSettling(null)}
+          onClose={closeSettling}
           onDone={() => afterSettling('supplierCreditNoteDetail.appliedDone')}
+          onKeySpent={settlementKeySpent}
         />
       ) : null}
     </div>
@@ -1323,6 +1496,11 @@ function netAndVat(
       vat,
     ],
   ]
+}
+
+/** The reason dialog's wording group. A closed dialog keeps reject's, as it did before reopen. */
+function dialogOf(asking: 'reject' | 'hold' | 'reopen' | null): 'reject' | 'hold' | 'reopen' {
+  return asking ?? 'reject'
 }
 
 function refusalText(t: Translate, error: unknown): string {
@@ -1492,6 +1670,7 @@ function LinkedDocuments({
   onOpenMatch,
   onRemoveMatch,
   onDownload,
+  creditNotes,
 }: {
   detail: BillDetailDto
   language: string
@@ -1500,6 +1679,7 @@ function LinkedDocuments({
   onOpenMatch: () => void
   onRemoveMatch: () => void
   onDownload: (() => void) | null
+  creditNotes: CreditNoteRowDto[]
 }) {
   const { t } = useTranslation()
   const match = detail.bill.match
@@ -1515,7 +1695,7 @@ function LinkedDocuments({
     title: string
     to?: string
     kindKey: string
-    detail: string
+    detail: ReactNode
     /** The sub-line is a typed note: kept to one line, with the whole of it on hover. */
     detailIsNote?: boolean
     onClick?: () => void
@@ -1547,6 +1727,20 @@ function LinkedDocuments({
       // TODO(backend): "Received 28 Jul · checked in by Yusuf Al Balushi" needs the receipt's
       // date and who recorded it; neither is on the bill.
       detail: t('billDetail.linked.receiptAgainst', { order: order.purchaseOrderNumber ?? '' }),
+    })
+  }
+  for (const note of creditNotes) {
+    docs.push({
+      id: `credit-${note.id}`,
+      icon: fileIcon,
+      title: note.creditNoteNumber ?? '',
+      to: `/expenditure/credit-notes/${note.id}`,
+      kindKey: 'billDetail.linked.creditNote',
+      detail: withRial(
+        t('billDetail.linked.creditOnBill', {
+          amount: `${note.currencyCode} ${formatAmount(note.balance.applied, note.currencyCode, language)}`,
+        }),
+      ),
     })
   }
   if (originalName) {
@@ -1593,7 +1787,14 @@ function LinkedDocuments({
       }
     >
       {docs.length === 0 ? (
-        <p className="text-sm font-medium text-text-quaternary">{t('billDetail.linked.none')}</p>
+        <p className="text-sm font-medium text-text-quaternary">
+          {/* Credit stands on the bill, but no single note can be named for it: never "nothing". */}
+          {t(
+            detail.settlement.creditedAmount > 0
+              ? 'billDetail.linked.creditNotListed'
+              : 'billDetail.linked.none',
+          )}
+        </p>
       ) : (
         <ul className="flex flex-col">
           {docs.map((doc, index) => (
@@ -1630,7 +1831,7 @@ function LinkedDocuments({
                   </span>
                 </p>
                 <p
-                  title={doc.detailIsNote ? doc.detail : undefined}
+                  title={doc.detailIsNote && typeof doc.detail === 'string' ? doc.detail : undefined}
                   className={[
                     'mt-1 text-xs font-medium leading-[1.2] text-text-quaternary',
                     doc.detailIsNote ? 'truncate' : '',

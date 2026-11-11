@@ -644,6 +644,17 @@ function CreditRow({
           <span className={['size-1.5 rounded-full', chip.dot].join(' ')} />
           {t(status.labelKey)}
         </span>
+        {note.waitingForDecisionOn ? (
+          <Link
+            to={`/expenditure/bills/${note.waitingForDecisionOn}`}
+            data-testid="credit-note-waiting-duplicate"
+            className="mt-1 block text-xs font-semibold leading-[1.2] text-pending-700 hover:underline"
+          >
+            {note.againstBillNumber
+              ? t('supplierCreditNotes.waitingDuplicate.onBill', { number: note.againstBillNumber })
+              : t('supplierCreditNotes.waitingDuplicate.onItsBill')}
+          </Link>
+        ) : null}
         {/* "Set against the bill" is hidden from someone who may not settle a credit. */}
         {action.primary && !canSettle ? null : (
           <div className="mt-2">

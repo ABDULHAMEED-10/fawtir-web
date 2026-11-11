@@ -27,6 +27,7 @@ import {
 } from '../../lib/billDetail'
 import type { InboundInvoiceDto } from '../../api/expenditure/inboundInvoice'
 import type { ActivityDetailDto, ActivityItemDto } from '../../api/compliance/activity'
+import { toBillListItem } from '../../lib/billList'
 import { BillDetailPage } from './BillDetailPage'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
@@ -296,10 +297,15 @@ const calls = () =>
     ([url, init]) => `${(init as RequestInit)?.method ?? 'GET'} ${String(url)}`,
   )
 
+let creditNotesResponse: () => Response
+let creditNoteReads: string[]
+
 beforeEach(async () => {
   await i18n.changeLanguage('en')
   forgetEntitlements()
   who = ADMIN
+  creditNotesResponse = () => json(200, { items: [], page: 0, size: 200, total: 0 })
+  creditNoteReads = []
   billResponse = () => json(200, detail())
   matchResponse = () => json(200, MATCH)
   actionResponse = () => json(200, {})
@@ -370,6 +376,10 @@ beforeEach(async () => {
           total: 2759.1,
         },
       })
+    if (url.startsWith('/api/v1/credit-notes?')) {
+      creditNoteReads.push(url)
+      return creditNotesResponse()
+    }
     if (url === `${BILL_URL}/match`) return method === 'GET' ? matchResponse() : actionResponse()
     if (url.startsWith(`${BILL_URL}/`)) return actionResponse()
     if (url === BILL_URL) return billResponse()
@@ -1801,6 +1811,15 @@ describe('bill detail mapping', () => {
     expect(decisionsOf({ ...approved, paymentRunReference: 'RUN-0012' }, all).reject).toBe(false)
   })
 
+  it('a rejected bill offers no Approve: rejected is final, the server has no reopen step', () => {
+    const can = () => true
+    const rejected = detail({
+      readiness: { state: 'REJECTED', distinctApprovals: 0, required: 1, autoApproved: false },
+    })
+    expect(decisionsOf(rejected, can)).toMatchObject({ approve: false, reject: false })
+    expect(decisionsOf(detail(), can).approve).toBe(true)
+  })
+
   it('offers no decision on a credit note or a paid bill', () => {
     const can = () => true
     expect(decisionsOf(detail(), can)).toMatchObject({
@@ -2190,9 +2209,9 @@ describe('why a bill was refused, in its own sentence', () => {
   })
 
   it.each([
-    ['en', "This bill can't be rejected: supplier credit is set against it, and credit can't be released yet."],
-    ['ar', 'لا يمكن رفض هذه الفاتورة: خُصم منها رصيد دائن للمورد، ولا يمكن تحرير هذا الرصيد بعد.'],
-  ])('says a rejection is refused while credit is set against the bill, promising no release (%s)', async (language, sentence) => {
+    ['en', "This bill can't be rejected while supplier credit is set against it. Open the credit note and remove its credit from this bill first. Credit kept from an overpayment can't be removed yet."],
+    ['ar', 'لا يمكن رفض هذه الفاتورة ما دام رصيد دائن للمورد مخصومًا منها. افتح الإشعار الدائن وألغِ خصم رصيده من هذه الفاتورة أولًا. لا يمكن بعد إلغاء خصم رصيد محتفظ به من دفعة زائدة.'],
+  ])('says a rejection is refused while credit is set against the bill, and how to remove it (%s)', async (language, sentence) => {
     await i18n.changeLanguage(language)
     actionResponse = refusal('BILL_REJECTION_HAS_APPLIED_CREDIT')
     renderBill()
@@ -2210,7 +2229,7 @@ describe('why a bill was refused, in its own sentence', () => {
     await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
     fireEvent.click(screen.getAllByRole('button', { name: 'Reject' })[0])
     expect(
-      await screen.findByText("This bill can't be rejected: supplier credit is set against it, and credit can't be released yet."),
+      await screen.findByText("This bill can't be rejected while supplier credit is set against it. Open the credit note and remove its credit from this bill first. Credit kept from an overpayment can't be removed yet."),
     ).toBeTruthy()
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(calls().some((call) => call.includes('/reject'))).toBe(false)
@@ -2623,6 +2642,55 @@ describe('an overpaid bill', () => {
     expect(screen.getByRole('button', { name: "Record the supplier's refund" })).toBeTruthy()
   })
 
+  // FLAKE-WATCH-BILLDETAIL: opened before the overpayment read landed, the refund dialog filled in
+  // the whole overpaid amount (40.000) instead of what is undecided (25.000).
+  describe('the refund waits for where the overpayment stands', () => {
+    /** Holds the overpayment GET until the test lets it answer. */
+    function holdOverpayment(answer: () => Response) {
+      let release: () => void = () => {}
+      const gate = new Promise<void>((resolve) => {
+        release = resolve
+      })
+      const base = fetchMock.getMockImplementation()!
+      fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+        if (url === OVERPAYMENT_URL && (init?.method ?? 'GET') === 'GET') {
+          await gate
+          return answer()
+        }
+        return base(url, init)
+      })
+      return () => release()
+    }
+
+    it('offers no refund while the read is pending, then suggests only the undecided part', async () => {
+      standing = { ...standing, keptAsCredit: 15, undecided: 25 }
+      const release = holdOverpayment(() => json(200, standing))
+      renderBill()
+      await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+      await waitFor(() => expect(calls()).toContain(`GET ${OVERPAYMENT_URL}`))
+      expect(screen.getByText(/^Overpaid by/)).toBeTruthy()
+      expect(screen.queryByRole('button', { name: "Record the supplier's refund" })).toBeNull()
+
+      release()
+      fireEvent.click(await screen.findByRole('button', { name: "Record the supplier's refund" }))
+      const dialog = await screen.findByRole('dialog', { name: "Record the supplier's refund" })
+      const amount = within(dialog).getByRole('spinbutton', { name: 'Amount' }) as HTMLInputElement
+      expect(amount.value).toBe('25.000')
+      expect(amount.value).not.toBe('40.000')
+    })
+
+    it('keeps the refund unavailable when the read fails, and says the read failed', async () => {
+      const release = holdOverpayment(() => json(500, { status: 500 }))
+      release()
+      renderBill()
+      await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+      const card = screen.getByText(/^Overpaid by/).closest('section') as HTMLElement
+      expect(await within(card).findByRole('button', { name: 'Try again' })).toBeTruthy()
+      expect(screen.queryByRole('button', { name: "Record the supplier's refund" })).toBeNull()
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+  })
+
   it('draws nothing and reads nothing more for a bill that is not overpaid', async () => {
     billResponse = () => json(200, detail({ readiness: APPROVED }))
     renderBill()
@@ -2762,6 +2830,196 @@ describe('an overpaid bill', () => {
         'This bill is on hold. Release it before setting a credit against it.',
       ),
     ).toBeTruthy()
+  })
+
+  // Backend fd2e1d483: an optional Idempotency-Key on the refund and apply routes, with coded 409s.
+  describe('keyed, so a retry is recorded once', () => {
+    const posts = (path: string) =>
+      fetchMock.mock.calls.filter(
+        ([url, init]) => String(url) === path && (init as RequestInit)?.method === 'POST',
+      )
+    const keyOf = (call: unknown[]) =>
+      ((call[1] as RequestInit).headers as Record<string, string>)['Idempotency-Key']
+    const bodyOf = (call: unknown[]) => JSON.parse(String((call[1] as RequestInit).body))
+    const overpaymentReads = () => calls().filter((call) => call === `GET ${OVERPAYMENT_URL}`).length
+    const lost = () => {
+      throw new TypeError('Failed to fetch')
+    }
+    const conflict = (code: string) => () =>
+      json(409, { type: 'https://api.fawtir.om/problems/resource-conflict', error: code })
+    const REFUNDS = `${OVERPAYMENT_URL}/refunds`
+    const APPLY = `${OVERPAYMENT_URL}/apply`
+
+    async function openRefund() {
+      fireEvent.click(await screen.findByRole('button', { name: "Record the supplier's refund" }))
+      return screen.findByRole('dialog', { name: "Record the supplier's refund" })
+    }
+    const press = (dialog: HTMLElement) =>
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Record the refund' }))
+    const ready = (dialog: HTMLElement) =>
+      waitFor(() =>
+        expect(
+          (within(dialog).getByRole('button', { name: 'Record the refund' }) as HTMLButtonElement)
+            .disabled,
+        ).toBe(false),
+      )
+
+    it('sends a lost refund again under the same key, and opens the next with a new one', async () => {
+      actionResponse = lost
+      renderBill()
+      const dialog = await openRefund()
+      press(dialog)
+      await waitFor(() => expect(posts(REFUNDS)).toHaveLength(1))
+      await ready(dialog)
+
+      actionResponse = () => json(200, {})
+      press(dialog)
+      expect(await screen.findByText('The refund was recorded.')).toBeTruthy()
+      const [first, second] = posts(REFUNDS)
+      expect(keyOf(first)).toMatch(/^overpayment-[A-Za-z0-9._:-]{16,116}$/)
+      expect(keyOf(second)).toBe(keyOf(first))
+      expect(bodyOf(second)).toEqual(bodyOf(first))
+
+      press(await openRefund())
+      await waitFor(() => expect(posts(REFUNDS)).toHaveLength(3))
+      expect(keyOf(posts(REFUNDS)[2])).not.toBe(keyOf(first))
+    })
+
+    it('sends one refund for a double click', async () => {
+      renderBill()
+      const dialog = await openRefund()
+      const save = within(dialog).getByRole('button', { name: 'Record the refund' })
+      // Both in one act: React renders `disabled` only after it, as a second click in the same frame finds it.
+      act(() => {
+        save.click()
+        save.click()
+      })
+      expect(await screen.findByText('The refund was recorded.')).toBeTruthy()
+      expect(posts(REFUNDS)).toHaveLength(1)
+    })
+
+    it('says a changed refund may already be recorded, takes a new key, and reads the bill on close', async () => {
+      actionResponse = lost
+      renderBill()
+      const dialog = await openRefund()
+      press(dialog)
+      await ready(dialog)
+      fireEvent.change(within(dialog).getByRole('spinbutton', { name: 'Amount' }), {
+        target: { value: '20' },
+      })
+      actionResponse = conflict('BILL_OVERPAYMENT_IDEMPOTENCY_KEY_REUSED')
+      press(dialog)
+      expect(
+        await within(dialog).findByText(
+          'This was changed after an earlier attempt that may already be recorded. Close this and check the bill before recording it again: the next attempt counts as a new one.',
+        ),
+      ).toBeTruthy()
+      // Not read under the open dialog, which the read would unmount.
+      const readsBefore = overpaymentReads()
+      expect(screen.getByRole('dialog')).toBeTruthy()
+
+      await ready(dialog)
+      actionResponse = () => json(200, {})
+      press(dialog)
+      expect(await screen.findByText('The refund was recorded.')).toBeTruthy()
+      const [first, second, third] = posts(REFUNDS)
+      expect(keyOf(second)).toBe(keyOf(first))
+      expect(keyOf(third)).not.toBe(keyOf(first))
+      expect(bodyOf(third).amount).toBe(20)
+      expect(overpaymentReads()).toBeGreaterThan(readsBefore)
+    })
+
+    it('re-reads the bill when the dialog is closed after a spent key', async () => {
+      actionResponse = conflict('BILL_OVERPAYMENT_IDEMPOTENCY_KEY_REUSED')
+      renderBill()
+      const dialog = await openRefund()
+      press(dialog)
+      await within(dialog).findByText(/may already be recorded/)
+      const readsBefore = overpaymentReads()
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+      await waitFor(() => expect(overpaymentReads()).toBeGreaterThan(readsBefore))
+    })
+
+    it('keeps the key while the first refund is still running, and reads nothing', async () => {
+      actionResponse = conflict('BILL_OVERPAYMENT_IN_PROGRESS')
+      renderBill()
+      const dialog = await openRefund()
+      press(dialog)
+      expect(
+        await within(dialog).findByText(
+          'This is still being recorded. Wait a moment, then press again without changing it.',
+        ),
+      ).toBeTruthy()
+      await ready(dialog)
+      actionResponse = () => json(200, {})
+      press(dialog)
+      expect(await screen.findByText('The refund was recorded.')).toBeTruthy()
+      expect(keyOf(posts(REFUNDS)[1])).toBe(keyOf(posts(REFUNDS)[0]))
+    })
+
+    it('keeps the key after a refusal: nothing was spent, so the corrected figure goes under it', async () => {
+      actionResponse = () =>
+        json(400, {
+          type: 'https://api.fawtir.om/problems/expenditure-refused',
+          error: 'BILL_OVERPAYMENT_EXCEEDS_OVERPAID',
+        })
+      renderBill()
+      const dialog = await openRefund()
+      press(dialog)
+      await waitFor(() => expect(posts(REFUNDS)).toHaveLength(1))
+      await ready(dialog)
+      fireEvent.change(within(dialog).getByRole('spinbutton', { name: 'Amount' }), {
+        target: { value: '10' },
+      })
+      actionResponse = () => json(200, {})
+      press(dialog)
+      expect(await screen.findByText('The refund was recorded.')).toBeTruthy()
+      expect(keyOf(posts(REFUNDS)[1])).toBe(keyOf(posts(REFUNDS)[0]))
+    })
+
+    it('keys a credit set against a bill the same way, typed amount included', async () => {
+      standing = { ...standing, keptAsCredit: 40, undecided: 0 }
+      actionResponse = lost
+      renderBill()
+      fireEvent.click(await screen.findByRole('button', { name: 'Set against a bill' }))
+      const dialog = await screen.findByRole('dialog', { name: 'Set against a bill' })
+      fireEvent.click(await within(dialog).findByRole('button', { name: /QMS-7790/ }))
+      fireEvent.change(within(dialog).getByRole('spinbutton', { name: 'Amount (optional)' }), {
+        target: { value: '5' },
+      })
+      const use = within(dialog).getByRole('button', { name: 'Use it' })
+      fireEvent.click(use)
+      fireEvent.click(use)
+      await waitFor(() => expect(posts(APPLY)).toHaveLength(1))
+      await waitFor(() => expect((use as HTMLButtonElement).disabled).toBe(false))
+
+      actionResponse = () => json(200, {})
+      fireEvent.click(use)
+      expect(await screen.findByText('The credit was used against that bill.')).toBeTruthy()
+      const [first, second] = posts(APPLY)
+      expect(keyOf(first)).toMatch(/^overpayment-/)
+      expect(keyOf(second)).toBe(keyOf(first))
+      expect(bodyOf(second)).toEqual({ targetBillId: 'b-2', amount: 5 })
+    })
+
+    it('says both in Arabic', async () => {
+      await i18n.changeLanguage('ar')
+      actionResponse = conflict('BILL_OVERPAYMENT_IN_PROGRESS')
+      renderBill()
+      fireEvent.click(await screen.findByRole('button', { name: 'تسجيل استرداد من المورّد' }))
+      const dialog = await screen.findByRole('dialog')
+      const save = within(dialog).getAllByRole('button').at(-1)!
+      fireEvent.click(save)
+      expect(
+        await within(dialog).findByText(
+          'لا يزال هذا قيد التسجيل. انتظر قليلًا، ثم اضغط مرة أخرى دون تغييره.',
+        ),
+      ).toBeTruthy()
+      actionResponse = conflict('BILL_OVERPAYMENT_IDEMPOTENCY_KEY_REUSED')
+      await waitFor(() => expect((save as HTMLButtonElement).disabled).toBe(false))
+      fireEvent.click(save)
+      expect(await within(dialog).findByText(/ربما سُجّلت بالفعل/)).toBeTruthy()
+    })
   })
 
   it('reads in Arabic, with the rial sign and three decimals', async () => {
@@ -3374,5 +3632,679 @@ describe('a USD bill’s payment terms and saving carry its currency (DB-5 revie
     const saving = (await screen.findByText(/^Paying by .* saves$/)).closest('p')!
     expect(within(saving).getByText('USD')).toBeTruthy()
     expect(saving.querySelector('svg')).toBeNull()
+  })
+})
+
+describe('A rejected bill, on the page', () => {
+  it.each(['en', 'ar'])('has no Approve button (%s)', async (language) => {
+    await i18n.changeLanguage(language)
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          readiness: { state: 'REJECTED', distinctApprovals: 0, required: 1, autoApproved: false },
+        }),
+      )
+    renderBill()
+    await screen.findByText(i18n.t('billDetail.linked.title'))
+    expect(
+      screen.queryByRole('button', { name: i18n.t('billDetail.decision.approveForPayment') }),
+    ).toBeNull()
+    await i18n.changeLanguage('en')
+  })
+})
+
+describe('The credit notes on a bill, in Linked documents', () => {
+  const credited = (amount = 21) => {
+    const bill = detail()
+    return { ...bill, settlement: { ...bill.settlement, creditedAmount: amount } }
+  }
+  /** A `GET /v1/credit-notes` row as the live server answers it (`CreditNoteController`). */
+  const noteRow = (id: string, number: string, billId: string | null, applied: number) => ({
+    id,
+    source: 'PEPPOL',
+    supplierId: 's-1',
+    supplierName: 'Qalhat Marine Supplies',
+    documentTypeCode: '381',
+    creditNoteNumber: number,
+    currencyCode: 'OMR',
+    creditedAmount: applied,
+    status: 'APPLIED',
+    balance: { applied, refunded: 0, remaining: 0 },
+    credits: {
+      billNumber: 'QMS-2209',
+      issueDate: '2026-09-01',
+      documentUuid: null,
+      billId,
+      applied: billId !== null,
+    },
+    heldAsDuplicate: false,
+  })
+  const page = (...items: unknown[]) =>
+    json(200, { items, page: 0, size: 200, total: items.length })
+
+  it.each(['en', 'ar'])(
+    'lists the note on this bill, linked, with what it credits (%s)',
+    async (language) => {
+      await i18n.changeLanguage(language)
+      billResponse = () => json(200, credited())
+      creditNotesResponse = () =>
+        page(
+          noteRow('cn-1', 'CN-77', ID, 21),
+          // Another bill's, and one released from this bill: its `billId` answers null.
+          noteRow('cn-2', 'CN-78', 'b-other', 5),
+          noteRow('cn-3', 'CN-79', null, 0),
+        )
+      renderBill()
+      const link = await screen.findByRole('link', { name: 'CN-77' })
+      expect(link.getAttribute('href')).toBe('/expenditure/credit-notes/cn-1')
+      expect(link.closest('li')?.textContent).toContain('21.000')
+      expect(screen.queryByRole('link', { name: 'CN-78' })).toBeNull()
+      expect(screen.queryByRole('link', { name: 'CN-79' })).toBeNull()
+      expect(creditNoteReads[0]).toContain('supplier_id=s-1')
+      expect(creditNoteReads[0]).toContain('page_size=200')
+      await i18n.changeLanguage('en')
+    },
+  )
+
+  /** Nothing else to list: no order, no file. */
+  const bare = () => {
+    const bill = credited()
+    return {
+      ...bill,
+      intake: null,
+      bill: { ...bill.bill, match: null, inboundDeliveryId: null },
+    }
+  }
+
+  it('a note held as a duplicate credits nothing, so is not listed', async () => {
+    billResponse = () => json(200, bare())
+    creditNotesResponse = () => page({ ...noteRow('cn-1', 'CN-77', ID, 21), heldAsDuplicate: true })
+    renderBill()
+    await screen.findByText(i18n.t('billDetail.linked.creditNotListed'))
+    expect(screen.queryByRole('link', { name: 'CN-77' })).toBeNull()
+  })
+
+  it('does not say nothing is linked while credit stands and no note can be named', async () => {
+    billResponse = () => json(200, bare())
+    creditNotesResponse = () => json(403, { type: 'about:blank', status: 403 })
+    renderBill()
+    await screen.findByText(i18n.t('billDetail.linked.creditNotListed'))
+    expect(screen.queryByText(i18n.t('billDetail.linked.none'))).toBeNull()
+  })
+
+  it('reads no notes for a bill with no credit on it', async () => {
+    renderBill()
+    await screen.findByText(i18n.t('billDetail.linked.title'))
+    expect(creditNoteReads).toEqual([])
+  })
+})
+
+describe('the reply line from the bill’s own peppol block (batch 39 EXP)', () => {
+  const peppol = {
+    deliveryId: 'd-1',
+    mlsCode: 'AP' as const,
+    mlsTransportState: 'DELIVERED' as const,
+    mlsDeliveredAt: '2026-11-01T08:00:00Z',
+    tddStatus: 'SUBMITTED' as const,
+  }
+
+  it('says how we answered the supplier when the delivery record is not read yet', () => {
+    const keys = complianceOf({ ...detail(), peppol }, undefined, { kind: 'loading' }).map((n) => n.key)
+    expect(keys).toContain('billDetail.compliance.reply.AP')
+  })
+
+  it('prefers it to "unavailable" when the delivery record cannot be read', () => {
+    const keys = complianceOf({ ...detail(), peppol }, undefined, { kind: 'unavailable' }).map((n) => n.key)
+    expect(keys).toContain('billDetail.compliance.reply.AP')
+    expect(keys).not.toContain('billDetail.compliance.reply.unavailable')
+  })
+
+  it('keeps the transport apart from the decision: RE decided but not delivered is not delivered', () => {
+    const notes = complianceOf(
+      { ...detail(), peppol: { ...peppol, mlsCode: 'RE', mlsTransportState: 'RETRY_SCHEDULED' } },
+      undefined,
+      { kind: 'loading' },
+    )
+    expect(notes.map((n) => n.key)).toContain('billDetail.compliance.reply.retrying')
+  })
+
+  it('changes nothing for a null or absent block (non-Peppol, branch-limited, older server)', () => {
+    expect(complianceOf({ ...detail(), peppol: null }).map((n) => n.key)).toEqual(
+      complianceOf(detail()).map((n) => n.key),
+    )
+    expect(
+      complianceOf({ ...detail(), peppol: null }, undefined, { kind: 'unavailable' }).map((n) => n.key),
+    ).toContain('billDetail.compliance.reply.unavailable')
+  })
+
+  it('never reads the TDD status into the reporting line: that stays the proven record or receipt report', () => {
+    expect(complianceOf({ ...detail(), peppol }).map((n) => n.key)).toContain(
+      'billDetail.compliance.receipt.unavailable',
+    )
+  })
+})
+
+// NOT RUN (batch 41, static only). FIN-6: RD 5312a71b ported onto wave B-2 without the #824 names;
+// owner batches 12 and 13 approved the reason, actor, time and overridden bills in Activity.
+describe('a bill recorded over possible duplicates, in its activity', () => {
+  const OTHER_A = '22222222-2222-2222-2222-22222222aaaa'
+  const OTHER_B = '22222222-2222-2222-2222-22222222bbbb'
+  const overridden = (
+    duplicateOverride?: NonNullable<BillDetailDto['activity'][number]['duplicateOverride']>,
+    detailText = 'INV-7, INV-8',
+    actor = 'u-2',
+  ) =>
+    json(
+      200,
+      detail({
+        activity: [
+          {
+            at: '2026-10-30T09:15:00Z',
+            kind: 'DUPLICATE_OVERRIDDEN',
+            detail: detailText,
+            actor,
+            actorName: 'Huda',
+            ...(duplicateOverride ? { duplicateOverride } : {}),
+          },
+        ],
+      }),
+    )
+  const bills = [
+    { billId: OTHER_A, billNumber: 'INV-7', issueDate: '2026-10-01' },
+    { billId: OTHER_B, billNumber: null, issueDate: null },
+  ]
+  const event = async () =>
+    (await screen.findByText(/Listed by the person who recorded it/)).closest('li') as HTMLElement
+
+  it('links each bill it was said to differ from, names who did it and shows an approver the reason', async () => {
+    billResponse = () =>
+      overridden({ overriddenBills: bills, reasonRecorded: true, reason: 'Second delivery, same week' })
+    renderBill()
+    const item = await event()
+    expect(within(item).getByRole('link', { name: 'INV-7' }).getAttribute('href')).toBe(
+      `/expenditure/bills/${OTHER_A}`,
+    )
+    // A bill with no number is still linked, by the word the credit-note rows use.
+    expect(
+      within(item).getByRole('link', { name: i18n.t('supplierCreditNotes.rows.unnumbered') }).getAttribute('href'),
+    ).toBe(`/expenditure/bills/${OTHER_B}`)
+    expect(within(item).getByText(/by Huda/)).toBeTruthy()
+    expect(within(item).getByText('Why: Second delivery, same week')).toBeTruthy()
+    expect(within(item).queryByText(/A reason was recorded/)).toBeNull()
+    // The server's own text of the same numbers is not drawn beside the links.
+    expect(within(item).queryByText(/INV-7, INV-8/)).toBeNull()
+    // A real listing keeps its own label: it is not a submission for review (Round 36 item 6).
+    expect(screen.queryByText(/Submitted for review/)).toBeNull()
+  })
+
+  it('tells a reader who cannot approve only that a reason was kept', async () => {
+    billResponse = () => overridden({ overriddenBills: bills, reasonRecorded: true })
+    renderBill()
+    const item = await event()
+    expect(within(item).getByRole('link', { name: 'INV-7' })).toBeTruthy()
+    expect(within(item).getByText('A reason was recorded. Approvers can read it.')).toBeTruthy()
+    expect(within(item).queryByText(/^Why:/)).toBeNull()
+  })
+
+  it('shows no reason line for a historical override that took none', async () => {
+    billResponse = () => overridden({ overriddenBills: bills.slice(0, 1), reasonRecorded: false })
+    renderBill()
+    const item = await event()
+    expect(within(item).getByRole('link', { name: 'INV-7' })).toBeTruthy()
+    expect(within(item).queryByText(/^Why:/)).toBeNull()
+    expect(within(item).queryByText(/A reason was recorded/)).toBeNull()
+    expect(item.querySelectorAll('p')).toHaveLength(2)
+  })
+
+  it('says "by you" rather than the name when the reader made the override', async () => {
+    billResponse = () => overridden({ overriddenBills: bills.slice(0, 1), reasonRecorded: false }, 'INV-7', 'u-1')
+    renderBill()
+    const item = await event()
+    expect(within(item).getByText(/by you/)).toBeTruthy()
+    expect(within(item).queryByText(/by Huda/)).toBeNull()
+  })
+
+  // PRV43-EXP6 M-1 (owner Round 33, Option 3) and Round 36 item 6: a recorder who listed only the
+  // copy the hold names, with a reason, submitted the bill for review. The server sends that as its
+  // own step, naming no bill and carrying the reason; the approver's later decision is a step of
+  // its own, by its own person. The label is PENDING owner approval.
+  it('shows a submission for review as its own step with the reason, apart from the later decision', async () => {
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          activity: [
+            {
+              at: '2026-10-31T10:00:00Z',
+              kind: 'NOT_DUPLICATE',
+              detail: 'Two deliveries',
+              actor: 'u-3',
+              actorName: 'Salim',
+            },
+            {
+              at: '2026-10-30T09:15:00Z',
+              kind: 'DUPLICATE_SUBMITTED_FOR_REVIEW',
+              detail: null,
+              actor: 'u-2',
+              actorName: 'Huda',
+              duplicateOverride: { overriddenBills: [], reasonRecorded: true, reason: 'Please check' },
+            },
+          ],
+        }),
+      )
+    renderBill()
+    const listed = (await screen.findByText(/Submitted for review by the person who recorded it/)).closest(
+      'li',
+    ) as HTMLElement
+    expect(screen.queryByText(/Listed by the person who recorded it/)).toBeNull()
+    expect(within(listed).queryByRole('link')).toBeNull()
+    expect(within(listed).getByText(/by Huda/)).toBeTruthy()
+    expect(within(listed).getByText('Why: Please check')).toBeTruthy()
+    expect(within(listed).queryByText(/Decided not a duplicate|Two deliveries|Salim/)).toBeNull()
+    const decided = screen.getByText(new RegExp(i18n.t('billDetail.activity.kind.NOT_DUPLICATE'))).closest(
+      'li',
+    ) as HTMLElement
+    expect(decided).not.toBe(listed)
+    expect(within(decided).getByText(/Two deliveries/)).toBeTruthy()
+    expect(within(decided).queryByText(/Submitted for review|Please check/)).toBeNull()
+  })
+
+  it('tells a reader who cannot approve only that a reason was kept on a submission for review', async () => {
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          activity: [
+            {
+              at: '2026-10-30T09:15:00Z',
+              kind: 'DUPLICATE_SUBMITTED_FOR_REVIEW',
+              detail: null,
+              actor: 'u-2',
+              actorName: 'Huda',
+              duplicateOverride: { overriddenBills: [], reasonRecorded: true },
+            },
+          ],
+        }),
+      )
+    renderBill()
+    const item = (await screen.findByText(/Submitted for review by the person who recorded it/)).closest(
+      'li',
+    ) as HTMLElement
+    expect(within(item).getByText('A reason was recorded. Approvers can read it.')).toBeTruthy()
+    expect(within(item).queryByText(/^Why:/)).toBeNull()
+  })
+
+  it('reads a submission for review in Arabic', async () => {
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          activity: [
+            {
+              at: '2026-10-30T09:15:00Z',
+              kind: 'DUPLICATE_SUBMITTED_FOR_REVIEW',
+              detail: null,
+              actor: 'u-2',
+              actorName: 'Huda',
+              duplicateOverride: { overriddenBills: [], reasonRecorded: true },
+            },
+          ],
+        }),
+      )
+    await i18n.changeLanguage('ar')
+    renderBill()
+    expect(await screen.findByText(/أرسلها للمراجعة الشخص الذي سجّلها/)).toBeTruthy()
+    expect(screen.queryByText(/Submitted for review|أدرجها الشخص الذي سجّلها/)).toBeNull()
+  })
+
+  it('reads an entry without the override block as text, as any other step', async () => {
+    billResponse = () => overridden(undefined, 'INV-7')
+    renderBill()
+    const item = await event()
+    expect(within(item).getByText(/^INV-7 · /)).toBeTruthy()
+    expect(within(item).queryByRole('link')).toBeNull()
+    // As any other step, it names its actor since B-12b (backend #824 actorName).
+    expect(within(item).getByText(/by Huda/)).toBeTruthy()
+    expect(item.querySelectorAll('p')).toHaveLength(2)
+  })
+
+  it('draws no override when the bill has none, and an unknown step keeps its fallback', async () => {
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          activity: [{ at: '2026-10-30T09:15:00Z', kind: 'BRAND_NEW', detail: null, actor: null }],
+          // A kind this build does not know, as a newer server may send: deliberately outside the
+          // typed union, which is the point of the test, so it goes through unknown.
+        } as unknown as Parameters<typeof detail>[0]),
+      )
+    renderBill()
+    expect(await screen.findByText(new RegExp(i18n.t('invoiceDetails.event.other')))).toBeTruthy()
+    expect(screen.queryByText(/Listed by the person who recorded it/)).toBeNull()
+    expect(screen.queryByText(/Submitted for review by the person who recorded it/)).toBeNull()
+    expect(screen.queryByText(/^Why:/)).toBeNull()
+    expect(screen.queryByText(/A reason was recorded/)).toBeNull()
+  })
+
+  it('reads in Arabic', async () => {
+    billResponse = () => overridden({ overriddenBills: bills, reasonRecorded: true })
+    await i18n.changeLanguage('ar')
+    renderBill()
+    const item = (await screen.findByText(/أدرجها الشخص الذي سجّلها/)).closest('li') as HTMLElement
+    expect(within(item).getByRole('link', { name: 'INV-7' })).toBeTruthy()
+    expect(within(item).getByText('سُجّل سبب. يمكن للمعتمِدين الاطلاع عليه.')).toBeTruthy()
+    expect(within(item).queryByText(/Listed by the person|A reason was recorded/)).toBeNull()
+  })
+})
+
+describe('the people a bill names, from backend #824 (B-12b), each optional', () => {
+  const named = (actorName: string | null | undefined) =>
+    detail({
+      activity: [
+        {
+          at: '2026-09-03T09:00:00Z',
+          kind: 'APPROVED',
+          detail: null,
+          actor: 'u-2',
+          ...(actorName === undefined ? {} : { actorName }),
+        },
+        { at: '2026-09-02T09:00:00Z', kind: 'CONFIRMED', detail: null, actor: 'u-1', actorName: 'Demo Admin' },
+      ],
+    })
+
+  it('names someone else in Activity, and still says "by you" for the reader', async () => {
+    billResponse = () => json(200, named('Maryam Al Balushi'))
+    renderBill()
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Activity' })
+    const card = within(heading.closest('section') as HTMLElement)
+    const approved = card.getByText('Approved').closest('li') as HTMLElement
+    expect(within(approved).getByText(/by Maryam Al Balushi/)).toBeTruthy()
+    const confirmed = card.getByText('Details confirmed').closest('li') as HTMLElement
+    expect(within(confirmed).getByText(/by you/)).toBeTruthy()
+    expect(within(confirmed).queryByText(/Demo Admin/)).toBeNull()
+  })
+
+  it('names nobody else when the server sends no name, as before', async () => {
+    for (const name of [undefined, null]) {
+      billResponse = () => json(200, named(name))
+      const view = renderBill()
+      const heading = await screen.findByRole('heading', { level: 2, name: 'Activity' })
+      const approved = within(heading.closest('section') as HTMLElement)
+        .getByText('Approved')
+        .closest('li') as HTMLElement
+      expect(within(approved).queryByText(/· by/)).toBeNull()
+      view.unmount()
+    }
+  })
+
+  it('says who rejected or held the bill only when the server names them', () => {
+    const rejected = (decidedByName?: string | null) =>
+      detail({
+        readiness: { state: 'REJECTED', distinctApprovals: 0, required: 1, autoApproved: false },
+        approvals: [
+          {
+            id: 'a-9',
+            decision: 'REJECTED',
+            reason: 'Wrong price',
+            decidedBy: 'u-2',
+            decidedAt: '2026-09-03T09:00:00Z',
+            decidedByName,
+          },
+        ],
+      })
+    expect(decisionNoteOf(rejected('Maryam Al Balushi'))).toEqual({
+      key: 'billDetail.decision.rejectedBy',
+      values: { reason: 'Wrong price', name: 'Maryam Al Balushi' },
+    })
+    expect(decisionNoteOf(rejected(null))).toEqual({
+      key: 'billDetail.decision.rejected',
+      values: { reason: 'Wrong price' },
+    })
+    expect(decisionNoteOf(rejected())).toEqual({
+      key: 'billDetail.decision.rejected',
+      values: { reason: 'Wrong price' },
+    })
+    const held = (openedByName?: string | null) =>
+      detail({
+        hold: {
+          id: 'h-1',
+          reason: 'Price query',
+          openedBy: 'u-2',
+          openedAt: '2026-09-04T09:00:00Z',
+          releasedBy: null,
+          releasedAt: null,
+          openedByName,
+        },
+      })
+    expect(decisionNoteOf(held('Hamed Al Kindi'))).toEqual({
+      key: 'billDetail.decision.heldBy',
+      values: { reason: 'Price query', name: 'Hamed Al Kindi' },
+    })
+    expect(decisionNoteOf(held())).toEqual({
+      key: 'billDetail.decision.held',
+      values: { reason: 'Price query' },
+    })
+    // The reader is "you" in Activity, so the panel never calls them by name.
+    expect(decisionNoteOf(held('Hamed Al Kindi'), 'u-2')).toEqual({
+      key: 'billDetail.decision.held',
+      values: { reason: 'Price query' },
+    })
+    expect(decisionNoteOf(rejected('Maryam Al Balushi'), 'u-2')).toEqual({
+      key: 'billDetail.decision.rejected',
+      values: { reason: 'Wrong price' },
+    })
+    for (const lng of ['en', 'ar']) {
+      expect(i18n.t('billDetail.decision.rejectedBy', { lng, name: 'X', reason: 'Y' })).toMatch(/X/)
+      expect(i18n.t('billDetail.decision.heldBy', { lng, name: 'X', reason: 'Y' })).toMatch(/X/)
+    }
+  })
+})
+
+describe('a rejected bill reads nothing owed since backend #824 (OBS-1)', () => {
+  it('keeps its chip from the workflow, not from what is owed or paymentState', () => {
+    const rejected = {
+      ...detail().bill,
+      workflowState: 'REJECTED' as const,
+      readiness: { state: 'REJECTED' as const, distinctApprovals: 0, required: 1, autoApproved: false },
+      paidAmount: 0,
+      outstandingAmount: 0,
+    }
+    const item = toBillListItem(rejected)
+    expect(item).toMatchObject({ status: 'rejected', owes: false, paid: false, amountNote: { key: 'billsPage.rows.inclVat' } })
+    // Paid before the rejection: still rejected, never "part paid" or "settled by credit".
+    expect(toBillListItem({ ...rejected, paidAmount: 100 }).status).toBe('rejected')
+  })
+})
+
+// R5/R7/R8 (VAT-CN-R1-R8 plan §7.5): a standalone supplier credit note is approved or rejected on
+// its own page; a note against a bill, or one from a server before R5, offers no decision.
+describe('a supplier credit note decided on its own (R5, R7, R8)', () => {
+  const REOPENER: Entitlements = { ...ADMIN, permissions: [...ADMIN.permissions, 'bill.reopen'] }
+  const REJECTION = {
+    id: 'a-9',
+    decision: 'REJECTED' as const,
+    reason: 'Not agreed',
+    decidedBy: 'u-1',
+    decidedAt: '2026-11-07T08:00:00Z',
+  }
+
+  function creditNote(
+    fields: { standalone?: boolean; vatNotice?: string | null } | null,
+    approval: 'PENDING' | 'APPROVED' | 'REJECTED',
+  ): BillDetailDto {
+    const base = detail()
+    const readiness = {
+      state: approval === 'APPROVED' ? ('READY' as const) : approval,
+      distinctApprovals: approval === 'APPROVED' ? 1 : 0,
+      required: 1,
+      autoApproved: false,
+    }
+    return {
+      ...base,
+      bill: {
+        ...base.bill,
+        documentTypeCode: '381',
+        purchaseOrderReference: null,
+        match: null,
+        approval,
+        readiness,
+        creditNote: {
+          status: 'UNAPPLIED',
+          usage: null,
+          balance: { applied: 0, refunded: 0, remaining: 2354.31 },
+          ...(fields ?? {}),
+        },
+      },
+      readiness,
+      approvals: approval === 'REJECTED' ? [REJECTION] : [],
+      activity: [],
+    }
+  }
+
+  const conflict = (error: string) => () =>
+    json(409, { type: 'https://api.fawtir.om/problems/resource-conflict', status: 409, error })
+
+  async function decisionPanel() {
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    return screen
+      .getByRole('heading', { name: i18n.t('billDetail.decision.title') })
+      .closest('section')!
+  }
+
+  async function rejectNote() {
+    const panel = await decisionPanel()
+    fireEvent.click(within(panel).getByRole('button', { name: 'Query it' }))
+    const dialog = await screen.findByRole('dialog')
+    // A standalone note is named as a credit note, not as a bill.
+    expect(within(dialog).getByText('Reject this credit note')).toBeTruthy()
+    expect(within(dialog).queryByRole('button', { name: 'Reject the bill' })).toBeNull()
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'Not agreed' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Reject the credit note' }))
+    await waitFor(() => expect(calls()).toContain(`POST ${BILL_URL}/approval/reject`))
+  }
+
+  it('approves a standalone note by hand, never as a payment', async () => {
+    billResponse = () => json(200, creditNote({ standalone: true, vatNotice: null }, 'PENDING'))
+    renderBill()
+    const panel = await decisionPanel()
+    expect(
+      within(panel).getByText(
+        'This credit note is not against a bill of yours, so it is approved or rejected on its own.',
+      ),
+    ).toBeTruthy()
+    expect(within(panel).queryByRole('button', { name: 'Approve for payment' })).toBeNull()
+    expect(within(panel).getByRole('button', { name: 'Query it' })).toBeTruthy()
+    fireEvent.click(within(panel).getByRole('button', { name: 'Approve credit note' }))
+    await waitFor(() => expect(calls()).toContain(`POST ${BILL_URL}/approval/approve`))
+  })
+
+  it('offers no decision on a note against a bill', async () => {
+    billResponse = () => json(200, creditNote({ standalone: false, vatNotice: null }, 'PENDING'))
+    renderBill()
+    const panel = await decisionPanel()
+    expect(within(panel).getByText(/There is nothing to approve or pay on it/)).toBeTruthy()
+    expect(within(panel).queryByRole('button', { name: 'Approve credit note' })).toBeNull()
+    expect(within(panel).queryByRole('button', { name: 'Query it' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Reject' })).toBeNull()
+  })
+
+  it('keeps the page as it was for a server before R5', async () => {
+    billResponse = () => json(200, creditNote(null, 'REJECTED'))
+    who = REOPENER
+    renderBill()
+    const panel = await decisionPanel()
+    expect(within(panel).getByText(/There is nothing to approve or pay on it/)).toBeTruthy()
+    for (const name of ['Approve credit note', 'Query it', 'Reopen for approval']) {
+      expect(within(panel).queryByRole('button', { name })).toBeNull()
+    }
+  })
+
+  it('shows a rejected note with its reason, its VAT notice and a reopen, but no approval', async () => {
+    billResponse = () =>
+      json(200, creditNote({ standalone: true, vatNotice: 'REJECTED_VAT_STILL_REDUCED' }, 'REJECTED'))
+    who = REOPENER
+    renderBill()
+    const panel = await decisionPanel()
+    expect(
+      within(panel).getByText(
+        /^Rejected in your books: “Not agreed”\..* Rejected, but the VAT reduction still applies \(Executive Regulations Art\. 65: it counts when received\)$/,
+      ),
+    ).toBeTruthy()
+    expect(within(panel).queryByRole('button', { name: 'Approve credit note' })).toBeNull()
+    expect(within(panel).queryByRole('button', { name: 'Query it' })).toBeNull()
+    expect(within(panel).getByRole('button', { name: 'Reopen for approval' })).toBeTruthy()
+  })
+
+  it('says the VAT was reduced on receipt, in Arabic too', async () => {
+    billResponse = () =>
+      json(200, creditNote({ standalone: true, vatNotice: 'VAT_REDUCED_ON_RECEIPT' }, 'APPROVED'))
+    renderBill()
+    let panel = await decisionPanel()
+    expect(within(panel).getByText('Credit note approved. VAT already reduced on receipt')).toBeTruthy()
+    cleanup()
+    await i18n.changeLanguage('ar')
+    try {
+      renderBill()
+      panel = await decisionPanel()
+      expect(within(panel).getByText(/خُفِّضت ضريبة القيمة المضافة عند الاستلام$/)).toBeTruthy()
+    } finally {
+      await i18n.changeLanguage('en')
+    }
+  })
+
+  it('says nothing for a VAT notice it does not know', async () => {
+    billResponse = () =>
+      json(200, creditNote({ standalone: true, vatNotice: 'SOMETHING_NEW' }, 'APPROVED'))
+    renderBill()
+    const panel = await decisionPanel()
+    expect(within(panel).getByText('Credit note approved.')).toBeTruthy()
+    expect(within(panel).queryByText(/SOMETHING_NEW/)).toBeNull()
+  })
+
+  it.each([
+    [
+      'CREDIT_NOTE_REJECTION_HAS_APPLIED_CREDIT',
+      "This credit note can't be rejected: part of its credit is set against a bill. That credit has to be released first.",
+    ],
+    [
+      'CREDIT_NOTE_REJECTION_HAS_REFUND',
+      "This credit note can't be rejected: a refund is recorded on it.",
+    ],
+  ])('says why a rejection was refused: %s', async (code, sentence) => {
+    billResponse = () => json(200, creditNote({ standalone: true, vatNotice: null }, 'APPROVED'))
+    actionResponse = conflict(code)
+    renderBill()
+    await rejectNote()
+    expect(await screen.findByText(sentence)).toBeTruthy()
+  })
+
+  it('says a note that became targeted is not approved on its own', async () => {
+    billResponse = () => json(200, creditNote({ standalone: true, vatNotice: null }, 'PENDING'))
+    actionResponse = () =>
+      json(400, {
+        type: 'https://api.fawtir.om/problems/expenditure-refused',
+        status: 400,
+        error: 'APPROVAL_CREDIT_NOTE',
+      })
+    renderBill()
+    const panel = await decisionPanel()
+    fireEvent.click(within(panel).getByRole('button', { name: 'Approve credit note' }))
+    expect(
+      await screen.findByText('This credit note is against a bill, so it is not approved on its own.'),
+    ).toBeTruthy()
+  })
+
+  it('reopens a rejected note without saying it can be paid', async () => {
+    billResponse = () => json(200, creditNote({ standalone: true, vatNotice: null }, 'REJECTED'))
+    who = REOPENER
+    renderBill()
+    const panel = await decisionPanel()
+    fireEvent.click(within(panel).getByRole('button', { name: 'Reopen for approval' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'Agreed after all' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('billDetail.reopen.confirm') }))
+    await waitFor(() => expect(calls()).toContain(`POST ${BILL_URL}/approval/reopen`))
+    expect(await screen.findByText('Reopened.')).toBeTruthy()
   })
 })
