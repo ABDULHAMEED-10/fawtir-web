@@ -315,7 +315,9 @@ export function projectInvoice(amounts: InvoiceAmounts, scale = 3): ProjectedAmo
   const subtotal = rescale(amounts.subtotal, scale)
   const itemDiscount = rescale(amounts.itemDiscount, scale)
   const headerDiscount = rescale(amounts.headerDiscount, scale)
-  const taxable = rescale(amounts.taxable, scale)
+  // Derived from the projected parts, as the server derives projectedTaxableTotal: rounding the exact
+  // 278.3375 alone gave 278.338 beside a total of 292.254 that was built from the parts (D-02).
+  const taxable = subtotal - itemDiscount - headerDiscount
   const vat = rescale(amounts.vat, scale)
   // Keep the headline invariant true at the projected scale rather than rounding it separately.
   const total = subtotal - itemDiscount - headerDiscount + vat
@@ -331,6 +333,11 @@ export function projectInvoice(amounts: InvoiceAmounts, scale = 3): ProjectedAmo
       step,
     )
 
+  // The server projects a line's gross and its discount as two reconciled series and never rounds
+  // their difference on its own (InvoiceCalculationEngine.project). Rounding afterLineDiscount alone
+  // put 3 × 10.125 less 10% (27.3375) at 27.338 against the server's 30.375 − 3.038 = 27.337, and the
+  // lines then summed a baisa past the net amount (RC5 browser E2E D-01, D-02).
+  const grosses = series((l) => l.gross, subtotal)
   const lineDiscounts = series((l) => l.lineDiscount, itemDiscount)
   const headerShares = series((l) => l.headerDiscount, headerDiscount)
   const taxables = series((l) => l.taxable, taxable)
@@ -347,7 +354,7 @@ export function projectInvoice(amounts: InvoiceAmounts, scale = 3): ProjectedAmo
     lines: amounts.lines.map((line, i) => ({
       id: line.id,
       lineDiscount: lineDiscounts[i],
-      afterLineDiscount: rescale(line.afterLineDiscount, scale),
+      afterLineDiscount: grosses[i] - lineDiscounts[i],
       headerDiscount: headerShares[i],
       taxable: taxables[i],
       vat: vats[i],
