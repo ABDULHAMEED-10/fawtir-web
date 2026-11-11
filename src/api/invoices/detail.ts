@@ -1,5 +1,5 @@
 import { apiDownload, apiRequest, type ApiDownload } from '../client'
-import type { DiscountDto } from './drafts'
+import type { DiscountDto, DraftPreview } from './drafts'
 import type {
   InvoiceListApproval,
   InvoicePaymentDto as InvoiceListPaymentDto,
@@ -56,21 +56,10 @@ export type InvoiceLineDto = {
   originalLineNumber?: number | null
   /**
    * RC5 D-01: the line's amounts at the currency's scale, from the projection the totals come
-   * from, so the lines sum to them exactly. Absent from an older server; null with no totals.
+   * from, so the lines sum to them exactly, in the preview's line shape (`taxableAmount` is the
+   * IBT-131 the Peppol document states). Absent from an older server; null with no totals.
    */
-  amounts?: InvoiceLineAmountsDto | null
-}
-
-export type InvoiceLineAmountsDto = {
-  lineNumber: number
-  grossAmount: number
-  lineDiscount: number
-  allocatedHeaderDiscount: number
-  /** After both discounts, VAT-exclusive: the line net the Peppol document states (IBT-131). */
-  taxableAmount: number
-  vatAmount: number
-  /** taxableAmount plus VAT. */
-  lineNetAmount: number
+  amounts?: DraftPreview['lines'][number] | null
 }
 
 export type InvoiceTotalsDto = {

@@ -103,4 +103,12 @@ describe('lineTotals', () => {
   it('computes the same figures, as the server rounds them, from a server that sends no amounts', () => {
     expect([...lineTotals(invoice(false)).values()]).toEqual([251, 27.337])
   })
+
+  it('shows the server figures, not its own projection, when the two differ', () => {
+    // Amounts no projection of these parts produces, so only the server branch can yield them.
+    const served = invoice(true)
+    served.lines[0].amounts = { ...served.lines[0].amounts!, grossAmount: 300.125, lineDiscount: 0.124 }
+    served.lines[1].amounts = { ...served.lines[1].amounts!, grossAmount: 40.5, lineDiscount: 1.25 }
+    expect([...lineTotals(served).values()]).toEqual([300.001, 39.25])
+  })
 })
