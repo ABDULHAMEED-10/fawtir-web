@@ -13,6 +13,7 @@ import {
   Select,
   Switch,
   type ActionMenuItem,
+  withRial,
 } from '../../components/ui'
 import {
   ApiReadFailure,
@@ -51,6 +52,8 @@ import {
   NOTE_MODES,
   NOTE_REASONS,
   NOTE_REFUSALS,
+  creditCapRefusal,
+  originalLineRefusal,
   NOTE_ROUTES,
   addedLine,
   asksBackOnShelf,
@@ -277,7 +280,7 @@ function SalesNote({
         selfBilled={selfBilled}
         title={t(`salesNote.${kind === 'CREDIT_NOTE' ? 'credit' : 'debit'}.new`)}
       >
-        <ApiReadFailure error={loaded.error} retry={() => setAttempt((n) => n + 1)} />
+        <ApiReadFailure error={loaded.error} retry={() => setAttempt((n) => n + 1)} notFoundOn400 />
       </Frame>
     )
   }
@@ -505,7 +508,7 @@ function NoteEditor({
   )
   const [saved, setSaved] = useState<DraftResponse | null>(draft)
   const [problems, setProblems] = useState<NoteProblems>({})
-  const [notice, setNotice] = useState<string | null>(null)
+  const [notice, setNotice] = useState<ReactNode>(null)
   const [busy, setBusy] = useState(false)
   const [files, setFiles] = useState<File[]>([])
   /** Files already on the saved draft, so a retry after a failed upload sends each one once. */
@@ -619,6 +622,17 @@ function NoteEditor({
         setNotice(t(selfBilling))
         return
       }
+      // The cumulative caps (DA-1) first: they name a line or a rate and what is left of it.
+      const capped = creditCapRefusal(error, t, invoice.currency, i18n.language)
+      if (capped) {
+        setNotice(withRial(t(capped.key, capped.values)))
+        return
+      }
+      const missingLine = originalLineRefusal(error)
+      if (missingLine) {
+        setNotice(t(missingLine.key, missingLine.values))
+        return
+      }
       const coded = error instanceof ApiError && error.code && Object.hasOwn(NOTE_REFUSALS, error.code) ? NOTE_REFUSALS[error.code] : undefined
       const refusal = coded ? null : issueRefusalOf(error)
       const described = describeApiFailure(error)
@@ -646,7 +660,8 @@ function NoteEditor({
       const issued = await withKey(issueAttempt, (key) => issueDraft(next.id, key, request))
       navigate(paths.note(issued.id), {
         replace: true,
-        state: { issuedNumber: issued.invoiceNumber },
+        // The lines that did not all go back on the shelf: said with the number, on the issue answer only.
+        state: { issuedNumber: issued.invoiceNumber, stockWarnings: issued.warnings ?? [] },
       })
     })
 
@@ -1257,7 +1272,7 @@ function NoteEditor({
             </div>
             <div className="flex items-center justify-between gap-3">
               <dt className="font-medium text-text-tertiary">
-                {t(credit ? 'salesNote.amount.applied' : 'salesNote.amount.added')}
+                {t(credit ? 'salesNote.amount.applied' : 'salesNote.amount.owedSeparately')}
               </dt>
               <dd>
                 <OmAmount
@@ -1268,22 +1283,24 @@ function NoteEditor({
                 />
               </dd>
             </div>
-            <div className="flex items-center justify-between gap-3">
-              <dt className="font-medium text-text-tertiary">{t('salesNote.amount.newBalance')}</dt>
-              <dd>
-                <OmAmount
-                  size="xs"
-                  amount={money(
-                    outstanding === null
-                      ? null
-                      : credit
-                        ? (effect?.after ?? outstanding)
-                        : Math.round((outstanding + total) * 1000) / 1000,
-                  )}
-                  amountClassName="font-semibold text-text-primary tabular-nums"
-                />
-              </dd>
-            </div>
+            {/* A debit note is owed on its own, linked to the invoice (D-24, owner 6 Nov 2026): no
+                "new invoice balance" adds it in, as the invoice's balance does not change. */}
+            {credit ? (
+              <div className="flex items-center justify-between gap-3">
+                <dt className="font-medium text-text-tertiary">{t('salesNote.amount.newBalance')}</dt>
+                <dd>
+                  <OmAmount
+                    size="xs"
+                    amount={money(outstanding === null ? null : (effect?.after ?? outstanding))}
+                    amountClassName="font-semibold text-text-primary tabular-nums"
+                  />
+                </dd>
+              </div>
+            ) : (
+              <p className="text-xs font-medium leading-[1.5] text-text-tertiary">
+                {t('salesNote.debit.ownReceivable')}
+              </p>
+            )}
             {credit ? (
               <div
                 role="status"

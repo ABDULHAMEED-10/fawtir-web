@@ -1,8 +1,9 @@
+import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
-import { resetSharedRequests } from '../../api'
+import { apiRequest, resetSharedRequests } from '../../api'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import { requireSession, useCan, useSession } from '../../lib/session/session'
 import { signOut } from '../../lib/identity/logout'
@@ -128,7 +129,8 @@ describe('AppShell session guard', () => {
               { id: 'b-seeb', code: 'SEEB', name: 'Nizwa Dates (Seeb)', headOffice: false },
             ],
           })
-        : json(200, ACCOUNTANT),
+        : // The overview is the branch managers' (`branch.manage`); nobody else is asked for it.
+          json(200, { ...ACCOUNTANT, permissions: [...ACCOUNTANT.permissions, 'branch.manage'] }),
     )
     renderAt('/suppliers')
     await screen.findByText(/screen for/)
@@ -246,5 +248,107 @@ describe('AppShell chrome carries no sample data', () => {
     expect(screen.getByRole('button', { name: /Income/ }).textContent).not.toMatch(/\d/)
     for (const link of screen.queryAllByRole('link', { name: /TDD/ }))
       expect(link.textContent).not.toMatch(/\d/)
+  })
+})
+
+describe('the shell asks a reader only what the reader may read (B-14)', () => {
+  const ADMIN_ONLY = [
+    '/api/v1/settings/plan',
+    '/api/v1/branches/overview',
+    '/api/v1/settings/billing',
+    '/api/v1/company-profile/branding/logo',
+  ]
+
+  it('asks nothing a reader without tenant.plan.read or branch.manage would be refused', async () => {
+    fetchMock.mockImplementation(async (url: string) =>
+      url === ENTITLEMENTS_URL ? json(200, ACCOUNTANT) : json(403, { type: 'https://api.fawtir.om/problems/insufficient-permission' }),
+    )
+    renderAt('/suppliers')
+    await screen.findByText(/screen for/)
+    // Let every read the shell starts on arriving go out before counting.
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    const asked = fetchMock.mock.calls.map(([url]) => String(url))
+    for (const path of ADMIN_ONLY) expect(asked).not.toContain(path)
+    expect(screen.queryByRole('link', { name: 'Create Invoice' })).toBeNull()
+  })
+
+  it('still asks for the plan and the branches of a reader who holds those permissions', async () => {
+    const OWNER = {
+      ...ACCOUNTANT,
+      permissions: [...ACCOUNTANT.permissions, 'tenant.plan.read', 'branch.manage', 'invoice.draft'],
+    }
+    fetchMock.mockImplementation(async (url: string) =>
+      url === ENTITLEMENTS_URL ? json(200, OWNER) : json(404, { type: 'about:blank' }),
+    )
+    renderAt('/suppliers')
+    await screen.findByText(/screen for/)
+    await waitFor(() => {
+      const asked = fetchMock.mock.calls.map(([url]) => String(url))
+      expect(asked).toContain('/api/v1/settings/plan')
+      expect(asked).toContain('/api/v1/branches/overview')
+    })
+    expect(screen.getByRole('link', { name: 'Create Invoice' })).toBeTruthy()
+  })
+})
+
+describe('a change answered 401 because the session ended (DA-16)', () => {
+  function Saver() {
+    const [said, setSaid] = useState('')
+    return (
+      <button
+        type="button"
+        onClick={() =>
+          apiRequest('/v1/authored-invoices/i-1/payments', { method: 'POST', body: {} }).catch(
+            () => setSaid('refused'),
+          )
+        }
+      >
+        save {said}
+      </button>
+    )
+  }
+
+  const renderSaver = () =>
+    render(
+      <MemoryRouter initialEntries={['/suppliers']}>
+        <Routes>
+          <Route
+            path="/suppliers"
+            element={
+              <AppShell>
+                <Saver />
+              </AppShell>
+            }
+          />
+          <Route path="/login" element={<p>sign-in page</p>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+  it('sends the reader to sign in, as a read does', async () => {
+    fetchMock.mockImplementation(async (url: string) =>
+      url === ENTITLEMENTS_URL
+        ? json(200, ACCOUNTANT)
+        : url === '/api/v1/authored-invoices/i-1/payments'
+          ? json(401, { type: 'https://api.fawtir.om/problems/unauthenticated', status: 401 })
+          : json(404, { type: 'about:blank' }),
+    )
+    renderSaver()
+    fireEvent.click(await screen.findByRole('button', { name: /save/ }))
+    expect(await screen.findByText('sign-in page')).toBeTruthy()
+  })
+
+  it('keeps the reader where they are when a code or a password was refused', async () => {
+    fetchMock.mockImplementation(async (url: string) =>
+      url === ENTITLEMENTS_URL
+        ? json(200, ACCOUNTANT)
+        : url === '/api/v1/authored-invoices/i-1/payments'
+          ? json(401, { type: 'https://api.fawtir.om/problems/authentication-failed', status: 401 })
+          : json(404, { type: 'about:blank' }),
+    )
+    renderSaver()
+    fireEvent.click(await screen.findByRole('button', { name: /save/ }))
+    expect(await screen.findByRole('button', { name: /save refused/ })).toBeTruthy()
+    expect(screen.queryByText('sign-in page')).toBeNull()
   })
 })

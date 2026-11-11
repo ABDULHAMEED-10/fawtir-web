@@ -104,8 +104,18 @@ export type StockSummaryDto = {
   }
 }
 
+/**
+ * `CANCEL_REVERSAL` (backend #845, source `CANCELLATION`): the opposite of a movement of an invoice
+ * or credit note since cancelled, plus for a sale and minus for a return. An older server sends none.
+ */
 export type StockMovementType =
-  'SALE' | 'RECEIPT' | 'WRITE_OFF' | 'COUNT_CORRECTION' | 'REFUND_RETURN' | 'OPENING'
+  | 'SALE'
+  | 'RECEIPT'
+  | 'WRITE_OFF'
+  | 'COUNT_CORRECTION'
+  | 'REFUND_RETURN'
+  | 'CANCEL_REVERSAL'
+  | 'OPENING'
 
 export type StockSourceType =
   | 'POS_SALE'
@@ -116,6 +126,7 @@ export type StockSourceType =
   | 'DELIVERY'
   | 'STOCK_COUNT'
   | 'WRITE_OFF'
+  | 'CANCELLATION'
   | 'OPENING'
 
 export type StockMovementDto = {
@@ -198,7 +209,13 @@ export type StockCountRequest = {
 }
 
 export type WriteOffReason =
-  'DAMAGED' | 'EXPIRED' | 'LOST' | 'STOLEN' | 'OWN_USE' | 'SAMPLE_OR_TASTING' | 'OTHER'
+  | 'DAMAGED'
+  | 'EXPIRED'
+  | 'LOST'
+  | 'STOLEN'
+  | 'OWN_USE'
+  | 'SAMPLE_OR_TASTING'
+  | 'OTHER'
 
 export const WRITE_OFF_REASONS: WriteOffReason[] = [
   'DAMAGED',

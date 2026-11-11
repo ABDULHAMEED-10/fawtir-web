@@ -170,6 +170,125 @@ describe('Dashboard, from the server', () => {
     expect(fetchMock.mock.calls.filter(([url]) => url === URL.dashboard)).toHaveLength(1)
   })
 
+  it('reads a cancelled invoice as cancelled whatever its dispatch says, and prices no draft', async () => {
+    const base = DASHBOARD.recentInvoices.data[0]
+    answer({
+      dashboard: () =>
+        json(200, {
+          ...DASHBOARD,
+          recentInvoices: ok([
+            { ...base, id: 'c-dead', invoiceNumber: 'RT-0101', state: 'CANCELLED', dispatch: 'DEAD_LETTERED', invoiceAck: null },
+            { ...base, id: 'c-none', invoiceNumber: 'RT-0102', state: 'CANCELLED', dispatch: null, invoiceAck: null },
+            { ...base, id: 'd-1', invoiceNumber: null, state: 'DRAFT', total: 0, dispatch: null, invoiceAck: null },
+          ]),
+        }),
+    })
+    renderPage()
+
+    const row = (name: string) => within(screen.getByText(name).closest('tr')!)
+    await screen.findByText('RT-0101')
+    expect(row('RT-0101').getByText('Cancelled')).toBeTruthy()
+    expect(row('RT-0102').getByText('Cancelled')).toBeTruthy()
+    expect(screen.queryByText(t('dashboard.invoices.status.notSent'))).toBeNull()
+    expect(screen.queryByText(t('dashboard.invoices.status.issued'))).toBeNull()
+    // The unpriced draft shows a dash, not the server's 0 as 0.000.
+    // The number column and the status both read "Draft" on this row.
+    const draft = within(screen.getAllByText(t('dashboard.invoices.noNumber'))[0].closest('tr')!)
+    expect(draft.getByText('—')).toBeTruthy()
+    expect(draft.queryByText('0.000')).toBeNull()
+  })
+
+  it('says "To be sent" for an invoice queued but not yet transmitted, as the invoices list does (A-4)', async () => {
+    const base = DASHBOARD.recentInvoices.data[0]
+    answer({
+      dashboard: () =>
+        json(200, {
+          ...DASHBOARD,
+          recentInvoices: ok([
+            { ...base, id: 'q-0', invoiceNumber: 'RT-0200', dispatch: 'DISPATCHED', transportState: null, invoiceAck: null },
+            { ...base, id: 'q-1', invoiceNumber: 'RT-0201', dispatch: 'DISPATCHED', transportState: 'QUEUED', invoiceAck: null },
+            { ...base, id: 'q-2', invoiceNumber: 'RT-0202', dispatch: 'DISPATCHED', transportState: 'SENDING', invoiceAck: null },
+            { ...base, id: 'q-3', invoiceNumber: 'RT-0203', dispatch: 'PENDING', transportState: null, invoiceAck: null },
+            { ...base, id: 's-1', invoiceNumber: 'RT-0204', dispatch: 'DISPATCHED', transportState: 'SENT', invoiceAck: null },
+            { ...base, id: 'f-1', invoiceNumber: 'RT-0205', dispatch: 'DEAD_LETTERED', transportState: null, invoiceAck: null },
+            { ...base, id: 'f-2', invoiceNumber: 'RT-0206', dispatch: 'DISPATCHED', transportState: 'UNDELIVERABLE', invoiceAck: null },
+            { ...base, id: 'n-1', invoiceNumber: 'RT-0207', dispatch: null, transportState: null, invoiceAck: null },
+            { ...base, id: 'd-1', invoiceNumber: 'RT-0208', dispatch: 'DISPATCHED', transportState: 'DELIVERED', invoiceAck: null },
+            { ...base, id: 'd-2', invoiceNumber: 'RT-0209', dispatch: 'DISPATCHED', transportState: 'DELIVERED_UNCONFIRMED', invoiceAck: null },
+            { ...base, id: 'f-3', invoiceNumber: 'RT-0210', dispatch: 'DISPATCHED', transportState: 'C4_UNREACHABLE', invoiceAck: null },
+          ]),
+        }),
+    })
+    renderPage()
+
+    const row = (name: string) => within(screen.getByText(name).closest('tr')!)
+    await screen.findByText('RT-0200')
+    for (const queued of ['RT-0200', 'RT-0201', 'RT-0202', 'RT-0203'])
+      expect(row(queued).getByText(t('invoicesPage.payment.toSend'))).toBeTruthy()
+    // "Sent" only once the receiving access point has the document (the AS4 receipt).
+    expect(row('RT-0204').getByText(t('dashboard.invoices.status.sent'))).toBeTruthy()
+    expect(screen.getAllByText(t('dashboard.invoices.status.sent'))).toHaveLength(1)
+    expect(row('RT-0205').getByText(t('dashboard.invoices.status.notSent'))).toBeTruthy()
+    expect(row('RT-0206').getByText(t('dashboard.invoices.status.undelivered'))).toBeTruthy()
+    // Nothing owed to the network: the invoice is simply issued.
+    expect(row('RT-0207').getByText(t('dashboard.invoices.status.issued'))).toBeTruthy()
+    expect(row('RT-0208').getByText(t('dashboard.invoices.status.accepted'))).toBeTruthy()
+    expect(row('RT-0209').getByText(t('dashboard.invoices.status.accepted'))).toBeTruthy()
+    expect(row('RT-0210').getByText(t('dashboard.invoices.status.undelivered'))).toBeTruthy()
+  })
+
+  it('adds every OMR output category into Output VAT, not only the first one listed (A-3)', async () => {
+    answer({
+      dashboard: () =>
+        json(200, {
+          ...DASHBOARD,
+          vat: ok({
+            ...DASHBOARD.vat.data,
+            // The report lists one row per category and rate; E comes first and has no VAT.
+            output: [
+              { side: 'OUTPUT', currency: 'OMR', vatAmount: 0 },
+              { side: 'OUTPUT', currency: 'OMR', vatAmount: '30.0560000000' },
+              { side: 'OUTPUT', currency: 'OMR', vatAmount: 0 },
+              { side: 'OUTPUT', currency: 'USD', vatAmount: 99 },
+            ],
+            input: [
+              { side: 'INPUT', currency: 'OMR', vatAmount: 1.25 },
+              { side: 'INPUT', currency: 'OMR', vatAmount: 1 },
+            ],
+            net: [{ side: 'NET', currency: 'OMR', vatAmount: 27.806 }],
+          }),
+        }),
+    })
+    renderPage()
+    await screen.findByText('RT-0007')
+    const vat = card(t('dashboard.vat.title'))
+    expect(vat.getByText('30.056')).toBeTruthy()
+    expect(vat.getByText('2.250')).toBeTruthy()
+    expect(vat.getByText('27.806')).toBeTruthy()
+    expect(vat.queryByText('0.000')).toBeNull()
+  })
+
+  it('opens a credit or debit note on its own page, as the invoices list does', async () => {
+    const base = DASHBOARD.recentInvoices.data[0]
+    answer({
+      dashboard: () =>
+        json(200, {
+          ...DASHBOARD,
+          recentInvoices: ok([
+            { ...base, id: 'cn-1', invoiceNumber: 'CRN-1', invoiceType: 'CREDIT_NOTE' },
+            { ...base, id: 'dn-1', invoiceNumber: 'DBN-1', invoiceType: 'DEBIT_NOTE' },
+          ]),
+        }),
+    })
+    renderPage()
+    expect((await screen.findByRole('link', { name: 'CRN-1' })).getAttribute('href')).toBe(
+      '/income/credit-notes/cn-1',
+    )
+    expect(screen.getByRole('link', { name: 'DBN-1' }).getAttribute('href')).toBe(
+      '/income/debit-notes/dn-1',
+    )
+  })
+
   it('prints none of the sample company or its figures', async () => {
     answer()
     renderPage()
@@ -222,7 +341,7 @@ describe('Dashboard, from the server', () => {
     }
   })
 
-  it('lists what is not ready, links what the company fixes, and waits on Fawtir for the rest', async () => {
+  it('lists every step with its progress: the company steps first with their buttons, then Fawtir, then the done ones', async () => {
     ADMIN.permissions = [...ADMIN.permissions, 'admin.settings.manage']
     answer({
       readiness: () =>
@@ -242,14 +361,23 @@ describe('Dashboard, from the server', () => {
     const section = within(
       (await screen.findByText(t('readiness.title'))).closest('section')!,
     )
-    const fixes = section.getAllByRole('link', { name: t('readiness.fix') }).map((link) => link.getAttribute('href'))
-    expect(fixes).toEqual(['/settings/company', '/settings/branches/new', '/settings/peppol'])
+    const fixes = section.getAllByRole('link').map((link) => [link.textContent, link.getAttribute('href')])
+    expect(fixes).toEqual([
+      [t('readiness.action.REGISTERED_ADDRESS'), '/settings/company'],
+      [t('readiness.action.ACTIVE_BRANCH'), '/settings/branches/new'],
+      [t('readiness.action.PARTICIPANT_VERIFIED'), '/settings/peppol'],
+    ])
     expect(section.getByText(t('readiness.awaitingFawtir'))).toBeTruthy()
-    expect(section.queryByText(t('readiness.item.CONTACT_PHONE'))).toBeNull()
+    expect(section.getByText(t('readiness.progress', { done: 1, total: 5 }))).toBeTruthy()
+    expect(section.getByRole('progressbar').getAttribute('aria-valuenow')).toBe('1')
+    const rows = section.getAllByRole('listitem').map((row) => row.textContent ?? '')
+    expect(rows[3]).toContain(t('readiness.item.COMPANY_VERIFIED'))
+    expect(rows[4]).toContain(t('readiness.item.CONTACT_PHONE'))
+    expect(rows[4]).toContain(t('readiness.done'))
     ADMIN.permissions = ADMIN.permissions.filter((code) => code !== 'admin.settings.manage')
   })
 
-  it('offers no "Fix this" to a reader who cannot change settings', async () => {
+  it('offers no settings button to a reader who cannot change settings', async () => {
     answer({
       readiness: () =>
         json(200, {
@@ -263,7 +391,7 @@ describe('Dashboard, from the server', () => {
       (await screen.findByText(t('readiness.title'))).closest('section')!,
     )
     await waitFor(() => expect(section.getByText(t('readiness.actionRequired'))).toBeTruthy())
-    expect(section.queryByRole('link', { name: t('readiness.fix') })).toBeNull()
+    expect(section.queryByRole('link')).toBeNull()
   })
 
   it('keeps the revenue switch: Month draws the months, Day and Week say "Not available yet"', async () => {

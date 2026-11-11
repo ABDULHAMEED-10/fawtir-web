@@ -10,7 +10,7 @@ import type {
   DebitNoteSummaryDto,
 } from '../../api/expenditure/notes'
 import { toDebitNoteItem } from '../../lib/supplierNoteList'
-import { debitEffect } from '../../lib/supplierDebitNotes'
+import { debitEffect, debitNoteChecks } from '../../lib/supplierDebitNotes'
 import { SupplierDebitNotesPage } from './SupplierDebitNotesPage'
 import { SupplierDebitNoteDetailPage } from '../SupplierDebitNoteDetailPage'
 
@@ -292,6 +292,18 @@ describe('Debit notes list, wired to the API', () => {
     // An unchecked charge: the frame's "you'd pay more" under a plus figure.
     expect(screen.getByText("you'd pay more")).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Accept or refuse' })).toBeTruthy()
+  })
+
+  it('says Arrived with the day it reached us, and the issue date only as Issued (B-9)', async () => {
+    notes = [
+      note({ id: 'dn-a', debitNoteNumber: 'QMS-DN-A', receivedAt: '2026-10-29T08:00:00Z' }),
+      note({ id: 'dn-b', debitNoteNumber: 'QMS-DN-B', receivedAt: null }),
+    ]
+    renderList()
+    const row = async (name: string) => within((await screen.findByText(name)).closest('tr')!)
+    expect((await row('QMS-DN-A')).getByText('Arrived 29 Oct 2026')).toBeTruthy()
+    expect((await row('QMS-DN-B')).getByText('Issued 1 Sept 2026')).toBeTruthy()
+    expect(screen.queryByText('Arrived 1 Sept 2026')).toBeNull()
   })
 
   it('does not present a refused charge as money owed', async () => {
@@ -1133,5 +1145,152 @@ describe('a debit note held as a possible duplicate', () => {
     notes = [note({ heldAsDuplicate: true })]
     renderDetail()
     expect((await screen.findAllByText('محجوز كنسخة مكررة')).length).toBeGreaterThan(0)
+  })
+})
+
+describe("the debit note's check on its bill (B-12)", () => {
+  const BILL: BillRowDto = {
+    id: 'b-1',
+    source: 'PEPPOL',
+    supplierId: 's-1',
+    supplierName: 'Qalhat Marine Supplies',
+    documentTypeCode: '380',
+    supplierBillNumber: 'QMS-7781',
+    issueDate: '2026-08-20',
+    dueDate: '2026-09-19',
+    overdue: false,
+    currencyCode: 'OMR',
+    totalIncludingVat: 300,
+    vatAmount: 14.286,
+    paidAmount: 0,
+    outstandingAmount: 0,
+    purchaseOrderReference: null,
+    workflowState: 'PAID',
+    readiness: { state: 'READY', distinctApprovals: 1, required: 1, autoApproved: false },
+    match: null,
+    hold: null,
+    paymentRunReference: null,
+    paidOnTheSpot: false,
+  }
+  const fmt = {
+    money: (value: number) => value.toFixed(3),
+    date: (iso: string) => iso,
+    when: (iso: string) => iso,
+  }
+  const realBill = (bill: BillRowDto) =>
+    debitNoteChecks(note(), bill, fmt).find((check) => check.id === 'realBill')?.detailKey
+
+  it('says a bill a credit cleared is settled by credit, not paid in full', () => {
+    expect(realBill(BILL)).toBe('supplierDebitNotes.checks.realBillSettledByCredit')
+    expect(realBill({ ...BILL, paidAmount: 300 })).toBe('supplierDebitNotes.checks.realBillPaid')
+    expect(realBill({ ...BILL, outstandingAmount: 20, workflowState: 'APPROVED' })).toBe(
+      'supplierDebitNotes.checks.realBillOpen',
+    )
+  })
+
+  it('says a rejected bill was rejected, not settled or paid, though it reads nothing owed (OBS-1)', () => {
+    // Backend #824 answers outstanding 0 on a rejected bill; paymentState keeps UNPAID.
+    expect(realBill({ ...BILL, workflowState: 'REJECTED', outstandingAmount: 0 })).toBe(
+      'supplierDebitNotes.checks.realBillRejected',
+    )
+    expect(
+      realBill({ ...BILL, workflowState: 'REJECTED', paidAmount: 50, outstandingAmount: 0 }),
+    ).toBe('supplierDebitNotes.checks.realBillRejected')
+    // A server before #824 still states what was owed; the rejection is said all the same.
+    expect(realBill({ ...BILL, workflowState: 'REJECTED', outstandingAmount: 300 })).toBe(
+      'supplierDebitNotes.checks.realBillRejected',
+    )
+  })
+})
+
+describe("the debit note's VAT check (B-13)", () => {
+  const fmt = {
+    money: (value: number) => value.toFixed(3),
+    date: (iso: string) => iso,
+    when: (iso: string) => iso,
+  }
+  const vatCheck = (totalIncludingVat: number, vatAmount: number) =>
+    debitNoteChecks(note({ totalIncludingVat, vatAmount }), null, fmt).find((check) => check.id === 'vat')!
+
+  it('passes a two-decimal VAT within the server tolerance of 0.005', () => {
+    // 11,175.444 includes 532.164 of 5% VAT; the supplier stated 532.16 (PINT allows two decimals).
+    expect(vatCheck(11175.444, 532.16)).toMatchObject({
+      titleKey: 'supplierDebitNotes.checks.vatAddsUp',
+      verdict: 'fine',
+    })
+    expect(vatCheck(11175.444, 532.164).verdict).toBe('fine')
+  })
+
+  it('still flags a VAT further off than the tolerance, saying the figure it expected', () => {
+    expect(vatCheck(11175.444, 532.15)).toMatchObject({
+      titleKey: 'supplierDebitNotes.checks.vatOdd',
+      verdict: 'check',
+      values: { vat: '532.150', expected: '532.164' },
+    })
+  })
+})
+
+describe("the debit note's VAT check at the tolerance's edge (B-13 review)", () => {
+  const fmt = {
+    money: (value: number) => value.toFixed(3),
+    date: (iso: string) => iso,
+    when: (iso: string) => iso,
+  }
+  const verdict = (vatAmount: number) =>
+    debitNoteChecks(note({ totalIncludingVat: 11175.444, vatAmount }), null, fmt).find(
+      (check) => check.id === 'vat',
+    )!.verdict
+
+  it('passes 0.005 OMR off the expected 532.164 and flags 0.006', () => {
+    expect(verdict(532.159)).toBe('fine')
+    expect(verdict(532.169)).toBe('fine')
+    expect(verdict(532.158)).toBe('check')
+    expect(verdict(532.17)).toBe('check')
+  })
+})
+
+describe('a debit note that names a credit note (DB-9)', () => {
+  const fmt = {
+    money: (value: number) => value.toFixed(3),
+    date: (iso: string) => iso,
+    when: (iso: string) => iso,
+  }
+  const target = (documentTypeCode: string): BillRowDto => ({
+    id: 'b-cn',
+    source: 'PEPPOL',
+    supplierId: 's-1',
+    supplierName: 'Qalhat Marine Supplies',
+    documentTypeCode,
+    supplierBillNumber: 'DPB1-CN-1',
+    issueDate: '2026-10-20',
+    dueDate: null,
+    overdue: false,
+    currencyCode: 'OMR',
+    totalIncludingVat: 10.5,
+    vatAmount: 0.5,
+    paidAmount: 0,
+    outstandingAmount: 0,
+    purchaseOrderReference: null,
+    workflowState: 'PAID',
+    readiness: { state: 'READY', distinctApprovals: 1, required: 1, autoApproved: false },
+    match: null,
+    hold: null,
+    paymentRunReference: null,
+    paidOnTheSpot: false,
+  })
+
+  it.each(['381', '261'])('says it points at a credit note (%s) and asks for a look', (code) => {
+    const check = debitNoteChecks(note(), target(code), fmt).find((entry) => entry.id === 'realBill')!
+    expect(check).toMatchObject({
+      titleKey: 'supplierDebitNotes.checks.creditNoteTarget',
+      detailKey: 'supplierDebitNotes.checks.creditNoteTargetDetail',
+      verdict: 'check',
+    })
+  })
+
+  it('still says a real bill for an invoice', () => {
+    expect(
+      debitNoteChecks(note(), target('380'), fmt).find((entry) => entry.id === 'realBill')!.titleKey,
+    ).toBe('supplierDebitNotes.checks.realBill')
   })
 })

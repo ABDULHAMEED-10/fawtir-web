@@ -10,13 +10,14 @@ import type {
 } from '../api/invoices/list'
 import { calculateInvoice, projectInvoice } from './invoiceMath'
 import { minorUnitsOf } from './format'
+import { delivered, noteStatusOf, type NoteListStatus } from './salesNote'
 
 /**
  * The Invoices list's view model, written only from what a row carries.
  *
  * Status is three facts, not one (INV-FR-012, decision D4): where the document is in authoring,
- * what it still owes, and whether it was delivered by hand. The Peppol/OTA column stays hidden
- * until the delivery status is real (D5), so no row claims a transmission the server never made.
+ * what it still owes, and how it was delivered. The Peppol/OTA column shows only a state the row
+ * itself carries (D5), so no row claims a transmission the server never made.
  */
 
 export type Note = { key: string; values?: Record<string, string | number> }
@@ -155,8 +156,35 @@ export function listFilter(
 
 export type AuthoringChip = 'draft' | 'issued' | 'cancelled' | 'discarded'
 /** `toSend` is the design's "To be sent": issued, nothing paid yet, and not delivered by any means. */
-export type PaymentChip = 'toSend' | 'awaiting' | 'partial' | 'overdue' | 'paid'
+export type PaymentChip = 'toSend' | 'awaiting' | 'partial' | 'overdue' | 'paid' | 'credited'
 export type PeppolResponse = 'AB' | 'AP' | 'RE'
+/** Where an issued row stands in the Peppol ledger, in the words its detail page uses (A-4b). */
+export type LedgerChip =
+  | 'queued'
+  | 'sending'
+  | 'sent'
+  | 'delivered'
+  | 'deliveredUnconfirmed'
+  | 'undeliverable'
+
+const LEDGER: Record<string, LedgerChip> = {
+  QUEUED: 'queued',
+  SENDING: 'sending',
+  SENT: 'sent',
+  DELIVERED: 'delivered',
+  DELIVERED_UNCONFIRMED: 'deliveredUnconfirmed',
+  UNDELIVERABLE: 'undeliverable',
+}
+
+/**
+ * The row's ledger state (backend #824), or null. NOT_SUBMITTED is null rather than "Not sent": a
+ * server before #824 answers it on every row whatever was sent. `deliveryBlocker` is not read for
+ * the same reason: that server sets CANONICAL_HANDOFF_NOT_ENABLED on every issued row.
+ */
+export function ledgerChipOf(row: Pick<InvoiceRowDto, 'authoringState' | 'deliveryState'>): LedgerChip | null {
+  if (row.authoringState !== 'ISSUED') return null
+  return Object.hasOwn(LEDGER, row.deliveryState) ? LEDGER[row.deliveryState] : null
+}
 
 export type InvoiceListItem = {
   id: string
@@ -178,11 +206,17 @@ export type InvoiceListItem = {
   sentManually: boolean
   /** The Peppol response code of the last delivery, when the row carries one. */
   peppolResponse: PeppolResponse | null
+  ledger: LedgerChip | null
   /** The issuing branch, named under the customer once the branches are known. */
   branchId: string | null
   isDraft: boolean
   /** A draft's sales approval state when a request is open (RL-6). */
   approval: InvoiceListApproval | null
+  /**
+   * A credit or debit note's status as the notes lists word it, so one note reads the same in both
+   * lists; it said "Issued" here and "To be sent" there. Null on any other document.
+   */
+  noteStatus: NoteListStatus | null
   /** A till sale's invoice or a till refund's credit note: the "From the till" badge. */
   fromTill: boolean
   /** The till's name (its code when it has none), for the badge's hint. */
@@ -207,14 +241,31 @@ function paymentOf(row: InvoiceRowDto): Pick<InvoiceListItem, 'payment' | 'payme
   if (!payment || payment.state === 'NOT_APPLICABLE') return { payment: null }
   if (payment.overdue)
     return { payment: 'overdue', paymentValues: { count: payment.daysOverdue ?? 0 } }
-  if (payment.state === 'PAID') return { payment: 'paid' }
+  if (payment.state === 'PAID') {
+    // Settled by credit notes with no money kept (a till sale refunded in full): not "Paid".
+    const creditedOnly = (payment.creditedAmount ?? 0) > 0 && (payment.paidAmount ?? 0) < 0.0005
+    return { payment: creditedOnly ? 'credited' : 'paid' }
+  }
   if (payment.state === 'PARTIALLY_PAID') return { payment: 'partial' }
   return { payment: delivered(row) ? 'awaiting' : 'toSend' }
 }
 
-/** Delivered by hand, or with a Peppol response on record. `NOT_SUBMITTED` and the like are not. */
-function delivered(row: InvoiceRowDto): boolean {
-  return row.deliveryState === 'SENT_MANUALLY' || !!row.peppolResponse
+/**
+ * A note row's words from the notes lists' rule, with two exceptions that keep what this list
+ * already said. A debit note that is paid, partly paid or overdue keeps its payment pill:
+ * noteStatusOf reads delivery first, and the backend sends no Peppol response, so an undelivered
+ * paid debit note would read "To be sent" (the hazard debitPaymentOf names). A discarded note
+ * keeps "Discarded", which noteStatusOf folds into "Cancelled".
+ */
+function listNoteStatus(row: InvoiceRowDto, payment: PaymentChip | null): NoteListStatus | null {
+  if (row.type !== 'CREDIT_NOTE' && row.type !== 'DEBIT_NOTE') return null
+  if (row.authoringState === 'DISCARDED') return null
+  if (
+    row.type === 'DEBIT_NOTE' &&
+    (payment === 'paid' || payment === 'partial' || payment === 'overdue')
+  )
+    return null
+  return noteStatusOf(row.type, row)
 }
 
 /** The draft's lines through the same engine the composer uses, at the currency's scale. */
@@ -246,7 +297,7 @@ function amountNoteOf(row: InvoiceRowDto, payment: PaymentChip | null): Note | n
       values: { amount: figures.outstandingAmount ?? 0 },
     }
   }
-  if (payment === 'paid' && (figures.creditedAmount ?? 0) > 0) {
+  if ((payment === 'paid' || payment === 'credited') && (figures.creditedAmount ?? 0) > 0) {
     return {
       key: 'invoicesPage.amountNote.credited',
       values: { amount: figures.creditedAmount ?? 0 },
@@ -276,9 +327,11 @@ export function toInvoiceListItem(row: InvoiceRowDto): InvoiceListItem {
     ...payment,
     sentManually: row.deliveryState === 'SENT_MANUALLY',
     peppolResponse: row.peppolResponse ?? null,
+    ledger: ledgerChipOf(row),
     branchId: row.branchId ?? null,
     isDraft,
     approval: isDraft ? (row.approvalState ?? null) : null,
+    noteStatus: listNoteStatus(row, payment.payment),
     fromTill: row.source === 'TILL',
     tillName: row.source === 'TILL' ? row.till?.name?.trim() || row.till?.code || null : null,
     sourceAnswered: row.source !== undefined,

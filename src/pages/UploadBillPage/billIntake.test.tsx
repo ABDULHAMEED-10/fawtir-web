@@ -6,16 +6,19 @@ import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitl
 import type { IntakeDto } from '../../api/expenditure/billIntake'
 import type { ReferenceDataDto } from '../../api/reference/referenceData'
 import {
+  BILL_CONFIRM_REFUSALS,
   billProblems,
   blankBillForm,
   fromIntake,
   linesTotals,
   savedDetails,
   supplierTaxCategory,
+  supplierWithVat,
   toConfirmation,
   toCorrections,
   vatIncluded,
 } from '../../lib/billIntake'
+import { overrideExtras } from '../../lib/billDuplicateOverride'
 import { UploadBillPage } from './UploadBillPage'
 import { UploadCreditNotePage } from '../UploadCreditNotePage'
 import { UploadDebitNotePage } from '../UploadDebitNotePage'
@@ -31,6 +34,20 @@ const MANAGER: Entitlements = {
   scopes: [],
   featureFlags: {},
 }
+
+/**
+ * The duplicate override is drawn only for a session holding invoice.approve (round 18), and the
+ * screens take the session from AppShell's own /me/entitlements read, which wins over any provider
+ * a test wraps around them. So a test that decides a duplicate signs in as this.
+ */
+const APPROVER: Entitlements = {
+  ...MANAGER,
+  username: 'approver',
+  permissions: [...MANAGER.permissions, 'invoice.approve'],
+}
+
+/** Who /me/entitlements answers for in this test. */
+let who: Entitlements
 
 const SUPPLIER_ID = '66666666-6666-6666-6666-666666666666'
 const ON_FILE = '77777777-7777-7777-7777-777777777777'
@@ -119,13 +136,14 @@ const bodyOf = (call: unknown[]) => JSON.parse((call[1] as RequestInit).body as 
 beforeEach(async () => {
   await i18n.changeLanguage('en')
   forgetEntitlements()
+  who = MANAGER
   uploads = []
   confirmAnswers = []
   uploadRefusal = null
   resumed = null
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
-    if (url === '/api/v1/me/entitlements') return json(200, MANAGER)
+    if (url === '/api/v1/me/entitlements') return json(200, who)
     if (url.startsWith('/api/v1/bills/intake?source=') && method === 'POST')
       return uploadRefusal ? uploadRefusal() : json(201, uploads.shift())
     if (/\/api\/v1\/bills\/intake\/[^/]+\/confirm$/.test(url))
@@ -229,6 +247,15 @@ async function pick(files: File[]) {
 const pdf = (name = 'bill.pdf') => new File(['%PDF-1.4'], name, { type: 'application/pdf' })
 
 describe('the bill form rules', () => {
+  it('takes the one supplier whose VAT number is exactly the file’s, whatever its case (DB-12)', () => {
+    const a = { id: 'a', vatNumber: 'OM1100999001' }
+    const b = { id: 'b', vatNumber: 'OM11009990012' }
+    expect(supplierWithVat([b, a], ' om1100999001 ')).toBe(a)
+    expect(supplierWithVat([b], 'OM1100999001')).toBeNull()
+    expect(supplierWithVat([a, { id: 'c', vatNumber: 'om1100999001' }], 'OM1100999001')).toBeNull()
+    expect(supplierWithVat([{ id: 'd', vatNumber: null }], '')).toBeNull()
+  })
+
   it('keeps a half-typed bill as corrections, refusing only malformed figures', () => {
     const half = { ...blankBillForm(), billNumber: 'NHS-2026-14', total: '42.500' }
     expect(billProblems(half, { needsNumber: true, partial: true })).toEqual({})
@@ -300,6 +327,23 @@ describe('the bill form rules', () => {
         lineNet: 100,
       },
     ])
+  })
+
+  it('round 20 L-5: a payment on a bill that would be held is worded, not left to the generic failure', () => {
+    expect(BILL_CONFIRM_REFUSALS.BILL_PAYMENT_ON_HOLD).toEqual({
+      field: null,
+      key: 'billIntake.refused.paymentOnHold',
+    })
+  })
+
+  it('round 20 L-6: the legacy notDuplicateOf is always sent as null, with or without an override', () => {
+    expect(toConfirmation(blankBillForm()).notDuplicateOf).toBeNull()
+    const overridden = toConfirmation(
+      blankBillForm(),
+      overrideExtras({ notDuplicateOfIds: ['b-1'], overrideReason: 'Second delivery' }),
+    )
+    expect(overridden.notDuplicateOf).toBeNull()
+    expect(overridden.notDuplicateOfIds).toEqual(['b-1'])
   })
 
   it('refuses what the server would, and a due date before the bill date', () => {
@@ -413,6 +457,7 @@ describe('upload a bill', () => {
   })
 
   it('fills an XML bill in, warns about a possible duplicate, and saves it on the person’s word', async () => {
+    who = APPROVER
     uploads.push(XML_INTAKE)
     confirmAnswers.push(
       json(409, {
@@ -426,6 +471,16 @@ describe('upload a bill', () => {
           currencyCode: 'OMR',
           source: 'PEPPOL',
         },
+        duplicates: [
+          {
+            billId: ON_FILE,
+            supplierBillNumber: 'MR-INV-8821',
+            issueDate: '2026-08-30',
+            total: 105,
+            currencyCode: 'OMR',
+            source: 'PEPPOL',
+          },
+        ],
       }),
     )
     renderAt('/expenditure/bills/upload')
@@ -453,6 +508,9 @@ describe('upload a bill', () => {
       `/expenditure/bills/${ON_FILE}`,
     )
 
+    fireEvent.change(within(warning).getByRole('textbox', { name: 'Why is this a different bill?' }), {
+      target: { value: 'Second delivery' },
+    })
     fireEvent.click(within(warning).getByRole('button', { name: /different bill/ }))
     expect(await screen.findByText('bill page')).toBeTruthy()
 
@@ -466,7 +524,76 @@ describe('upload a bill', () => {
       currency: 'OMR',
       notDuplicateOf: null,
     })
-    expect(bodyOf(second).notDuplicateOf).toBe(ON_FILE)
+    expect(bodyOf(second)).toMatchObject({
+      notDuplicateOf: null,
+      notDuplicateOfIds: [ON_FILE],
+      overrideReason: 'Second delivery',
+    })
+  })
+
+  it('starts with the supplier whose VAT number the file states, found on the list (DB-12)', async () => {
+    uploads.push(XML_INTAKE)
+    renderAt('/expenditure/bills/upload')
+    await pick([new File(['<Invoice/>'], 'bill.xml', { type: 'application/xml' })])
+
+    expect(
+      await screen.findByText('VAT number on the file matches the supplier already on your list.'),
+    ).toBeTruthy()
+    expect(screen.queryByText(/The file gives the supplier's VAT number/)).toBeNull()
+    expect(
+      calls('GET', '/api/v1/suppliers?').some(([url]) => String(url).includes('q=OM1100999001')),
+    ).toBe(true)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save the bill' }))
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    expect(bodyOf(calls('POST', '/api/v1/bills/intake/i-xml/confirm')[0])).toMatchObject({
+      supplierId: SUPPLIER_ID,
+      supplierName: 'Muscat Roastery Co',
+    })
+  })
+
+  it('leaves the supplier to the person when no one, or more than one, on the list has that VAT number (DB-12)', async () => {
+    const answer = fetchMock.getMockImplementation()!
+    const cases: { vatNumbers: string[]; total?: number }[] = [
+      { vatNumbers: ['OM1100999001X'] },
+      { vatNumbers: ['OM1100999001', 'om1100999001'] },
+      // One exact match on the first page, but more matches than the page holds.
+      { vatNumbers: ['OM1100999001'], total: 21 },
+    ]
+    for (const { vatNumbers, total = vatNumbers.length } of cases) {
+      fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+        url.startsWith('/api/v1/suppliers?')
+          ? json(200, {
+              items: vatNumbers.map((vatNumber, index) => ({
+                id: `s-${index}`,
+                displayName: `Supplier ${index}`,
+                vatNumber,
+              })),
+              page: 0,
+              pageSize: 20,
+              total,
+            })
+          : answer(url, init),
+      )
+      uploads.push(XML_INTAKE)
+      const { unmount } = renderAt('/expenditure/bills/upload')
+      await pick([new File(['<Invoice/>'], 'bill.xml', { type: 'application/xml' })])
+
+      expect(
+        await screen.findByText("The file gives the supplier's VAT number as OM1100999001."),
+      ).toBeTruthy()
+      await waitFor(() =>
+        expect(
+          calls('GET', '/api/v1/suppliers?').some(([url]) => String(url).includes('q=OM1100999001')),
+        ).toBe(true),
+      )
+      // Let the lookup's answer land before saying nothing was picked from it.
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0))
+      })
+      expect(screen.queryByText(/matches the supplier already on your list/)).toBeNull()
+      unmount()
+    }
   })
 
   it('discards the upload when the person cancels', async () => {
@@ -803,5 +930,624 @@ describe('why a captured bill was refused, in its own sentence', () => {
     await uploadAndSave('/expenditure/debit-notes/upload', 'Save the debit note')
     expect(await screen.findByText(GENERIC)).toBeTruthy()
     expect(screen.queryByText(/to record a bill for it/)).toBeNull()
+  })
+})
+
+// RB2 580c732a1 / 19f93170a: the 409 lists every match in `duplicates`; the bill is recorded once
+// all of them are in `notDuplicateOfIds` with an `overrideReason` (BillIntakeService:557-625).
+describe('a bill that may duplicate more than one bill on file', () => {
+  const onFile = (id: string) => ({
+    billId: id,
+    supplierBillNumber: 'MR-INV-8821',
+    issueDate: '2026-08-30',
+    total: 105,
+    currencyCode: 'OMR',
+    source: 'UPLOADED',
+  })
+  const X = '11111111-1111-1111-1111-111111111111'
+  const Y = '22222222-2222-2222-2222-222222222222'
+  /** `listed` null answers as a server before the list: `duplicateOf` alone. */
+  const possible = (listed: string[] | null, oldest = listed?.[0] ?? X) =>
+    json(409, {
+      type: 'https://api.fawtir.om/problems/resource-conflict',
+      error: 'BILL_INTAKE_POSSIBLE_DUPLICATE',
+      duplicateOf: onFile(oldest),
+      ...(listed ? { duplicates: listed.map(onFile) } : {}),
+    })
+  /**
+   * Round 19: the refusal as the server sends it for each kind of match. Only a same-supplier
+   * Peppol copy says listing it is recorded held (`heldForReviewIfListed`).
+   */
+  const matchOf = (source: 'PEPPOL' | 'UPLOADED', heldForReviewIfListed: boolean) =>
+    json(409, {
+      type: 'https://api.fawtir.om/problems/resource-conflict',
+      error: 'BILL_INTAKE_POSSIBLE_DUPLICATE',
+      duplicateOf: { ...onFile(X), source },
+      duplicates: [{ ...onFile(X), source }],
+      heldForReviewIfListed,
+    })
+  const sameSupplierPeppolCopy = () => matchOf('PEPPOL', true)
+  /**
+   * Round 21 F-2: the held-against copy and a second match on the same record. Listing both needs an
+   * approver, so the server says false; `flag` lets a test check the client does not rely on that.
+   */
+  const heldCopyAndAnotherMatch = (flag = false) =>
+    json(409, {
+      type: 'https://api.fawtir.om/problems/resource-conflict',
+      error: 'BILL_INTAKE_POSSIBLE_DUPLICATE',
+      duplicateOf: { ...onFile(X), source: 'PEPPOL' },
+      duplicates: [
+        { ...onFile(X), source: 'PEPPOL' },
+        { ...onFile(Y), source: 'UPLOADED' },
+      ],
+      heldForReviewIfListed: flag,
+    })
+  const figuresOnlyCoincidence = () => matchOf('PEPPOL', false)
+  const sameRecordUpload = () => matchOf('UPLOADED', false)
+  const refusedWith = (code: string, extra: Record<string, unknown> = {}) =>
+    json(400, { type: 'https://api.fawtir.om/problems/expenditure-refused', error: code, ...extra })
+  const confirms = () => calls('POST', '/api/v1/bills/intake/i-xml/confirm')
+  const warning = () => screen.getByRole('alert', { name: '' })
+  const ALL_DIFFERENT = 'They are all different bills. Save it'
+  const ONE_DIFFERENT = "It's a different bill. Save it"
+
+  async function openAndSave() {
+    who = APPROVER
+    uploads.push(XML_INTAKE)
+    renderAt('/expenditure/bills/upload')
+    await pick([new File(['<Invoice/>'], 'bill.xml', { type: 'application/xml' })])
+    await screen.findByDisplayValue('MR-INV-8821')
+    fireEvent.click(screen.getByRole('button', { name: 'Save the bill' }))
+  }
+  const sendAll = () =>
+    fireEvent.click(within(warning()).getByRole('button', { name: ALL_DIFFERENT }))
+  const giveReason = (reason: string) =>
+    fireEvent.change(within(warning()).getByRole('textbox'), { target: { value: reason } })
+
+  it('round 18: one name-only match asks for a reason, then sends the listed id with it, never notDuplicateOf', async () => {
+    confirmAnswers.push(possible([X]))
+    await openAndSave()
+    expect(await screen.findByText('This may be a bill you already have')).toBeTruthy()
+
+    fireEvent.click(within(warning()).getByRole('button', { name: ONE_DIFFERENT }))
+    expect(
+      await within(warning()).findByText('Enter a reason before confirming this is a different bill.'),
+    ).toBeTruthy()
+    expect(confirms()).toHaveLength(1)
+
+    fireEvent.change(within(warning()).getByRole('textbox', { name: 'Why is this a different bill?' }), {
+      target: { value: '  Second delivery  ' },
+    })
+    fireEvent.click(within(warning()).getByRole('button', { name: ONE_DIFFERENT }))
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    expect(bodyOf(confirms()[1])).toEqual(
+      expect.objectContaining({
+        notDuplicateOf: null,
+        notDuplicateOfIds: [X],
+        overrideReason: 'Second delivery',
+      }),
+    )
+  })
+
+  describe('round 18, round 19: a person without invoice.approve', () => {
+    const APPROVER_ONLY =
+      'Only an authorized invoice approver can confirm that this is a different bill. You can submit it for review.'
+    const APPROVER_MUST_RECORD =
+      'Only an authorized invoice approver can confirm that this is a different bill. Ask an invoice approver to record it.'
+
+    // MANAGER holds invoice.payment.manage and not invoice.approve: a payer. Signed in through the
+    // entitlements read, as AppShell takes it; a wrapped provider would be shadowed by AppShell's.
+    const PAYER: Entitlements = { ...MANAGER, username: 'payer' }
+
+    async function openAndSaveAs(session: Entitlements) {
+      who = session
+      uploads.push(XML_INTAKE)
+      render(
+        <MemoryRouter initialEntries={['/expenditure/bills/upload']}>
+          <Routes>
+            <Route path="/expenditure/bills/upload" element={<UploadBillPage />} />
+            <Route path="/expenditure/bills/upload/:intakeId" element={<UploadBillPage />} />
+            <Route path="/expenditure/bills/:id" element={<p>bill page</p>} />
+          </Routes>
+        </MemoryRouter>,
+      )
+      await pick([new File(['<Invoice/>'], 'bill.xml', { type: 'application/xml' })])
+      await screen.findByDisplayValue('MR-INV-8821')
+      fireEvent.click(screen.getByRole('button', { name: 'Save the bill' }))
+    }
+
+    it('round 20 L-4: is not drawn the decision at all, only why, for one match and for many', async () => {
+      confirmAnswers.push(possible([X, Y]))
+      await openAndSaveAs(PAYER)
+      await screen.findByText('This may be one of 2 bills you already have')
+      expect(within(warning()).queryByRole('button', { name: ALL_DIFFERENT })).toBeNull()
+      // Round 19: a refusal that does not say held-for-review offers no submission.
+      expect(within(warning()).getByText(APPROVER_MUST_RECORD)).toBeTruthy()
+      expect(within(warning()).queryByRole('button', { name: 'Submit it for review' })).toBeNull()
+      expect(confirms()).toHaveLength(1)
+    })
+
+
+    it('round 19, same-supplier Peppol copy: submits the bill for review with the listed id and reason; the server holds it', async () => {
+      confirmAnswers.push(sameSupplierPeppolCopy())
+      await openAndSaveAs(PAYER)
+      await screen.findByText('This may be a bill you already have')
+      expect(within(warning()).queryByRole('button', { name: ONE_DIFFERENT })).toBeNull()
+      expect(within(warning()).getByText(APPROVER_ONLY)).toBeTruthy()
+      giveReason('Copy of the Peppol bill for the approver')
+      fireEvent.click(within(warning()).getByRole('button', { name: 'Submit it for review' }))
+      expect(await screen.findByText('bill page')).toBeTruthy()
+      expect(confirms()).toHaveLength(2)
+      expect(bodyOf(confirms()[1])).toMatchObject({
+        notDuplicateOf: null,
+        notDuplicateOfIds: [X],
+        overrideReason: 'Copy of the Peppol bill for the approver',
+      })
+    })
+
+    it('round 19, figures-only coincidence: no submission is offered; an approver must record it', async () => {
+      confirmAnswers.push(figuresOnlyCoincidence())
+      await openAndSaveAs(PAYER)
+      await screen.findByText('This may be a bill you already have')
+      expect(within(warning()).queryByRole('button', { name: ONE_DIFFERENT })).toBeNull()
+      expect(within(warning()).queryByRole('button', { name: 'Submit it for review' })).toBeNull()
+      expect(within(warning()).queryByRole('textbox')).toBeNull()
+      expect(within(warning()).getByText(APPROVER_MUST_RECORD)).toBeTruthy()
+      expect(within(warning()).queryByText(/submit it for review/i)).toBeNull()
+      expect(confirms()).toHaveLength(1)
+    })
+
+    it('round 19, same-record upload: no submission is offered; an approver must record it', async () => {
+      confirmAnswers.push(sameRecordUpload())
+      await openAndSaveAs(PAYER)
+      await screen.findByText('This may be a bill you already have')
+      expect(within(warning()).queryByRole('button', { name: ONE_DIFFERENT })).toBeNull()
+      expect(within(warning()).queryByRole('button', { name: 'Submit it for review' })).toBeNull()
+      expect(within(warning()).queryByRole('textbox')).toBeNull()
+      expect(within(warning()).getByText(APPROVER_MUST_RECORD)).toBeTruthy()
+      expect(within(warning()).queryByText(/submit it for review/i)).toBeNull()
+      expect(confirms()).toHaveLength(1)
+    })
+
+    it('round 20 L-5: a submission refused BILL_PAYMENT_ON_HOLD says the payment waits for the approver; no success', async () => {
+      confirmAnswers.push(sameSupplierPeppolCopy(), refusedWith('BILL_PAYMENT_ON_HOLD'))
+      await openAndSaveAs(PAYER)
+      await screen.findByText('This may be a bill you already have')
+      giveReason('Copy of the Peppol bill for the approver')
+      fireEvent.click(within(warning()).getByRole('button', { name: 'Submit it for review' }))
+      expect(
+        await screen.findByText(
+          "This bill will be held as a possible duplicate, so its payment can't be recorded now. Save it without the payment, and record the payment once an authorized invoice approver has resolved the hold.",
+        ),
+      ).toBeTruthy()
+      expect(screen.queryByText('bill page')).toBeNull()
+      expect(screen.queryByText(/BILL_PAYMENT_ON_HOLD/)).toBeNull()
+    })
+
+    it('round 19: when the server refuses a submission it is worded as a refusal and not offered again', async () => {
+      confirmAnswers.push(sameSupplierPeppolCopy(), refusedWith('BILL_INTAKE_OVERRIDE_APPROVER_REQUIRED'))
+      await openAndSaveAs(PAYER)
+      await screen.findByText('This may be a bill you already have')
+      giveReason('Different delivery')
+      fireEvent.click(within(warning()).getByRole('button', { name: 'Submit it for review' }))
+      expect(
+        await within(warning()).findByText(
+          'This action requires an authorized human invoice approver. Ask an invoice approver to record this bill.',
+        ),
+      ).toBeTruthy()
+      expect(within(warning()).queryByRole('button', { name: 'Submit it for review' })).toBeNull()
+      expect(within(warning()).queryByText(/submit (it|the bill) for review/i)).toBeNull()
+      // Round 20 L-1: one sentence, the server's, not the standing explanation beside it.
+      expect(within(warning()).queryByText(APPROVER_MUST_RECORD)).toBeNull()
+      expect(screen.queryByText('bill page')).toBeNull()
+      expect(screen.queryByText(/BILL_INTAKE_OVERRIDE_APPROVER_REQUIRED/)).toBeNull()
+    })
+
+    it('round 21 F-2: the held copy plus another match offers no submission; an approver must record it, nothing is saved', async () => {
+      confirmAnswers.push(heldCopyAndAnotherMatch())
+      await openAndSaveAs(PAYER)
+      await screen.findByText('This may be one of 2 bills you already have')
+      expect(within(warning()).queryByRole('button', { name: 'Submit it for review' })).toBeNull()
+      expect(within(warning()).queryByRole('button', { name: ALL_DIFFERENT })).toBeNull()
+      expect(within(warning()).queryByRole('textbox')).toBeNull()
+      expect(within(warning()).getByText(APPROVER_MUST_RECORD)).toBeTruthy()
+      expect(within(warning()).queryByText(APPROVER_ONLY)).toBeNull()
+      expect(confirms()).toHaveLength(1)
+      expect(screen.queryByText('bill page')).toBeNull()
+    })
+
+    it('round 21 F-2: even a server flag cannot make two listed bills a submission', async () => {
+      confirmAnswers.push(heldCopyAndAnotherMatch(true))
+      await openAndSaveAs(PAYER)
+      await screen.findByText('This may be one of 2 bills you already have')
+      expect(within(warning()).queryByRole('button', { name: 'Submit it for review' })).toBeNull()
+      expect(within(warning()).getByText(APPROVER_MUST_RECORD)).toBeTruthy()
+      expect(confirms()).toHaveLength(1)
+    })
+
+    it('round 21 F-2: a held-for-review answer does not survive a second refusal that names one more bill', async () => {
+      confirmAnswers.push(sameSupplierPeppolCopy(), heldCopyAndAnotherMatch(true))
+      await openAndSaveAs(PAYER)
+      await screen.findByText('This may be a bill you already have')
+      giveReason('Copy of the Peppol bill for the approver')
+      fireEvent.click(within(warning()).getByRole('button', { name: 'Submit it for review' }))
+      expect(await screen.findByText('This may be one of 2 bills you already have')).toBeTruthy()
+      expect(within(warning()).queryByRole('button', { name: 'Submit it for review' })).toBeNull()
+      expect(within(warning()).getByText(APPROVER_MUST_RECORD)).toBeTruthy()
+      expect(confirms()).toHaveLength(2)
+      expect(screen.queryByText('bill page')).toBeNull()
+    })
+
+    it('round 21 F-2: an approver lists the held copy and the other match together and saves', async () => {
+      confirmAnswers.push(heldCopyAndAnotherMatch())
+      await openAndSaveAs({ ...PAYER, permissions: [...PAYER.permissions, 'invoice.approve'] })
+      await screen.findByText('This may be one of 2 bills you already have')
+      expect(within(warning()).queryByRole('button', { name: 'Submit it for review' })).toBeNull()
+      giveReason('Two deliveries')
+      fireEvent.click(within(warning()).getByRole('button', { name: ALL_DIFFERENT }))
+      expect(await screen.findByText('bill page')).toBeTruthy()
+      expect(bodyOf(confirms()[1])).toMatchObject({
+        notDuplicateOf: null,
+        notDuplicateOfIds: [X, Y],
+        overrideReason: 'Two deliveries',
+      })
+    })
+
+    it('an approver is offered the decision and no review button', async () => {
+      confirmAnswers.push(possible([X]))
+      await openAndSaveAs({ ...PAYER, permissions: [...PAYER.permissions, 'invoice.approve'] })
+      await screen.findByText('This may be a bill you already have')
+      expect(
+        (within(warning()).getByRole('button', { name: ONE_DIFFERENT }) as HTMLButtonElement).disabled,
+      ).toBe(false)
+      expect(within(warning()).queryByRole('button', { name: 'Submit it for review' })).toBeNull()
+    })
+
+    it('round 19: an approver is offered the decision, not a submission, even on a same-supplier Peppol copy', async () => {
+      confirmAnswers.push(sameSupplierPeppolCopy())
+      await openAndSaveAs({ ...PAYER, permissions: [...PAYER.permissions, 'invoice.approve'] })
+      await screen.findByText('This may be a bill you already have')
+      expect(
+        (within(warning()).getByRole('button', { name: ONE_DIFFERENT }) as HTMLButtonElement).disabled,
+      ).toBe(false)
+      expect(within(warning()).queryByRole('button', { name: 'Submit it for review' })).toBeNull()
+    })
+
+    // Round 25, residual (1): a match that shares only figures with the bill is a potential
+    // coincidence, worded as one; the decision rules are the ones above, unchanged.
+    const COINCIDENCE =
+      /A bill MR-INV-8821 with the same details is already recorded, but nothing shows it is from this supplier: .* It may be a coincidence\./
+    const flaggedCoincidence = (figuresOnly?: unknown) =>
+      json(409, {
+        type: 'https://api.fawtir.om/problems/resource-conflict',
+        error: 'BILL_INTAKE_POSSIBLE_DUPLICATE',
+        duplicateOf: { ...onFile(X), source: 'PEPPOL' },
+        duplicates: [{ ...onFile(X), source: 'PEPPOL' }],
+        heldForReviewIfListed: false,
+        ...(figuresOnly === undefined ? {} : { figuresOnly }),
+      })
+
+    it('round 25 residual (1): a figures-only refusal names the match as a possible coincidence; a payer still cannot pass it', async () => {
+      confirmAnswers.push(flaggedCoincidence(true))
+      await openAndSaveAs(PAYER)
+      await screen.findByText('This may be a bill you already have')
+      // textContent, not getByText: the total is set apart in its own element (withRial).
+      expect(warning().textContent).toMatch(COINCIDENCE)
+      expect(warning().textContent).not.toMatch(/from this supplier is already recorded/)
+      expect(within(warning()).queryByRole('button', { name: ONE_DIFFERENT })).toBeNull()
+      expect(within(warning()).queryByRole('button', { name: 'Submit it for review' })).toBeNull()
+      expect(within(warning()).getByText(APPROVER_MUST_RECORD)).toBeTruthy()
+      expect(confirms()).toHaveLength(1)
+    })
+
+    it('round 25 residual (1): an approver sees the coincidence wording and the decision', async () => {
+      confirmAnswers.push(flaggedCoincidence(true))
+      await openAndSaveAs({ ...PAYER, permissions: [...PAYER.permissions, 'invoice.approve'] })
+      await screen.findByText('This may be a bill you already have')
+      // textContent, not getByText: the total is set apart in its own element (withRial).
+      expect(warning().textContent).toMatch(COINCIDENCE)
+      expect(
+        (within(warning()).getByRole('button', { name: ONE_DIFFERENT }) as HTMLButtonElement).disabled,
+      ).toBe(false)
+      expect(within(warning()).queryByRole('button', { name: 'Submit it for review' })).toBeNull()
+    })
+
+    it.each([
+      ['false', false],
+      ['absent, as from an older server', undefined],
+      ['not a boolean', 'true'],
+    ])('round 25 residual (1): figures-only %s keeps the existing sentence', async (_label, figuresOnly) => {
+      confirmAnswers.push(flaggedCoincidence(figuresOnly))
+      await openAndSaveAs(PAYER)
+      await screen.findByText('This may be a bill you already have')
+      expect(
+        within(warning()).getByText(/A bill MR-INV-8821 from this supplier is already recorded/),
+      ).toBeTruthy()
+      expect(warning().textContent).not.toMatch(/It may be a coincidence/)
+    })
+  })
+
+  it('lists both bills, asks why, and saves over both with the reason trimmed', async () => {
+    confirmAnswers.push(possible([X, Y]))
+    await openAndSave()
+
+    expect(await screen.findByText('This may be one of 2 bills you already have')).toBeTruthy()
+    expect(
+      within(warning())
+        .getAllByRole('link', { name: 'Open that bill' })
+        .map((link) => link.getAttribute('href')),
+    ).toEqual([`/expenditure/bills/${X}`, `/expenditure/bills/${Y}`])
+    expect(within(warning()).getAllByText(/A bill MR-INV-8821 from this supplier/)).toHaveLength(2)
+
+    sendAll()
+    expect(
+      await within(warning()).findByText('Say why this bill is different from the ones listed.'),
+    ).toBeTruthy()
+    expect(confirms()).toHaveLength(1)
+
+    giveReason('  The supplier reissues its numbers every year  ')
+    sendAll()
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    expect(confirms()).toHaveLength(2)
+    expect(bodyOf(confirms()[1])).toMatchObject({
+      notDuplicateOf: null,
+      notDuplicateOfIds: [X, Y],
+      overrideReason: 'The supplier reissues its numbers every year',
+    })
+  })
+
+  it('ends the X/Y swap: the second bill named is added to the first, not put in its place', async () => {
+    confirmAnswers.push(possible([X]), possible([Y]))
+    await openAndSave()
+    await screen.findByRole('alert', { name: '' })
+    giveReason('Two deliveries billed under one number')
+    fireEvent.click(within(warning()).getByRole('button', { name: ONE_DIFFERENT }))
+    expect(await screen.findByText('This may be one of 2 bills you already have')).toBeTruthy()
+    expect(bodyOf(confirms()[1])).toMatchObject({
+      notDuplicateOf: null,
+      notDuplicateOfIds: [X],
+      overrideReason: 'Two deliveries billed under one number',
+    })
+
+    sendAll()
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    expect(bodyOf(confirms()[2])).toMatchObject({
+      notDuplicateOf: null,
+      notDuplicateOfIds: [X, Y],
+      overrideReason: 'Two deliveries billed under one number',
+    })
+  })
+
+  // PRV43-EXP5 M-1: each refusal's figuresOnly belongs to the bills it named, not to the review.
+  const namedAs = (id: string, figuresOnly: boolean) =>
+    json(409, {
+      type: 'https://api.fawtir.om/problems/resource-conflict',
+      error: 'BILL_INTAKE_POSSIBLE_DUPLICATE',
+      duplicateOf: onFile(id),
+      duplicates: [onFile(id)],
+      heldForReviewIfListed: false,
+      figuresOnly,
+    })
+  const rowOf = (id: string) =>
+    within(warning())
+      .getAllByRole('link', { name: 'Open that bill' })
+      .find((link) => link.getAttribute('href') === `/expenditure/bills/${id}`)!
+      .closest('li')!.textContent
+
+  it.each([
+    ['the same-record copy first, then the coincidence', [X, false], [Y, true]],
+    ['the coincidence first, then the same-record copy', [Y, true], [X, false]],
+  ] as const)('PRV43-EXP5 M-1: %s; each bill keeps its own sentence', async (_label, first, second) => {
+    confirmAnswers.push(namedAs(first[0], first[1]), namedAs(second[0], second[1]))
+    await openAndSave()
+    await screen.findByRole('alert', { name: '' })
+    giveReason('Two deliveries billed under one number')
+    fireEvent.click(within(warning()).getByRole('button', { name: ONE_DIFFERENT }))
+    expect(await screen.findByText('This may be one of 2 bills you already have')).toBeTruthy()
+
+    expect(rowOf(X)).toMatch(/A bill MR-INV-8821 from this supplier is already recorded/)
+    expect(rowOf(X)).not.toMatch(/It may be a coincidence/)
+    expect(rowOf(Y)).toMatch(/nothing shows it is from this supplier: .* It may be a coincidence\./)
+    expect(rowOf(Y)).not.toMatch(/from this supplier is already recorded/)
+  })
+
+  it('round 18: offers nothing to a server that did not list the matches, since the reasonless field is gone', async () => {
+    confirmAnswers.push(possible(null, X))
+    await openAndSave()
+    expect(await screen.findByText(/they cannot be set aside here yet/)).toBeTruthy()
+    expect(within(warning()).queryByRole('button')).toBeNull()
+    expect(within(warning()).queryByRole('textbox')).toBeNull()
+    expect(confirms()).toHaveLength(1)
+    expect(bodyOf(confirms()[0]).notDuplicateOf).toBeNull()
+  })
+
+  it('gathers the ids across refusals and stops past 20 without asking', async () => {
+    const ids = Array.from(
+      { length: 25 },
+      (_, index) => `00000000-0000-0000-0000-${String(index + 1).padStart(12, '0')}`,
+    )
+    confirmAnswers.push(
+      possible(ids.slice(0, 5)),
+      possible(ids.slice(5, 10)),
+      possible(ids.slice(10, 15)),
+      possible(ids.slice(15, 20)),
+      possible(ids.slice(20, 25)),
+    )
+    await openAndSave()
+    expect(await screen.findByText('This may be one of 5 bills you already have')).toBeTruthy()
+    giveReason('Reissued numbers')
+    for (const seen of [10, 15, 20]) {
+      sendAll()
+      expect(
+        await screen.findByText(`This may be one of ${seen} bills you already have`),
+      ).toBeTruthy()
+    }
+    expect(bodyOf(confirms()[3]).notDuplicateOfIds).toEqual(ids.slice(0, 15))
+
+    sendAll()
+    expect(await screen.findByText(/matches too many bills on file to save in one go/)).toBeTruthy()
+    expect(bodyOf(confirms()[4]).notDuplicateOfIds).toEqual(ids.slice(0, 20))
+    expect(within(warning()).queryByRole('button', { name: ALL_DIFFERENT })).toBeNull()
+    expect(confirms()).toHaveLength(5)
+  })
+
+  it.each([
+    ['BILL_INTAKE_OVERRIDE_REASON_REQUIRED', 'Say why this bill is different from the ones listed.'],
+    ['BILL_INTAKE_OVERRIDE_REASON_TOO_LONG', 'Keep the reason to 280 characters.'],
+    [
+      'BILL_INTAKE_NOT_DUPLICATE_OF_TOO_MANY',
+      'This bill matches too many bills on file to save in one go. Open them and check the supplier and number.',
+    ],
+  ])('words %s in the warning, keeping the list and the reason', async (code, sentence) => {
+    confirmAnswers.push(possible([X, Y]), refusedWith(code))
+    await openAndSave()
+    await screen.findByText('This may be one of 2 bills you already have')
+    giveReason('Reissued numbers')
+    sendAll()
+    expect(await within(warning()).findByText(sentence)).toBeTruthy()
+    expect((within(warning()).getByRole('textbox') as HTMLTextAreaElement).value).toBe(
+      'Reissued numbers',
+    )
+    expect(screen.queryByText(new RegExp(code))).toBeNull()
+  })
+
+  it('words an unknown bill and asks afresh on the next save', async () => {
+    confirmAnswers.push(
+      possible([X, Y]),
+      refusedWith('BILL_INTAKE_NOT_DUPLICATE_OF_UNKNOWN'),
+      possible([Y]),
+    )
+    await openAndSave()
+    await screen.findByText('This may be one of 2 bills you already have')
+    giveReason('Reissued numbers')
+    sendAll()
+    expect(
+      await screen.findByText(
+        'One of the bills it was compared with is no longer on file, or no longer matches this bill. Save again to check it afresh.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByRole('textbox', { name: 'Why is this a different bill?' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Open that bill' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save the bill' }))
+    // Only Y is on file now: the older single warning, with no stale X carried over.
+    expect(await screen.findByText('This may be a bill you already have')).toBeTruthy()
+  })
+
+  it.each([
+    [
+      'REFERENCE_NOT_FOUND',
+      'One of the bills it was compared with is no longer on file. Save again to check it afresh.',
+    ],
+    [
+      'REFERENCE_NO_LONGER_MATCHES',
+      'One of the bills it was compared with is still on file but no longer matches this bill. Save again to check it afresh.',
+    ],
+  ])('round 23 L-3: words an unknown bill with reason %s, and asks afresh on the next save', async (reason, sentence) => {
+    confirmAnswers.push(
+      possible([X, Y]),
+      refusedWith('BILL_INTAKE_NOT_DUPLICATE_OF_UNKNOWN', { reason }),
+      possible([Y]),
+    )
+    await openAndSave()
+    await screen.findByText('This may be one of 2 bills you already have')
+    giveReason('Reissued numbers')
+    sendAll()
+    expect(await screen.findByText(sentence)).toBeTruthy()
+    expect(
+      screen.queryByText(
+        'One of the bills it was compared with is no longer on file, or no longer matches this bill. Save again to check it afresh.',
+      ),
+    ).toBeNull()
+    expect(screen.queryByText(new RegExp(reason))).toBeNull()
+    expect(screen.queryByRole('textbox', { name: 'Why is this a different bill?' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save the bill' }))
+    expect(await screen.findByText('This may be a bill you already have')).toBeTruthy()
+  })
+
+  it('round 23 L-3: a reason this screen does not know keeps the combined sentence', async () => {
+    confirmAnswers.push(
+      possible([X, Y]),
+      refusedWith('BILL_INTAKE_NOT_DUPLICATE_OF_UNKNOWN', { reason: 'REFERENCE_SOMETHING_ELSE' }),
+    )
+    await openAndSave()
+    await screen.findByText('This may be one of 2 bills you already have')
+    giveReason('Reissued numbers')
+    sendAll()
+    expect(
+      await screen.findByText(
+        'One of the bills it was compared with is no longer on file, or no longer matches this bill. Save again to check it afresh.',
+      ),
+    ).toBeTruthy()
+  })
+
+  it('says it in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    // The decision is drawn only for a loaded approver (1f36779a, PRV43-WEBEXP L-1), as openAndSave sets.
+    who = APPROVER
+    confirmAnswers.push(possible([X, Y]))
+    uploads.push(XML_INTAKE)
+    renderAt('/expenditure/bills/upload')
+    await pick([new File(['<Invoice/>'], 'bill.xml', { type: 'application/xml' })])
+    await screen.findByDisplayValue('MR-INV-8821')
+    fireEvent.submit(document.querySelector('form')!)
+    expect(await screen.findByText('قد تكون هذه إحدى 2 فواتير مسجّلة لديك')).toBeTruthy()
+    fireEvent.click(within(warning()).getByRole('button', { name: 'كلها فواتير مختلفة: احفظها' }))
+    expect(
+      await screen.findByText('اذكر سبب اختلاف هذه الفاتورة عن الفواتير المذكورة.'),
+    ).toBeTruthy()
+  })
+
+  it('sends one request for a double click', async () => {
+    confirmAnswers.push(possible([X, Y]))
+    await openAndSave()
+    await screen.findByText('This may be one of 2 bills you already have')
+    giveReason('Reissued numbers')
+    sendAll()
+    sendAll()
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    expect(confirms()).toHaveLength(2)
+  })
+})
+
+describe('a supplier note that may duplicate more than one on file', () => {
+  it('sends the list from the note upload too', async () => {
+    const X = '11111111-1111-1111-1111-111111111111'
+    const Y = '22222222-2222-2222-2222-222222222222'
+    const onFile = (id: string) => ({
+      billId: id,
+      supplierBillNumber: 'MR-INV-8821',
+      issueDate: null,
+      total: null,
+      currencyCode: null,
+      source: 'PEPPOL',
+    })
+    confirmAnswers.push(
+      json(409, {
+        type: 'https://api.fawtir.om/problems/resource-conflict',
+        error: 'BILL_INTAKE_POSSIBLE_DUPLICATE',
+        duplicateOf: onFile(X),
+        duplicates: [onFile(X), onFile(Y)],
+      }),
+    )
+    who = APPROVER
+    uploads.push(XML_INTAKE)
+    renderAt('/expenditure/debit-notes/upload')
+    await pick([new File(['<DebitNote/>'], 'note.xml', { type: 'application/xml' })])
+    await screen.findByDisplayValue('MR-INV-8821')
+    fireEvent.click(screen.getByRole('button', { name: 'Save the debit note' }))
+
+    const panel = await screen.findByRole('alert', { name: '' })
+    expect(within(panel).getByText('This may be one of 2 bills you already have')).toBeTruthy()
+    fireEvent.change(within(panel).getByRole('textbox'), { target: { value: 'Two charges' } })
+    fireEvent.click(within(panel).getByRole('button', { name: 'They are all different bills. Save it' }))
+    expect(await screen.findByText('debit note page')).toBeTruthy()
+    expect(bodyOf(calls('POST', '/api/v1/bills/intake/i-xml/confirm')[1])).toMatchObject({
+      documentTypeCode: '383',
+      notDuplicateOf: null,
+      notDuplicateOfIds: [X, Y],
+      overrideReason: 'Two charges',
+    })
   })
 })

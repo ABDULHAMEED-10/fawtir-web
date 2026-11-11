@@ -16,10 +16,8 @@ import {
   confirmIntake,
   discardIntake,
   newBillKey,
-  possibleDuplicateOf,
   recordBillWithoutFile,
   uploadIntake,
-  type PossibleDuplicateDto,
 } from '../../api/expenditure/billIntake'
 import {
   loadApprovalPolicy,
@@ -41,14 +39,26 @@ import {
   type SupplierOverviewDto,
 } from '../../api/expenditure/supplierRecord'
 import { describeApiFailure } from '../../lib/apiFailure'
+import { TOO_BIG_FOR_SERVER, fitForUpload, refusedForSize } from '../../lib/billUpload'
+import {
+  overrideExtras,
+  overrideRefused,
+  reviewAfterRefusal,
+  type DuplicateOverride,
+  type DuplicateReview,
+  duplicateBodyKey,
+} from '../../lib/billDuplicateOverride'
+import { DuplicateReviewPanel } from '../../components/bills/DuplicateReviewPanel'
 import {
   BILL_FILE_TYPES,
   BILL_CONFIRM_REFUSALS,
+  UPLOAD_MAY_HAVE_ARRIVED,
   UPLOAD_REFUSALS,
   blankBillForm,
   linesTotals,
   supplierTaxCategory,
   toConfirmation,
+  uploadMayHaveArrived,
   type BillLine,
 } from '../../lib/billIntake'
 import { DESIGN_REFERENCE } from '../../lib/invoiceDraft'
@@ -142,7 +152,7 @@ function RecordBill({ id }: { id: string }) {
   const [straight, setStraight] = useState(true)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
-  const [duplicate, setDuplicate] = useState<PossibleDuplicateDto | null>(null)
+  const [duplicate, setDuplicate] = useState<DuplicateReview | null>(null)
   const [errors, setErrors] = useState<
     Partial<Record<'billNumber' | 'billDate' | 'dueDate', string>>
   >({})
@@ -214,7 +224,7 @@ function RecordBill({ id }: { id: string }) {
     return Object.keys(next).length === 0 && problems.every((problem) => problem === null)
   }
 
-  const save = async (notDuplicateOf: string | null) => {
+  const save = async (override: DuplicateOverride | null) => {
     if (!profile || inFlight.current) return
     setNotice(null)
     setAttempted(true)
@@ -224,6 +234,7 @@ function RecordBill({ id }: { id: string }) {
     }
     inFlight.current = true
     setBusy(true)
+    let uploading = false
     try {
       if (stored.current && stored.current.file !== file) {
         // Another file was chosen, or the file was taken off: the stored one goes, as "Replace
@@ -232,7 +243,9 @@ function RecordBill({ id }: { id: string }) {
         stored.current = null
       }
       if (file && !stored.current) {
-        const uploaded = await uploadIntake(file, 'UPLOADED')
+        uploading = true
+        const uploaded = await uploadIntake(await fitForUpload(file), 'UPLOADED', { read: 'none' })
+        uploading = false
         stored.current = { file, intakeId: uploaded.id }
       }
       const form = {
@@ -248,7 +261,7 @@ function RecordBill({ id }: { id: string }) {
         total: totals?.total ?? '0',
         purchaseOrderId: chosen?.id ?? '',
       }
-      const confirmation = toConfirmation(form, { notDuplicateOf })
+      const confirmation = toConfirmation(form, overrideExtras(override))
       // No file attached: the typed bill is recorded on its own, with no intake behind it.
       let bill
       if (stored.current) {
@@ -269,15 +282,30 @@ function RecordBill({ id }: { id: string }) {
           failure.code === 'BILL_INTAKE_ALREADY_CONFIRMED')
       )
         stored.current = null
-      const same = possibleDuplicateOf(failure)
+      const same = reviewAfterRefusal(duplicate, failure)
+      const overridden = overrideRefused(duplicate, failure)
       if (same) {
         setDuplicate(same)
+      } else if (overridden) {
+        setDuplicate(overridden.review)
+        if (!overridden.review) setNotice(t(overridden.key))
       } else if (
         failure instanceof ApiError &&
         failure.code &&
-        (Object.hasOwn(BILL_CONFIRM_REFUSALS, failure.code) || Object.hasOwn(UPLOAD_REFUSALS, failure.code))
+        (Object.hasOwn(BILL_CONFIRM_REFUSALS, failure.code) ||
+          Object.hasOwn(UPLOAD_REFUSALS, failure.code))
       ) {
-        setNotice(t(Object.hasOwn(BILL_CONFIRM_REFUSALS, failure.code) ? BILL_CONFIRM_REFUSALS[failure.code].key : UPLOAD_REFUSALS[failure.code]))
+        setNotice(
+          t(
+            Object.hasOwn(BILL_CONFIRM_REFUSALS, failure.code)
+              ? BILL_CONFIRM_REFUSALS[failure.code].key
+              : UPLOAD_REFUSALS[failure.code],
+          ),
+        )
+      } else if (uploading && refusedForSize(failure)) {
+        setNotice(t(TOO_BIG_FOR_SERVER, { name: file?.name ?? '' }))
+      } else if (uploading && uploadMayHaveArrived(failure)) {
+        setNotice(t(UPLOAD_MAY_HAVE_ARRIVED))
       } else {
         const described = describeApiFailure(failure)
         const body = t(described.key, described.values)
@@ -351,36 +379,25 @@ function RecordBill({ id }: { id: string }) {
         />
       ) : null}
       {duplicate ? (
-        <section role="alert" className="rounded-md border border-[#d8c9a8] bg-[#faf5ea] p-5">
-          <h2 className="flex items-center gap-2 text-base font-semibold text-text-primary">
-            <img src={warnIcon} alt="" className="size-5" />
-            {t('billIntake.duplicate.title')}
-          </h2>
-          <p className="mt-2 text-sm font-medium leading-[1.5] text-text-secondary">
-            {t('billIntake.duplicate.body', {
-              number: duplicate.supplierBillNumber,
-              date: day(duplicate.issueDate),
+        <DuplicateReviewPanel
+          review={duplicate}
+          onChange={setDuplicate}
+          onDifferent={(override) => void save(override)}
+          busy={busy}
+          sentence={(bill) =>
+            t(duplicateBodyKey(bill), {
+              number: bill.supplierBillNumber,
+              date: day(bill.issueDate),
               total:
-                duplicate.total === null
+                bill.total === null
                   ? '—'
-                  : formatAmount(duplicate.total, duplicate.currencyCode ?? currency, language),
-              source: t(`billIntake.duplicate.source.${duplicate.source}`),
-            })}
-          </p>
-          <div className="mt-4 flex flex-wrap gap-3">
-            <Link to={`/expenditure/bills/${duplicate.billId}`} className={SECONDARY_BUTTON}>
-              {t('billIntake.duplicate.open')}
-            </Link>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void save(duplicate.billId)}
-              className={PRIMARY_BUTTON}
-            >
-              {t('billIntake.duplicate.different')}
-            </button>
-          </div>
-        </section>
+                  : formatAmount(bill.total, bill.currencyCode ?? currency, language),
+              source: t(`billIntake.duplicate.source.${bill.source}`),
+            })
+          }
+          linkClassName={SECONDARY_BUTTON}
+          buttonClassName={PRIMARY_BUTTON}
+        />
       ) : null}
 
       <SupplierStrip

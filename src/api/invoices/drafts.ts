@@ -50,6 +50,14 @@ export type DraftLineRequest = {
    * false included, is refused `BACK_ON_SHELF_ONLY_ON_CREDIT_NOTES`.
    */
   backOnShelf?: boolean
+  /**
+   * Backend #834 (V510, DA-1 Option B): on a credit note's line, the corrected invoice's line it
+   * credits, so the server caps the credit per original line. Refused 400 `ORIGINAL_LINE_NOT_FOUND`
+   * for a number the invoice lacks and `ORIGINAL_LINE_ONLY_ON_CORRECTIONS` on an invoice. A server
+   * before #834 refuses the whole body as malformed (it refuses unknown fields), so it goes only to
+   * a server that answers it (`readsLineLinks`).
+   */
+  originalLineNumber?: number
 }
 
 /** `InvoiceDraftRequest`. Unknown fields are refused, so this carries only what the API reads. */
@@ -71,6 +79,13 @@ export type DraftRequest = {
     /** UNCL4461 code with the label the reader saw (IBT-081); stored with the draft. */
     paymentMethod?: ReferenceDto | null
     transactionType: 'FULL_TAX' | 'SIMPLIFIED'
+    /**
+     * BTOM-001 positions 4-15. Sent only by a note whose original is SPECIAL_ZONE (position 14):
+     * the server refuses a note that does not match its original with
+     * CORRECTION_SPECIAL_ZONE_MISMATCH (503a8093b). Left out otherwise, so every other request
+     * stays as it was.
+     */
+    transactionSubtypes?: string[]
     /** BTOM-032, a credit or debit note's reason: CAN, VAT, VAL, QTY or OTH. Invoices send none. */
     correctionReasonCode?: string | null
     /**
@@ -144,6 +159,8 @@ export type DraftResponse = {
      * Null when the line names no product or it is not found; absent from an older server.
      */
     keepCount?: boolean | null
+    /** Backend #834: the corrected invoice's line this note line names. */
+    originalLineNumber?: number | null
   }[]
   /** Zero-rating warnings per line (INCOME.md Z.11, Z.13): never blocking; absent before the API. */
   warnings?: InvoiceLineZeroRatingWarning[] | null
@@ -178,8 +195,13 @@ export type BranchDto = {
   id: string
   code: string
   name: string
-  type: string
-  city: string | null
+  /**
+   * `type` and `city` come only to a reader with `branch.read`: the lookup the stock, till and
+   * catalogue readers get without it is `{id, code, name, nameAr}` (backend C3 65fc3ad41, owner
+   * B-5 decision 4), so nothing may rely on them being there.
+   */
+  type?: string
+  city?: string | null
   /** The Arabic name, when the server sends it; `useBranchName` falls back to the overview's. */
   nameAr?: string | null
 }

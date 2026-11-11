@@ -1,5 +1,6 @@
 import { API_BASE_URL } from '../config/api'
-import { ApiError, NetworkError, toApiError } from './errors'
+import { ApiError, NetworkError, retryAfterOf, toApiError } from './errors'
+import { endsSession, reportSessionExpired } from './sessionExpiry'
 
 /**
  * Without a ceiling a stalled connection leaves a form in its submitting state
@@ -56,9 +57,35 @@ async function readBody(response: Response): Promise<unknown> {
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
   return send(path, options, 'application/json, application/problem+json', async (response) => {
     const payload = await readBody(response)
-    if (!response.ok) throw toApiError(response, payload)
+    if (!response.ok) throw refused(response, payload, options.method)
     return payload as T
   })
+}
+
+/**
+ * As {@link apiRequest}, for a success whose meaning also rides on `Retry-After` (a sale key the
+ * server is still deciding, RESEND-AUTH): the parsed body and the header's seconds, null if none.
+ */
+export async function apiRequestRetryAfter<T>(
+  path: string,
+  options: ApiRequestOptions = {},
+): Promise<{ body: T; retryAfterSeconds: number | null }> {
+  return send(path, options, 'application/json, application/problem+json', async (response) => {
+    const payload = await readBody(response)
+    if (!response.ok) throw refused(response, payload, options.method)
+    return { body: payload as T, retryAfterSeconds: retryAfterOf(response.headers) }
+  })
+}
+
+/**
+ * The error for a failed answer. A change whose session has ended is also reported, so the
+ * signed-in shell can send the reader to sign in (DA-16); a read's 401 is `useApiRead`'s to handle,
+ * and reporting it too would navigate twice.
+ */
+function refused(response: Response, payload: unknown, method: ApiRequestOptions['method']): ApiError {
+  const error = toApiError(response, payload)
+  if ((method ?? 'GET') !== 'GET' && endsSession(error.status, error.problemType)) reportSessionExpired()
+  return error
 }
 
 export type ApiDownload = {
@@ -78,7 +105,7 @@ export async function apiDownload(
   options: Pick<ApiRequestOptions, 'signal' | 'timeoutMs' | 'method'> = {},
 ): Promise<ApiDownload> {
   return send(path, options, '*/*', async (response) => {
-    if (!response.ok) throw toApiError(response, await readBody(response))
+    if (!response.ok) throw refused(response, await readBody(response), options.method)
     return {
       blob: await response.blob(),
       filename: filenameOf(response.headers.get('Content-Disposition')),

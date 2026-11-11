@@ -2135,6 +2135,44 @@ describe("the owner's last points of 10 Oct 2026", () => {
   })
 })
 
+describe('a candidate that may be the same supplier bill as another (batch 39 EXP §5)', () => {
+  it('flags a sure and a possible twin, and links the other copy', async () => {
+    override = (url) =>
+      url === `/api/v1/payment-runs/${RUN_ID}/candidates`
+        ? json(200, [
+            { ...candidate('b-1', 'MR-2'), duplicateOf: 'b-peppol' },
+            { ...candidate('b-2', 'MR-3'), possibleDuplicateOf: 'b-other' },
+          ])
+        : null
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    const sure = await screen.findByText('Same supplier bill as another on file', undefined, {
+      timeout: 8000,
+    })
+    expect(sure.closest('a')!.getAttribute('href')).toBe('/expenditure/bills/b-peppol')
+    const possible = screen.getByText('May be the same supplier bill as another on file')
+    expect(possible.closest('a')!.getAttribute('href')).toBe('/expenditure/bills/b-other')
+  })
+
+  it('tells the upload whose Peppol copy is held where that copy is, not that it is a duplicate (PRV-b39 E-1)', async () => {
+    override = (url) =>
+      url === `/api/v1/payment-runs/${RUN_ID}/candidates`
+        ? json(200, [{ ...candidate('b-1', 'MR-2'), heldCopyId: 'b-held', duplicateOf: null }])
+        : null
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    const held = await screen.findByText('Its Peppol copy was flagged as a duplicate of this bill', undefined, {
+      timeout: 8000,
+    })
+    expect(held.closest('a')!.getAttribute('href')).toBe('/expenditure/bills/b-held')
+    expect(screen.queryByText('Same supplier bill as another on file')).toBeNull()
+  })
+
+  it('flags nothing from a server that sends neither field', async () => {
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    expect(await screen.findByRole('link', { name: 'MR-2' }, { timeout: 8000 })).toBeTruthy()
+    expect(screen.queryByTestId('run-candidate-twin')).toBeNull()
+  })
+})
+
 describe('the browser re-check of 11 Oct 2026', () => {
   /** An element's text as seen: the hidden "OMR" left out. */
   const seen = (element: Element) => {
@@ -2430,5 +2468,25 @@ describe('the browser re-check of 11 Oct 2026', () => {
     detail = { ...PAID_SOHAR_OUT, run: run({ state: 'SCHEDULED' }) }
     renderAt(`/expenditure/payments/${RUN_ID}`)
     expect(within(await rowOf('MR-1')).getByText(due)).toBeTruthy()
+  })
+})
+
+describe('cancelling a sent run needs bill.settle (batch 39 SEC W-3; ships with EXP)', () => {
+  beforeEach(() => {
+    detail = SENT
+  })
+
+  it('offers an Accountant the run menu but not Cancel on a sent run', async () => {
+    override = (url) => (url === '/api/v1/me/entitlements' ? json(200, ACCOUNTANT) : null)
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    fireEvent.click(await screen.findByRole('button', { name: 'More actions' }, { timeout: 8000 }))
+    expect(screen.queryByRole('menuitem', { name: /Cancel the run/ })).toBeNull()
+  })
+
+  it('still offers a Finance Manager Cancel on a sent run', async () => {
+    override = (url) => (url === '/api/v1/me/entitlements' ? json(200, FINANCE_MANAGER) : null)
+    renderAt(`/expenditure/payments/${RUN_ID}`)
+    fireEvent.click(await screen.findByRole('button', { name: 'More actions' }, { timeout: 8000 }))
+    expect(await screen.findByRole('menuitem', { name: /Cancel the run/ })).toBeTruthy()
   })
 })

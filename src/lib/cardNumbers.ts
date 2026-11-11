@@ -1,0 +1,110 @@
+/**
+ * Mirrors the server's card-number detector (backend `CardNumbers`, FIN-5, DEC-30-06) so a card
+ * number typed where an approval code belongs is stopped on the device: it is never sent, never
+ * queued in the offline till's local storage with the sale, and never printed back. The server
+ * still refuses it (POS_PAYMENT_INVALID, POS_REFUND_MONEY_INVALID, PAYMENT_REFERENCE_CARD_NUMBER);
+ * this only keeps it off the device.
+ *
+ * Same rule as the server: a run of 13 to 19 digits that passes the Luhn check, digits read in
+ * ASCII, Arabic-Indic and Eastern Arabic-Indic, split freely by spaces, dashes, dots and the
+ * invisible direction marks Arabic text carries. An unbroken run longer than 19 digits is not read
+ * as one, so a bank reference that happens to hold a passing 16 digits is not refused; within a run
+ * the person split, the spans between the separators they typed are judged too (backend aa7f73fb1,
+ * batch 36 SEC), so a grouped card number typed beside its expiry is still found. Applied to card
+ * references only, as on the server.
+ */
+const SHORTEST = 13
+const LONGEST = 19
+
+function digitOf(char: string): number {
+  const code = char.charCodeAt(0)
+  if (code >= 0x30 && code <= 0x39) return code - 0x30
+  if (code >= 0x660 && code <= 0x669) return code - 0x660
+  if (code >= 0x6f0 && code <= 0x6f9) return code - 0x6f0
+  return -1
+}
+
+function isSeparator(char: string): boolean {
+  const code = char.charCodeAt(0)
+  return (
+    char === ' ' ||
+    char === '-' ||
+    char === '.' ||
+    char === '\t' ||
+    code === 0xa0 ||
+    code === 0x2007 ||
+    code === 0x202f ||
+    (code >= 0x2010 && code <= 0x2015) ||
+    code === 0x2212 ||
+    code === 0x200b ||
+    code === 0x200e ||
+    code === 0x200f ||
+    code === 0x061c ||
+    code === 0xfeff ||
+    (code >= 0x202a && code <= 0x202e) ||
+    (code >= 0x2066 && code <= 0x2069)
+  )
+}
+
+function luhn(digits: string): boolean {
+  let sum = 0
+  let double = false
+  for (let i = digits.length - 1; i >= 0; i--) {
+    let digit = digits.charCodeAt(i) - 0x30
+    if (double) {
+      digit *= 2
+      if (digit > 9) digit -= 9
+    }
+    sum += digit
+    double = !double
+  }
+  return sum % 10 === 0
+}
+
+const passes = (run: string) => run.length >= SHORTEST && run.length <= LONGEST && luhn(run)
+
+/**
+ * "4111 1111 1111 1111 12 27" (card, then expiry) joins into a 22-digit run that the whole-run rule
+ * lets through. The server has refused it since aa7f73fb1; missing it here kept the number in the
+ * offline queue, where the server then refuses the paid sale for good. Only spans a typed separator
+ * bounds are tried, as on the server, so an unbroken long reference stays allowed.
+ */
+function passesWholeOrGrouped(run: string, groupStarts: readonly number[]): boolean {
+  if (passes(run)) return true
+  for (let first = 0; first < groupStarts.length; first++) {
+    const start = groupStarts[first]
+    for (let next = first + 1; next <= groupStarts.length; next++) {
+      const end = next < groupStarts.length ? groupStarts[next] : run.length
+      if (end - start > LONGEST) break
+      if (passes(run.slice(start, end))) return true
+    }
+  }
+  return false
+}
+
+/** Whether any run of digits in the text is a card number. */
+export function containsCardNumber(text: string | null | undefined): boolean {
+  if (!text) return false
+  let run = ''
+  let groupStarts: number[] = []
+  let newGroup = true
+  for (let i = 0; i <= text.length; i++) {
+    const char = i < text.length ? text[i] : '\0'
+    const digit = digitOf(char)
+    if (digit >= 0) {
+      if (newGroup) {
+        groupStarts.push(run.length)
+        newGroup = false
+      }
+      run += String(digit)
+    } else if (isSeparator(char) && run.length > 0) {
+      newGroup = true
+    } else {
+      if (passesWholeOrGrouped(run, groupStarts)) return true
+      run = ''
+      groupStarts = []
+      newGroup = true
+    }
+  }
+  return false
+}

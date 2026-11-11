@@ -1,7 +1,38 @@
 import type { DebitNoteDecisionDto, DebitNoteRowDto } from '../api/expenditure/notes'
 import type { BillRowDto } from '../api/expenditure/bills'
-import { workflowStateOf } from './billList'
+import { settledWithoutPayment, workflowStateOf } from './billList'
 import type { NoteActivity, NoteFormat } from './supplierCreditNotes'
+
+/** A supplier credit note (381) or a self-billed one (261): not a bill a charge can add to. */
+const CREDIT_NOTE_CODES = new Set(['381', '261'])
+
+/**
+ * The first check's words. A debit note can name a credit note (the server accepts it); that
+ * read "It points at a real bill… settled in full by credit" (DB-9, local E2E 2026-10-29), so a
+ * credit-note target says what it is and asks for a look.
+ */
+function realBillCheck(bill: BillRowDto): Pick<DebitCheck, 'titleKey' | 'detailKey' | 'verdict'> {
+  return bill.documentTypeCode !== null && CREDIT_NOTE_CODES.has(bill.documentTypeCode)
+    ? {
+        titleKey: 'supplierDebitNotes.checks.creditNoteTarget',
+        detailKey: 'supplierDebitNotes.checks.creditNoteTargetDetail',
+        verdict: 'check',
+      }
+    : { titleKey: 'supplierDebitNotes.checks.realBill', detailKey: realBillKey(bill), verdict: 'fine' }
+}
+
+/**
+ * Open, paid, or cleared by credit with nothing paid, which "paid in full" misread (B-12). Rejected
+ * first: a rejected bill reads outstanding 0 since backend #824 (OBS-1), which is no payment and no
+ * credit, so only the workflow state can say why nothing is owed.
+ */
+function realBillKey(bill: BillRowDto): string {
+  if (workflowStateOf(bill) === 'REJECTED') return 'supplierDebitNotes.checks.realBillRejected'
+  if (bill.outstandingAmount > 0) return 'supplierDebitNotes.checks.realBillOpen'
+  return settledWithoutPayment(bill)
+    ? 'supplierDebitNotes.checks.realBillSettledByCredit'
+    : 'supplierDebitNotes.checks.realBillPaid'
+}
 
 /**
  * Debit notes a supplier issued to us: Expenditure > Debit notes (Figma 163:21057, 163:20010,
@@ -102,10 +133,25 @@ export function debitEffect(
   }
 }
 
-/** VAT at Oman's standard rate on a gross figure, to the rial's three places. */
-function standardVatOf(total: number): number {
-  return Math.round((total * 5 * 1000) / 105) / 1000
+/** Baisa (thousandths) of a rial amount the API gives at three decimals or fewer. */
+const baisaOf = (amount: number): bigint => BigInt(Math.round(amount * 1000))
+
+/** The 5% VAT inside a VAT-inclusive total, in baisa, rounded HALF_UP as the server rounds. */
+function standardVatBaisa(total: number): bigint {
+  const scaled = baisaOf(total) * 5n
+  const negative = scaled < 0n
+  const n = negative ? -scaled : scaled
+  const rounded = n / 105n + ((n % 105n) * 2n >= 105n ? 1n : 0n)
+  return negative ? -rounded : rounded
 }
+
+/**
+ * How far the stated VAT may sit from the computed one and still add up: the server's BR-CO-17
+ * check allows ±0.005 OMR (InvoiceValidationService, `fawtir.validation.arithmetic-tolerance`).
+ * One baisa flagged "532.160 vs 532.164", a PINT-valid two-decimal amount (B-13, local E2E
+ * 2026-10-29).
+ */
+const VAT_TOLERANCE_BAISA = 5n
 
 /**
  * The checks a debit note can be read against from what the API carries: the bill it names, the
@@ -127,16 +173,11 @@ export function debitNoteChecks(
   if (bill) {
     checks.push({
       id: 'realBill',
-      titleKey: 'supplierDebitNotes.checks.realBill',
-      detailKey:
-        bill.outstandingAmount > 0
-          ? 'supplierDebitNotes.checks.realBillOpen'
-          : 'supplierDebitNotes.checks.realBillPaid',
+      ...realBillCheck(bill),
       values: {
         bill: bill.supplierBillNumber ?? named ?? '',
         outstanding: fmt.money(bill.outstandingAmount),
       },
-      verdict: 'fine',
       refs: bill.supplierBillNumber
         ? [{ token: bill.supplierBillNumber, to: `/expenditure/bills/${bill.id}` }]
         : [],
@@ -208,8 +249,10 @@ export function debitNoteChecks(
   )
 
   if (row.totalIncludingVat !== null && row.vatAmount !== null) {
-    const expected = standardVatOf(row.totalIncludingVat)
-    const fine = Math.abs(expected - row.vatAmount) <= 0.001 || row.vatAmount === 0
+    const expectedBaisa = standardVatBaisa(row.totalIncludingVat)
+    const gap = expectedBaisa - baisaOf(row.vatAmount)
+    const fine = (gap < 0n ? -gap : gap) <= VAT_TOLERANCE_BAISA || row.vatAmount === 0
+    const expected = Number(expectedBaisa) / 1000
     checks.push({
       id: 'vat',
       titleKey: fine ? 'supplierDebitNotes.checks.vatAddsUp' : 'supplierDebitNotes.checks.vatOdd',
@@ -256,16 +299,11 @@ export function intakeChecks({
     bill
       ? {
           id: 'realBill',
-          titleKey: 'supplierDebitNotes.checks.realBill',
-          detailKey:
-            bill.outstandingAmount > 0
-              ? 'supplierDebitNotes.checks.realBillOpen'
-              : 'supplierDebitNotes.checks.realBillPaid',
+          ...realBillCheck(bill),
           values: {
             bill: bill.supplierBillNumber ?? '',
             outstanding: fmt.money(bill.outstandingAmount),
           },
-          verdict: 'fine',
           refs: bill.supplierBillNumber
             ? [{ token: bill.supplierBillNumber, to: `/expenditure/bills/${bill.id}` }]
             : [],

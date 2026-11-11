@@ -2,6 +2,7 @@ import {
   useEffect,
   useId,
   useMemo,
+  useRef,
   useState,
   type InputHTMLAttributes,
   type ReactNode,
@@ -41,6 +42,7 @@ import { hasPermission } from '../../lib/identity/entitlements'
 import { describeApiFailure } from '../../lib/apiFailure'
 import {
   archiveProduct,
+  canSetVariantArabicNames,
   createProduct,
   getProduct,
   productPath,
@@ -80,6 +82,7 @@ import {
   sizesFrom,
   productFieldsFrom,
   productFormProblems,
+  PRODUCT_STOCK_UNIT_LOCKED,
   productRefusal,
   productRequestFrom,
 } from '../../lib/productForm'
@@ -195,7 +198,7 @@ function ExistingItem({ id }: { id: string }) {
       {read.read.status === 'loading' ? (
         <LoadingNotice />
       ) : (
-        <ApiReadFailure error={read.read.error} retry={read.retry} />
+        <ApiReadFailure error={read.read.error} retry={read.retry} notFoundOn400 />
       )}
     </CatalogShell>
   )
@@ -271,6 +274,7 @@ function ItemEditor({
   const [sizes, setSizes] = useState<Size[]>(stored?.sizes ?? [])
   const [addOns, setAddOns] = useState<AddOn[]>(stored?.addOns ?? [])
   const hasOptions = stored?.hasOptions ?? false
+  const arabicNames = canSetVariantArabicNames(product)
   // Branches (owner, 21 Oct 2026; Business Rules BA-3): one company product, sold in every branch
   // or only in chosen ones, with an optional price before VAT and an on/off per branch. Its VAT,
   // reason, HS code and unit never differ by branch. Read and saved on
@@ -331,6 +335,19 @@ function ItemEditor({
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
   const [banner, setBanner] = useState<Banner | null>(null)
+  // A refusal sits at the top of a long form: the reader is taken to it, or Save seems to do nothing.
+  const refusalBanner = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (banner?.tone !== 'error') return
+    refusalBanner.current?.scrollIntoView?.({ block: 'center' })
+    refusalBanner.current?.focus({ preventScroll: true })
+  }, [banner])
+  // The unit the server refused (PRODUCT_STOCK_UNIT_LOCKED): said on the field, while it stays picked.
+  const [lockedUnit, setLockedUnit] = useState<string | null>(null)
+  const unitLockedLine = useRef<HTMLSpanElement>(null)
+  useEffect(() => {
+    if (lockedUnit) unitLockedLine.current?.scrollIntoView?.({ block: 'center' })
+  }, [lockedUnit])
   const [confirmArchive, setConfirmArchive] = useState(false)
   // Zero-rating (Z.15): the last save's warnings, else the re-check's flag on the stored item.
   const [zeroRatingWarnings, setZeroRatingWarnings] = useState<ZeroRatingNote[]>(() =>
@@ -376,6 +393,7 @@ function ItemEditor({
   const classification = itemType === 'goods' ? hsCode : serviceType
   const checks = readiness({
     name,
+    code,
     basePrice: base,
     taxCategory,
     group,
@@ -545,6 +563,7 @@ function ItemEditor({
   const save = async (another: boolean) => {
     if (readOnly || saving) return
     setBanner(null)
+    setLockedUnit(null)
     const current = fields()
     const problems = productFormProblems(current)
     // Chosen branches only, with none ticked, is refused (PRODUCT_BRANCHES_REQUIRED).
@@ -609,7 +628,8 @@ function ItemEditor({
         setSaved(true)
       }
     } catch (error) {
-      refused(error)
+      if (productRefusal(error)?.code === PRODUCT_STOCK_UNIT_LOCKED) setLockedUnit(current.unit)
+      else refused(error)
     } finally {
       setSaving(false)
     }
@@ -724,6 +744,8 @@ function ItemEditor({
     >
       {banner ? (
         <div
+          ref={refusalBanner}
+          tabIndex={-1}
           role={banner.tone === 'error' ? 'alert' : 'status'}
           className={[
             'flex flex-wrap items-center justify-between gap-3 rounded-md px-5 py-3 text-sm font-medium',
@@ -949,7 +971,17 @@ function ItemEditor({
                       value={soldAs}
                       onChange={setSoldAs}
                       options={units}
+                      ariaInvalid={lockedUnit !== null && lockedUnit === soldAs}
                     />
+                    {lockedUnit !== null && lockedUnit === soldAs ? (
+                      <span
+                        ref={unitLockedLine}
+                        role="alert"
+                        className="mt-1.5 block text-xs font-medium text-danger-700"
+                      >
+                        {t('itemForm.refused.unitLocked')}
+                      </span>
+                    ) : null}
                   </label>
                 </div>
 
@@ -1131,10 +1163,20 @@ function ItemEditor({
             {/* 4 — sizes */}
             <Step n={4} title={t('item.step.sizes')}>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[640px] border-collapse">
+                <table
+                  className={[
+                    'w-full border-collapse',
+                    arabicNames ? 'min-w-[760px]' : 'min-w-[640px]',
+                  ].join(' ')}
+                >
                   <thead>
                     <tr className="bg-[#151c2d] text-[10px] font-semibold uppercase tracking-[0.5px] text-white">
-                      <th className="h-[38px] min-w-[150px] px-3 text-start font-semibold">
+                      <th
+                        className={[
+                          'h-[38px] px-3 text-start font-semibold',
+                          arabicNames ? 'min-w-[120px]' : 'min-w-[150px]',
+                        ].join(' ')}
+                      >
                         {t('item.sizesCol.size')}
                       </th>
                       <th className="h-[38px] px-3 text-start font-semibold">
@@ -1143,9 +1185,19 @@ function ItemEditor({
                       <th className="h-[38px] w-[110px] whitespace-nowrap px-3 text-end font-semibold">
                         {t('item.sizesCol.sellsFor')}
                       </th>
-                      <th className="h-[38px] px-3 text-start font-semibold">
+                      <th
+                        className={[
+                          'h-[38px] px-3 text-start font-semibold',
+                          arabicNames ? 'min-w-[130px]' : '',
+                        ].join(' ')}
+                      >
                         {t('item.sizesCol.code')}
                       </th>
+                      {arabicNames ? (
+                        <th className="h-[38px] min-w-[150px] px-3 text-start font-semibold">
+                          {t('item.sizesCol.arabicName')}
+                        </th>
+                      ) : null}
                       <th className="h-[38px] whitespace-nowrap px-3 text-start font-semibold">
                         {t('item.sizesCol.onSale')}
                       </th>
@@ -1199,6 +1251,27 @@ function ItemEditor({
                             className="h-[42px] w-full rounded-sm border border-border-default bg-white px-3 text-sm font-normal text-text-primary outline-none placeholder:text-text-placeholder focus:border-border-brand disabled:bg-surface-background"
                           />
                         </td>
+                        {arabicNames ? (
+                          <td className="px-3 py-2.5">
+                            {/* With options, each combination has its own: same page as the code. */}
+                            <input
+                              value={hasOptions ? '' : (size.variantNameAr ?? '')}
+                              disabled={hasOptions}
+                              dir="rtl"
+                              maxLength={200}
+                              placeholder={
+                                hasOptions
+                                  ? t('item.perOption')
+                                  : size.variantNameArAuto || t('itemOptions.grid.arabicNameAuto')
+                              }
+                              onChange={(event) =>
+                                setSize(index, { variantNameAr: event.target.value })
+                              }
+                              aria-label={t('item.sizesCol.arabicName')}
+                              className="h-[42px] w-full rounded-sm border border-border-default bg-white px-3 text-sm font-normal text-text-primary outline-none placeholder:text-text-placeholder focus:border-border-brand disabled:bg-surface-background"
+                            />
+                          </td>
+                        ) : null}
                         <td className="px-3 py-2.5">
                           {hasOptions ? null : (
                             <TableCheckbox
@@ -1223,6 +1296,11 @@ function ItemEditor({
                   </tbody>
                 </table>
               </div>
+              {arabicNames && !hasOptions && sizes.length > 0 ? (
+                <p className="mt-2 text-xs font-medium leading-[1.5] text-text-tertiary">
+                  {t('item.arabicNameHint')}
+                </p>
+              ) : null}
 
               <div className="mt-3 flex flex-wrap gap-2.5">
                 <button

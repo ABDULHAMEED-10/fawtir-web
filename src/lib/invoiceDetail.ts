@@ -5,8 +5,11 @@ import type {
   InvoicePaymentDto,
   InvoiceReceivableDto,
 } from '../api/invoices/detail'
+import type { NoteKind } from '../api/invoices/drafts'
+import { ApiError } from '../api'
 import { calculateInvoice, projectInvoice } from './invoiceMath'
 import { minorUnitsOf } from './format'
+import { DEBIT_NOTE_REFUSALS, debitNoteRefusalKey } from './debitNoteRefusals'
 
 /**
  * One authored invoice, opened, written only from what the API holds.
@@ -22,6 +25,55 @@ export type Note = { key: string; values?: Record<string, string | number> }
 /** What the reader is looking at: a draft, or a document that has been issued. */
 export function isDraft(invoice: InvoiceDetailDto): boolean {
   return invoice.authoringState === 'DRAFT'
+}
+
+/**
+ * What is refunded on a credit note: its REFUND entries on the invoice it credits, less any
+ * reversed. A refunded note cannot be cancelled: cancelling one left the refund on the invoice
+ * pointing at a cancelled note and the VAT restored (DA-2, local E2E 2026-10-29); the server now
+ * refuses it with INVOICE_CANCEL_HAS_PAYMENTS.
+ */
+export function refundedOnNote(noteId: string, invoicePayments: readonly InvoicePaymentDto[]): number {
+  const reversed = new Set(
+    invoicePayments
+      .filter((entry) => entry.entryType === 'REVERSAL' && entry.reversalOfPaymentId)
+      .map((entry) => entry.reversalOfPaymentId!),
+  )
+  return invoicePayments
+    .filter((entry) => entry.entryType === 'REFUND' && entry.creditNoteId === noteId && !reversed.has(entry.id))
+    .reduce((sum, entry) => sum + entry.amount, 0)
+}
+
+/** Why an issued document may not be cancelled, or `unknown` while the page cannot yet tell. */
+export type CancelBlock = 'corrections' | 'payments' | 'unknown' | null
+
+/**
+ * Cancelling an invoice that a credit note or a payment already settles left the note counted in
+ * the VAT report without its invoice and the statement with an orphan credit (A-0, TEST
+ * 2026-10-29); the server now refuses it with INVOICE_CANCEL_HAS_CORRECTIONS and
+ * INVOICE_CANCEL_HAS_PAYMENTS. The page asks the same question of what it already reads, so no
+ * request is added: the receivable's credited and paid figures (net of reversals, as the server
+ * computes them) and the notes it lists under the invoice. An issued note counts even before the
+ * receivable reflects it (a debit note does not move `creditedAmount`). Until both reads answer
+ * the answer is `unknown` and Cancel is not offered: the server would refuse anyway, and an offer
+ * withdrawn a moment later is worse than one that appears late.
+ *
+ * `notes` is `null` for a document the notes list is not read for (a credit or debit note).
+ */
+export function cancelBlockOf(
+  receivable: { status: 'loading' } | { status: 'failed' } | { status: 'ready'; data: InvoiceReceivableDto },
+  notes:
+    | { status: 'loading' }
+    | { status: 'failed' }
+    | { status: 'ready'; data: { items: readonly { authoringState: string }[] } }
+    | null,
+): CancelBlock {
+  if (receivable.status !== 'ready') return 'unknown'
+  if (notes !== null && notes.status !== 'ready') return 'unknown'
+  const issuedNote = notes?.status === 'ready' && notes.data.items.some((note) => note.authoringState === 'ISSUED')
+  if (receivable.data.creditedAmount > 0 || issuedNote) return 'corrections'
+  if (receivable.data.paidAmount > 0) return 'payments'
+  return null
 }
 
 /**
@@ -50,17 +102,32 @@ export function statusOf(
       ? { key: 'invoicesPage.payment.overdue', values: { count: Number(note.values?.count) }, tone: 'overdue' }
       : { key: 'invoicesPage.payment.overdue', tone: 'overdue' }
   }
-  if (receivable.paymentState === 'PAID') return { key: 'invoicesPage.payment.paid', tone: 'paid' }
+  if (receivable.paymentState === 'PAID') {
+    // Settled by credit notes with no money kept (a till sale refunded in full): not "Paid".
+    return receivable.creditedAmount > 0 && receivable.paidAmount < 0.0005
+      ? { key: 'invoicesPage.payment.credited', tone: 'paid' }
+      : { key: 'invoicesPage.payment.paid', tone: 'paid' }
+  }
   if (receivable.paymentState === 'PARTIALLY_PAID') return { key: 'invoicesPage.payment.partial', tone: 'partial' }
   return { key: 'invoicesPage.payment.awaiting', tone: 'awaiting' }
 }
 
 /**
- * What a line adds up to. The API sends the parts (quantity, price, discount) and no line total,
- * so it is computed here with the engine the composer uses, at the currency's scale.
+ * What a line adds up to after its own discount. A server that sends each line's `amounts` is
+ * read as it is (RC5 D-01: the same projection as the totals, so the lines foot to them); an older
+ * server sends only the parts, and the line is then computed with the engine the composer uses.
  */
 export function lineTotals(invoice: InvoiceDetailDto): Map<number, number> {
   const scale = minorUnitsOf(invoice.currency)
+  if (invoice.lines.length > 0 && invoice.lines.every((line) => line.amounts)) {
+    const minor = 10 ** scale
+    return new Map(
+      invoice.lines.map((line) => [
+        line.lineNumber,
+        (Math.round(line.amounts!.grossAmount * minor) - Math.round(line.amounts!.lineDiscount * minor)) / minor,
+      ]),
+    )
+  }
   const amounts = calculateInvoice(
     invoice.lines.map((line) => ({
       id: String(line.lineNumber),
@@ -147,6 +214,8 @@ const KNOWN_EVENTS = new Set([
   'APPROVED',
   'APPROVAL_REJECTED',
   'APPROVAL_CLEARED_BY_EDIT',
+  // Backend 5597b0250 (HS Slice A, V534): HS codes added to a never-sent invoice held at dispatch.
+  'ISSUED_HS_CODE_AMENDED',
 ])
 
 const SILENT_OUTCOMES = new Set(['SUCCEEDED', 'SUCCESS'])
@@ -217,6 +286,60 @@ export function paymentProblems(
   return problems
 }
 
+/**
+ * D-26 (owner, 6 Nov 2026): an issued debit note is not cancelled, deleted, edited or reversed from
+ * the web. A legally valid, traceable correction workflow is an open PINT-OM/OTA requirement, so no
+ * such workflow is offered either. Cancel and Delete keep their place on an issued debit note and
+ * only say so: no request is sent that the server would have to refuse. A draft is not locked.
+ */
+export const ISSUED_DEBIT_NOTE_LOCKED = DEBIT_NOTE_REFUSALS.ISSUED_DEBIT_NOTE_IMMUTABLE
+
+export function issuedDebitNoteLocked(type: string | null | undefined, issued: boolean): boolean {
+  return issued && type === 'DEBIT_NOTE'
+}
+
+/**
+ * The server's refusals of cancelling a credit or debit note, by code, and the sentence for each
+ * kind. Shared by the note's own page and the documents list, so a note refused from either reads
+ * the same instead of the list's "reload and try again", which cannot help with any of these.
+ */
+const NOTE_CANCEL_REFUSALS: Record<string, Record<NoteKind, string>> = {
+  INVOICE_CANCEL_HAS_PAYMENTS: {
+    CREDIT_NOTE: 'salesNote.detail.cancelBlocked.refunded',
+    DEBIT_NOTE: 'invoiceDetails.cancelBlocked.paymentsOnNote',
+  },
+  INVOICE_CANCEL_HAS_CORRECTIONS: {
+    CREDIT_NOTE: 'invoiceDetails.cancelBlocked.correctionsOnNote',
+    DEBIT_NOTE: 'invoiceDetails.cancelBlocked.correctionsOnNote',
+  },
+  // Backend #834: credit notes on the invoice already use what this debit note added. Only a debit
+  // note is refused this way; the credit-note entry is never reached. Removed from the server by
+  // D-26 (0c2d034d4, now ISSUED_DEBIT_NOTE_IMMUTABLE); kept for a server that predates it.
+  DEBIT_NOTE_CANCEL_CREDITED: {
+    CREDIT_NOTE: 'salesNote.detail.cancelBlocked.debitCredited',
+    DEBIT_NOTE: 'salesNote.detail.cancelBlocked.debitCredited',
+  },
+  // D-3: what the note did outside itself (a till refund, or goods put back on the shelf) would
+  // survive the cancellation, so the server refuses it. A cash, card or transfer till refund is refused earlier
+  // as INVOICE_CANCEL_HAS_PAYMENTS; only an on-account (REDUCE_BALANCE) one reaches this code. Only a
+  // credit note is refused this way; the debit-note entries are never reached.
+  CREDIT_NOTE_CANCEL_TILL_REFUND: {
+    CREDIT_NOTE: 'salesNote.detail.cancelBlocked.tillRefund',
+    DEBIT_NOTE: 'salesNote.detail.cancelBlocked.tillRefund',
+  },
+  CREDIT_NOTE_CANCEL_HAS_STOCK_RETURN: {
+    CREDIT_NOTE: 'salesNote.detail.cancelBlocked.stockReturn',
+    DEBIT_NOTE: 'salesNote.detail.cancelBlocked.stockReturn',
+  },
+}
+
+/** The sentence for a note's cancel refusal, or null when the code is not one of them. */
+export function noteCancelRefusalKey(error: unknown, kind: NoteKind): string | null {
+  if (!(error instanceof ApiError) || !error.code) return null
+  if (!Object.hasOwn(NOTE_CANCEL_REFUSALS, error.code)) return debitNoteRefusalKey(error)
+  return NOTE_CANCEL_REFUSALS[error.code][kind]
+}
+
 /** Server refusals of a payment that belong to one field of the form, and the sentence for each. */
 export const PAYMENT_REFUSALS: Record<string, { field: PaymentField | null; key: string }> = {
   PAYMENT_EXCEEDS_OUTSTANDING: { field: 'amount', key: 'invoiceDetails.pay.error.amountTooMuch' },
@@ -224,9 +347,21 @@ export const PAYMENT_REFUSALS: Record<string, { field: PaymentField | null; key:
   PAYMENT_DATE_IN_FUTURE: { field: 'paymentDate', key: 'invoiceDetails.pay.error.dateFuture' },
   PAYMENT_DATE_BEFORE_ISSUE_DATE: { field: 'paymentDate', key: 'invoiceDetails.pay.error.dateBeforeIssue' },
   PAYMENT_METHOD_INVALID: { field: 'methodCode', key: 'invoiceDetails.pay.error.methodRequired' },
+  // DEC-30-06, from RC2 on (b48e85031 never sends it): a card-coded payment's reference holding a
+  // card number. Without it the form said only "check the form", naming no field.
+  PAYMENT_REFERENCE_CARD_NUMBER: {
+    field: 'reference',
+    key: 'invoiceDetails.pay.error.referenceCardNumber',
+  },
   PERIOD_CLOSED: { field: 'paymentDate', key: 'invoiceDetails.pay.error.periodClosed' },
   PAYMENT_REQUIRES_ISSUED_INVOICE: { field: null, key: 'invoiceDetails.pay.error.notIssued' },
   PAYMENT_ALREADY_REVERSED: { field: null, key: 'invoiceDetails.pay.error.alreadyReversed' },
+  // FIN-4 Option B′ (owner, batch 43): a till payment once the invoice has a refund or an issued credit
+  // note. Without it the reverse dialog fell back to the server's generic sentence.
+  PAYMENT_REVERSAL_AFTER_REFUND_OR_CREDIT: {
+    field: null,
+    key: 'invoiceDetails.pay.error.reversalAfterRefundOrCredit',
+  },
   PAYMENT_NOT_FOUND: { field: null, key: 'invoiceDetails.pay.error.paymentGone' },
 }
 

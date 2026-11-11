@@ -18,6 +18,11 @@ export type ReceivableRowDto = {
   overdueCount: number
   openCount: number
   dueThisMonth: Amount
+  /**
+   * D-30(a), from 0c2d034d4: what over-credited or overpaid documents hold, at or below zero. Not
+   * in `outstanding`; the server sends no net, so the tile adds the two itself and says so.
+   */
+  unappliedCredit?: Amount
 }
 
 export type CashDto = {
@@ -29,7 +34,8 @@ export type CashDto = {
 }
 
 export type VatRowDto = {
-  side: 'OUTPUT' | 'INPUT' | 'NET'
+  /** `INPUT_WITHOUT_OMR_VAT`: input VAT whose rial figure is not known, never netted. */
+  side: 'OUTPUT' | 'INPUT' | 'NET' | 'INPUT_WITHOUT_OMR_VAT'
   currency: string
   vatAmount: Amount
 }
@@ -76,7 +82,8 @@ export type RecentInvoiceDto = {
   issueDate: string | null
   customerName: string | null
   currency: string
-  total: Amount
+  /** Null for a draft: it is priced only at issue (`InvoicePayableSql` over no totals). */
+  total: Amount | null
   dispatch: 'PENDING' | 'DISPATCHED' | 'DEAD_LETTERED' | null
   transportState: string | null
   invoiceAck: 'AP' | 'AB' | 'RE' | null

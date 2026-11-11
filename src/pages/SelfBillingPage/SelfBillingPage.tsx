@@ -149,11 +149,12 @@ const PAYMENT_STYLES: Record<PaymentChip, Chip> = {
   partial: { bg: 'bg-pending-100', dot: 'bg-pending-700', text: 'text-pending-700' },
   toSend: { bg: 'bg-primary-25', dot: 'bg-primary-900', text: 'text-primary-900' },
   paid: { bg: 'bg-success-100', dot: 'bg-success-700', text: 'text-success-700' },
+  credited: { bg: 'bg-success-100', dot: 'bg-success-700', text: 'text-success-700' },
 }
 
 /** The PEPPOL/OTA column, as the design prints it: AB, AP or RE, spelled out in the tooltip. */
 const DELIVERY_STYLES: Record<PeppolResponse | 'sentManually', Chip> = {
-  AB: { bg: 'bg-primary-25', dot: 'bg-primary-700', text: 'text-primary-700' },
+  AB: { bg: 'bg-warning-100', dot: 'bg-[#6d5a39]', text: 'text-[#6d5a39]' },
   AP: { bg: 'bg-success-100', dot: 'bg-success-700', text: 'text-success-700' },
   RE: { bg: 'bg-danger-100', dot: 'bg-danger-700', text: 'text-danger-700' },
   sentManually: { bg: 'bg-neutral-25', dot: 'bg-text-muted', text: 'text-text-tertiary' },
@@ -953,11 +954,11 @@ function SelfBilledRowCells({
     row.payment && row.authoring === 'issued'
       ? {
           chip:
-            row.payment === 'paid' || row.payment === 'toSend'
+            row.payment === 'paid' || row.payment === 'credited' || row.payment === 'toSend'
               ? PAYMENT_STYLES[row.payment]
               : PAYMENT_STYLES.awaiting,
           label:
-            row.payment === 'paid' || row.payment === 'toSend'
+            row.payment === 'paid' || row.payment === 'credited' || row.payment === 'toSend'
               ? t(`invoicesPage.payment.${row.payment}`)
               : t('selfBilling.status.awaitingConfirmation'),
           title:

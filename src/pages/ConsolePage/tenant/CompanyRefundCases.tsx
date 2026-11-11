@@ -7,6 +7,7 @@ import { DateField, Input, Modal, OmAmount, Select, withRial } from '../../../co
 import { ConsoleStatusPill } from '../../../layouts/ConsoleShell/ConsoleStatusPill'
 import { CONSOLE_CARD, ConsoleButton } from '../../../layouts/ConsoleShell/consoleStyle'
 import { useConsoleRead } from '../../../layouts/ConsoleShell/useConsoleRead'
+import { containsCardNumber } from '../../../lib/cardNumbers'
 import { describePayLinkFailure } from '../../../lib/console/payLinks'
 import {
   REFUND_METHODS,
@@ -390,6 +391,7 @@ function RecordRefundDialog({
   const [refundedOn, setRefundedOn] = useState(today)
   const [methodError, setMethodError] = useState<string | undefined>()
   const [dayError, setDayError] = useState<string | undefined>()
+  const [referenceError, setReferenceError] = useState<string | undefined>()
   const opened = muscatToday(new Date(refund.openedAt))
   // Recording a console case approves it today: the money goes out today or later, never before (V427).
   // A Finance case was paid outside Fawtir: some day from when it opened up to today.
@@ -404,7 +406,12 @@ function RecordRefundDialog({
     if (dayWrong)
       setDayError(t(approving ? `${K}refund.onInvalidApproved` : `${K}refund.onInvalid`))
     if (!method) setMethodError(t('validation.required'))
-    if (!method || dayWrong) return
+    // SEC 86912a7fa refuses this with a codeless 400 validation error, which can only read as a
+    // general failure; caught here, the field can say what is wrong. Card refunds only, as on the
+    // server: a transfer reference can pass Luhn by chance.
+    const referenceHoldsCard = method === 'CARD' && containsCardNumber(reference)
+    if (referenceHoldsCard) setReferenceError(t(`${K}refund.referenceCardNumber`))
+    if (!method || dayWrong || referenceHoldsCard) return
     inFlight.current = true
     setSending(true)
     setFailure(null)
@@ -485,8 +492,12 @@ function RecordRefundDialog({
           autoComplete="off"
           maxLength={200}
           value={reference}
-          onChange={(event) => setReference(event.target.value)}
+          onChange={(event) => {
+            setReference(event.target.value)
+            setReferenceError(undefined)
+          }}
           hint={t(`${K}refund.referenceHint`)}
+          error={referenceError}
         />
         {failure ? (
           <p role="alert" className="text-sm font-medium text-danger-700">

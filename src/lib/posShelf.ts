@@ -103,17 +103,23 @@ export function shelfTabs(
   groups: CatalogGroupDto[],
   ar: boolean,
   everything: string,
+  /** Each tab counts what it would show under the Active / Inactive / Both filter. */
+  filter: ActiveFilter = 'both',
 ): ShelfTab[] {
-  const count = (id: string) => items.filter((item) => item.groupId === id).length
+  const shown = items.filter(
+    (item) => filter === 'both' || item.available === (filter === 'active'),
+  )
+  const count = (list: PosItem[], id: string) => list.filter((item) => item.groupId === id).length
   return [
-    { id: 'all', label: everything, count: items.length },
+    { id: 'all', label: everything, count: shown.length },
     ...groups
+      // A group stays while it has anything at all, so the filter never takes away the open tab.
+      .filter((group) => count(items, group.id) > 0)
       .map((group) => ({
         id: group.id,
         label: pick(group.name, group.nameAr, ar),
-        count: count(group.id),
-      }))
-      .filter((tab) => tab.count > 0),
+        count: count(shown, group.id),
+      })),
   ]
 }
 
@@ -232,16 +238,57 @@ export function hasChoices(choices: ItemChoices): boolean {
   return choices.sizes.length > 0 || choices.addOns.length > 0
 }
 
+/* --------------------------------------------------------- an item with no price */
+
+/**
+ * A 0.000 item must never be sold for free by mistake (Abdul, 30 Oct 2026; template items start at
+ * 0.000). Whether a price may be typed for one: the item's "Let staff change the price at the till"
+ * and the person's right to sell (`pos.sell`, the only till permission the server's price check
+ * knows; `PosSaleService` lets such a line through at any price, and takes no other permission).
+ * Only the item's or size's own price counts: an add-on at 0 is a free add-on, and a line that
+ * comes to 0 through a discount or a price rule still has a price.
+ */
+export function mayTypePrice(item: PosItem, canSell: boolean): boolean {
+  return canSell && item.product.staffCanChangePrice === true
+}
+
+/** What a tap or a scan does: put it on the sale, open the chooser, or say there is no price. */
+export function whenPicked(
+  item: PosItem,
+  choices: ItemChoices,
+  canSell: boolean,
+): 'add' | 'choose' | 'refuse' {
+  const priced = choices.sizes.length
+    ? choices.sizes.some((size) => size.price > 0)
+    : item.price > 0
+  if (!priced && !mayTypePrice(item, canSell)) return 'refuse'
+  return !priced || hasChoices(choices) ? 'choose' : 'add'
+}
+
+/** The tile's figure: its price, else its cheapest priced size, else 0 ("No price yet"). */
+export function tilePrice(item: PosItem, choices: ItemChoices | undefined): number {
+  if (item.price > 0) return item.price
+  const priced = (choices?.sizes ?? []).map((size) => size.price).filter((price) => price > 0)
+  return priced.length ? Math.min(...priced) : 0
+}
+
+/** A typed price in baisa; 0 for anything that is not a figure above nothing. */
+export function typedPriceBaisa(raw: string): number {
+  return /^(\d+(\.\d{0,3})?|\.\d{1,3})$/.test(raw.trim()) ? toBaisa(Number(raw)) : 0
+}
+
 /**
  * A line of the sale from a product, in the invoice composer's own terms (`lineFromProduct`), so
  * a till line carries what a typed invoice line would: unit, VAT category, classification, the
- * no-VAT reason and the catalogue discount.
+ * no-VAT reason and the catalogue discount. `typedPrice` is the price asked for at the till, in
+ * baisa, for an item with none.
  */
 export function saleLineFor(
   categories: TaxCategoryDto[],
   item: PosItem,
   size: SizeChoice | null,
   addOns: SaleAddOn[],
+  typedPrice?: number,
 ): SaleLine {
   const patch = lineFromProduct(categories, item.product, true)
   return {
@@ -252,7 +299,7 @@ export function saleLineFor(
     variant: size ? { id: size.id, label: size.label } : null,
     addOns,
     qty: 1,
-    price: size ? size.price : item.price,
+    price: typedPrice ?? (size ? size.price : item.price),
     itemType: patch.itemType ?? 'goods',
     unit: patch.unit,
     taxCode: patch.taxCode ?? 'S5',
@@ -266,10 +313,14 @@ export function saleLineFor(
   }
 }
 
-/** The same thing again adds to its line rather than starting another. */
+/**
+ * The same thing again, at the same price, adds to its line rather than starting another. The last
+ * word on a line with no price: it does not go on the sale, whichever way it got here.
+ */
 export function addToSale(lines: SaleLine[], next: SaleLine): SaleLine[] {
+  if (!(next.price > 0)) return lines
   const key = (line: SaleLine) =>
-    `${line.productId}|${line.variant?.id ?? ''}|${line.addOns
+    `${line.productId}|${line.variant?.id ?? ''}|${line.price}|${line.addOns
       .map((a) => a.id)
       .sort()
       .join(',')}`

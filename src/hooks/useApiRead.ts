@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ApiError, apiRequest, sharedRequest } from '../api'
 import { forgetEntitlements } from '../lib/identity/entitlements'
+import { forgetSigningKeys } from '../lib/posSigning/signingKey'
 import { LOGIN_ROUTE } from '../lib/identity/login'
 
 export type ApiRead<T> =
@@ -45,6 +46,7 @@ export function useApiRead<T>(
         if (!active) return
         if (error instanceof ApiError && error.status === 401) {
           forgetEntitlements()
+          void forgetSigningKeys()
           navigate(LOGIN_ROUTE, { replace: true })
           return
         }

@@ -58,12 +58,19 @@ import {
   type InvoiceSortKey,
   type InvoiceTabId,
   type PaymentChip,
+  type LedgerChip,
   type PeppolResponse,
   type PeriodId,
 } from '../../lib/invoiceList'
+import { NOTE_ROUTES, type NoteListStatus } from '../../lib/salesNote'
+import {
+  ISSUED_DEBIT_NOTE_LOCKED,
+  issuedDebitNoteLocked,
+  noteCancelRefusalKey,
+} from '../../lib/invoiceDetail'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatCount, formatDate } from '../../lib/format'
-import { can, useSession } from '../../lib/session/session'
+import { can, mayRequest, useSession } from '../../lib/session/session'
 import { usePlanIncludes } from '../../lib/planAccess'
 import outstandingIcon from '../../assets/invoices/kpi-outstanding.svg'
 import paidIcon from '../../assets/invoices/kpi-paid.svg'
@@ -99,6 +106,30 @@ const PAYMENT_STYLES: Record<PaymentChip, Chip> = {
   partial: { bg: 'bg-warning-100', dot: 'bg-[#6d5a39]', text: 'text-[#6d5a39]' },
   toSend: { bg: 'bg-primary-25', dot: 'bg-primary-800', text: 'text-primary-800' },
   paid: { bg: 'bg-success-100', dot: 'bg-success-700', text: 'text-success-700' },
+  credited: { bg: 'bg-success-100', dot: 'bg-success-700', text: 'text-success-700' },
+}
+
+/** A note's pill in this list's own palette, matching the notes lists' colour for each status. */
+const NOTE_STATUS_STYLES: Record<NoteListStatus, Chip> = {
+  draft: AUTHORING_STYLES.draft,
+  toSend: PAYMENT_STYLES.toSend,
+  refundDue: PAYMENT_STYLES.awaiting,
+  applied: PAYMENT_STYLES.paid,
+  refunded: PAYMENT_STYLES.paid,
+  awaiting: PAYMENT_STYLES.awaiting,
+  overdue: PAYMENT_STYLES.overdue,
+  paid: PAYMENT_STYLES.paid,
+  cancelled: AUTHORING_STYLES.cancelled,
+}
+
+/**
+ * Where a row opens. A credit or debit note has its own page, which shows the invoice it corrects;
+ * opened here as an invoice it never did (TEST verification 2026-10-29).
+ */
+function documentPath(row: InvoiceListItem, edit: boolean): string {
+  const base =
+    row.type === 'CREDIT_NOTE' || row.type === 'DEBIT_NOTE' ? NOTE_ROUTES[row.type] : '/invoices'
+  return `${base}/${row.id}${edit ? '/edit' : ''}`
 }
 
 /**
@@ -106,7 +137,7 @@ const PAYMENT_STYLES: Record<PaymentChip, Chip> = {
  * A document sent by hand has no code, so it says so in a neutral pill; an undelivered one is blank.
  */
 const DELIVERY_STYLES: Record<PeppolResponse | 'sentManually', Chip> = {
-  AB: { bg: 'bg-primary-25', dot: 'bg-primary-700', text: 'text-primary-700' },
+  AB: { bg: 'bg-warning-100', dot: 'bg-[#6d5a39]', text: 'text-[#6d5a39]' },
   AP: { bg: 'bg-success-100', dot: 'bg-success-700', text: 'text-success-700' },
   RE: { bg: 'bg-danger-100', dot: 'bg-danger-700', text: 'text-danger-700' },
   sentManually: { bg: 'bg-neutral-25', dot: 'bg-text-muted', text: 'text-text-tertiary' },
@@ -115,6 +146,23 @@ const DELIVERY_HINTS: Record<PeppolResponse, string> = {
   AB: 'invoicesPage.transmission.acknowledgedHint',
   AP: 'invoicesPage.transmission.acceptedHint',
   RE: 'invoicesPage.transmission.rejectedHint',
+}
+const LEDGER_STYLES: Record<LedgerChip, Chip> = {
+  queued: PAYMENT_STYLES.toSend,
+  sending: PAYMENT_STYLES.toSend,
+  sent: DELIVERY_STYLES.AB,
+  delivered: DELIVERY_STYLES.AP,
+  deliveredUnconfirmed: DELIVERY_STYLES.AB,
+  undeliverable: DELIVERY_STYLES.RE,
+}
+/** The dispatch sentences the detail page shows for the same states (lib/invoiceDispatch.ts). */
+const LEDGER_HINTS: Record<LedgerChip, string> = {
+  queued: 'invoiceDispatch.state.queued',
+  sending: 'invoiceDispatch.state.sending',
+  sent: 'invoiceDispatch.state.sent',
+  delivered: 'invoiceDispatch.state.delivered',
+  deliveredUnconfirmed: 'activity.ack.deliveredUnconfirmed',
+  undeliverable: 'invoiceDispatch.state.undeliverable',
 }
 
 /**
@@ -318,7 +366,11 @@ function InvoicesScreen() {
     : null
   const list = useApiRead<Page<InvoiceRowDto>>(listPath, () => loadInvoicePage(listPath!))
   // The design names the issuing branch under the customer; the row carries only its id.
-  const branches = useApiRead<BranchDto[]>('/v1/branches', loadBranches)
+  // `branch.read` only: without it the list asked anyway and got a 403 (B-14).
+  const branches = useApiRead<BranchDto[]>(
+    mayRequest(session, 'branch.read') ? '/v1/branches' : null,
+    loadBranches,
+  )
   const { label: branchLabel } = useBranchName()
   const branchNames = useMemo(() => {
     const names = new Map<string, string>()
@@ -392,7 +444,9 @@ function InvoicesScreen() {
       salesSummary.retry()
       list.retry()
     } catch (error) {
-      setNotice({ body: failureText(t, error) })
+      const kind = cancelling.type === 'CREDIT_NOTE' || cancelling.type === 'DEBIT_NOTE' ? cancelling.type : null
+      const blocked = kind ? noteCancelRefusalKey(error, kind) : null
+      setNotice({ body: blocked ? t(blocked) : failureText(t, error) })
       closeCancel()
       list.retry()
     } finally {
@@ -765,16 +819,30 @@ function InvoiceKpiCards({ totals }: { totals: InvoiceSummaryDto }) {
         invoices: count(totals.outstandingInvoices),
       }),
     },
-    {
-      id: 'paid',
-      icon: paidIcon,
-      titleKey: 'invoicesPage.kpi.paid',
-      figure: money(totals.paidTotal),
-      meta: t('invoicesPage.kpi.paidLive', {
-        count: totals.paidInvoices,
-        invoices: count(totals.paidInvoices),
-      }),
-    },
+    // "Paid" is cash in: `collectedTotal` (ACC-10, backend #824, INCOME.md row 4.20). `paidTotal`
+    // counts every receivable with nothing left owed, debit notes and credit-cleared invoices
+    // among them, so a server before #824 keeps the card named for what that figure is, "Settled".
+    totals.collectedTotal
+      ? {
+          id: 'paid',
+          icon: paidIcon,
+          titleKey: 'invoicesPage.kpi.paid',
+          figure: money(totals.collectedTotal.total),
+          meta: t('invoicesPage.kpi.paidLive', {
+            count: totals.collectedTotal.count,
+            invoices: count(totals.collectedTotal.count),
+          }),
+        }
+      : {
+          id: 'paid',
+          icon: paidIcon,
+          titleKey: 'invoicesPage.kpi.settled',
+          figure: money(totals.paidTotal),
+          meta: t('invoicesPage.kpi.settledLive', {
+            count: totals.paidInvoices,
+            invoices: count(totals.paidInvoices),
+          }),
+        },
     {
       id: 'awaiting',
       icon: awaitingIcon,
@@ -995,7 +1063,7 @@ function InvoiceTable({
         id: 'view',
         labelKey: 'rowActions.invoice.view',
         icon: viewIcon,
-        to: `/invoices/${row.id}`,
+        to: documentPath(row, false),
       },
       ...(canSend && row.authoring === 'issued'
         ? [
@@ -1052,6 +1120,13 @@ function InvoiceTable({
         icon: deleteIcon,
         danger: true,
         onSelect: () => onDiscard(row),
+      })
+    } else if (issuedDebitNoteLocked(row.type, row.authoring === 'issued') && can(session, 'invoice.cancel')) {
+      items.push({
+        id: 'delete',
+        labelKey: 'rowActions.delete',
+        icon: deleteIcon,
+        onSelect: () => onUnavailable(ISSUED_DEBIT_NOTE_LOCKED),
       })
     } else if (row.authoring === 'issued' && can(session, 'invoice.cancel')) {
       items.push({
@@ -1124,7 +1199,7 @@ function InvoiceTable({
                   key={row.id}
                   className="cursor-pointer border-b border-[#f3f3f3] last:border-b-0 hover:bg-primary-25/60"
                   onClick={() =>
-                    navigate(editable ? `/invoices/${row.id}/edit` : `/invoices/${row.id}`)
+                    navigate(documentPath(row, editable))
                   }
                 >
                   <td className="px-5 py-2.5" onClick={(event) => event.stopPropagation()}>
@@ -1183,42 +1258,57 @@ function InvoiceRowCells({ row, branch }: { row: InvoiceListItem; branch: string
   const subline = branch ?? row.subtitle ?? (row.isDraft ? t('invoicesPage.notIssuedYet') : null)
   // One pill, as the design draws it: what is owed once issued, the authoring state otherwise.
   // An overdue pill says "Overdue"; how late it is sits in the tooltip.
+  // A note reads as the notes lists word it, by the same rule, so it is not "Issued" here and
+  // "To be sent" there. A note draft waiting on approval keeps the approval pill.
   const status =
-    row.payment && row.authoring === 'issued'
+    row.noteStatus && !row.approval
       ? {
-          chip: PAYMENT_STYLES[row.payment],
-          label: t(`invoicesPage.payment.${row.payment}`),
-          title:
-            row.payment === 'overdue'
-              ? t('invoicesPage.payment.overdueDays', { count: row.paymentValues?.count ?? 0 })
-              : undefined,
+          chip: NOTE_STATUS_STYLES[row.noteStatus],
+          label: t(`salesNote.status.${row.noteStatus}`),
+          title: undefined,
         }
-      : row.approval
+      : row.payment && row.authoring === 'issued'
         ? {
-            chip: APPROVAL_STYLES[row.approval],
-            label: t(`salesApproval.status.${row.approval}`),
-            title: undefined,
+            chip: PAYMENT_STYLES[row.payment],
+            label: t(`invoicesPage.payment.${row.payment}`),
+            title:
+              row.payment === 'overdue'
+                ? t('invoicesPage.payment.overdueDays', { count: row.paymentValues?.count ?? 0 })
+                : undefined,
           }
-        : {
-            chip: AUTHORING_STYLES[row.authoring],
-            label: t(`invoicesPage.authoring.${row.authoring}`),
-            title: undefined,
-          }
-  // TODO(backend): no Peppol response is answered yet (list.ts `peppolResponse`); a manual send
-  // is the one delivery fact recorded, and an undelivered document leaves the column blank.
+        : row.approval
+          ? {
+              chip: APPROVAL_STYLES[row.approval],
+              label: t(`salesApproval.status.${row.approval}`),
+              title: undefined,
+            }
+          : {
+              chip: AUTHORING_STYLES[row.authoring],
+              label: t(`invoicesPage.authoring.${row.authoring}`),
+              title: undefined,
+            }
+  // TODO(backend): no Peppol response is answered yet (list.ts `peppolResponse`). The ledger state
+  // (A-4b, backend #824) and a manual send are the delivery facts a row carries; a row with
+  // neither leaves the column blank. The ledger pill's hint is the detail page's own sentence.
   const delivery = row.peppolResponse
     ? {
         chip: DELIVERY_STYLES[row.peppolResponse],
         label: row.peppolResponse,
         title: t(DELIVERY_HINTS[row.peppolResponse]),
       }
-    : row.sentManually
+    : row.ledger
       ? {
-          chip: DELIVERY_STYLES.sentManually,
-          label: t('invoicesPage.delivery.sentManually'),
-          title: undefined,
+          chip: LEDGER_STYLES[row.ledger],
+          label: t(`invoicesPage.delivery.${row.ledger}`),
+          title: t(LEDGER_HINTS[row.ledger]),
         }
-      : null
+      : row.sentManually
+        ? {
+            chip: DELIVERY_STYLES.sentManually,
+            label: t('invoicesPage.delivery.sentManually'),
+            title: undefined,
+          }
+        : null
   return (
     <>
       <td className="px-2 py-2.5">

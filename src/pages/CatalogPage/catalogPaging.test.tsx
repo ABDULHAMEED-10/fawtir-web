@@ -109,6 +109,30 @@ describe('the catalogue list', () => {
     expect(screen.queryByText('Item 01')).toBeNull()
   })
 
+  it('opens the tab and order a link asks for, and ignores anything else', async () => {
+    const first = render(
+      <MemoryRouter initialEntries={['/catalog?tab=attention&sort=priceLow']}>
+        <CatalogPage />
+      </MemoryRouter>,
+    )
+    await vi.waitFor(() =>
+      expect(productCalls()).toContain('/api/v1/products?sort=PRICE&direction=ASC&size=20'),
+    )
+    const tabs = await screen.findAllByRole('button', {
+      name: new RegExp(i18n.t('catalogReal.tab.attention')),
+    })
+    expect(tabs.some((tab) => tab.getAttribute('aria-pressed') === 'true')).toBe(true)
+    first.unmount()
+
+    resetSharedRequests()
+    render(
+      <MemoryRouter initialEntries={['/catalog?tab=nonsense&sort=nonsense']}>
+        <CatalogPage />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText('Item 01')).toBeTruthy()
+  })
+
   it('narrows the loaded page to a tab and sorts it by price', async () => {
     render(
       <MemoryRouter>
@@ -274,5 +298,56 @@ describe('the catalogue list', () => {
     } finally {
       READER.permissions = ['product.read']
     }
+  })
+})
+
+describe('the way back to the template once the catalogue has items', () => {
+  const withTemplate = (permissions: string[], template: Response | null) => {
+    const base = vi.mocked(fetch).getMockImplementation()!
+    vi.mocked(fetch).mockImplementation(async (url, init) => {
+      if (url === '/api/v1/me/entitlements') return json({ ...READER, permissions })
+      if (url === '/api/v1/catalog/templates')
+        return template ?? new Response(null, { status: 404 })
+      return base(url, init)
+    })
+  }
+  const TEMPLATE = json({ subBusinessTypeCode: 'COFFEE_SHOP', version: 1, groups: [] })
+  const templateCalls = () =>
+    vi.mocked(fetch).mock.calls.filter(([url]) => String(url) === '/api/v1/catalog/templates')
+      .length
+
+  it('offers Build from a template to someone who may add items', async () => {
+    withTemplate(['product.read', 'product.manage'], TEMPLATE)
+    render(
+      <MemoryRouter>
+        <CatalogPage />
+      </MemoryRouter>,
+    )
+    const link = await screen.findByRole('link', { name: 'Build from a template' })
+    expect(link.getAttribute('href')).toBe('/catalog/build')
+  })
+
+  it('offers nothing when the business type has no template', async () => {
+    withTemplate(['product.read', 'product.manage'], null)
+    render(
+      <MemoryRouter>
+        <CatalogPage />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText('Item 01')).toBeTruthy()
+    await vi.waitFor(() => expect(templateCalls()).toBe(1))
+    expect(screen.queryByRole('link', { name: 'Build from a template' })).toBeNull()
+  })
+
+  it('does not even ask for the template for someone who only reads', async () => {
+    withTemplate(['product.read'], TEMPLATE)
+    render(
+      <MemoryRouter>
+        <CatalogPage />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText('Item 01')).toBeTruthy()
+    expect(templateCalls()).toBe(0)
+    expect(screen.queryByRole('link', { name: 'Build from a template' })).toBeNull()
   })
 })

@@ -16,8 +16,9 @@ export type NameableBranch = { id?: string | null; name: string; nameAr?: string
  * How every screen names a branch (Business Rules BR-1): the Arabic name in Arabic when the branch
  * has one, else its name (`branchDisplayName`).
  *
- * Only the branches overview and a branch's own read carry `nameAr`; the picker list
- * (`/v1/branches`), document rows and usage rows name a branch in English only. So in Arabic, for a
+ * The branches overview, a branch's own read and the picker list (`/v1/branches`, in both its full
+ * and its lookup projection since backend C3 65fc3ad41) carry `nameAr`, and a row's own is used
+ * first; document rows and usage rows name a branch in English only. So in Arabic, for a
  * reader who may read the overview (`branch.manage`), the Arabic names are taken from it by id: the
  * same read the settings shell and the sidebar's company card already make. In English nothing more
  * is read.

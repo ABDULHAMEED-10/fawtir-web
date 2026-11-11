@@ -52,6 +52,21 @@ export type Taken = {
   slipPhoto?: { blob: Blob; name: string }
 }
 
+/**
+ * The QR refusal's sentences for the payments already taken (STUCKQR-2, STQ-1, STQ-1b, RW6-5):
+ * "nothing was charged" is said only when nothing was, and otherwise each way of paying taken says
+ * what to give back: the card refunded on the terminal, the transfer returned, the cash handed back.
+ * On account takes nothing from the customer, so it adds no sentence.
+ */
+export function qrRefusalKeys(taken: Pick<Taken, 'method'>[]): string[] {
+  const giveBack = (['card', 'transfer', 'cash'] as const)
+    .filter((method) => taken.some((payment) => payment.method === method))
+    .map((method) => `pos.refusal.qrGiveBack.${method}`)
+  return giveBack.length === 0
+    ? ['pos.refusal.POS_SALE_QR_UNAVAILABLE_FOR_BUYER']
+    : ['pos.refusal.qrUnavailableTaken', ...giveBack]
+}
+
 /** The tip sits on top of the sale and carries no VAT, which the design says twice. */
 export type TipChoice = 'none' | 'p5' | 'p10' | 'p15' | 'roundUp'
 
@@ -96,8 +111,31 @@ export function quickCash(owed: number): number[] {
 
 /** A typed figure ("12.5", "12.500") in baisa; anything else is 0. */
 export function parseBaisa(text: string): number {
-  const value = Number(text.replace(/[^0-9.]/g, ''))
+  const value = Number(latinDigits(text).replace(/[^0-9.]/g, ''))
   return Number.isFinite(value) ? Math.round(value * BAISA) : 0
+}
+
+/** Arabic-Indic and Persian digits and the Arabic decimal point, as an Arabic keyboard types them. */
+function latinDigits(text: string): string {
+  return text
+    .replace(/[\u0660-\u0669]/g, (digit) => String(digit.charCodeAt(0) - 0x0660))
+    .replace(/[\u06f0-\u06f9]/g, (digit) => String(digit.charCodeAt(0) - 0x06f0))
+    .replace(/\u066b/g, '.')
+}
+
+/** What a money field holds as typed, in baisa; null when empty or not a figure, never a made-up 0. */
+export function typedBaisa(text: string): number | null {
+  const plain = latinDigits(text).trim()
+  return /^(\d+\.?\d*|\.\d+)$/.test(plain) ? Math.round(Number(plain) * BAISA) : null
+}
+
+/**
+ * A card approval code as the server takes it on a sale (`PosSaleService`, `POS_PAYMENT_INVALID`):
+ * optional, and otherwise 1 to 40 printable ASCII characters once trimmed.
+ */
+export function approvalCodeOk(code: string): boolean {
+  const typed = code.trim()
+  return typed === '' || /^[\x20-\x7E]{1,40}$/.test(typed)
 }
 
 /** The tip is paid in cash when cash was taken, else on the card; never by transfer or account. */

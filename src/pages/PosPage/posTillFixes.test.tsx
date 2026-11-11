@@ -10,8 +10,8 @@ import { PosClosePage } from './PosClosePage'
 import { PosRefundPage } from './PosRefundPage'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import { resetOpenSale, setFinishedSale, setSaleCompany, useFinishedSale } from '../../lib/posSale'
-import { resetPosQueue } from '../../lib/posQueue'
-import { NO_SALE_DISCOUNT, totalsFor } from '../../lib/pos'
+import { noteQueueSender, resetPosQueue } from '../../lib/posQueue'
+import { NO_SALE_DISCOUNT, totalsFor, omr } from '../../lib/pos'
 import { resetSharedRequests } from '../../api'
 import { forgetWorkingBranch } from '../../lib/workingBranch'
 
@@ -50,6 +50,19 @@ const TILL = {
   series: { INVOICE: { series: 'NZW-T01-INV', year: 2026, nextValue: 49 } },
 }
 
+// Only GET /pos/tills/{id} carries it; a consumer sale is queued offline only with its QR (owner
+// directive 2026-11-06).
+const QR_PROFILE = {
+  qrVersion: '1.1',
+  invoiceType: '01',
+  sellerName: 'Al Noor Trading LLC',
+  sellerVatin: 'OM1100012345',
+  issueDateZone: 'Asia/Muscat',
+  issueTimeZone: 'Asia/Muscat',
+  amountScale: 3,
+  profileVersion: 'e'.repeat(64),
+}
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -77,6 +90,8 @@ beforeEach(async () => {
   await i18n.changeLanguage('en')
   resetOpenSale(SAMPLE_SALE)
   resetPosQueue()
+  // The person signed in on this device: only the sales they queue go by themselves (round 5, P3b).
+  noteQueueSender('u-1')
   resetSharedRequests()
   forgetEntitlements()
   forgetWorkingBranch()
@@ -97,6 +112,7 @@ beforeEach(async () => {
       if (url === '/api/v1/branches') {
         return json([{ id: 'b-1', code: 'NZW', name: 'Nizwa', type: 'BRANCH', city: 'Nizwa' }])
       }
+      if (url === '/api/v1/pos/tills/till-1') return json({ ...TILL, openShift: tillShift, qrProfile: QR_PROFILE })
       if (url.startsWith('/api/v1/pos/tills')) return json([{ ...TILL, openShift: tillShift }])
       if (url === '/api/v1/pos/sales' && init?.method === 'POST') {
         return json(sold('NZW-T01-INV-2026-000049'), 201)
@@ -288,6 +304,54 @@ describe('a company the till cannot invoice yet (F-1)', () => {
     })
   })
 
+  it('puts a refused VAT number on the field, in place of the general failure', async () => {
+    answer = (url, init) => {
+      if (url.startsWith('/api/v1/customers?')) {
+        return json({ content: [], totalElements: 0, number: 0, size: 10, totalPages: 0 })
+      }
+      if (url.startsWith('/api/v1/pos/sales')) {
+        return json({ content: [], totalElements: 0, page: 0, size: 50, branchId: 'b-1' })
+      }
+      if (url === '/api/v1/pos/customers' && init?.method === 'POST') {
+        return json(
+          {
+            type: 'https://api.fawtir.om/problems/validation-failed',
+            title: 'Validation failed',
+            status: 400,
+            errors: [
+              {
+                field: 'details.vatRegistrationNumber',
+                code: 'INVALID_CHARACTERS',
+                message: 'VAT registration number contains unsupported characters',
+              },
+            ],
+          },
+          400,
+        )
+      }
+      return null
+    }
+    renderAt('/pos/company')
+    fireEvent.change(await screen.findByLabelText('VAT number'), {
+      target: { value: 'not a number' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Enter it by hand instead' }))
+    const form = (await screen.findByRole('button', { name: 'Add the company' })).closest(
+      'div.rounded-md',
+    ) as HTMLElement
+    const field = (label: string) => within(form).getByLabelText(label)
+    fireEvent.change(field('Legal name'), { target: { value: 'Sohar Traders LLC' } })
+    fireEvent.change(field('Contact person'), { target: { value: 'Ali' } })
+    fireEvent.change(field('City / Governorate'), { target: { value: 'Sohar' } })
+    fireEvent.change(field('Street & building'), { target: { value: 'Way 12' } })
+    fireEvent.click(within(form).getByRole('button', { name: 'Add the company' }))
+    expect(await within(form).findByText(i18n.t('validation.vatin'))).toBeTruthy()
+    expect(within(form).queryByText(i18n.t('pos.refusal.failed'))).toBeNull()
+    // Typing again takes the complaint away.
+    fireEvent.change(field('Legal name'), { target: { value: 'Sohar Traders' } })
+    expect(within(form).queryByText(i18n.t('validation.vatin'))).toBeNull()
+  })
+
   it('names what is missing when the server refuses the company itself (backend #810)', async () => {
     answer = (url, init) => {
       if (url.startsWith('/api/v1/customers?')) {
@@ -427,6 +491,46 @@ describe('the till offline across screens (F-4) and back online (F-5)', () => {
   })
 })
 
+describe('a typed line discount offline', () => {
+  it('goes in the queue as the printed sale has it, and the queue sends it as it was', async () => {
+    const lines = SAMPLE_SALE.map((line, index) =>
+      index === 0 ? { ...line, lineDiscount: { type: 'PERCENTAGE' as const, value: '100' } } : line,
+    )
+    const amount = omr(totalsFor(lines, NO_SALE_DISCOUNT).sale)
+    const online = renderAt('/pos/payment')
+    await screen.findByRole('button', { name: /Take 5.649 in cash/ })
+    online.unmount()
+    offline = true
+    resetOpenSale(lines)
+    resetSharedRequests()
+    const away = renderAt('/pos/payment')
+    fireEvent.click(
+      await screen.findByRole('button', { name: new RegExp(`Take ${amount} in cash`) }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+    await screen.findByText(/done queued/)
+    away.unmount()
+
+    offline = false
+    answer = (url, init) => {
+      if (url !== '/api/v1/pos/sales' || init?.method !== 'POST') return null
+      const body = JSON.parse(String(init.body))
+      return json(sold(body.invoiceNumber ?? 'NZW-T01-INV-2026-000050'), 201)
+    }
+    resetOpenSale(SAMPLE_SALE)
+    resetSharedRequests()
+    renderAt('/pos/payment')
+    fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+    await screen.findByText(/done sent/)
+    const queued = bodyOf(
+      sales().filter((call) => call.init?.method === 'POST' && !call.offline)[0],
+    ) as { queuedOffline: boolean; draft: { lines: { discount: unknown }[] } }
+    expect(queued.queuedOffline).toBe(true)
+    expect(queued.draft.lines[0].discount).toMatchObject({ type: 'PERCENTAGE', value: 100 })
+  })
+})
+
 describe('the full invoice receipt (F-6)', () => {
   it('prints a tax invoice in both languages and names the buyer with their ID', async () => {
     const totals = totalsFor(SAMPLE_SALE, NO_SALE_DISCOUNT)
@@ -440,7 +544,8 @@ describe('the full invoice receipt (F-6)', () => {
       payments: [{ method: 'card', amount: totals.sale }],
       sale: sold('NZW-T01-INV-2026-000006', {
         transactionType: 'FULL_TAX',
-        receipt: { invoiceTotal: 5.649, tip: 0, qr: { status: 'NOT_APPLICABLE' } },
+        // A named consumer is B2C: its receipt prints only with the READY QR (ruling on QW4R-2).
+        receipt: { invoiceTotal: 5.649, tip: 0, qr: { status: 'READY', payload: 'AQ==' } },
         filing: { dispatchState: 'DISPATCHED', acceptedAt: null },
         warnings: [{ code: 'ZR_FOOD_CHARGED_STANDARD', line: 3 }],
       }) as never,
@@ -452,10 +557,80 @@ describe('the full invoice receipt (F-6)', () => {
     expect(screen.getByText('فاتورة ضريبية')).toBeTruthy()
     expect(screen.queryByText('فاتورة ضريبية مبسطة')).toBeNull()
     expect(screen.getByText('Saif Al Busaidi')).toBeTruthy()
-    expect(screen.getByText('12345678')).toBeTruthy()
+    // Masked on the receipt (Abdul, 1 Nov 2026); the invoice data keeps the number.
+    expect(screen.getByText('•••• 5678')).toBeTruthy()
+    expect(screen.queryByText('12345678')).toBeNull()
     // The server's food-list warning in its own words, not "Fawtir noted something" (F-8).
     expect(screen.getByText(/Line 3 is on Oman's zero-rated food list/)).toBeTruthy()
     expect(screen.queryByText(i18n.t('pos.warning.other'))).toBeNull()
+  })
+})
+
+describe('a receipt whose number differs from the filed one', () => {
+  const differs = () => {
+    const totals = totalsFor(SAMPLE_SALE, NO_SALE_DISCOUNT)
+    setFinishedSale({
+      lines: SAMPLE_SALE,
+      totals,
+      tip: 0,
+      change: 0,
+      company: null,
+      buyer: null,
+      payments: [{ method: 'card', amount: totals.sale }],
+      sale: sold('NZW-T01-INV-2026-000006', {
+        warnings: [
+          {
+            code: 'POS_PRINTED_NUMBER_DIFFERS',
+            line: null,
+            printed: 'NZW-T01-INV-2026-000005',
+            filed: 'NZW-T01-INV-2026-000004',
+          },
+        ],
+      }) as never,
+      queuedNumber: null,
+      finishedAt: '2026-10-29T11:35:22Z',
+    })
+    renderAt('/pos/receipt')
+  }
+
+  it('says both numbers in English', async () => {
+    differs()
+    expect(await screen.findByText(/receipt says NZW-T01-INV-2026-000005/)).toBeTruthy()
+    expect(screen.queryByText(i18n.t('pos.warning.other'))).toBeNull()
+  })
+
+  it('says both numbers in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    differs()
+    expect(await screen.findByText(/NZW-T01-INV-2026-000005.*NZW-T01-INV-2026-000004/)).toBeTruthy()
+    expect(screen.queryByText(i18n.t('pos.warning.other'))).toBeNull()
+  })
+})
+
+describe('the receipt in Arabic (31 Oct browser check)', () => {
+  it('says the title and the thanks once, and counts one item as one', async () => {
+    await i18n.changeLanguage('ar')
+    const totals = totalsFor(SAMPLE_SALE, NO_SALE_DISCOUNT)
+    setFinishedSale({
+      lines: SAMPLE_SALE,
+      totals,
+      tip: 0,
+      change: 0,
+      company: null,
+      buyer: null,
+      payments: [{ method: 'card', amount: totals.sale }],
+      sale: sold('NZW-T01-INV-2026-000006') as never,
+      queuedNumber: null,
+      finishedAt: '2026-10-29T11:35:22Z',
+    })
+    renderAt('/pos/receipt')
+    const title = await screen.findAllByText(i18n.t('pos.done.simplifiedInvoice'))
+    expect(title).toHaveLength(1)
+    expect(screen.getByText(i18n.t('pos.done.thankYou'))).toBeTruthy()
+    expect(i18n.t('pos.today.itemCount', { count: 1 })).toBe('صنف واحد')
+    expect(i18n.t('pos.pay.receiptWithQr', { count: 2 })).toBe('صنفان · إيصال برمز QR')
+    await i18n.changeLanguage('en')
+    expect(i18n.t('pos.itemsStarted', { count: 1, time: '09:00' })).toBe('1 item · started 09:00')
   })
 })
 
@@ -515,7 +690,7 @@ describe('the refund page (F-11)', () => {
     fireEvent.click(await screen.findByRole('checkbox', { name: /Butter croissant/ }))
     const tipRow = (await screen.findByText(i18n.t('pos.refund.tipNotRefunded'))).parentElement!
     expect(tipRow.textContent).toContain('0.412')
-    expect(calls.some((call) => call.url.startsWith('/api/v1/pos/sales/s-1'))).toBe(false)
+    expect(calls.some((call) => call.url === '/api/v1/pos/sales/s-1')).toBe(false)
   })
 })
 
@@ -546,8 +721,73 @@ describe('the receipt of a company without a VAT number (retest N-8)', () => {
   })
 })
 
+describe('the receipt QR as the server states it (B2C only, owner batch 33 Q5)', () => {
+  const finish = (sale: ReturnType<typeof sold>, company: boolean) => {
+    const totals = totalsFor(SAMPLE_SALE, NO_SALE_DISCOUNT)
+    setFinishedSale({
+      lines: SAMPLE_SALE,
+      totals,
+      tip: 0,
+      change: 0,
+      company: company
+        ? {
+            id: 'c-3',
+            name: 'Ibri Traders SPC',
+            kind: 'BUSINESS',
+            vat: null,
+            identifier: { scheme: 'CR', value: '1468035' },
+          }
+        : null,
+      payments: [{ method: 'cash', amount: totals.sale }],
+      sale: sale as never,
+      queuedNumber: null,
+      finishedAt: '2026-10-29T11:35:22Z',
+    })
+  }
+
+  it('a company without a VAT number gets no QR and no promise of one', async () => {
+    finish(
+      sold('NZW-T01-INV-2026-000008', {
+        transactionType: 'FULL_TAX',
+        customerKind: 'BUSINESS',
+        receipt: { invoiceTotal: 5.649, tip: 0, qr: { status: 'NOT_APPLICABLE' } },
+      }),
+      true,
+    )
+    renderAt('/pos/receipt')
+    expect(await screen.findByText(i18n.t('pos.done.qrNone'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('pos.done.qrAlreadyUp'))).toBeNull()
+    expect(screen.queryByText(i18n.t('pos.done.qrComing'))).toBeNull()
+    expect(screen.queryByAltText(i18n.t('pos.done.qrAlt'))).toBeNull()
+  })
+
+  // QW4R-2: nor is it handed a receipt that says its QR is to come; once the waits end without the
+  // QR no receipt prints and the cashier is sent to the reprint.
+  it('a walk-in whose QR is not ready yet is not told it is on the screen', async () => {
+    finish(sold('NZW-T01-INV-2026-000009'), false)
+    renderAt('/pos/receipt')
+    expect(
+      await screen.findByText(
+        i18n.t('pos.done.receiptQrNotReady', { invoice: 'NZW-T01-INV-2026-000009' }),
+        { exact: false },
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText('The QR code is not ready yet.')).toBeNull()
+    expect(screen.queryByText(i18n.t('pos.done.qrAlreadyUp'))).toBeNull()
+    expect(screen.queryByRole('button', { name: i18n.t('pos.done.printAgain') })).toBeNull()
+  })
+
+  it('says nothing on the receipt that claims a check with the Tax Authority', () => {
+    for (const language of ['en', 'ar']) {
+      const text = i18n.t('pos.done.scanToCheck', { lng: language })
+      expect(text).not.toMatch(/Tax Authority|جهاز الضرائب/)
+    }
+  })
+})
+
 describe('the receipt of a sale queued offline (retest N-6)', () => {
-  const queued = () => {
+  // A consumer's queued sale prints the QR it was queued with (owner directive 2026-11-06).
+  const queued = (queuedQr: string | null = 'AQ==') => {
     const totals = totalsFor(SAMPLE_SALE, NO_SALE_DISCOUNT)
     setFinishedSale({
       lines: SAMPLE_SALE,
@@ -558,26 +798,41 @@ describe('the receipt of a sale queued offline (retest N-6)', () => {
       payments: [{ method: 'cash', amount: totals.sale }],
       sale: null,
       queuedNumber: 'NZW-T01-INV-2026-000049',
+      ...(queuedQr ? { queuedQr } : {}),
       finishedAt: '2026-10-29T11:35:22Z',
     })
   }
 
   afterEach(() => vi.useRealTimers())
 
-  it('says it waits to be filed, not that it is filed, and that the QR comes later', async () => {
+  it('says it waits to reach Fawtir, not that it is issued, and shows the QR it printed', async () => {
     queued()
     renderAt('/pos/receipt')
-    expect(await screen.findByText(/This sale is waiting to be filed/)).toBeTruthy()
-    expect(screen.queryByText(/has already been filed/)).toBeNull()
-    expect(screen.getByText(i18n.t('pos.done.qrAfterFiling'))).toBeTruthy()
-    expect(screen.queryByText(i18n.t('pos.done.qrAlreadyUp'))).toBeNull()
+    expect(await screen.findByText(/This sale is waiting to reach Fawtir/)).toBeTruthy()
+    expect(screen.queryByText(/has already been issued/)).toBeNull()
+    expect(await screen.findByText(i18n.t('pos.done.qrAlreadyUp'))).toBeTruthy()
+    // No "QR to follow" on a consumer's offline receipt (owner directive 2026-11-06 item D).
+    expect(screen.queryByText(i18n.t('pos.done.qrAfterFiling'))).toBeNull()
+    expect(screen.queryByText(i18n.t('pos.done.qrComing'))).toBeNull()
+  })
+
+  it('without its QR shows no receipt and says why, never that the QR comes later', async () => {
+    queued(null)
+    renderAt('/pos/receipt')
+    expect(await screen.findByText(/This sale is waiting to reach Fawtir/)).toBeTruthy()
+    expect(
+      screen.getByText(i18n.t('pos.done.receiptWithheld', { invoice: 'NZW-T01-INV-2026-000049' })),
+    ).toBeTruthy()
+    expect(screen.queryByText(i18n.t('pos.done.qrAfterFiling'))).toBeNull()
+    expect(screen.queryByText(i18n.t('pos.done.qrComing'))).toBeNull()
+    expect(screen.queryByRole('button', { name: i18n.t('pos.done.printAgain') })).toBeNull()
   })
 
   it('clears itself for the next customer after 20 seconds', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     queued()
     renderAt('/pos/receipt')
-    await screen.findByText(/This sale is waiting to be filed/)
+    await screen.findByText(/This sale is waiting to reach Fawtir/)
     expect(screen.queryByText('the sale screen')).toBeNull()
     await act(async () => {
       await vi.advanceTimersByTimeAsync(20_500)
@@ -588,7 +843,7 @@ describe('the receipt of a sale queued offline (retest N-6)', () => {
   it('clears itself on Enter, as the screen says', async () => {
     queued()
     renderAt('/pos/receipt')
-    await screen.findByText(/This sale is waiting to be filed/)
+    await screen.findByText(/This sale is waiting to reach Fawtir/)
     fireEvent.keyDown(window, { key: 'Enter' })
     expect(await screen.findByText('the sale screen')).toBeTruthy()
   })
@@ -658,5 +913,150 @@ describe('closing the till (F-13)', () => {
     await waitFor(() => expect(screen.getByText(i18n.t('pos.close.summary.toBank'))).toBeTruthy())
     expect(screen.queryByText(i18n.t('pos.close.noShift'))).toBeNull()
     expect(screen.getByRole('button', { name: i18n.t('pos.close.printSummary') })).toBeTruthy()
+  })
+})
+
+describe('closing the till with a refund by bank transfer', () => {
+  const preview = (transferRefunded: number) => ({
+    shiftId: 'sh-1',
+    tillId: 'till-1',
+    tillNumber: 1,
+    branchId: 'b-1',
+    cashier: { userId: 'u-1', name: 'Maryam' },
+    status: 'OPEN',
+    businessDate: '2026-10-29',
+    openedAt: '2026-10-29T03:00:00Z',
+    endedAt: null,
+    openingFloat: 30,
+    openingFloatSource: 'DEFAULT',
+    salesCount: 1,
+    salesAmount: 5.649,
+    byMethod: [
+      { method: 'CASH', sales: 1, taken: 5.649, refunded: 0, tips: 0 },
+      { method: 'CARD', sales: 0, taken: 0, refunded: 0, tips: 0 },
+      { method: 'TRANSFER', sales: 0, taken: 0, refunded: transferRefunded, tips: 0 },
+      { method: 'ON_ACCOUNT', sales: 0, taken: 0, refunded: 0, tips: 0 },
+    ],
+    companyInvoices: 0,
+    vatWithin: 0.269,
+    discounts: 0,
+    tips: 0,
+    paidOut: 0,
+    paidIn: 0,
+    cashRefunded: 0,
+    expectedCash: 35.649,
+    looseEnds: {
+      onAccountOpen: { count: 0, amount: 0 },
+      notYetAccepted: 0,
+      cardSalesForTerminalCheck: { count: 0, amount: 0 },
+    },
+    movements: [],
+    at: '2026-10-29T14:00:00Z',
+  })
+
+  it.each(['en', 'ar'])('names it in the summary, the drawer unchanged (%s)', async (language) => {
+    await i18n.changeLanguage(language)
+    answer = (url) =>
+      url.startsWith('/api/v1/pos/shifts/sh-1/close-preview') ? json(preview(14.025)) : null
+    renderAt('/pos/close')
+    const label = await screen.findByText(i18n.t('pos.close.refundedByTransfer'))
+    expect(label.parentElement?.textContent).toContain('14.025')
+    expect(screen.getAllByText(i18n.t('pos.close.refundedInCash')).length).toBeGreaterThan(0)
+    await i18n.changeLanguage('en')
+  })
+
+  it('stays out of the summary when there is none', async () => {
+    answer = (url) =>
+      url.startsWith('/api/v1/pos/shifts/sh-1/close-preview') ? json(preview(0)) : null
+    renderAt('/pos/close')
+    await screen.findAllByText(i18n.t('pos.close.refundedInCash'))
+    expect(screen.queryByText(i18n.t('pos.close.refundedByTransfer'))).toBeNull()
+  })
+})
+
+describe('a till refund the credit cap refuses (DA-1 option B)', () => {
+  it.each([
+    ['en', /^Only .* left to credit in the Standard category/],
+    ['ar', /^لم يتبقَّ للخصم في الفئة القياسية/],
+  ])('names the rate and what is left in the till’s refusal line (%s)', async (language, start) => {
+    await i18n.changeLanguage(language)
+    answer = (url, init) => {
+      if (url.startsWith('/api/v1/pos/refund-lookup')) return json(LOOKUP)
+      // The button waits for the server's quote since wave B's 91956f4b ("refund only on the
+      // server's quote", owner batch 27 item 5 and batch 28 item 5, reg:367/394); without one this
+      // test never reached the refusal it is about. The cap then refuses the refund itself, as when
+      // another refund spent the category between quote and refund.
+      if (url === '/api/v1/pos/sales/s-1/refund-quote')
+        return json({
+          total: 1.68,
+          lastRefund: true,
+          suggested: [{ method: 'CASH', amount: 1.68 }],
+          cardLimit: 0,
+          payOutLimit: 1.68,
+          reduceBalance: 0,
+          toChoose: 0,
+        })
+      if (url.includes('/refunds') && init?.method === 'POST')
+        return json(
+          {
+            status: 409,
+            code: 'CREDIT_NOTE_EXCEEDS_VAT_CATEGORY_REMAINING',
+            taxCategory: 'S',
+            taxRate: '5',
+            remainingTaxableAmount: '1.5',
+            remainingVatAmount: '0.075',
+          },
+          409,
+        )
+      return null
+    }
+    renderAt('/pos/refund?invoice=NZW-T01-INV-2026-000001')
+    fireEvent.click(await screen.findByRole('checkbox', { name: /Butter croissant|كرواسون/ }))
+    const button = screen
+      .getAllByRole('button')
+      .find((candidate) => candidate.className.includes('bg-danger-700')) as HTMLButtonElement
+    await waitFor(() => expect(button.disabled).toBe(false))
+    fireEvent.click(button)
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toMatch(start)
+    expect(alert.textContent).toContain('1.500')
+    expect(alert.textContent).toContain('0.075')
+  })
+})
+
+describe('a given-away line comes back (Abdul, 31 Oct 2026)', () => {
+  it('goes back on the shelf with no money and no credit note', async () => {
+    const free = {
+      ...LOOKUP.lines[0],
+      givenFree: true,
+      discount: { type: 'PERCENTAGE', value: 100 },
+    }
+    let sent: { moneyBack: unknown[]; lines: { backOnShelf: boolean }[] } | null = null
+    answer = (url, init) => {
+      if (url.startsWith('/api/v1/pos/refund-lookup')) return json({ ...LOOKUP, lines: [free] })
+      if (url.endsWith('/refunds') && init?.method === 'POST') {
+        sent = JSON.parse(String(init.body))
+        return json(
+          {
+            refundId: 'r-1',
+            saleId: LOOKUP.saleId,
+            creditNoteId: null,
+            creditNoteNumber: null,
+            stockOnly: true,
+            warnings: [],
+          },
+          201,
+        )
+      }
+      return null
+    }
+    renderAt('/pos/refund?invoice=NZW-T01-INV-2026-000001')
+    expect(await screen.findByText(i18n.t('pos.refund.givenFreeLine'))).toBeTruthy()
+    fireEvent.click(screen.getByRole('checkbox'))
+    expect(screen.getByText(i18n.t('pos.refund.noCreditNote'))).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('pos.refund.stockReturnButton') }))
+    expect(await screen.findByText(i18n.t('pos.refund.stockReturnDone'))).toBeTruthy()
+    expect(sent!.moneyBack).toEqual([])
+    expect(sent!.lines[0].backOnShelf).toBe(true)
   })
 })

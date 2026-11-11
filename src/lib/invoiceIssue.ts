@@ -2,6 +2,7 @@ import { ApiError } from '../api'
 import type { ReferenceDataDto } from '../api/reference/referenceData'
 import { netDaysFor } from './reference/referenceData'
 import { TAX_REASON_REFUSALS } from './taxReasonRefusals'
+import { DEBIT_NOTE_REFUSALS } from './debitNoteRefusals'
 
 /**
  * Issuing a draft: the dates it is issued with, what the server would refuse about them, and the
@@ -67,15 +68,24 @@ export const ISSUE_REFUSALS: Record<string, { field: IssueField | null; key: str
   TENANT_DISABLED: { field: null, key: 'invoiceIssue.refused.tenantInactive' },
   QUOTA_EXCEEDED: { field: null, key: 'invoiceIssue.refused.quota' },
   TENANT_TIMEZONE_UNAVAILABLE: { field: null, key: 'invoiceIssue.refused.timezone' },
+  // Backend 073d5261c (QR-E2), 422 before a number is taken: a zone that does not keep Muscat time.
+  TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE: { field: null, key: 'invoiceIssue.refused.timezoneNotOman' },
   SELLER_PARTICIPANT_NOT_VERIFIED: { field: null, key: 'invoiceIssue.refused.sellerParticipant' },
   SELLER_NOT_VERIFIED: { field: null, key: 'invoiceIssue.refused.companyPending' },
   SELLER_ADDRESS_INCOMPLETE: { field: null, key: 'invoiceIssue.refused.sellerAddressIncomplete' },
   SELLER_CONTACT_INCOMPLETE: { field: null, key: 'invoiceIssue.refused.sellerContactIncomplete' },
-  // IBR-019-OM: a business or government buyer's invoicing address needs street, additional
-  // street, address line 3, city and postal code; fixed on the customer (e2e 30 Oct, X-1).
-  BUYER_ADDRESS_INCOMPLETE: { field: null, key: 'invoiceIssue.refused.buyerAddressIncomplete' },
   CUSTOMER_NOT_INVOICE_ELIGIBLE: { field: null, key: 'invoiceIssue.refused.customerIncomplete' },
+  // Backend #817 (A-2): a standard invoice to a customer reached over Peppol whose invoice address
+  // lacks a member IBR-019-OM requires; refused at issue so no number is spent on an invoice the
+  // Send would dead-letter for good.
+  BUYER_ADDRESS_INCOMPLETE: { field: null, key: 'invoiceIssue.refused.buyerAddressIncomplete' },
   INDUSTRIAL_CLASSIFICATION_REQUIRED: { field: null, key: 'invoiceIssue.refused.activityRequired' },
+  // A draft saved before the goods/HS rule (GoodsHsCodeRequirement) and issued as it stands; the
+  // composer checks the line before it saves, so this is the server's own refusal at issue.
+  HS_CODE_REQUIRED: { field: null, key: 'invoiceIssue.refused.hsCodeRequired' },
+  // Backend 8f04050ab (HS Slice B, IBR-078-OM): a line of a non-simplified document stating neither
+  // goods nor services, refused at issue before a number is taken.
+  GOODS_OR_SERVICE_REQUIRED: { field: null, key: 'invoiceIssue.refused.goodsOrServiceRequired' },
   CUSTOMER_NOT_SELECTABLE: { field: null, key: 'invoiceIssue.refused.customerNotSelectable' },
   PAYMENT_TERMS_REQUIRED: { field: null, key: 'invoiceIssue.refused.termsRequired' },
   BRANCH_NOT_ACTIVE: { field: null, key: 'invoiceIssue.refused.branchInactive' },
@@ -90,10 +100,21 @@ export const ISSUE_REFUSALS: Record<string, { field: IssueField | null; key: str
   CORRECTED_INVOICE_NOT_ISSUED: { field: null, key: 'salesNote.refused.invoiceNotIssued' },
   CREDIT_NOTE_EXCEEDS_CORRECTABLE_AMOUNT: { field: null, key: 'salesNote.refused.exceeds' },
   CREDIT_NOTE_NOTHING_CORRECTABLE: { field: null, key: 'salesNote.refused.nothingLeft' },
+  // The cumulative caps (DA-1 option B), said without figures where only the code is read: a note
+  // draft issued from its own page. The composer names the line or rate (creditCapRefusal).
+  CREDIT_NOTE_EXCEEDS_LINE_REMAINING: { field: null, key: 'salesNote.refused.lineRemaining' },
+  // Backend #834 checks a line's invoice-line link again at issue, under the invoice's lock.
+  ORIGINAL_LINE_NOT_FOUND: { field: null, key: 'salesNote.refused.originalLineNotFound' },
+  CREDIT_NOTE_EXCEEDS_VAT_CATEGORY_REMAINING: { field: null, key: 'salesNote.refused.categoryRemaining' },
+  CREDIT_NOTE_VAT_CATEGORY_NOT_ON_ORIGINAL: { field: null, key: 'salesNote.refused.categoryNotOnInvoice' },
 
   // A zero-rated or exempt line with no reason, or the wrong list's reason: fixed on the draft.
   ...Object.fromEntries(
     Object.entries(TAX_REASON_REFUSALS).map(([code, key]) => [code, { field: null, key }]),
+  ),
+  // D-26: named here, or the readiness fallback below would print the bare code.
+  ...Object.fromEntries(
+    Object.entries(DEBIT_NOTE_REFUSALS).map(([code, key]) => [code, { field: null, key }]),
   ),
 }
 

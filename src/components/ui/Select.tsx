@@ -127,6 +127,7 @@ export function Select({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={ariaLabel}
+        data-value={value}
         {...description}
         className={[
           'flex w-full items-center justify-between rounded-sm border text-start transition-colors',
@@ -180,6 +181,7 @@ export function Select({
                   type="button"
                   role="option"
                   aria-selected={isSelected}
+                  data-value={option.value}
                   disabled={option.disabled}
                   onMouseEnter={() => setActiveIndex(index)}
                   onClick={() => commit(option)}

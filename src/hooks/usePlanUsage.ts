@@ -1,6 +1,7 @@
 import { useApiRead } from './useApiRead'
 import { PLAN_OVERVIEW_PATH, loadPlanOverview, type PlanOverviewDto } from '../api/settings/plan'
 import { useReadOnlyReason } from '../lib/subscriptionReadOnly'
+import { useMayRequest } from '../lib/session/session'
 
 /**
  * This period's documents against the allowance, from `GET /v1/settings/plan`. `null` while
@@ -18,9 +19,10 @@ import { useReadOnlyReason } from '../lib/subscriptionReadOnly'
  * figures out.
  */
 export function usePlanUsage(): { used: number; allowance: number; percent: number } | null {
-  const read = useApiRead<PlanOverviewDto>(PLAN_OVERVIEW_PATH, loadPlanOverview).read
+  const mayRead = useMayRequest('tenant.plan.read')
+  const read = useApiRead<PlanOverviewDto>(mayRead ? PLAN_OVERVIEW_PATH : null, loadPlanOverview).read
   const readOnly = useReadOnlyReason() !== null
-  if (readOnly || read.status !== 'ready') return null
+  if (!mayRead || readOnly || read.status !== 'ready') return null
   const counted = read.data.allowance
     ? { used: read.data.allowance.used, quota: read.data.allowance.totalAllowance }
     : read.data.usage

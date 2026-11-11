@@ -8,6 +8,8 @@ import type {
 } from '../api/invoices/drafts'
 import type { InvoiceListPayment, InvoiceRowDto, InvoiceSummaryDto } from '../api/invoices/list'
 import type { TFunction } from 'i18next'
+import { ApiError } from '../api'
+import { formatAmount } from './format'
 import {
   CATEGORY_REASON_CONFLICT,
   CODED_REASON,
@@ -26,6 +28,7 @@ import {
 } from './invoiceMath'
 import { issueProblems, muscatToday, plusDays } from './invoiceIssue'
 import { netDaysFor } from './reference/referenceData'
+import { DEBIT_NOTE_REFUSALS } from './debitNoteRefusals'
 import type { ReferenceDataDto } from '../api/reference/referenceData'
 
 /**
@@ -153,6 +156,9 @@ export type NoteLine = {
    * it back into the branch's stock when the note is issued. Null while not answered (sent as no).
    */
   backOnShelf: boolean | null
+  /** The invoice line's bundle and price rule, which the note's line carries; none on an added line. */
+  bundleId?: string | null
+  priceRuleIds?: string[] | null
 }
 
 export type NoteForm = {
@@ -226,6 +232,8 @@ function invoiceLine(
       exemptionReasonCode: line.exemptionReasonCode ?? null,
     },
     backOnShelf: null,
+    bundleId: line.bundleId ?? null,
+    priceRuleIds: line.priceRuleIds ?? null,
   }
 }
 
@@ -358,15 +366,29 @@ export function fromNoteDraft(
   const base = fromInvoice(invoice, noteKind, reference, today)
   const keyOf = (productId: string | null, description: string) =>
     `${productId ?? ''}|${description}`
+  // A saved line naming its invoice line (backend #834) goes back to that line, so two invoice
+  // lines with the same product and description no longer both take one saved line and credit it
+  // twice on the next save. It must still read as that line: a linked line the composer did not
+  // write (a free-text price correction sent through the API) is kept as a line of the note's own
+  // instead of taking on the invoice line's product.
+  const linkedTo = new Map<number, DraftLine>()
+  for (const line of draft.lines)
+    if (typeof line.originalLineNumber === 'number') linkedTo.set(line.originalLineNumber, line)
   const kept = new Map(
-    draft.lines.map((line) => [keyOf(line.productId || null, line.description), line]),
+    draft.lines
+      .filter((line) => typeof line.originalLineNumber !== 'number')
+      .map((line) => [keyOf(line.productId || null, line.description), line]),
   )
   const matched = new Set<string>()
+  const matchedLinks = new Set<DraftLine>()
   const lines: NoteLine[] = base.lines.map((line) => {
     const key = keyOf(line.productId, line.description)
-    const saved = kept.get(key)
+    const link = linkedTo.get(line.lineNumber)
+    const byLink = link && keyOf(link.productId || null, link.description) === key ? link : undefined
+    const saved = byLink ?? kept.get(key)
     if (!saved) return { ...line, include: false }
-    matched.add(key)
+    if (byLink) matchedLinks.add(byLink)
+    else matched.add(key)
     return {
       ...line,
       include: true,
@@ -382,7 +404,12 @@ export function fromNoteDraft(
   })
   let form: NoteForm = { ...base, lines }
   for (const line of draft.lines) {
-    if (matched.has(keyOf(line.productId || null, line.description))) continue
+    if (matchedLinks.has(line)) continue
+    if (
+      typeof line.originalLineNumber !== 'number' &&
+      matched.has(keyOf(line.productId || null, line.description))
+    )
+      continue
     // Rebuilt from the saved line in full, so a reopened draft sends back what it was saved with:
     // the line's own no-VAT reason code and its HS code or service type included.
     const added = addedLine(form, invoice, kindOfDraftLine(line))
@@ -724,6 +751,92 @@ export function asksBackOnShelf(
 }
 
 /** The note's request: the invoice's party, branch, currency and terms, with the kept lines. */
+const lineGross = (quantity: number, unitPrice: number) => quantity * unitPrice
+
+const lineAmountOff = (type: NoteLine['discountType'], value: number, gross: number) =>
+  type === 'PERCENTAGE' ? (gross * value) / 100 : value
+
+/**
+ * Works out, for each kept line, whether it may name the price rule of the invoice line it comes
+ * from. A note names a rule only for a discount that really comes from it: on the same item, at
+ * no more than the invoice gave that item under the rule, one baisa either way, in the line and
+ * over the note's lines of that item (backend #842). A line the person took past that, or cleared,
+ * is an ordinary discount, so the note is not refused for its link to the rule.
+ */
+function ruleCarrier(invoice: InvoiceDetailDto) {
+  const takenByItem = new Map<string, number>()
+  return (line: NoteLine): string[] => {
+    const ruleId = line.priceRuleIds?.[0]
+    const productId = line.productId
+    if (!line.fromInvoice || !ruleId || !productId) return []
+    const gross = lineGross(Number(line.quantity), Number(line.unitPrice))
+    const taken = lineAmountOff(line.discountType, Number(line.discountValue) || 0, gross)
+    if (!(taken > 0)) return []
+    let soldGross = 0
+    let given = 0
+    for (const sold of invoice.lines) {
+      if (sold.productId !== productId || !sold.priceRuleIds?.includes(ruleId)) continue
+      const soldLine = lineGross(sold.quantity, sold.unitPrice)
+      soldGross += soldLine
+      given += lineAmountOff(sold.discountType, sold.discountValue, soldLine)
+    }
+    if (!(soldGross > 0)) return []
+    const soFar = (takenByItem.get(productId) ?? 0) + taken
+    if (taken > (gross * given) / soldGross + 0.001 || soFar > given + 0.001) return []
+    takenByItem.set(productId, soFar)
+    return [ruleId]
+  }
+}
+
+/**
+ * Whether the server takes a note line's `originalLineNumber` (backend #834). One before it
+ * refuses the whole draft as a malformed body (`spring.jackson.deserialization.
+ * fail-on-unknown-properties: true`), so the link is sent only once the invoice it corrects was
+ * read with the field on its lines: #834 answers it on every line, null on an invoice's, from the
+ * same commit that reads it. Deploy-order rule: the web deploys on its own, and may reach a backend
+ * without #834 first (TEST at b48e85031 has none), so the new web must keep every credit note
+ * issuable there. While nodes of both versions serve at once (a rolling deploy or a rollback), a
+ * save can still land on an older node and be refused once; it is not retried bare.
+ */
+export function readsLineLinks(invoice: Pick<InvoiceDetailDto, 'lines'>): boolean {
+  return invoice.lines.some((line) => Object.hasOwn(line, 'originalLineNumber'))
+}
+
+/**
+ * The invoice line a credit-note line credits, when it plainly is that line given back: one of
+ * the invoice's own lines at the invoice's price and discount, so only its quantity may be lower.
+ * The server then caps its money and, for the line's own product and unit, its units (DA-1 Option
+ * B, owner decision (d) D1).
+ *
+ * Linked whatever the note's document discount. Leaving a line unlinked to get past the per-line
+ * cap would let it credit more than that line was charged (owner batch 35, A-02). The false refusal
+ * that unlinking used to avoid, whole lines under a fixed invoice discount whose rounded share puts
+ * the note's baisa on another line (10000, 10000 and 40000 less 4.000, lines 1 and 2 in full:
+ * 9999.333 / 9999.334 against 9999.334 / 9999.333), is placed by the server since backend
+ * 523173707 (CreditNoteResidualAllocation, B1). What it still refuses states a line above what it
+ * has left, and the refusal names the line (`creditCapRefusal`).
+ *
+ * Nothing is named for a price-only line (a price or discount other than the invoice's): citing
+ * the product, it would spend the line's units as if they came back, and a later return of those
+ * units would be refused. Nor for a line of the note's own, nor on a debit note (D-26), whose lines
+ * on the invoice's charge a price difference, so a link would widen the units a later credit may
+ * return.
+ */
+function originalLineOf(
+  line: NoteLine,
+  invoice: InvoiceDetailDto,
+  kind: NoteKind,
+): number | null {
+  if (kind !== 'CREDIT_NOTE' || !line.fromInvoice) return null
+  const original = invoice.lines.find((candidate) => candidate.lineNumber === line.lineNumber)
+  if (!original) return null
+  const atInvoicePrice =
+    money3(line.unitPrice.trim()) === money3(original.unitPrice) &&
+    line.discountType === original.discountType &&
+    Number(line.discountValue.trim()) === Number(original.discountValue)
+  return atInvoicePrice ? original.lineNumber : null
+}
+
 export function toNoteRequest(
   form: NoteForm,
   invoice: InvoiceDetailDto,
@@ -732,6 +845,12 @@ export function toNoteRequest(
   counted: ReadonlySet<string> = new Set(),
   selfBilled = false,
 ): DraftRequest {
+  const carriedRule = ruleCarrier(invoice)
+  const links = readsLineLinks(invoice)
+  const linkOf = (line: NoteLine): Pick<DraftLineRequest, 'originalLineNumber'> => {
+    const original = links ? originalLineOf(line, invoice, kind) : null
+    return original === null ? {} : { originalLineNumber: original }
+  }
   return {
     customerId: invoice.customerId,
     branchId: invoice.branchId,
@@ -739,28 +858,35 @@ export function toNoteRequest(
     vatMode: 'EXCLUSIVE',
     lines: form.lines
       .filter((line) => line.include)
-      .map((line, index) => ({
-        lineNumber: index + 1,
-        // A line added on the note has no catalogue product (client rule: free-text description,
-        // no product code), so it states neither key: `productId` is a UUID on the API, and a
-        // free-text line leaves both out (INCOME.md 4.4).
-        ...(line.productId ? { productId: line.productId } : {}),
-        ...(line.productCode ? { productCode: line.productCode } : {}),
-        // The goods/service flag and the HS code or service type travel as `classification`
-        // (below), as the draft accepts them (docs/backend-guides/INCOME.md, part C and 4.10).
-        description: line.description.trim(),
-        unitCode: line.unitCode,
-        quantity: Number(line.quantity.trim()),
-        unitPrice: Number(line.unitPrice.trim()),
-        discount: { type: line.discountType, value: Number(line.discountValue.trim()) || 0 },
-        taxCategory: line.taxCategory,
-        ...classificationRequest(line),
-        // Only an ordinary credit note's counted goods line states it; every other line leaves it
-        // out, since the server refuses it on any other document type, false included.
-        ...(asksBackOnShelf(line, kind, counted, selfBilled)
-          ? { backOnShelf: line.backOnShelf === true }
-          : {}),
-      })),
+      .map((line, index) => {
+        const priceRuleIds = carriedRule(line)
+        return {
+          lineNumber: index + 1,
+          // A line added on the note has no catalogue product (client rule: free-text description,
+          // no product code), so it states neither key: `productId` is a UUID on the API, and a
+          // free-text line leaves both out (INCOME.md 4.4).
+          ...(line.productId ? { productId: line.productId } : {}),
+          ...(line.productCode ? { productCode: line.productCode } : {}),
+          // The goods/service flag and the HS code or service type travel as `classification`
+          // (below), as the draft accepts them (docs/backend-guides/INCOME.md, part C and 4.10).
+          description: line.description.trim(),
+          unitCode: line.unitCode,
+          quantity: Number(line.quantity.trim()),
+          unitPrice: Number(line.unitPrice.trim()),
+          discount: { type: line.discountType, value: Number(line.discountValue.trim()) || 0 },
+          taxCategory: line.taxCategory,
+          ...classificationRequest(line),
+          // Only an ordinary credit note's counted goods line states it; every other line leaves it
+          // out, since the server refuses it on any other document type, false included.
+          ...(asksBackOnShelf(line, kind, counted, selfBilled)
+            ? { backOnShelf: line.backOnShelf === true }
+            : {}),
+          // The invoice line's links, so reports net the note off against its bundle and rule.
+          ...(line.fromInvoice && line.bundleId ? { bundleId: line.bundleId } : {}),
+          ...(priceRuleIds.length > 0 ? { priceRuleIds } : {}),
+          ...linkOf(line),
+        }
+      }),
     // The invoice's document discount, on a credit of its own lines (W-2, `noteHeaderDiscount`).
     headerDiscount: noteHeaderDiscount(form, invoice, kind),
     details: {
@@ -773,6 +899,12 @@ export function toNoteRequest(
       paymentTerms: invoice.details?.paymentTerms ?? null,
       transactionType:
         invoice.details?.transactionType === 'SIMPLIFIED' ? 'SIMPLIFIED' : 'FULL_TAX',
+      // A note must state SPECIAL_ZONE exactly when its original does (503a8093b), on create and on
+      // every draft save. Only that subtype is carried: the others are the original's own
+      // classification, which the server does not ask a note to repeat.
+      ...(invoice.details?.transactionSubtypes?.includes('SPECIAL_ZONE')
+        ? { transactionSubtypes: ['SPECIAL_ZONE'] }
+        : {}),
       correctionReasonCode: reasonCodeOf(kind, form.reason),
       // The reason as chosen, beside its code, so a reopened draft and the lists name it (4.9).
       correctionReasonDetail: reasonCodeOf(kind, form.reason) ? form.reason : null,
@@ -819,6 +951,106 @@ export const NOTE_ROUTES: Record<NoteKind, string> = {
   DEBIT_NOTE: '/income/debit-notes',
 }
 
+/**
+ * The owner's cap on credit notes (DA-1, option B): what a credit note credits in each VAT
+ * category and rate may not exceed what the original invoice and its issued debit notes charged
+ * there, less every issued credit note. The composer cannot apply it itself (it does not read the
+ * earlier notes), so the server's refusal is the check (backend #817, 741c06d6b). The server
+ * names `taxCategory` (the EN 16931 letter) and `taxRate` (a plain decimal string, absent for E and
+ * O, which are keyed by category alone), and on the second code `remainingTaxableAmount` and
+ * `remainingVatAmount`. CREDIT_NOTE_EXCEEDS_LINE_REMAINING (backend #834) caps the lines that
+ * name their invoice line (`originalLineOf`); it names `originalLineNumber`,
+ * `remainingTaxableAmount` and `remainingQuantity`, the last null when the invoice line cites no
+ * product, so only its money is capped.
+ */
+const CREDIT_CAP_REFUSALS: Record<string, string> = {
+  CREDIT_NOTE_EXCEEDS_LINE_REMAINING: 'salesNote.refused.lineRemaining',
+  CREDIT_NOTE_EXCEEDS_VAT_CATEGORY_REMAINING: 'salesNote.refused.categoryRemaining',
+  CREDIT_NOTE_VAT_CATEGORY_NOT_ON_ORIGINAL: 'salesNote.refused.categoryNotOnInvoice',
+}
+
+const textIn = (problem: Readonly<Record<string, unknown>>, name: string): string | null => {
+  const value = problem[name]
+  if (typeof value === 'string' && value.trim() !== '') return value.trim()
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  return null
+}
+
+const amountIn = (problem: Readonly<Record<string, unknown>>, name: string): number | null => {
+  const text = textIn(problem, name)
+  return text !== null && Number.isFinite(Number(text)) ? Number(text) : null
+}
+
+/**
+ * The sentence for a cap refusal, or null for any other error. `values` are ready to print: the
+ * amounts as "OMR 12.000" (the page draws the rial sign in their place), `category` the cap
+ * sentences' phrase for the EN 16931 category. Without the figures the plain sentence is said.
+ */
+export function creditCapRefusal(
+  error: unknown,
+  t: (key: string, options?: Record<string, unknown>) => string,
+  currency: string,
+  language: string,
+): { key: string; values?: Record<string, string> } | null {
+  if (
+    !(error instanceof ApiError) ||
+    !error.code ||
+    !Object.hasOwn(CREDIT_CAP_REFUSALS, error.code)
+  )
+    return null
+  const plain = CREDIT_CAP_REFUSALS[error.code]
+  const problem = error.problem
+  const money = (value: number) => `${currency} ${formatAmount(value, currency, language)}`
+  if (error.code === 'CREDIT_NOTE_EXCEEDS_LINE_REMAINING') {
+    const line = textIn(problem, 'originalLineNumber')
+    const taxable = amountIn(problem, 'remainingTaxableAmount')
+    if (line === null || taxable === null) return { key: plain }
+    // The server floors what is left at 0.000, and "only OMR 0.000 left" reads as a figure to aim at.
+    if (taxable <= 0) return { key: `${plain}NamedNothingLeft`, values: { line } }
+    // As the server wrote it, a plain decimal: through Number a tiny remainder would print as 1e-7.
+    const quantity =
+      amountIn(problem, 'remainingQuantity') === null ? null : textIn(problem, 'remainingQuantity')
+    return quantity === null
+      ? { key: `${plain}NamedNoQuantity`, values: { line, taxable: money(taxable) } }
+      : { key: `${plain}Named`, values: { line, taxable: money(taxable), quantity } }
+  }
+  const categoryCode = textIn(problem, 'taxCategory')
+  if (categoryCode === null) return { key: plain }
+  const rate = textIn(problem, 'taxRate')
+  // The cap sentences' own words for the category ("the Zero-rated category"): the invoice page's
+  // label read "At Exempt" in English and doubled "بنسبة" in Arabic for Z.
+  const category = t(`salesNote.refused.capCategory.${categoryCode}`, {
+    defaultValue: categoryCode,
+  })
+  // E and O carry no rate (IBR-061-OM, IBR-067-OM): their sentences name the category alone.
+  const suffix = rate === null ? 'NamedNoRate' : 'Named'
+  const where: Record<string, string> = rate === null ? { category } : { category, rate }
+  if (error.code === 'CREDIT_NOTE_VAT_CATEGORY_NOT_ON_ORIGINAL')
+    return { key: `${plain}${suffix}`, values: where }
+  const taxable = amountIn(problem, 'remainingTaxableAmount')
+  const vat = amountIn(problem, 'remainingVatAmount')
+  if (taxable === null || vat === null) return { key: plain }
+  return {
+    key: `${plain}${suffix}`,
+    values: { ...where, taxable: money(taxable), vat: money(vat) },
+  }
+}
+
+/**
+ * ORIGINAL_LINE_NOT_FOUND (backend #834), with the invoice line it names when the server says
+ * which. The composer names only lines of the invoice it read, so the sentence sends the person
+ * back to the invoice rather than to a field on this page.
+ */
+export function originalLineRefusal(
+  error: unknown,
+): { key: string; values?: Record<string, string> } | null {
+  if (!(error instanceof ApiError) || error.code !== 'ORIGINAL_LINE_NOT_FOUND') return null
+  const line = textIn(error.problem, 'originalLineNumber')
+  return line === null
+    ? { key: 'salesNote.refused.originalLineNotFound' }
+    : { key: 'salesNote.refused.originalLineNotFoundNamed', values: { line } }
+}
+
 /** Note refusals a person can act on, in the page's words. */
 export const NOTE_REFUSALS: Record<string, string> = {
   CORRECTED_INVOICE_NOT_ISSUED: 'salesNote.refused.invoiceNotIssued',
@@ -839,6 +1071,11 @@ export const NOTE_REFUSALS: Record<string, string> = {
   TAX_CATEGORY_METADATA_CONFLICT: CATEGORY_REASON_CONFLICT,
   TAX_CATEGORY_REASON_CONFLICT: CATEGORY_REASON_CONFLICT,
   BACK_ON_SHELF_ONLY_ON_CREDIT_NOTES: 'salesNote.backOnShelf.onlyOnCreditNotes',
+  ORIGINAL_LINE_ONLY_ON_CORRECTIONS: 'salesNote.refused.originalLineOnlyOnCorrections',
+  CORRECTION_SPECIAL_ZONE_MISMATCH: 'salesNote.refused.specialZoneMismatch',
+  CORRECTION_SPECIAL_ZONE_LICENCE_UNAVAILABLE: 'salesNote.refused.specialZoneLicenceUnavailable',
+  // D-26: a credit note naming a debit note, or any route that reaches an issued one.
+  ...DEBIT_NOTE_REFUSALS,
 }
 
 /* ---------------------------------------------------------------------------------------------
@@ -859,10 +1096,28 @@ export type NoteListStatus =
   | 'paid'
   | 'cancelled'
 
+/**
+ * Delivered by hand, or acknowledged or accepted on Peppol, for the two lists. `NOT_SUBMITTED` and
+ * the like are not, and neither is RE: a rejection is not a delivery. One rule for both lists: the
+ * credit-notes list read only the manual send while the invoices list also read the response
+ * (TEST verification 2026-10-29). Detail pages never read `peppolResponse` (api/invoices/detail.ts).
+ * The ledger's DELIVERED and DELIVERED_UNCONFIRMED (backend #824) are the same AP and AB facts
+ * (lib/activityDetail.ts); SENT is only the receiving access point's receipt, so not yet.
+ */
+export function delivered(row: Pick<InvoiceRowDto, 'deliveryState' | 'peppolResponse'>): boolean {
+  return (
+    row.deliveryState === 'SENT_MANUALLY' ||
+    row.deliveryState === 'DELIVERED' ||
+    row.deliveryState === 'DELIVERED_UNCONFIRMED' ||
+    row.peppolResponse === 'AB' ||
+    row.peppolResponse === 'AP'
+  )
+}
+
 export function noteStatusOf(kind: NoteKind, row: InvoiceRowDto): NoteListStatus {
   if (row.authoringState === 'DRAFT') return 'draft'
   if (row.authoringState !== 'ISSUED') return 'cancelled'
-  if (row.deliveryState !== 'SENT_MANUALLY') return 'toSend'
+  if (!delivered(row)) return 'toSend'
   if (kind === 'CREDIT_NOTE') {
     // TODO(backend): a credit note's refund state (refund due / refunded) — the API records no
     // refunds, so a delivered credit note can only be shown as applied to its invoice.
@@ -898,8 +1153,9 @@ export const NOTE_TABS: Record<NoteKind, NoteTab[]> = {
     { id: 'toSend', state: 'ISSUED', payment: null, only: ['toSend'] },
     // TODO(backend): refund tracking (INCOME.md 4.2): no credit note is refund due or refunded yet.
     { id: 'refundDue', state: 'ISSUED', payment: null, only: ['refundDue'], none: true },
-    // With no refunds recorded, every issued credit note is applied to its invoice: the server's
-    // own filter, so the pages and the count are the tab's (`issuedTotal`, INCOME.md 4.1).
+    // Every issued credit note, the server's own filter, so the pages and the count are the tab's
+    // (`issuedTotal`, INCOME.md 4.1). POS refunds (backend V477) are in it too: the list cannot
+    // tell them apart yet (INCOME.md, update of 2026-10-29).
     { id: 'applied', state: 'ISSUED', payment: null, only: null },
     { id: 'refunded', state: 'ISSUED', payment: null, only: ['refunded'], none: true },
   ],
@@ -917,12 +1173,13 @@ export function noteMatchesTab(kind: NoteKind, row: InvoiceRowDto, tab: NoteTab)
   return tab.only === null || tab.only.includes(noteStatusOf(kind, row))
 }
 
-export type NoteFigure = { amount: number; count: number; days?: number }
+/** `count` is null where no server figure counts the documents behind `amount`. */
+export type NoteFigure = { amount: number; count: number | null; days?: number }
 
 export type NoteSummary = {
   counts: Record<string, number>
   /** Issued this quarter: the subtitle under the title. Null when the source does not say. */
-  quarter: NoteFigure | null
+  quarter: { amount: number; count: number } | null
   cards: Record<string, NoteFigure>
 }
 
@@ -977,24 +1234,43 @@ export function debitSummaryOf(summary: InvoiceSummaryDto): NoteSummary {
 
 /**
  * The credit notes list's tab counts, subtitle and figures, from `GET /v1/authored-invoices/summary
- * ?type=CREDIT_NOTE` (INCOME.md 4.1). Credited · 30 days is `issuedLast30Days`; with no refunds
- * recorded, every issued credit note is applied against its invoice, so Applied to invoices (card
- * and tab) is `issuedTotal`. The subtitle's quarter is `issuedThisQuarter`. A figure the summary
- * does not carry is left out, and its card reads as unavailable.
- * TODO(backend): Refund due and Refunded, cards and tabs, need refund tracking (INCOME.md 4.2).
+ * ?type=CREDIT_NOTE` (INCOME.md 4.1). Credited · 30 days is `issuedLast30Days`. Applied to
+ * invoices is `issuedTotal` less `refundedTotal` (ACC-3, backend #824): `issuedTotal` has held
+ * till-refunded notes since V477, so on its own it overstated what was applied. The Refunded card
+ * is `refundedTotal` itself. A server before #824 sends no `refundedTotal`: the Applied card then
+ * keeps `issuedTotal` as it always read, and Refunded reads as unavailable rather than 0. The
+ * Applied tab lists every issued note, so its count stays `issuedTotal`'s. The subtitle's quarter
+ * is `issuedThisQuarter`. A figure the summary does not carry is left out, and its card reads as
+ * unavailable.
+ * TODO(backend): Refund due, card and tab, and the Refunded tab's rows need refund tracking per
+ * note (INCOME.md 4.2).
  */
 export function creditSummaryOf(summary: InvoiceSummaryDto): NoteSummary {
   const counts: Record<string, number> = { all: summary.all, drafts: summary.drafts }
   if (summary.toSend !== undefined) counts.toSend = summary.toSend
   if (summary.issuedTotal) counts.applied = summary.issuedTotal.count
-  const figure = (value: { count: number; total: number } | undefined): NoteFigure | null =>
+  const figure = (value: { count: number; total: number } | undefined) =>
     value ? { amount: value.total, count: value.count } : null
   const cards: Record<string, NoteFigure> = {}
   const credited = figure(summary.issuedLast30Days)
-  const applied = figure(summary.issuedTotal)
+  const issued = figure(summary.issuedTotal)
+  const refunded = figure(summary.refundedTotal)
   if (credited) cards.credited = credited
-  if (applied) cards.applied = applied
+  if (issued && refunded) {
+    // No count: a till refund can pay out part of its note and offset the rest (V477), and
+    // refundedTotal counts such a note once any of it was paid back, so issued less refunded notes
+    // would count a different set from the amount. No server figure counts the applied notes.
+    cards.applied = { amount: roundMinor(issued.amount - refunded.amount), count: null }
+  } else if (issued) {
+    cards.applied = issued
+  }
+  if (refunded) cards.refunded = refunded
   return { counts, quarter: figure(summary.issuedThisQuarter), cards }
+}
+
+/** Binary subtraction leaves 144.831 - 20.5 as 124.33099999999999; the rial has three decimals. */
+function roundMinor(value: number): number {
+  return Math.round(value * 1000) / 1000
 }
 
 /** The design's "Refund" column on a credit note row. */
@@ -1016,7 +1292,7 @@ export function creditRefundOf(row: InvoiceRowDto): CreditRefundCell {
 
 /** The design's "Payment" column on a debit note row. */
 export type DebitPaymentCell =
-  | { kind: 'due'; date: string; addedToInvoice: boolean; daysLeft: number | null }
+  | { kind: 'due'; date: string; separateFromInvoice: boolean; daysLeft: number | null }
   | { kind: 'late'; date: string; days: number }
   | { kind: 'paid'; date: string | null }
   | null
@@ -1025,8 +1301,8 @@ export function debitPaymentOf(row: InvoiceRowDto, today = muscatToday()): Debit
   const status = noteStatusOf('DEBIT_NOTE', row)
   if (status === 'draft' || status === 'cancelled') return null
   // Read from the payment, not from `status`: an undelivered note's status is "to send", and that
-  // hid a note already paid (or late) behind "Due ... added to invoice balance". Delivery only
-  // decides the added-to-invoice hint below.
+  // hid a note already paid (or late) behind the undelivered note's hint. Delivery only decides
+  // that hint below.
   const payment = row.payment
   // The paid date, when the row carries it (INCOME.md 4.7); absent, the cell reads "Paid".
   // TODO(backend): the method (`lastPaymentMethodCode`) has no drawn place in the cell yet (4.7).
@@ -1042,7 +1318,7 @@ export function debitPaymentOf(row: InvoiceRowDto, today = muscatToday()): Debit
   return {
     kind: 'due',
     date: row.dueDate,
-    addedToInvoice: status === 'toSend',
+    separateFromInvoice: status === 'toSend',
     daysLeft: status === 'awaiting' ? daysBetween(today, row.dueDate) : null,
   }
 }

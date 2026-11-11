@@ -1,7 +1,25 @@
 import { describe, expect, it } from 'vitest'
-import { formatAmount, formatCount, formatDate, formatInstant, formatInstantDay, initialsOf, minorUnitsOf } from './format'
+import {
+  formatAmount,
+  formatCount,
+  formatDate,
+  formatInstant,
+  formatInstantDay,
+  formatUncurrencied,
+  initialsOf,
+  minorUnitsOf,
+} from './format'
 import { describeApiFailure, isNotFound, isPermissionDenied } from './apiFailure'
 import { ApiError, NetworkError } from '../api'
+
+describe('formatUncurrencied', () => {
+  it('writes three places with no sign, in Latin digits in Arabic too (W7R-5)', () => {
+    expect(formatUncurrencied(12.5)).toBe('12.500')
+    expect(formatUncurrencied(1234.5678)).toBe('1,234.568')
+    expect(formatUncurrencied('4.2', 'ar')).toMatch(/^4[.٫]200$/)
+    expect(formatUncurrencied(Number.NaN)).toBe('NaN')
+  })
+})
 
 describe('formatAmount', () => {
   it('writes OMR to three decimals, as the ledger keeps it', () => {

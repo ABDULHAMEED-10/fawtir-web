@@ -354,7 +354,25 @@ describe('a bill held as a possible duplicate', () => {
     expect(within(section).queryByText('Possible duplicate')).toBeNull()
     expect(within(section).getByText(/Second delivery/)).toBeTruthy()
     expect(within(section).queryByText(/by you/)).toBeNull()
+    expect(within(section).queryByText(/· by /)).toBeNull()
     expect(within(section).queryByRole('button', { name: 'Confirm duplicate' })).toBeNull()
+  })
+
+  it('names who decided it when the server names them (B-12b, backend #824)', async () => {
+    const released = duplicateHold({
+      releasedBy: 'u-2',
+      releasedAt: '2026-10-28T09:00:00Z',
+      duplicateResolution: 'NOT_DUPLICATE',
+      duplicateResolvedBy: 'u-2',
+      duplicateResolvedAt: '2026-10-28T09:00:00Z',
+      duplicateResolutionNote: 'Second delivery',
+      duplicateResolvedByName: 'Hamed Al Kindi',
+    })
+    copyResponses = [() => json(200, bill(COPY, 'd-copy', { holdHistory: [released] }))]
+    renderCopy()
+    await screen.findByRole('heading', { level: 2, name: 'Not a duplicate' })
+    const section = document.getElementById('duplicate-check') as HTMLElement
+    expect(within(section).getByText(/· by Hamed Al Kindi: “Second delivery”/)).toBeTruthy()
   })
 
   it('offers no approval or rejection on a confirmed duplicate either', async () => {
@@ -386,7 +404,9 @@ describe('a bill held as a possible duplicate', () => {
     copyResponses = [() => json(200, { ...copy, bill: { ...copy.bill, documentTypeCode: '381' } })]
     renderCopy()
     const section = await card()
-    expect(within(section).getByText(/Compare it with the credit note already on file/)).toBeTruthy()
+    // ACC-8 option A (0cb3b3f1) names how the earlier document arrived, so the Peppol wording appears
+    // only once that document is read; until then the card says the neutral pending sentence.
+    expect(await within(section).findByText(/Compare it with the credit note already on file/)).toBeTruthy()
     expect(within(section).getByText(/It can't be set against any bill until then\./)).toBeTruthy()
     expect(within(section).queryByText(/paid/)).toBeNull()
     expect(
@@ -409,7 +429,7 @@ describe('a bill held as a possible duplicate', () => {
     copyResponses = [() => json(200, { ...copy, bill: { ...copy.bill, documentTypeCode: '381' } })]
     renderCopy()
     await screen.findByRole('heading', { level: 2, name: 'فاتورة مكررة محتملة' })
-    expect(screen.getByText(/قارنه بالإشعار الدائن المسجّل لديكم/)).toBeTruthy()
+    expect(await screen.findByText(/قارنه بالإشعار الدائن المسجّل لديكم/)).toBeTruthy()
   })
 
   it('says why approving is refused when the bill became a held duplicate after the page loaded, and reads it again', async () => {
@@ -500,6 +520,19 @@ describe('a bill held as a possible duplicate', () => {
     expect(within(section).queryByRole('button', { name: 'Not a duplicate' })).toBeNull()
     expect(within(section).getByRole('button', { name: 'Confirm duplicate' })).toBeTruthy()
     expect(within(section).getByText(/Both copies carry the same document UUID/)).toBeTruthy()
+  })
+
+  it('stops advising "Confirm it as a duplicate" once it is confirmed (B-12)', async () => {
+    const confirmed = duplicateHold({
+      duplicateResolution: 'CONFIRMED_DUPLICATE',
+      duplicateResolvedBy: 'u-1',
+      duplicateResolvedAt: '2026-10-28T09:00:00Z',
+    })
+    copyResponses = [() => json(200, heldCopy(true, confirmed))]
+    renderCopy()
+    await screen.findByRole('heading', { level: 2, name: 'Duplicate' })
+    const section = document.getElementById('duplicate-check') as HTMLElement
+    expect(within(section).queryByText(/Confirm it as a duplicate/)).toBeNull()
   })
 
   it('says the server refused "Not a duplicate" for the same document UUID, and reads the bill again', async () => {
@@ -617,5 +650,185 @@ describe('a bill held as a possible duplicate', () => {
     expect(within(section).queryByText(/الانتظار/)).toBeNull()
     expect(screen.getByRole('button', { name: 'تأكيد التكرار' })).toBeTruthy()
     expect(screen.getAllByRole('button', { name: 'ليست مكررة' }).length).toBeGreaterThan(0)
+  })
+})
+
+/**
+ * Batch 43 round 28 (O-A Option 1, PRV43-EXP5 L-7): other suppliers' Peppol documents with the
+ * same figures, attached to the hold for the approver. They are shown apart from the copy the hold
+ * names, worded as potential coincidences, and the decision carries the version it was shown.
+ */
+describe('a hold with potential coincidences beside it', () => {
+  const STILL = '33333333-3333-3333-3333-333333333331'
+  const GONE_STALE = '33333333-3333-3333-3333-333333333332'
+  const SINCE = '33333333-3333-3333-3333-333333333333'
+  const NOT_ON_FILE = '33333333-3333-3333-3333-333333333334'
+  const figures = (billId: string, status: string) => ({
+    billId,
+    status,
+    billNumber: 'QMS-7781',
+    issueDate: '2026-09-02',
+    totalIncludingVat: 2354.31,
+    currencyCode: 'OMR',
+    source: 'PEPPOL',
+  })
+  const EVIDENCE = {
+    duplicateOfBillId: ORIGINAL,
+    version: 'v-1',
+    coincidences: [
+      figures(STILL, 'ATTACHED_STILL_MATCHES'),
+      { ...figures(GONE_STALE, 'ATTACHED_NO_LONGER_MATCHES'), totalIncludingVat: 2400 },
+      figures(SINCE, 'FOUND_SINCE_HOLD'),
+      {
+        billId: NOT_ON_FILE,
+        status: 'ATTACHED_NO_LONGER_MATCHES',
+        billNumber: null,
+        issueDate: null,
+        totalIncludingVat: null,
+        currencyCode: null,
+        source: null,
+      },
+    ],
+  }
+  const withEvidence = (evidence: unknown = EVIDENCE) => ({ ...heldCopy(), duplicateEvidence: evidence })
+  const panel = () => screen.getByRole('region', { name: 'Potential coincidences' })
+  const rowOf = (text: string) =>
+    within(panel())
+      .getAllByRole('listitem')
+      .find((item) => item.textContent?.includes(text))!
+
+  async function decide(decision: 'Confirm duplicate' | 'Not a duplicate') {
+    const section = await card()
+    fireEvent.click(within(section).getByRole('button', { name: decision }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'Checked them all' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: decision }))
+  }
+
+  it('lists each one with its status, apart from the bill on file, before the decision', async () => {
+    copyResponses = [() => json(200, withEvidence())]
+    renderCopy()
+    const section = await card()
+    const coincidences = within(section).getByRole('region', { name: 'Potential coincidences' })
+    expect(
+      within(coincidences).getByText(
+        "Peppol documents filed under other suppliers that have, or had when this bill was held, the same number, type, date, total and currency. Nothing shows they are from this supplier, so they are not confirmed duplicates. Check each one's status and review them before you decide.",
+      ),
+    ).toBeTruthy()
+    expect(within(coincidences).getAllByRole('listitem')).toHaveLength(4)
+    const linkOf = (id: string) =>
+      within(coincidences)
+        .getAllByRole('link', { name: 'Open' })
+        .find((link) => link.getAttribute('href') === `/expenditure/bills/${id}`)
+    for (const [id, status] of [
+      [STILL, 'Still matches'],
+      [GONE_STALE, 'No longer matches'],
+      [SINCE, 'Not attached when the bill was held'],
+    ] as const) {
+      const item = linkOf(id)!.closest('li') as HTMLElement
+      expect(within(item).getByText(status)).toBeTruthy()
+      expect(item.textContent).toContain('QMS-7781')
+    }
+    // Its figures as they stand now, not as they were when attached.
+    expect((linkOf(GONE_STALE)!.closest('li') as HTMLElement).textContent).toMatch(/2,400\.000/)
+    // Never among the copies the hold names, and never called a duplicate.
+    expect(within(coincidences).queryByText('Already on file')).toBeNull()
+    expect(within(coincidences).queryByText(/is a duplicate/)).toBeNull()
+    // Read before the decision: the panel comes before the buttons.
+    const confirm = within(section).getByRole('button', { name: 'Confirm duplicate' })
+    expect(coincidences.compareDocumentPosition(confirm) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('says one no longer on file, with no figures and nothing to open', async () => {
+    copyResponses = [() => json(200, withEvidence())]
+    renderCopy()
+    await card()
+    const gone = rowOf('No longer on file')
+    expect(within(gone).getByText('No longer matches')).toBeTruthy()
+    expect(within(gone).queryByRole('link')).toBeNull()
+    expect(gone.textContent).not.toContain('QMS-7781')
+    expect(within(panel()).queryAllByRole('link').map((link) => link.getAttribute('href'))).not.toContain(
+      `/expenditure/bills/${NOT_ON_FILE}`,
+    )
+  })
+
+  it.each([
+    ['null', null],
+    ['absent, as from an older server', undefined],
+    ['empty', { duplicateOfBillId: ORIGINAL, version: 'v-0', coincidences: [] }],
+  ])('shows nothing when the evidence is %s', async (_label, evidence) => {
+    const copy = heldCopy()
+    copyResponses = [() => json(200, evidence === undefined ? copy : { ...copy, duplicateEvidence: evidence })]
+    renderCopy()
+    await card()
+    expect(screen.queryByRole('region', { name: 'Potential coincidences' })).toBeNull()
+    expect(screen.queryByText(/Potential coincidences/)).toBeNull()
+  })
+
+  it('sends the version it showed with the decision', async () => {
+    copyResponses = [() => json(200, withEvidence())]
+    renderCopy()
+    await decide('Not a duplicate')
+    await waitFor(() => expect(resolveCalls()).toHaveLength(1))
+    expect(resolveBody()).toEqual({
+      decision: 'NOT_DUPLICATE',
+      note: 'Checked them all',
+      evidenceVersion: 'v-1',
+    })
+  })
+
+  it('sends no version for a bill without evidence', async () => {
+    renderCopy()
+    await decide('Confirm duplicate')
+    await waitFor(() => expect(resolveCalls()).toHaveLength(1))
+    expect(resolveBody()).not.toHaveProperty('evidenceVersion')
+    expect(resolveBody()).toEqual({ decision: 'CONFIRMED_DUPLICATE', note: 'Checked them all' })
+  })
+
+  it('says the coincidences changed and reads the bill again when the server refuses the version', async () => {
+    resolveResponse = () =>
+      json(409, {
+        type: 'https://api.fawtir.om/problems/resource-conflict',
+        error: 'BILL_DUPLICATE_EVIDENCE_CHANGED',
+      })
+    copyResponses = [
+      () => json(200, withEvidence()),
+      () =>
+        json(
+          200,
+          withEvidence({
+            ...EVIDENCE,
+            version: 'v-2',
+            coincidences: [...EVIDENCE.coincidences, figures('33333333-3333-3333-3333-333333333335', 'FOUND_SINCE_HOLD')],
+          }),
+        ),
+    ]
+    renderCopy()
+    await decide('Confirm duplicate')
+    expect(
+      await screen.findByText(
+        'The potential coincidences beside this hold changed since you opened the bill. Review them as they stand now before you decide.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await waitFor(() => expect(calls().filter((call) => call === `GET ${COPY_URL}`)).toHaveLength(2))
+    await waitFor(() => expect(within(panel()).getAllByRole('listitem')).toHaveLength(5))
+    // Nothing was decided: the decision is still offered, and the next one carries the new version.
+    resolveResponse = () => json(200, duplicateHold({ duplicateResolution: 'CONFIRMED_DUPLICATE' }))
+    fetchMock.mockClear()
+    await decide('Confirm duplicate')
+    await waitFor(() => expect(resolveCalls()).toHaveLength(1))
+    expect(resolveBody().evidenceVersion).toBe('v-2')
+  })
+
+  it('reads in Arabic', async () => {
+    copyResponses = [() => json(200, withEvidence())]
+    await i18n.changeLanguage('ar')
+    renderCopy()
+    await screen.findByRole('heading', { level: 2, name: 'فاتورة مكررة محتملة' })
+    const coincidences = screen.getByRole('region', { name: 'تطابقات محتملة بالمصادفة' })
+    expect(within(coincidences).getByText('لم تعد محفوظة')).toBeTruthy()
+    expect(within(coincidences).getByText('لم تكن مرفقة عند احتجاز الفاتورة')).toBeTruthy()
+    expect(within(coincidences).queryByText(/Still matches|No longer|Not attached/)).toBeNull()
   })
 })

@@ -21,7 +21,7 @@ const ADMIN: Entitlements = {
   username: 'demo_admin',
   tenantId: 't-1',
   roles: [{ id: 'r-1', code: 'ADMIN', name: 'Administrator', systemRole: true }],
-  permissions: ['invoice.read', 'invoice.draft', 'invoice.export'],
+  permissions: ['invoice.read', 'invoice.draft', 'invoice.export', 'branch.read'],
   scopes: [],
   featureFlags: {},
 }
@@ -228,6 +228,9 @@ function renderInvoices(path = '/invoices') {
       <Routes>
         <Route path="/invoices" element={<InvoicesPage />} />
         <Route path="/invoices/:id/edit" element={<p>draft editor</p>} />
+        <Route path="/invoices/:id" element={<p>invoice page</p>} />
+        <Route path="/income/credit-notes/:id" element={<p>credit note page</p>} />
+        <Route path="/income/debit-notes/:id" element={<p>debit note page</p>} />
         <Route path="/login" element={<p>sign-in page</p>} />
       </Routes>
     </MemoryRouter>,
@@ -241,7 +244,10 @@ describe('Invoices list, wired to the API', () => {
     expect(screen.getByText('1,234.500')).toBeTruthy()
     expect(screen.getByText('Across 12 unpaid invoices')).toBeTruthy()
     expect(screen.getByText('9,876.125')).toBeTruthy()
-    expect(screen.getByText('18 invoices collected')).toBeTruthy()
+    // A cleared receivable may have been cleared by credit, with no cash (ACC-10).
+    expect(screen.getByText('Settled')).toBeTruthy()
+    expect(screen.getByText('18 documents settled by payment or credit')).toBeTruthy()
+    expect(screen.queryByText(/with payments received/)).toBeNull()
     expect(screen.getByText('2 invoices due soon')).toBeTruthy()
     // 7 July to 15 September.
     expect(screen.getByText('4 invoices · oldest 70 days')).toBeTruthy()
@@ -513,6 +519,20 @@ describe('Invoices list, wired to the API', () => {
     expect(await screen.findByText('Sohar Port Logistics')).toBeTruthy()
   })
 
+  it('keeps the validation sentence and a retry when the list answers 400, not "Not found"', async () => {
+    // A list's 400 is a bad query parameter; only a record page reads a 400 as a missing record.
+    listResponses = [
+      () => json(400, { type: 'https://api.fawtir.om/problems/validation-failed', status: 400 }),
+      () => json(200, springPage([issued()], 1)),
+    ]
+    renderInvoices()
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toContain('Some details were not accepted')
+    expect(screen.queryByText('Not found')).toBeNull()
+    fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByText('Sohar Port Logistics')).toBeTruthy()
+  })
+
   it('offers the row menu on every row, and discards a draft from its Delete', async () => {
     renderInvoices()
     const issuedRow = (await screen.findByText('INV-2026-0042')).closest('tr')!
@@ -539,6 +559,135 @@ describe('Invoices list, wired to the API', () => {
     renderInvoices()
     fireEvent.click(await screen.findByText('Nizwa Dates Co'))
     expect(await screen.findByText('draft editor')).toBeTruthy()
+  })
+
+  it('opens a credit or debit note on its own page, from the row and from the menu', async () => {
+    const credit = issued({
+      id: 'cn-1',
+      type: 'CREDIT_NOTE',
+      invoiceNumber: 'CRN-2026-0001',
+      customerName: 'Credit Customer',
+      payment: {
+        state: 'NOT_APPLICABLE',
+        overdue: false,
+        daysOverdue: null,
+        paidAmount: null,
+        creditedAmount: null,
+        outstandingAmount: null,
+      },
+    })
+    const debit = issued({
+      id: 'dn-1',
+      type: 'DEBIT_NOTE',
+      invoiceNumber: 'DBN-2026-0001',
+      customerName: 'Debit Customer',
+    })
+    listResponses = [() => json(200, springPage([credit, debit, issued()], 3))]
+    renderInvoices()
+    const creditRow = (await screen.findByText('CRN-2026-0001')).closest('tr')!
+    fireEvent.click(within(creditRow).getByRole('button', { name: 'Invoice actions' }))
+    expect(
+      (await screen.findByRole('menuitem', { name: 'View invoice' })).getAttribute('href'),
+    ).toBe('/income/credit-notes/cn-1')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    const debitRow = screen.getByText('DBN-2026-0001').closest('tr')!
+    fireEvent.click(within(debitRow).getByRole('button', { name: 'Invoice actions' }))
+    expect(
+      (await screen.findByRole('menuitem', { name: 'View invoice' })).getAttribute('href'),
+    ).toBe('/income/debit-notes/dn-1')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.click(screen.getByText('Credit Customer'))
+    expect(await screen.findByText('credit note page')).toBeTruthy()
+  })
+
+  it('opens an invoice row on the invoice page', async () => {
+    renderInvoices()
+    fireEvent.click(await screen.findByText('Sohar Port Logistics'))
+    expect(await screen.findByText('invoice page')).toBeTruthy()
+  })
+
+  it('words a note as the notes lists do: To be sent until delivered, not Issued', async () => {
+    const credit = (overrides: Partial<InvoiceRowDto>) =>
+      issued({
+        type: 'CREDIT_NOTE',
+        payment: {
+          state: 'NOT_APPLICABLE',
+          overdue: false,
+          daysOverdue: null,
+          paidAmount: null,
+          creditedAmount: null,
+          outstandingAmount: null,
+        },
+        ...overrides,
+      })
+    listResponses = [
+      () =>
+        json(
+          200,
+          springPage(
+            [
+              credit({ id: 'cn-1', invoiceNumber: 'CRN-1', customerName: 'Unsent Co' }),
+              credit({
+                id: 'cn-2',
+                invoiceNumber: 'CRN-2',
+                customerName: 'Peppol Co',
+                peppolResponse: 'AP',
+              }),
+            ],
+            2,
+          ),
+        ),
+    ]
+    renderInvoices()
+    const row = (name: string) => within(screen.getByText(name).closest('tr')!)
+    await screen.findByText('Unsent Co')
+    expect(row('Unsent Co').getByText('To be sent')).toBeTruthy()
+    expect(row('Unsent Co').queryByText('Issued')).toBeNull()
+    expect(row('Peppol Co').getByText('Applied')).toBeTruthy()
+  })
+
+  it('keeps the payment pill on a paid, overdue or partly paid debit note nobody marked delivered', async () => {
+    const debit = (overrides: Partial<InvoiceRowDto>) =>
+      issued({ type: 'DEBIT_NOTE', deliveryState: 'NOT_SUBMITTED', ...overrides })
+    const pay = (
+      state: 'PAID' | 'UNPAID' | 'PARTIALLY_PAID',
+      overdue = false,
+    ): NonNullable<InvoiceRowDto['payment']> => ({
+      state,
+      overdue,
+      daysOverdue: overdue ? 4 : null,
+      paidAmount: state === 'PAID' ? 10 : 0,
+      creditedAmount: 0,
+      outstandingAmount: state === 'PAID' ? 0 : 10,
+    })
+    listResponses = [
+      () =>
+        json(
+          200,
+          springPage(
+            [
+              debit({ id: 'dn-p', customerName: 'Paid Co', payment: pay('PAID') }),
+              debit({ id: 'dn-o', customerName: 'Late Co', payment: pay('UNPAID', true) }),
+              debit({ id: 'dn-h', customerName: 'Half Co', payment: pay('PARTIALLY_PAID') }),
+              debit({
+                id: 'dn-d',
+                customerName: 'Gone Co',
+                authoringState: 'DISCARDED',
+                payment: null,
+              }),
+            ],
+            4,
+          ),
+        ),
+    ]
+    renderInvoices()
+    const row = (name: string) => within(screen.getByText(name).closest('tr')!)
+    await screen.findByText('Paid Co')
+    expect(row('Paid Co').getByText('Paid')).toBeTruthy()
+    expect(row('Late Co').getByText('Overdue')).toBeTruthy()
+    expect(row('Half Co').getByText('Partially paid')).toBeTruthy()
+    expect(row('Gone Co').getByText('Discarded')).toBeTruthy()
+    expect(screen.queryByText('To be sent')).toBeNull()
   })
 
   it('offers only what the reader may do', async () => {
@@ -573,7 +722,9 @@ describe('Invoices list, wired to the API', () => {
     fireEvent.click(submit)
     fireEvent.click(submit)
 
-    expect(await screen.findByText('The invoice was validated and queued for sending.')).toBeTruthy()
+    expect(
+      await screen.findByText('The invoice was validated and queued for sending.'),
+    ).toBeTruthy()
     expect(calls('/api/v1/authored-invoices/inv-1/send')).toHaveLength(1)
     await waitFor(() => expect(listCalls()).toHaveLength(2))
   })
@@ -661,14 +812,19 @@ describe('Read-only subscription: no new drafts and nothing sent (ST-2, CA-3; ow
     expect(screen.getByRole('button', { name: /Bulk upload/ })).toBeTruthy()
     await issuedRowMenu()
     expect(screen.getByRole('menuitem', { name: 'Send' })).toBeTruthy()
-    expect(screen.getByRole('menuitem', { name: i18n.t('rowActions.invoice.duplicate') })).toBeTruthy()
+    expect(
+      screen.getByRole('menuitem', { name: i18n.t('rowActions.invoice.duplicate') }),
+    ).toBeTruthy()
     expect(screen.getByRole('menuitem', { name: 'Issue credit note' })).toBeTruthy()
     expect(screen.getByRole('menuitem', { name: 'Periodic invoice' })).toBeTruthy()
   })
 
   it.each([
     ['suspended', standing('SUBSCRIPTION_SUSPENDED')],
-    ['trial ended unpaid', standing('SUBSCRIPTION_SUSPENDED', { paidThrough: null, trialEndsOn: '2026-10-21' })],
+    [
+      'trial ended unpaid',
+      standing('SUBSCRIPTION_SUSPENDED', { paidThrough: null, trialEndsOn: '2026-10-21' }),
+    ],
     ['cancelled', standing('SUBSCRIPTION_CANCELLED', { access: 'CANCELLED' })],
   ])('hides them while %s; viewing and discarding an old draft stay', async (_, status) => {
     who = OWNER
@@ -680,7 +836,9 @@ describe('Read-only subscription: no new drafts and nothing sent (ST-2, CA-3; ow
     expect(screen.getByRole('button', { name: /Export/ })).toBeTruthy()
     await issuedRowMenu()
     expect(screen.queryByRole('menuitem', { name: 'Send' })).toBeNull()
-    expect(screen.queryByRole('menuitem', { name: i18n.t('rowActions.invoice.duplicate') })).toBeNull()
+    expect(
+      screen.queryByRole('menuitem', { name: i18n.t('rowActions.invoice.duplicate') }),
+    ).toBeNull()
     expect(screen.queryByRole('menuitem', { name: 'Issue credit note' })).toBeNull()
     expect(screen.queryByRole('menuitem', { name: 'Periodic invoice' })).toBeNull()
     fireEvent.keyDown(document, { key: 'Escape' })
@@ -765,7 +923,7 @@ describe('invoice list mapping', () => {
         deliveryState: 'SENT_MANUALLY',
       }),
     )
-    expect(credited).toMatchObject({ authoring: 'issued', payment: 'paid', sentManually: true })
+    expect(credited).toMatchObject({ authoring: 'issued', payment: 'credited', sentManually: true })
     expect(credited.amountNote).toEqual({
       key: 'invoicesPage.amountNote.credited',
       values: { amount: 845.125 },
@@ -784,7 +942,33 @@ describe('invoice list mapping', () => {
         },
       }),
     )
-    expect(note).toMatchObject({ authoring: 'issued', payment: null, amountNote: null })
+    expect(note).toMatchObject({
+      authoring: 'issued',
+      payment: null,
+      amountNote: null,
+      noteStatus: 'toSend',
+    })
+    expect(toInvoiceListItem(issued()).noteStatus).toBeNull()
+    // A debit note's payment outranks "To be sent": the backend sends no Peppol response, so an
+    // undelivered paid note is the normal case.
+    const paidDebit = toInvoiceListItem(
+      issued({
+        type: 'DEBIT_NOTE',
+        payment: {
+          state: 'PAID',
+          overdue: false,
+          daysOverdue: null,
+          paidAmount: 845.125,
+          creditedAmount: 0,
+          outstandingAmount: 0,
+        },
+      }),
+    )
+    expect(paidDebit).toMatchObject({ noteStatus: null, payment: 'paid' })
+    expect(toInvoiceListItem(issued({ type: 'DEBIT_NOTE' }))).toMatchObject({
+      noteStatus: null,
+      payment: 'overdue',
+    })
 
     const awaiting_row = () =>
       issued({
@@ -813,8 +997,11 @@ describe('invoice list mapping', () => {
   })
 })
 
-describe('the approvers\' queue (RL-6)', () => {
-  const APPROVER: Entitlements = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.approve'] }
+describe("the approvers' queue (RL-6)", () => {
+  const APPROVER: Entitlements = {
+    ...ADMIN,
+    permissions: [...ADMIN.permissions, 'invoice.approve'],
+  }
 
   it('is offered to an approver while the company rule is on, counted from the summary', async () => {
     who = APPROVER
@@ -902,7 +1089,7 @@ describe('the approvers\' queue (RL-6)', () => {
 // Business Rules PL-8: bulk upload and periodic invoices are plan features; a plan that has them
 // switched off keeps the list and hides the doors to them.
 describe('a plan without bulk upload or periodic invoices (PL-8)', () => {
-  it('hides Bulk upload and the row menu\'s Periodic invoice', async () => {
+  it("hides Bulk upload and the row menu's Periodic invoice", async () => {
     who = {
       ...ADMIN,
       planFeaturesEnforced: true,
@@ -925,5 +1112,172 @@ describe('a plan without bulk upload or periodic invoices (PL-8)', () => {
     renderInvoices()
     await screen.findByText('INV-2026-0042')
     expect(await screen.findByRole('button', { name: 'Bulk upload' })).toBeTruthy()
+  })
+})
+
+describe('cancelling a credit note from the list (D-3)', () => {
+  const credit = issued({
+    id: 'cn-1',
+    type: 'CREDIT_NOTE',
+    invoiceNumber: 'CRN-2026-0001',
+    customerName: 'Credit Customer',
+    payment: {
+      state: 'NOT_APPLICABLE',
+      overdue: false,
+      daysOverdue: null,
+      paidAmount: null,
+      creditedAmount: null,
+      outstandingAmount: null,
+    },
+  })
+
+  it.each([
+    ['CREDIT_NOTE_CANCEL_TILL_REFUND', 'salesNote.detail.cancelBlocked.tillRefund'],
+    ['CREDIT_NOTE_CANCEL_HAS_STOCK_RETURN', 'salesNote.detail.cancelBlocked.stockReturn'],
+    ['INVOICE_CANCEL_HAS_PAYMENTS', 'salesNote.detail.cancelBlocked.refunded'],
+  ])('words 409 %s as the note page does, not "reload and try again"', async (code, key) => {
+    who = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.cancel'] }
+    listResponses = [() => json(200, springPage([credit], 1))]
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === '/api/v1/authored-invoices/cn-1/cancel' && init?.method === 'POST')
+        return json(409, { status: 409, code, detail: 'English prose from the server' })
+      return base(url, init)
+    })
+    renderInvoices()
+    const row = (await screen.findByText('CRN-2026-0001')).closest('tr')!
+    fireEvent.click(within(row).getByRole('button', { name: 'Invoice actions' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Delete' }))
+    fireEvent.change(await screen.findByRole('textbox'), { target: { value: 'Raised twice' } })
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('invoiceDetails.cancel.confirm') }))
+    expect(await screen.findByText(i18n.t(key))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('apiErrors.conflict'))).toBeNull()
+    expect(screen.queryByText('English prose from the server')).toBeNull()
+    expect(
+      fetchMock.mock.calls.filter(([url]) => url === '/api/v1/authored-invoices/cn-1/cancel'),
+    ).toHaveLength(1)
+  })
+})
+
+describe('the read-model fields of backend #824, each optional', () => {
+  const unpaid = (overrides: Partial<InvoiceRowDto> = {}) =>
+    issued({
+      payment: {
+        state: 'UNPAID',
+        overdue: false,
+        daysOverdue: null,
+        paidAmount: 0,
+        creditedAmount: 0,
+        outstandingAmount: 845.125,
+      },
+      ...overrides,
+    })
+
+  it('titles the cash card "Paid" with the collected figure when the server sends it (ACC-10)', async () => {
+    const collected = { collectedTotal: { count: 9, total: 4321.75 } }
+    summaryResponse = () => json(200, { ...SUMMARY, ...collected })
+    salesSummaryResponse = () =>
+      json(200, { ...SUMMARY, awaiting: 6, overdue: 4, paid: 17, ...collected })
+    renderInvoices()
+    expect(await screen.findByText('4,321.750')).toBeTruthy()
+    const card = screen.getByText('4,321.750').closest('article') as HTMLElement
+    expect(within(card).getByText('Paid')).toBeTruthy()
+    expect(within(card).getByText('9 invoices with payments received')).toBeTruthy()
+    // paidTotal is not cash in: it never stands in for the collected figure.
+    expect(screen.queryByText('9,876.125')).toBeNull()
+    expect(screen.queryByText('Settled')).toBeNull()
+  })
+
+  it('keeps the card "Settled" over paidTotal when the server sends no collected figure', async () => {
+    renderInvoices()
+    const card = (await screen.findByText('9,876.125')).closest('article') as HTMLElement
+    expect(within(card).getByText('Settled')).toBeTruthy()
+    expect(within(card).queryByText('Paid')).toBeNull()
+    expect(screen.queryByText(/with payments received/)).toBeNull()
+  })
+
+  it('maps each ledger state to its pill, and a delivered one to awaiting payment (A-4b)', () => {
+    expect(toInvoiceListItem(unpaid({ deliveryState: 'QUEUED' }))).toMatchObject({
+      ledger: 'queued',
+      payment: 'toSend',
+    })
+    expect(toInvoiceListItem(unpaid({ deliveryState: 'SENDING' })).ledger).toBe('sending')
+    // SENT is only the receiving access point's receipt: still to be sent as far as owing goes.
+    expect(toInvoiceListItem(unpaid({ deliveryState: 'SENT' }))).toMatchObject({
+      ledger: 'sent',
+      payment: 'toSend',
+    })
+    expect(toInvoiceListItem(unpaid({ deliveryState: 'DELIVERED' }))).toMatchObject({
+      ledger: 'delivered',
+      payment: 'awaiting',
+    })
+    expect(toInvoiceListItem(unpaid({ deliveryState: 'DELIVERED_UNCONFIRMED' }))).toMatchObject({
+      ledger: 'deliveredUnconfirmed',
+      payment: 'awaiting',
+    })
+    expect(toInvoiceListItem(unpaid({ deliveryState: 'UNDELIVERABLE' })).ledger).toBe(
+      'undeliverable',
+    )
+  })
+
+  it('says nothing about delivery from NOT_SUBMITTED, a blocker or a state it does not know', () => {
+    // A server before #824 sends NOT_SUBMITTED and the handoff blocker on every issued row.
+    expect(
+      toInvoiceListItem(
+        unpaid({ deliveryState: 'NOT_SUBMITTED', deliveryBlocker: 'CANONICAL_HANDOFF_NOT_ENABLED' }),
+      ),
+    ).toMatchObject({ ledger: null, payment: 'toSend', sentManually: false })
+    expect(toInvoiceListItem(unpaid({ deliveryState: 'SENT_MANUALLY' })).ledger).toBeNull()
+    expect(toInvoiceListItem(unpaid({ deliveryState: 'SOMETHING_NEW' })).ledger).toBeNull()
+    expect(toInvoiceListItem(draft({ deliveryState: 'QUEUED' })).ledger).toBeNull()
+  })
+
+  it('prints the ledger pill in the PEPPOL/OTA column with the detail page sentence (A-4b)', async () => {
+    listResponses = [
+      () =>
+        json(
+          200,
+          springPage([
+            unpaid({ deliveryState: 'QUEUED' }),
+            unpaid({ id: 'inv-2', invoiceNumber: 'INV-2026-0043', deliveryBlocker: 'CANONICAL_HANDOFF_NOT_ENABLED' }),
+          ]),
+        ),
+    ]
+    renderInvoices()
+    const queued = (await screen.findByText('INV-2026-0042')).closest('tr') as HTMLElement
+    const pill = within(queued).getByText('Queued')
+    expect(pill.closest('span[title]')?.getAttribute('title')).toBe(
+      'Validated and queued for sending',
+    )
+    const blocked = screen.getByText('INV-2026-0043').closest('tr') as HTMLElement
+    for (const word of ['Queued', 'Not sent', 'Sent', 'Delivered']) {
+      expect(within(blocked).queryByText(word)).toBeNull()
+    }
+  })
+})
+
+// D-26 (owner, 6 Nov 2026): an issued debit note is not cancelled from the list either. Its Delete
+// says why and sends nothing; a credit note's Delete still opens the cancel (D-3, above).
+describe('an issued debit note from the list (D-26)', () => {
+  const debit = issued({
+    id: 'dn-1',
+    type: 'DEBIT_NOTE',
+    invoiceNumber: 'DBN-2026-0001',
+    customerName: 'Debit Customer',
+  })
+
+  it.each(['en', 'ar'])('its Delete explains, opens no dialog and sends no cancel (%s)', async (lang) => {
+    await i18n.changeLanguage(lang)
+    who = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.cancel'] }
+    listResponses = [() => json(200, springPage([debit], 1))]
+    renderInvoices()
+    const row = (await screen.findByText('DBN-2026-0001')).closest('tr')!
+    fireEvent.click(within(row).getByRole('button', { name: i18n.t('invoicesPage.rowMenu') }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: i18n.t('rowActions.delete') }))
+    expect(await screen.findByText(i18n.t('salesNote.detail.debitLocked'))).toBeTruthy()
+    expect(screen.queryByRole('textbox')).toBeNull()
+    expect(
+      fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/dn-1/cancel')),
+    ).toHaveLength(0)
   })
 })

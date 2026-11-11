@@ -231,6 +231,22 @@ describe('building a catalog from a template', () => {
     expect(box('Gift box').checked).toBe(false)
   })
 
+  it('counts only what would be added: nothing under an unticked kind or group, and items not sizes (E2E L-9)', async () => {
+    renderBuild()
+    await screen.findByText('Gift box')
+    expect(screen.getByText('2 items picked')).toBeTruthy()
+    expect(screen.getByText('1 kind picked')).toBeTruthy()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Cakes & Pastries' }))
+    expect(screen.queryByText('2 items picked')).toBeNull()
+    expect(screen.queryByText('1 kind picked')).toBeNull()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Cakes & Pastries' }))
+    expect(screen.getByText('1 kind picked')).toBeTruthy()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Desserts' }))
+    expect(screen.queryByText('1 kind picked')).toBeNull()
+    expect(i18n.t('buildCatalog.itemsPicked', { count: 11, lng: 'ar' })).toBe('11 صنفًا محددًا')
+    expect(i18n.t('buildCatalog.itemsPicked', { count: 2, lng: 'ar' })).toBe('صنفان محددان')
+  })
+
   it('keeps ticks and prices when the language changes (W-4)', async () => {
     renderBuild()
     const [price] = await screen.findAllByLabelText('Price')
@@ -275,6 +291,44 @@ describe('building a catalog from a template', () => {
     expect(screen.getByRole('link', { name: 'Open the catalog' }).getAttribute('href')).toBe(
       '/catalog',
     )
+  })
+
+  it('says how many added items still have no price and links to Wanting attention', async () => {
+    renderBuild()
+    const [price] = await screen.findAllByLabelText('Price')
+    fireEvent.change(price, { target: { value: '0.8' } })
+    fireEvent.blur(price)
+    fireEvent.click(screen.getByRole('button', { name: 'Add 2 to the catalog' }))
+    expect(await screen.findByText(/1 item still has no price\./)).toBeTruthy()
+    expect(
+      screen.getByRole('link', { name: 'See them in Wanting attention' }).getAttribute('href'),
+    ).toBe('/catalog?tab=attention&sort=priceLow')
+  })
+
+  it('says nothing about prices when every item added has one', async () => {
+    renderBuild()
+    for (const price of await screen.findAllByLabelText('Price')) {
+      fireEvent.change(price, { target: { value: '0.8' } })
+      fireEvent.blur(price)
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Add 2 to the catalog' }))
+    await screen.findByText('Added 2, skipped 0 already in your catalog, 0 failed.')
+    expect(screen.queryByText(/still has no price|still have no price/)).toBeNull()
+  })
+
+  it('shows the notice on prices, in English and Arabic', async () => {
+    renderBuild()
+    expect(
+      await screen.findByText(
+        'These are suggestions. Prices start at 0.000: set your own prices, units, VAT and stock counting to match how you sell, before you sell.',
+      ),
+    ).toBeTruthy()
+    await act(() => i18n.changeLanguage('ar'))
+    expect(
+      await screen.findByText(
+        'هذه اقتراحات. تبدأ الأسعار من 0.000: حدّد أسعارك ووحداتك وضريبتك ومتابعة المخزون بما يناسب طريقة بيعك، قبل البيع.',
+      ),
+    ).toBeTruthy()
   })
 
   it('lists what failed and why, and tries only those again', async () => {

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { setSaleLines, useOpenSale } from '../../lib/posSale'
+import { setSaleLines, useOpenSale, useUncertainSale } from '../../lib/posSale'
 import { Trans, useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
 import { PosArt } from './PosArt'
 import { PosSalePanel } from './PosSalePanel'
+import { PosPhoneSaleBar } from './PosPhoneSaleBar'
 import { CashierPicker } from './CashierPicker'
 import { PosTillGate } from './PosTillGate'
 import { PosChooser } from './PosChooser'
@@ -20,15 +21,18 @@ import {
   activeCounts,
   addToSale,
   choicesOf,
-  hasChoices,
   itemsFor,
   listedChoices,
+  mayTypePrice,
   saleLineFor,
   shelfItem,
   shelfTabs,
+  tilePrice,
+  whenPicked,
   type ActiveFilter,
   type ItemChoices,
   type PosItem,
+  type SizeChoice,
 } from '../../lib/posShelf'
 import {
   getProduct,
@@ -38,7 +42,7 @@ import {
 } from '../../api/catalog/products'
 import { getCatalogGroups, type CatalogGroupsDto } from '../../api/catalog/groups'
 import type { Page } from '../../api'
-import { posRefusalKey } from '../../lib/posRefusals'
+import { refusalSentence } from '../../lib/posRefusals'
 import { loadOrRecall } from '../../lib/posOffline'
 import { captureScans, findOnShelf, lookupBarcode, type ScanHit } from '../../lib/posScan'
 import { playErrorBeep } from '../../lib/posBeep'
@@ -113,6 +117,7 @@ function Tile({
   const available = item.available
   const sizes = choices?.sizes.length ?? 0
   const addOns = choices?.addOns.length ?? 0
+  const price = tilePrice(item, choices)
 
   return (
     <button
@@ -161,10 +166,16 @@ function Tile({
           )}
         </span>
         {/* Pinned to the foot, so the prices line up across a row when a name wraps. */}
-        <span className="mt-auto inline-flex items-center gap-1 pt-1.5 text-base font-semibold text-text-primary">
-          <Rial />
-          {omr(item.price)}
-        </span>
+        {price > 0 ? (
+          <span className="mt-auto inline-flex items-center gap-1 pt-1.5 text-base font-semibold text-text-primary">
+            <Rial />
+            {omr(price)}
+          </span>
+        ) : (
+          <span className="mt-auto pt-1.5 text-sm font-semibold text-danger-700">
+            {t('pos.noPrice.label')}
+          </span>
+        )}
       </span>
     </button>
   )
@@ -173,10 +184,12 @@ function Tile({
 export function PosPage() {
   return (
     <AppShell>
-      <PosTillGate>
+      <PosTillGate showQueue>
         {(till) => (
           <Shelf
+            tillId={till.till.id}
             branchId={till.branchId}
+            canSell={till.can.sell}
             tillCtl={<CashierPicker till={till.till} mine={till.mine} />}
           />
         )}
@@ -185,7 +198,17 @@ export function PosPage() {
   )
 }
 
-function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) {
+function Shelf({
+  tillId,
+  branchId,
+  canSell,
+  tillCtl,
+}: {
+  tillId: string
+  branchId: string
+  canSell: boolean
+  tillCtl: ReactNode
+}) {
   const { t, i18n } = useTranslation()
   const ar = i18n.language.startsWith('ar')
   const navigate = useNavigate()
@@ -198,6 +221,10 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
   const [error, setError] = useState<unknown>(null)
   // A scanned code that matched nothing, shown under the scan box until the next scan or typing.
   const [unknownCode, setUnknownCode] = useState<string | null>(null)
+  // The item just picked that has no price and cannot be given one here.
+  const [noPrice, setNoPrice] = useState<string | null>(null)
+  // The size the chooser opens on, when a size's own barcode asked for it.
+  const [startSize, setStartSize] = useState<SizeChoice | null>(null)
   // The open sale is shared with the payment and receipt screens (src/lib/posSale.ts).
   const { lines, company } = useOpenSale()
 
@@ -224,6 +251,7 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
     groups.read.status === 'ready' ? groups.read.data.groups : [],
     ar,
     t('pos.group.all'),
+    filter,
   )
   // What the rows already carry; a row without it is read when tapped.
   const listed = useMemo(
@@ -241,9 +269,17 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
   const inSale = new Set(lines.map((line) => line.productId))
   const shown = itemsFor(items, group, filter, query)
 
+  /** Opens the chooser. Its choices are kept: an item the server's lookup found is not on the shelf. */
+  const choose = (item: PosItem, choices: ItemChoices, size: SizeChoice | null) => {
+    setDetails((current) => ({ ...current, [item.id]: choices }))
+    setStartSize(size)
+    setChoosing(item)
+  }
+
   /** A tap reads the item in full: one with sizes or add-ons asks which. */
   const add = async (item: PosItem) => {
     setError(null)
+    setNoPrice(null)
     let choices = choicesFor(item.id) ?? listedChoices(item, ar)
     if (!choices) {
       try {
@@ -255,8 +291,13 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
         return
       }
     }
-    if (hasChoices(choices)) {
-      setChoosing(item)
+    const next = whenPicked(item, choices, canSell)
+    if (next === 'refuse') {
+      setNoPrice(item.name)
+      return
+    }
+    if (next === 'choose') {
+      choose(item, choices, null)
       return
     }
     setSaleLines((current) => addToSale(current, saleLineFor(categories, item, null, [])))
@@ -268,6 +309,7 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
    */
   const addSize = async (item: PosItem, variantId: string): Promise<boolean> => {
     setError(null)
+    setNoPrice(null)
     let choices = choicesFor(item.id) ?? listedChoices(item, ar)
     if (!choices?.sizes.some((size) => size.id === variantId)) {
       try {
@@ -281,6 +323,12 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
     }
     const size = choices.sizes.find((entry) => entry.id === variantId)
     if (!size) return false
+    if (!(size.price > 0)) {
+      // The size's own barcode at 0.000: ask its price, or say there is none.
+      if (mayTypePrice(item, canSell)) choose(item, choices, size)
+      else setNoPrice(item.name)
+      return true
+    }
     setSaleLines((current) => addToSale(current, saleLineFor(categories, item, size, [])))
     return true
   }
@@ -300,6 +348,7 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
     const code = raw.trim()
     if (!code) return
     setUnknownCode(null)
+    setNoPrice(null)
     const local = findOnShelf(items, code)
     if (local) {
       setQuery('')
@@ -322,9 +371,19 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
   const scanRef = useRef(scan)
   scanRef.current = scan
   useEffect(() => captureScans((code) => void scanRef.current(code)), [])
+  // A sale whose outcome is unknown cannot be changed (E-01): its screen offers only the same sale
+  // again or today's sales.
+  const uncertain = useUncertainSale(tillId)
+  if (uncertain) return <Navigate to="/pos/payment" replace />
 
   return (
-    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+    <div
+      className={[
+        'mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10',
+        // Room under the sale panel for the phone's bar, so it covers nothing.
+        lines.length > 0 ? 'max-md:pb-24' : '',
+      ].join(' ')}
+    >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1 basis-[320px]">
           <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
@@ -438,7 +497,16 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
               role="alert"
               className="rounded-sm bg-danger-100 px-4 py-3 text-sm font-medium text-danger-700"
             >
-              {t(posRefusalKey(error))}
+              {refusalSentence(t, error)}
+            </p>
+          ) : null}
+
+          {noPrice ? (
+            <p
+              role="alert"
+              className="rounded-sm bg-danger-100 px-4 py-3 text-sm font-medium text-danger-700"
+            >
+              {t('pos.noPrice.refused', { name: `\u2068${noPrice}\u2069` })}
             </p>
           ) : null}
 
@@ -482,14 +550,18 @@ function Shelf({ branchId, tillCtl }: { branchId: string; tillCtl: ReactNode }) 
         />
       </div>
 
+      <PosPhoneSaleBar lines={lines} onTakePayment={() => navigate('/pos/payment')} />
+
       {choosing && choicesFor(choosing.id) ? (
         <PosChooser
           item={choosing}
           choices={choicesFor(choosing.id) as ItemChoices}
+          canTypePrice={mayTypePrice(choosing, canSell)}
+          startSize={startSize}
           onClose={() => setChoosing(null)}
-          onAdd={(size, addOns) => {
+          onAdd={(size, addOns, typedPrice) => {
             setSaleLines((current) =>
-              addToSale(current, saleLineFor(categories, choosing, size, addOns)),
+              addToSale(current, saleLineFor(categories, choosing, size, addOns, typedPrice)),
             )
             setChoosing(null)
           }}

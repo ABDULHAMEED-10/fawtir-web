@@ -226,6 +226,17 @@ const MOVEMENTS = [
       link: { kind: 'CREDIT_NOTE', id: 'cn-1' },
     },
   }),
+  // A cancelled invoice gives its stock back (backend #845).
+  movement('m4a', 'CANCEL_REVERSAL', 1, 9, '2026-10-25T09:00:00Z', {
+    source: {
+      type: 'CANCELLATION',
+      id: 'inv-2031',
+      number: 'INV-2031',
+      lineRef: '1',
+      link: { kind: 'INVOICE', id: 'inv-2031' },
+    },
+    customerKind: null,
+  }),
   // "Record what came in" with the supplier's own reference (backend #815).
   movement('m4b', 'RECEIPT', 12, 9, '2026-10-24T06:30:00Z', {
     source: { type: 'DELIVERY', id: 'dlv-3', number: 'DLV-2026-000003', lineRef: '1', link: null },

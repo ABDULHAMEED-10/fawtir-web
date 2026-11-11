@@ -344,6 +344,27 @@ describe('the item form on /v1/products', () => {
     expect(await screen.findByText(i18n.t('itemForm.refused.barcodeTaken'))).toBeTruthy()
   })
 
+  it('says on the unit field why a moved item keeps its unit, until another is picked (backend #844)', async () => {
+    onWrite = () => json({ status: 409, code: 'PRODUCT_STOCK_UNIT_LOCKED' }, 409)
+    await openItem()
+    await screen.findByLabelText(/^Name/)
+    const line = i18n.t('itemForm.refused.unitLocked')
+    expect(line).toContain('count this item to zero and create a new item')
+    const pickUnit = async (code: string) => {
+      fireEvent.click(screen.getByRole('button', { name: i18n.t('item.soldAs') }))
+      fireEvent.click(
+        await screen.findByRole('option', { name: i18n.t(`createInvoice.units.${code}`) }),
+      )
+    }
+    await pickUnit('LTR')
+    fireEvent.click(screen.getAllByRole('button', { name: i18n.t('item.save') })[0])
+    const alert = await screen.findByText(line)
+    expect(alert.closest('label')?.textContent).toContain(i18n.t('item.soldAs'))
+    expect(screen.getAllByText(line)).toHaveLength(1)
+    await pickUnit('KGM')
+    await waitFor(() => expect(screen.queryByText(line)).toBeNull())
+  })
+
   it('puts an archived item back on sale with the version it read (P.14)', async () => {
     stored = { ...DATES, active: false, archivedAt: '2026-10-21T09:00:00Z', version: 5 }
     onWrite = () => json({ ...stored, active: true, archivedAt: null, version: 6 })
@@ -392,6 +413,63 @@ describe('the item form on /v1/products', () => {
       addOns: [{ id: 'a-1', name: 'Gift wrap', nameAr: null, price: 0.2, free: false }],
     })
     expect(await screen.findByText(i18n.t('itemOptions.footer.saved'))).toBeTruthy()
+  })
+
+  const SIZED = {
+    ...DATES,
+    sizes: [{ id: 's-1', name: 'Box', nameAr: null, priceDelta: 0.5, sortOrder: 0 }],
+    options: [],
+    addOns: [],
+    variants: [
+      {
+        id: 'v-1',
+        sizeId: 's-1',
+        size: 'Box',
+        optionId: null,
+        option: null,
+        name: 'Khalas dates 1kg · Box',
+        code: 'DATES-KH-1',
+        priceOverride: null,
+        price: 3.7,
+        onSale: true,
+      },
+    ],
+  }
+  const ARABIC_VARIANT = { nameAr: 'تمر · علبة', nameArSet: false }
+
+  it("sets and clears a combination's Arabic name on Sizes and options (backend #808)", async () => {
+    stored = { ...SIZED, variants: [{ ...SIZED.variants[0], ...ARABIC_VARIANT }] }
+    await openItem('/catalog/p-dates/options')
+    const input = (await screen.findByLabelText(
+      i18n.t('itemOptions.grid.arabicNameOf', { name: 'Box' }),
+    )) as HTMLInputElement
+    expect(input.value).toBe('')
+    expect(input.placeholder).toBe('تمر · علبة')
+    fireEvent.change(input, { target: { value: 'علبة تمر' } })
+    fireEvent.click(screen.getByRole('button', { name: /^Save/ }))
+    await waitFor(() => expect(writes()).toHaveLength(1))
+    expect(JSON.parse(String(writes()[0].body)).variants[0]).toMatchObject({ nameAr: 'علبة تمر' })
+  })
+
+  it('hides the Arabic name inputs when the server does not return the field', async () => {
+    stored = SIZED
+    await openItem('/catalog/p-dates/options')
+    await screen.findByRole('button', { name: /^Save/ })
+    expect(screen.queryByText(i18n.t('itemOptions.grid.arabicName'))).toBeNull()
+    expect(screen.queryByText(i18n.t('itemOptions.prices.arabicNameHint'))).toBeNull()
+  })
+
+  it("sets a size's Arabic name on the item form", async () => {
+    stored = { ...SIZED, variants: [{ ...SIZED.variants[0], ...ARABIC_VARIANT }] }
+    await openItem()
+    const input = (await screen.findByLabelText(
+      i18n.t('item.sizesCol.arabicName'),
+    )) as HTMLInputElement
+    expect(input.placeholder).toBe('تمر · علبة')
+    fireEvent.change(input, { target: { value: 'علبة تمر' } })
+    fireEvent.click(screen.getAllByRole('button', { name: i18n.t('item.save') })[0])
+    await waitFor(() => expect(writes()).toHaveLength(1))
+    expect(JSON.parse(String(writes()[0].body)).variants[0]).toMatchObject({ nameAr: 'علبة تمر' })
   })
 
   it('reads the branch settings and saves a changed branch price after the item (P.9)', async () => {

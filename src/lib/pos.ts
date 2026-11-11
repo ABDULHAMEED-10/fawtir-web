@@ -62,6 +62,17 @@ export type SaleLine = {
    * stays drawn and silent (INCOME.md row P.26).
    */
   rulePercent?: number
+  /**
+   * What the cashier typed on this line. It replaces the price rule and the catalogue's discount
+   * on it (price rules design §2 step 4) and is held to the cashier's limit. Blank or zero is no
+   * discount typed, and the rule or the catalogue's discount comes back.
+   */
+  lineDiscount?: { type: DiscountType; value: string }
+}
+
+/** The cashier's own discount on the line, when there is one that takes anything off. */
+export function typedDiscount(line: SaleLine): { type: DiscountType; value: string } | null {
+  return line.lineDiscount && Number(line.lineDiscount.value) > 0 ? line.lineDiscount : null
 }
 
 /** What one of these costs, once the size and the add-ons are counted. */
@@ -141,7 +152,8 @@ const rial = (baisa: number) => (baisa / BAISA).toFixed(3)
 export function invoiceLinesFor(lines: SaleLine[]): PosInvoiceLine[] {
   return lines.flatMap((line) => {
     const free = line.addOns.filter((a) => a.price === 0)
-    const ruled = lullApplies(line)
+    const typed = typedDiscount(line)
+    const ruled = !typed && lullApplies(line)
     const common = {
       saleLineId: line.id,
       productId: line.productId,
@@ -155,8 +167,8 @@ export function invoiceLinesFor(lines: SaleLine[]): PosInvoiceLine[] {
       exemptionReason: line.exemptionReason ?? '',
       exemptionReasonCode: line.exemptionReasonCode,
       quantity: String(line.qty),
-      discountType: ruled ? ('PERCENTAGE' as DiscountType) : line.discountType,
-      discountValue: ruled ? String(line.rulePercent) : line.discountValue,
+      discountType: typed ? typed.type : ruled ? ('PERCENTAGE' as DiscountType) : line.discountType,
+      discountValue: typed ? typed.value : ruled ? String(line.rulePercent) : line.discountValue,
     }
     const name = [
       line.name,
@@ -183,6 +195,10 @@ export function invoiceLinesFor(lines: SaleLine[]): PosInvoiceLine[] {
           id: `${line.id}-${a.id}`,
           description: `${line.name}: + ${a.label}`,
           unitPrice: rial(a.price),
+          // A typed amount comes off the item once; a percentage runs through its add-ons too.
+          ...(typed?.type === 'FIXED_AMOUNT'
+            ? { discountType: 'PERCENTAGE' as DiscountType, discountValue: '0' }
+            : {}),
           ref: {
             role: 'ADD_ON' as const,
             productId: line.productId,
@@ -230,9 +246,33 @@ export function omr(baisa: number): string {
   })
 }
 
+/**
+ * Rials as the server wrote them. A reprint row's amount comes already rounded HALF_UP to three
+ * places (backend PosSaleResponse.Line), the rounding the till's own row gets, so it is printed as
+ * written and never rounded a second time on the way through baisa (FU2R-4, review QW5R-3).
+ */
+export function omrOfRials(rials: number): string {
+  return rials.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+}
+
 /** A signed amount, for the lines that take money off. */
 export function omrSigned(baisa: number): string {
   return `${baisa < 0 ? '−' : ''}${omr(Math.abs(baisa))}`
+}
+
+/**
+ * The day and time on a till receipt, in Muscat. One function for the receipt and its reprint, so
+ * the reprint states the same moment in the same words (QR E-5).
+ */
+export function receiptStamp(iso: string, locale = 'en-GB'): string {
+  return new Date(iso).toLocaleString(locale, {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'Asia/Muscat',
+  })
 }
 
 /** A clock time in the company's zone (Muscat), as the till prints it. */

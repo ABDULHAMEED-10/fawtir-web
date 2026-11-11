@@ -8,6 +8,7 @@ import { Topbar } from './Topbar'
 import { useConsoleAccess, type ConsoleAccess } from '../ConsoleShell/useConsoleAccess'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { LOGIN_ROUTE } from '../../lib/identity/login'
+import { useSessionExpiryRedirect } from '../../lib/identity/sessionExpiry'
 import { REQUIRE_SESSION, SessionContext } from '../../lib/session/session'
 import { useApiRead } from '../../hooks'
 import { REFERENCE_DATA_PATH, loadReferenceData, type ReferenceDataDto } from '../../api/reference/referenceData'
@@ -36,6 +37,7 @@ export function AppShell({ children }: AppShellProps) {
 
 function GuardedShell({ children }: AppShellProps) {
   const { access, retry } = useConsoleAccess()
+  useSessionExpiryRedirect()
   // Fetched beside the session rather than by each form that needs a dropdown: it is the same
   // small, rarely-changing payload for every screen, and the shell already waits here, so this
   // costs one parallel request instead of a loading branch in ten components.

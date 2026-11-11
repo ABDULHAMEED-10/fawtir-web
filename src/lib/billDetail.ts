@@ -5,10 +5,12 @@ import type {
   ReceiptReportDto,
 } from '../api/expenditure/bills'
 import type { ActivityItemDto } from '../api/compliance/activity'
+import type { CreditNoteRowDto } from '../api/expenditure/notes'
 import type { InboundInvoiceDto } from '../api/expenditure/inboundInvoice'
 import { canResubmit, correctionHeld } from './activityLedger'
 import { tddReportStateOf } from './taxAuthorityReport'
 import { duplicateCheckOf, heldAsDuplicate } from './billDuplicate'
+import { settledWithoutPayment } from './billList'
 
 /**
  * One supplier bill, opened (Figma 86:16520), written only from what `GET /bills/{id}` carries.
@@ -40,6 +42,40 @@ export function isCreditNote(detail: BillDetailDto): boolean {
   return detail.bill.documentTypeCode === '381' || detail.bill.documentTypeCode === '261'
 }
 
+/**
+ * The note carries the R5 contract: `standalone` is present on it. A server before R5 sends no
+ * such field, and then nothing new is offered or withheld, so the screens behave as they did.
+ */
+function hasNoteContract(detail: BillDetailDto): boolean {
+  const note = detail.bill.creditNote
+  return isCreditNote(detail) && note != null && Object.hasOwn(note, 'standalone')
+}
+
+/** R5: a credit note against no bill of ours, which is approved or rejected on its own. */
+export function standaloneCreditNote(detail: BillDetailDto): boolean {
+  return hasNoteContract(detail) && detail.bill.creditNote?.standalone === true
+}
+
+/**
+ * R8: the note's newest decision is a rejection, so the server refuses to set it against a bill
+ * (CREDIT_NOTE_REJECTED). Read only under the R5 contract: a server before it never sent a
+ * decision for a note that the screens could trust, and Apply stays as it was there.
+ */
+export function creditNoteRejected(detail: BillDetailDto | null | undefined): boolean {
+  return !!detail && hasNoteContract(detail) && detail.bill.approval === 'REJECTED'
+}
+
+const VAT_NOTICES = new Set(['REJECTED_VAT_STILL_REDUCED', 'VAT_REDUCED_ON_RECEIPT'])
+
+/**
+ * The note's VAT sentence. Display only: the server decides the VAT treatment (ER Art. 65), and a
+ * code this screen does not know says nothing rather than a guess.
+ */
+export function vatNoticeOf(detail: BillDetailDto): Note | null {
+  const notice = isCreditNote(detail) ? detail.bill.creditNote?.vatNotice : null
+  return notice && VAT_NOTICES.has(notice) ? { key: `billDetail.vatNotice.${notice}` } : null
+}
+
 /** In a payment run that is still open: draft and exported runs alike. */
 export function inPaymentRun(detail: BillDetailDto): boolean {
   return detail.bill.workflowState === 'IN_PAYMENT_RUN' || detail.paymentRunReference !== null
@@ -51,15 +87,14 @@ export function stepsOf(detail: BillDetailDto, format: DateFormat): BillStep[] {
   const paid = settlement.paymentState === 'PAID'
 
   // "29 Jul · Peppol": the day it came in and how. An upload knows its time; a network bill's
-  // arrival is its ARRIVED event, and failing that the day it was issued.
+  // arrival is its ARRIVED event. Without either the step names only how it came: the issue date
+  // stood in and read "Arrived 11 Sept" over a bill that arrived on 29 Oct (B-9).
   const arrivedEvent = detail.activity.find((entry) => entry.kind === 'ARRIVED' && entry.at)
   const arrivedDay = intake
     ? format.instantDay(intake.uploadedAt)
     : arrivedEvent?.at
       ? format.instantDay(arrivedEvent.at)
-      : bill.issueDate
-        ? format.day(bill.issueDate)
-        : null
+      : null
   const arrived: BillStep = {
     id: 'arrived',
     labelKey: 'billDetail.steps.arrived',
@@ -115,7 +150,11 @@ export function stepsOf(detail: BillDetailDto, format: DateFormat): BillStep[] {
             key: 'billDetail.steps.progress',
             values: { given: readiness.distinctApprovals, required: readiness.required },
           }
-        : { key: 'billDetail.steps.waiting' }
+        : {
+            key: reopenedAwaitingApproval(detail)
+              ? 'billDetail.steps.reopened'
+              : 'billDetail.steps.waiting',
+          }
   }
 
   const scheduled: BillStep = {
@@ -137,7 +176,9 @@ export function stepsOf(detail: BillDetailDto, format: DateFormat): BillStep[] {
     labelKey: 'billDetail.steps.paid',
     state: paid ? 'done' : 'upcoming',
     detail: paid
-      ? lastPayment?.paymentDate
+      ? settledWithoutPayment(settlement)
+        ? { key: 'billDetail.steps.settledByCredit' }
+        : lastPayment?.paymentDate
         ? { key: 'billDetail.steps.paidOn', values: { date: format.day(lastPayment.paymentDate) } }
         : null
       : partPaid
@@ -168,16 +209,41 @@ export function stepsOf(detail: BillDetailDto, format: DateFormat): BillStep[] {
 export function decisionsOf(
   detail: BillDetailDto,
   can: (permission: string) => boolean,
-): { approve: boolean; reject: boolean; hold: boolean; release: boolean } {
+): { approve: boolean; reject: boolean; hold: boolean; release: boolean; reopen: boolean } {
+  // A duplicate hold is released only by deciding it is not a duplicate; the plain release is
+  // refused (BILL_HOLD_DUPLICATE_RELEASE_REFUSED), so the page offers the decision instead.
+  const release = can('invoice.payment.manage') && detail.hold !== null && !heldAsDuplicate(detail)
+  if (isCreditNote(detail)) {
+    // R5/R7: only a standalone note is decided, by people and never by its amount; a note against
+    // a bill is refused (APPROVAL_CREDIT_NOTE). Its decision is the row's `approval`, not
+    // `readiness`. A rejection is taken back only by a reopen (BILL_APPROVAL_REJECTED_NEEDS_REOPEN).
+    // Paid amount, payment run and settlement are bill rules and are not applied here: what an
+    // applied credit or a refund blocks, the server says when it refuses the rejection.
+    const approval = detail.bill.approval
+    const noteApprover =
+      can('invoice.approve') && standaloneCreditNote(detail) && !heldAsDuplicate(detail)
+    return {
+      approve: noteApprover && approval !== 'APPROVED' && approval !== 'REJECTED',
+      reject: noteApprover && approval !== 'REJECTED',
+      hold: false,
+      release,
+      // Any rejected note, a targeted one rejected before R5 included: the server reopens both.
+      reopen: can('bill.reopen') && !heldAsDuplicate(detail) && creditNoteRejected(detail),
+    }
+  }
   const settled = detail.settlement.paymentState === 'PAID'
-  const decidable = !settled && !isCreditNote(detail)
+  const decidable = !settled
   // Not while a duplicate hold is open. The server's approval reads no hold, so approving an
   // undecided copy would leave it payable the moment it is decided not a duplicate, and approving
   // or rejecting a confirmed one decides nothing (review of #319).
   const approver = can('invoice.approve') && decidable && !heldAsDuplicate(detail)
   const payer = can('invoice.payment.manage') && decidable
   return {
-    approve: approver && detail.readiness.state !== 'READY',
+    // A rejection is taken back only by a reopen, never by an approval (owner decision 2026-11-01,
+    // batch 29): the server refuses it with BILL_APPROVAL_REJECTED_NEEDS_REOPEN. A server before
+    // V523 still accepted it, so the screen held this rule on its own (Abdul, 1 Nov 2026).
+    approve:
+      approver && detail.readiness.state !== 'READY' && detail.readiness.state !== 'REJECTED',
     // Not once any payment is recorded or the bill is in a payment run: a bill part paid, or
     // about to be paid, is not rejected (owner decision 2026-10-01; the server refuses it too).
     reject:
@@ -186,10 +252,33 @@ export function decisionsOf(
       detail.settlement.paidAmount <= 0 &&
       !inPaymentRun(detail),
     hold: payer && detail.hold === null,
-    // A duplicate hold is released only by deciding it is not a duplicate; the plain release is
-    // refused (BILL_HOLD_DUPLICATE_RELEASE_REFUSED), so the page offers the decision instead.
-    release: can('invoice.payment.manage') && detail.hold !== null && !heldAsDuplicate(detail),
+    release,
+    // `bill.reopen` is its own permission, not part of `invoice.approve` (owner batch 31): not every
+    // approver may overturn a refusal. A server before V523 grants it to nobody, so the action stays
+    // hidden there. The server refuses a held copy, so it is not offered.
+    reopen: can('bill.reopen') && !heldAsDuplicate(detail) && detail.readiness.state === 'REJECTED',
   }
+}
+
+/**
+ * The rejection was taken back and nobody has approved the bill since: the server reads it PENDING
+ * with no approvals counted. Said apart from a bill nobody ever decided on, so the page never reads
+ * the reopen as an approval.
+ */
+export function reopenedAwaitingApproval(detail: BillDetailDto): boolean {
+  return detail.readiness.state === 'PENDING' && detail.approvals[0]?.decision === 'REOPENED'
+}
+
+/**
+ * The supplier's credit notes that stand on this bill. No bill read names them, so they come from
+ * the supplier's list, by the one bill each note reduces (`credits.billId`): null on a note released
+ * from its bill (backend #827) and on one spread over several. A held copy credits nothing.
+ */
+export function creditNotesOn(
+  billId: string,
+  rows: readonly CreditNoteRowDto[],
+): CreditNoteRowDto[] {
+  return rows.filter((row) => row.credits.billId === billId && row.heldAsDuplicate !== true)
 }
 
 /**
@@ -269,7 +358,7 @@ export function awaitingDiscountCreditNote(detail: BillDetailDto): boolean {
 }
 
 /** The sentence under the amount in the decision panel. */
-export function decisionNoteOf(detail: BillDetailDto): Note {
+export function decisionNoteOf(detail: BillDetailDto, userId: string | null = null): Note {
   const { readiness, hold, settlement } = detail
   // First, and for a credit note too: its own sentence would invite a use the server withholds
   // from a held copy. The hold's reason is the server's English sentence naming a bill id, so the
@@ -278,16 +367,43 @@ export function decisionNoteOf(detail: BillDetailDto): Note {
   const kind = isCreditNote(detail) ? 'CreditNote' : ''
   if (duplicate?.state === 'confirmed') return { key: `billDetail.duplicate.decision.confirmed${kind}` }
   if (duplicate?.state === 'suspected') return { key: `billDetail.duplicate.decision.suspected${kind}` }
-  if (isCreditNote(detail)) return { key: 'billDetail.decision.creditNote' }
-  if (settlement.paymentState === 'PAID') return { key: 'billDetail.decision.paid' }
+  if (isCreditNote(detail)) {
+    if (creditNoteRejected(detail)) return rejectionNoteOf(detail, userId)
+    if (standaloneCreditNote(detail))
+      return {
+        key:
+          detail.bill.approval === 'APPROVED'
+            ? 'billDetail.decision.creditNoteApproved'
+            : 'billDetail.decision.creditNoteStandalone',
+      }
+    return { key: 'billDetail.decision.creditNote' }
+  }
+  if (settlement.paymentState === 'PAID')
+    return {
+      key: settledWithoutPayment(settlement)
+        ? 'billDetail.decision.settledByCredit'
+        : 'billDetail.decision.paid',
+    }
   // A refused debit note says its refusal, as its own page does, whatever approval it went through.
   if (refusedDebitNote(detail)) return { key: 'supplierDebitNotes.detail.refusedBody' }
   // Not payable until accepted (owner, 10 Oct 2026): what to do first, in place of the approval.
   if (undecidedDebitNote(detail)) return { key: 'apiErrors.refused.debitNoteNotAccepted' }
-  if (hold) return { key: 'billDetail.decision.held', values: { reason: hold.reason ?? '' } }
-  if (readiness.state === 'REJECTED') {
-    const rejection = detail.approvals.find((entry) => entry.decision === 'REJECTED')
-    return { key: 'billDetail.decision.rejected', values: { reason: rejection?.reason ?? '' } }
+  // Who held or rejected it, once the server names them (B-12b, backend #824); for someone who has
+  // left, the sentence names nobody, as it always did. The reader is never named: Activity calls
+  // them "you", and the panel beside it must not call them by name.
+  if (hold)
+    return hold.openedByName && hold.openedBy !== userId
+      ? { key: 'billDetail.decision.heldBy', values: { reason: hold.reason ?? '', name: hold.openedByName } }
+      : { key: 'billDetail.decision.held', values: { reason: hold.reason ?? '' } }
+  if (readiness.state === 'REJECTED') return rejectionNoteOf(detail, userId)
+  if (reopenedAwaitingApproval(detail)) {
+    return {
+      key:
+        readiness.required > 1
+          ? 'billDetail.decision.reopenedNeedsMore'
+          : 'billDetail.decision.reopened',
+      values: { reason: detail.approvals[0].reason ?? '', required: readiness.required },
+    }
   }
   if (readiness.state === 'READY') {
     // Approved, by people or by its amount, but it still differs from its order: nothing pays it
@@ -310,6 +426,16 @@ export function decisionNoteOf(detail: BillDetailDto): Note {
     }
   }
   return { key: 'billDetail.decision.pending' }
+}
+
+function rejectionNoteOf(detail: BillDetailDto, userId: string | null): Note {
+  const rejection = detail.approvals.find((entry) => entry.decision === 'REJECTED')
+  return rejection?.decidedByName && rejection.decidedBy !== userId
+    ? {
+        key: 'billDetail.decision.rejectedBy',
+        values: { reason: rejection.reason ?? '', name: rejection.decidedByName },
+      }
+    : { key: 'billDetail.decision.rejected', values: { reason: rejection?.reason ?? '' } }
 }
 
 /**
@@ -527,9 +653,13 @@ export function complianceOf(
         : { key: 'billDetail.compliance.noPintOm', ok: false },
     ...(facts
       ? [replyOf(facts)]
-      : peppol && received?.kind === 'unavailable'
-        ? [{ key: 'billDetail.compliance.reply.unavailable', ok: false }]
-        : []),
+      : // The bill's own `peppol` block (batch 39 EXP) answers the reply while the delivery record
+        // is loading or unreadable. Only the reply: the reporting line keeps its proven source.
+        peppol && detail.peppol
+        ? [replyNote(detail.peppol.mlsCode, detail.peppol.mlsTransportState)]
+        : peppol && received?.kind === 'unavailable'
+          ? [{ key: 'billDetail.compliance.reply.unavailable', ok: false }]
+          : []),
     reporting,
     kept
       ? { key: 'billDetail.compliance.originalKept', ok: true }
@@ -638,8 +768,21 @@ export type ActivityEntry = {
   at: string | null
   detail: string | null
   byYou: boolean
+  /** Someone else who acted, by the name the team list shows (B-12b); null for the reader or nobody. */
+  by: string | null
   /** On an overpayment step, its amount for the rial sign and the rest of its detail. */
   overpayment?: { amount: number; currency: string; rest: string | null } | null
+  /**
+   * On a bill recorded over possible duplicates: who did it, the bills it was said to differ from,
+   * each to be linked, and the reason as this reader may see it (withheld by the server unless they
+   * approve bills). Its actor is named as every step's is (`by`, B-12b).
+   */
+  duplicateOverride?: {
+    by: string | null
+    bills: { billId: string; number: string | null }[]
+    reason: string | null
+    reasonRecorded: boolean
+  } | null
 }
 
 /**
@@ -677,6 +820,9 @@ const KNOWN_KINDS = new Set([
   'CANCELLED',
   'CONFIRMED_DUPLICATE',
   'NOT_DUPLICATE',
+  'REOPENED',
+  'DUPLICATE_OVERRIDDEN',
+  'DUPLICATE_SUBMITTED_FOR_REVIEW',
 ])
 
 /** A kind this page has no wording for reads "Recorded", as the invoice history does; never the key. */
@@ -690,8 +836,15 @@ function activityKey(kind: string): string {
  * Only the three reasons with approved wording say anything (owner, 12 Oct 2026); any other
  * reason, a counted document and a server that does not send `inputVat` say nothing.
  */
-export function inputVatNoteKey(inputVat: BillRowDto['inputVat'] | null | undefined): string | null {
+export function inputVatNoteKey(
+  inputVat: BillRowDto['inputVat'] | null | undefined,
+  reopened = false,
+): string | null {
   if (!inputVat || inputVat.counted) return null
+  // A reopened bill still reads reason REJECTED until it is approved again (backend V523 keeps input
+  // VAT off on a reopen and brings it back once, with the later approval), so "while rejected"
+  // would contradict the reopened state shown beside it.
+  if (reopened && inputVat.reason === 'REJECTED') return 'billDetail.inputVat.reopened'
   return Object.hasOwn(INPUT_VAT_NOTES, inputVat.reason) ? INPUT_VAT_NOTES[inputVat.reason] : null
 }
 
@@ -720,6 +873,13 @@ export function activityOf(detail: BillDetailDto, userId: string | null): Activi
   return detail.activity.map((entry) => {
     const duplicateHeld =
       entry.kind === 'HELD' && entry.at !== null && duplicateOpenings.has(entry.at)
+    // The server's detail is the same bills' numbers as text; they are drawn as links instead.
+    const override =
+      (entry.kind === 'DUPLICATE_OVERRIDDEN' || entry.kind === 'DUPLICATE_SUBMITTED_FOR_REVIEW') &&
+      entry.duplicateOverride
+        ? entry.duplicateOverride
+        : null
+    const byYou = userId !== null && entry.actor === userId
     return {
       key: duplicateHeld
         ? 'billDetail.activity.kind.HELD_AS_DUPLICATE'
@@ -732,10 +892,24 @@ export function activityOf(detail: BillDetailDto, userId: string | null): Activi
         : entry.kind === 'ARRIVED'
           ? (detail.intake?.filename ?? null)
           : entry.kind === 'MATCHED'
-            ? (detail.bill.match?.summary ?? null)
+            ? // NO_ORDER's summary is the matcher's fixed English sentence; the step's own key
+              // already says it, in the reader's language.
+              lookedAndFoundNothing
+              ? null
+              : (detail.bill.match?.summary ?? null)
             : entry.detail,
-      byYou: userId !== null && entry.actor === userId,
+      byYou,
+      by: byYou ? null : (entry.actorName ?? null),
       overpayment: overpaymentStepOf(entry.kind, entry.detail),
+      duplicateOverride: override && {
+        by: byYou ? null : (entry.actorName ?? null),
+        bills: override.overriddenBills.map((bill) => ({
+          billId: bill.billId,
+          number: bill.billNumber,
+        })),
+        reason: override.reason ?? null,
+        reasonRecorded: override.reasonRecorded,
+      },
     }
   })
 }

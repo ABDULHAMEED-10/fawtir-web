@@ -4,7 +4,7 @@ import callIcon from '../../assets/site/icon-call.svg'
 import mailIcon from '../../assets/site/icon-mail.svg'
 import pinIcon from '../../assets/site/icon-pin.svg'
 import '../HomePage/HomePage.css'
-import { ClosingBand, Faq, Footer, Heading, INK, PageHero, Washes } from '../HomePage/site'
+import { ClosingBand, Faq, Footer, Heading, INK, PageHero, Washes, useSiteMeta } from '../HomePage/site'
 import { mailto, useCompanyContact } from '../../lib/companyContact'
 import { useFaqItems } from './faq'
 
@@ -19,6 +19,7 @@ import { useFaqItems } from './faq'
 
 export function ContactPage() {
   const { t } = useTranslation()
+  useSiteMeta('landing.meta.contact.title', 'landing.meta.contact.description')
   return (
     <div className={`landing min-h-screen overflow-x-clip bg-white ${INK}`}>
       <PageHero

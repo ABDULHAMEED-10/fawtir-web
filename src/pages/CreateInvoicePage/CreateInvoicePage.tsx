@@ -85,7 +85,7 @@ import {
   type ItemType,
 } from '../../lib/invoiceDraft'
 import { blankCustomerForm, customerProblems, toCustomerRequest } from '../../lib/customerForm'
-import { lineFromProduct, taxCategoryOf } from '../../lib/productLine'
+import { lineFromProduct, lineHasNoPrice, taxCategoryOf } from '../../lib/productLine'
 import { isStockLineWarning, unitLockHint } from '../../lib/stockLineWarnings'
 import type { InvoiceLineWarningDto } from '../../api/invoices/detail'
 import { useWorkingBranch } from '../../components/branch/useWorkingBranch'
@@ -332,7 +332,8 @@ function ItemTypeToggle({
   onChange,
   line,
 }: {
-  value: ItemType
+  /** Null: not chosen yet, so neither is pressed. */
+  value: ItemType | null
   onChange: (next: ItemType) => void
   line: number
 }) {
@@ -905,7 +906,8 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
   }
   const fillFromProduct = (line: DraftLine, product: ProductDto) => {
     const patch = lineFromProduct(reference?.taxCategories ?? [], product, exclVat)
-    const itemType = patch.itemType ?? itemTypeOfUnit(patch.unit)
+    // Only what the product says: a product naming neither leaves the choice to the reader.
+    const itemType = patch.itemType ?? null
     updateLine(line.id, {
       ...patch,
       // A self-billed document moves no stock, so its unit is never fixed.
@@ -1190,6 +1192,8 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     let current = form
     setServerLineErrors({})
     setProblems([])
+    // The last try's notice ends here, not after the buyer is created: it would stay up meanwhile.
+    setNotice(null)
     if (consumer && !current.customerId) {
       setSaving(true)
       const customerId = await ensureConsumer().finally(() => setSaving(false))
@@ -1287,13 +1291,20 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     const missing = problemsBeforeIssue(form)
     if (missing.length > 0) {
       setProblems([...problemsBeforeSave(reference?.taxCategories ?? [], form), ...missing])
-      setNotice({ tone: 'error', body: t('invoiceDraft.fixFirst') })
+      // These checks bind only at issue, so the draft may well be saved already: the save
+      // wording read as if it were not (RC5 E2E D-06).
+      setNotice({ tone: 'error', body: t('invoiceDraft.fixFirstToIssue') })
       return
     }
     // Files still held (a failed upload leaves them) go up first, even when nothing else changed.
     const savedMeta =
       meta && !dirty && attachments.length === 0 ? meta : await persist({ forIssue: true })
-    if (savedMeta) setIssuing(savedMeta)
+    if (savedMeta) {
+      // Nothing is left to fix: an earlier "fields need attention" must not sit behind the dialog.
+      setProblems([])
+      setNotice((current) => (current?.tone === 'error' ? null : current))
+      setIssuing(savedMeta)
+    }
   }
 
   const discard = async () => {
@@ -1402,7 +1413,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     }),
   )
   const unitOptions = (line: DraftLine): SelectOption[] =>
-    lineUnitOptions(line.itemType, t, line.unit, reference)
+    lineUnitOptions(line.itemType ?? itemTypeOfUnit(line.unit), t, line.unit, reference)
   // The platform's UNCL4461 means, the design's five until it answers; named as the design does.
   const paymentMethodChoices: SelectOption[] = (
     reference?.paymentMethods.some((method) => method.active)
@@ -2133,6 +2144,15 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
                         </div>
                       </div>
                     ) : null}
+                    {/* A self-billed price is the supplier's, not the catalogue's: no 0.000 to warn of. */}
+                    {!selfBilled && lineHasNoPrice(row) ? (
+                      <p
+                        className="ps-1 text-xs font-medium leading-[1.3] text-warning-700"
+                        data-testid={`line-${index + 1}-no-price`}
+                      >
+                        {t('invoiceDraft.lineNoPrice')}
+                      </p>
+                    ) : null}
                     {messages.length > 0 ? (
                       <div
                         className="flex flex-col gap-0.5 ps-1"
@@ -2505,7 +2525,11 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
           // A sales draft is sent for approval from its own page; the self-billed page has no
           // approval card, so it gets no link.
           approvalPage={selfBilled ? undefined : `/invoices/${encodeURIComponent(issuing.id)}`}
-          customerId={selfBilled ? undefined : form.customerId}
+          customerEditPath={
+            !selfBilled && form.customerId && can(session, 'customer.manage')
+              ? `/customers/${encodeURIComponent(form.customerId)}/edit`
+              : undefined
+          }
           onClose={() => setIssuing(null)}
           onIssued={(issued) => void afterIssue(issued)}
         />

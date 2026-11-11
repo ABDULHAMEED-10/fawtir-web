@@ -1,4 +1,4 @@
-import { apiRequest } from '../client'
+import { apiRequest, apiRequestRetryAfter } from '../client'
 import { withQuery } from '../query'
 import type { DraftRequest } from '../invoices/drafts'
 import type { BuyerIdentifierScheme } from '../customers/customers'
@@ -20,7 +20,13 @@ const id = (value: string) => encodeURIComponent(value)
 
 export type PosPerson = { userId: string; name: string | null }
 
-export type PosSeries = { series: string; year: number; nextValue: number }
+export type PosSeries = {
+  series: string
+  year: number
+  nextValue: number
+  /** The tenant zone `year` is counted in; an older server leaves it out. */
+  timeZone?: string
+}
 
 /** `PosTill`. */
 export type PosTillDto = {
@@ -36,7 +42,36 @@ export type PosTillDto = {
   openShift: { shiftId: string; cashier: PosPerson; openedAt: string } | null
   /** Keyed `INVOICE` and `CREDIT_NOTE`. */
   series: Record<string, PosSeries>
+  /** The server keeps open numbers (skip, set aside, the outstanding list); an older one leaves this out. */
+  openNumbers?: boolean
+  /**
+   * The server takes `claimedMakerUnverified` (owner Round 13, L-2). An older one leaves this out and
+   * refuses the unknown field, so the till sends it only where this is true.
+   */
+  takesMakerClaim?: boolean
+  /**
+   * QR E-1: only on `GET /pos/tills/{tillId}`, and only behind the server's offline-QR flag when it
+   * can state every field. Absent, a consumer sale cannot be queued offline (owner directive
+   * 2026-11-06): the till refuses it before numbering it (`PosOfflineQrUnavailable`).
+   */
+  qrProfile?: PosQrProfile | null
 }
+
+/** `qrProfile`: what a till needs to print, offline, the receipt QR the filed document will carry. */
+export type PosQrProfile = {
+  qrVersion: string
+  invoiceType: string
+  sellerName: string
+  sellerVatin: string
+  issueDateZone: string
+  issueTimeZone: string
+  amountScale: number
+  /** Opaque: sent back unchanged as `printedQr.profileVersion`. */
+  profileVersion: string
+}
+
+/** The receipt QR a queued sale printed (QR E-1); signed with the sale when it is signed. */
+export type PosPrintedQr = { payload: string; sellerUuid: string; profileVersion: string }
 
 export type PosShiftDto = {
   shiftId: string
@@ -54,6 +89,11 @@ export type PosShiftDto = {
 
 export function posTillsPath(branchId: string): string {
   return withQuery(POS_TILLS_PATH, { branchId })
+}
+
+/** Every active till the reader's branches can see, for a count per branch. */
+export function loadAllPosTills(): Promise<PosTillDto[]> {
+  return apiRequest<PosTillDto[]>(POS_TILLS_PATH)
 }
 
 export function loadPosTills(branchId: string): Promise<PosTillDto[]> {
@@ -131,6 +171,11 @@ export type PosConsumerMatch = {
   identifierScheme: string | null
   identifierValue: string | null
   identifierValueMasked: boolean
+  /**
+   * From 0c2d034d4: false when a full tax sale to this customer would be refused 422
+   * POS_SALE_QR_UNAVAILABLE_FOR_BUYER (RB-1 STUCK-QR, temporary). Absent from an older server.
+   */
+  qrIssuableOnFullTax?: boolean
 }
 
 export const POS_CUSTOMER_MATCH_PATH = `${POS_CUSTOMERS_PATH}/match`
@@ -187,11 +232,42 @@ export type PosSaleRequest = {
   soldAt: string
   queuedOffline: boolean
   invoiceNumber: string | null
+  /** Numbers before `invoiceNumber` this till printed and cannot file yet. */
+  skippedNumbers?: string[]
   customer: { kind: PosCustomerKind; customerId?: string | null; consumer?: PosConsumer | null }
   draft: Omit<DraftRequest, 'customerId'> & { customerId?: string }
   lineRefs: PosLineRef[]
   payments: PosPaymentRequest[]
   tip: { amount: number; method: 'CASH' | 'CARD' } | null
+  /**
+   * Only on a queued sale signed with a key this server registered, and only with `printed`
+   * (V530, BINDING-DESIGN §5.1). Both are outside the server's stored request hashes, so the same
+   * sale sent with or without them replays.
+   */
+  offlineProof?: { keyId: string; signature: string }
+  /** The totals the receipt printed, as JSON numbers; signed with the sale. */
+  printed?: PosPrintedTotals
+  /** Queued sales only: the QR the offline receipt printed from `qrProfile` (QR E-1). */
+  printedQr?: PosPrintedQr
+  /**
+   * Queued sales only, and only when true: the till numbered the sale but printed no tax receipt,
+   * because it could not build the QR (QW4R-3). Signed with the sale, outside the server's stored
+   * request hashes; the server records it for a manager and files the sale as usual.
+   */
+  receiptWithheld?: true
+  /**
+   * Who was signed in on this device when the sale was queued, as the device says (owner Round 13,
+   * L-2). UNTRUSTED: the server records it in the audit as a claim and decides nothing on it. Only on
+   * an unsigned queued sale, to a server with `takesMakerClaim`; outside the stored request hashes.
+   */
+  claimedMakerUnverified?: string
+}
+
+export type PosPrintedTotals = {
+  taxable: number
+  vat: number
+  total: number
+  vatBreakdown?: { category: string; rate: number; taxable: number; vat: number }[]
 }
 
 export type PosPaymentSlip = {
@@ -221,9 +297,30 @@ export type PosFiling = {
   tddStatus: string | null
   acceptedAt: string | null
   channel: 'TAX_AUTHORITY' | 'PEPPOL'
+  /**
+   * `GET /pos/sales` (batch 39 FIN-1): the company invoice's Peppol delivery, in the invoice list's
+   * `deliveryState` words. Null when the server cannot read it; absent from a server before it.
+   */
+  peppolDelivery?: PeppolDeliveryState | null
 }
 
-export type PosWarning = { code: string; line: number | null; message?: string }
+export type PeppolDeliveryState =
+  | 'NOT_SUBMITTED'
+  | 'QUEUED'
+  | 'SENDING'
+  | 'SENT'
+  | 'DELIVERED'
+  | 'DELIVERED_UNCONFIRMED'
+  | 'UNDELIVERABLE'
+
+export type PosWarning = {
+  code: string
+  line: number | null
+  message?: string
+  /** `POS_PRINTED_NUMBER_DIFFERS`, added by the queue: what the receipt says, and the filed number. */
+  printed?: string
+  filed?: string
+}
 
 export type PosTotals = {
   subtotal: number
@@ -242,7 +339,8 @@ export type PosSaleDto = {
   tillNumber: number
   branchId: string
   shiftId: string
-  cashier: PosPerson
+  /** Null while who sold it is unproven (V530 PENDING_REVIEW). */
+  cashier: PosPerson | null
   invoiceId: string
   invoiceNumber: string
   transactionType: 'SIMPLIFIED' | 'FULL_TAX'
@@ -263,13 +361,69 @@ export type PosSaleDto = {
     totalPaid: number
     onAccount: number
     qr: {
-      status: 'PENDING' | 'READY' | 'NOT_APPLICABLE'
+      /**
+       * RECEIPT_NOT_KEPT (backend f598aa39b): a replay of this queued sale presented a printed QR
+       * other than the one on file, so the server stands by no receipt for it; no payload, lines null.
+       */
+      status: 'PENDING' | 'READY' | 'NOT_APPLICABLE' | 'RECEIPT_NOT_KEPT'
       payload: string | null
       pngUrl: string | null
     }
+    /**
+     * The seller frozen on the issued invoice (CMP-5 S-A), never the live profile. Absent from a
+     * server before S-A; on a server with it, always present, a value null when not recorded.
+     */
+    seller?: PosReceiptSellerDto | null
+    /**
+     * NOT SERVED YET: proposed for backend QRW2-BE-1, names to be confirmed there. The issued lines
+     * as the receipt printed them; until a response carries them the till offers no reprint
+     * (coordinator ruling QW2R-1).
+     */
+    lines?: PosReceiptLineDto[] | null
+    /** NOT SERVED YET (QRW2-BE-1): the buyer frozen on the issued invoice, for a full invoice. */
+    buyer?: PosReceiptBuyerDto | null
   }
   filing: PosFiling
   warnings: PosWarning[]
+  /** The signed-in sender; absent before V530, null on a sale stored before it. */
+  filedBy?: PosPerson | null
+  /** Absent before V530. */
+  attribution?: PosAttribution | null
+}
+
+export type PosAttribution = 'ONLINE' | 'VERIFIED' | 'PENDING_REVIEW' | 'LEGACY'
+
+/**
+ * One row of the original till receipt (backend PosReceiptRows): "Name (Size)", the item's price with
+ * its priced add-ons, and that times the quantity, before VAT and discounts. `amount` comes rounded
+ * HALF_UP to three places (backend PosSaleResponse.Line); `unitPrice` is as issued.
+ */
+export type PosReceiptLineDto = {
+  description: string
+  quantity: number
+  unitPrice: number
+  amount: number
+  vatCategory: string
+  vatRate: number
+}
+
+export type PosReceiptBuyerDto = {
+  name: string | null
+  vatNumber: string | null
+  identifierScheme: string | null
+  identifierValue: string | null
+}
+
+export type PosReceiptSellerDto = {
+  legalName: string | null
+  vatNumber: string | null
+  streetName: string | null
+  additionalStreetName: string | null
+  buildingNumber: string | null
+  cityName: string | null
+  postalZone: string | null
+  countrySubentity: string | null
+  countryCode: string | null
 }
 
 export function createPosSale(body: PosSaleRequest, idempotencyKey: string): Promise<PosSaleDto> {
@@ -278,6 +432,39 @@ export function createPosSale(body: PosSaleRequest, idempotencyKey: string): Pro
     body,
     headers: { 'Idempotency-Key': idempotencyKey },
   })
+}
+
+/**
+ * `POST /pos/tills/{tillId}/sales/by-key/{idempotencyKey}` (backend 98c0066cb, RESEND-AUTH, pos.sell):
+ * what became of a sale whose answer the till never got, decided under the sale's own key lock.
+ * RECORDED carries the sale as a replay would; NOT_RECORDED closes the key for good, so any later
+ * send under it is refused 409 POS_SALE_KEY_ABANDONED; IN_PROGRESS closes nothing and says when to
+ * ask again. A POST because NOT_RECORDED writes: it is only ever sent by a person's press.
+ */
+export type PosSaleKeyStatus = 'RECORDED' | 'NOT_RECORDED' | 'IN_PROGRESS'
+
+export type PosSaleKeyResolution = {
+  status: PosSaleKeyStatus
+  sale: PosSaleDto | null
+  abandonedAt: string | null
+  retryAfterSeconds: number | null
+}
+
+export async function resolvePosSaleKey(
+  tillId: string,
+  idempotencyKey: string,
+): Promise<PosSaleKeyResolution> {
+  const { body, retryAfterSeconds } = await apiRequestRetryAfter<{
+    status: PosSaleKeyStatus
+    sale?: PosSaleDto | null
+    abandonedAt?: string | null
+  }>(`${POS_TILLS_PATH}/${id(tillId)}/sales/by-key/${id(idempotencyKey)}`, { method: 'POST' })
+  return {
+    status: body.status,
+    sale: body.sale ?? null,
+    abandonedAt: body.abandonedAt ?? null,
+    retryAfterSeconds,
+  }
 }
 
 /** `wait` (0 to 15 s) answers as soon as the QR or the filing changes: the receipt's last steps. */
@@ -306,7 +493,15 @@ export type PosTodaySaleRow = {
   tillId: string
   tillNumber: number
   shiftId: string
-  cashier: PosPerson
+  /**
+   * Null while who sold it is unproven (fix/b39-fin-latecash 8f4518909); a server between V530 and
+   * that change sends `{userId: null, name: null}` instead, read the same way.
+   */
+  cashier: PosPerson | { userId: null; name: null } | null
+  /** The signed-in sender; absent on an older server. */
+  filedBy?: PosPerson | null
+  /** Absent on an older server, null before V530. */
+  attribution?: PosAttribution | null
   summary: string
   items: number
   customer: { kind: PosCustomerKind; customerId: string; name: string | null }
@@ -443,10 +638,21 @@ export type PosClosePreviewDto = {
   vatWithin: number
   discounts: number
   tips: number
-  paidOut: number
-  paidIn: number
+  /**
+   * Null when the shift's records span currencies (backend a2c9fcf0c, FIN-M3-CURRENCY-MIX): the
+   * figure is withheld, never 0. The preview itself is then refused 409 POS_SHIFT_CURRENCY_MIXED or
+   * _UNRECORDED, so null here is defensive.
+   */
+  paidOut: number | null
+  paidIn: number | null
   cashRefunded: number
-  expectedCash: number
+  expectedCash: number | null
+  /**
+   * Cash of offline sales filed into the shift this one took over from after the handover
+   * (fix/b39-fin-latecash, B39-SR-3). Information only: never part of `expectedCash`. Absent on an
+   * older server, which reads as 0.
+   */
+  lateCashFromHandedOverShift?: number
   looseEnds: PosLooseEnds
   movements: PosCashMovementDto[]
   at: string
@@ -471,7 +677,8 @@ export type PosShiftCloseDto = {
   shiftId: string
   closedAt: string
   countedCash: number
-  expectedCash: number
+  /** Null only if withheld (FIN-M3-CURRENCY-MIX); the close is refused then, so defensive. */
+  expectedCash: number | null
   overShort: number
   floatLeft: number
   toBank: number
@@ -492,13 +699,103 @@ export function setShiftFloat(shiftId: string, amount: number): Promise<PosShift
   })
 }
 
+/**
+ * Cash paid into the drawer. Since backend cb9898ac3 (FIN-M3) a paid-out goes through
+ * {@link recordPaidOut}: the server refuses a PAID_OUT without its purpose, currency, evidence and key.
+ */
 export function addCashMovement(
   shiftId: string,
-  body: { type: 'PAID_OUT' | 'PAID_IN'; amount: number; note: string | null },
+  body: { type: 'PAID_IN'; amount: number; note: string | null; currency: string },
 ): Promise<PosCashMovementDto> {
   return apiRequest<PosCashMovementDto>(`${POS_SHIFTS_PATH}/${id(shiftId)}/cash-movements`, {
     method: 'POST',
     body,
+  })
+}
+
+export type PosPaidOutCategory =
+  | 'PETTY_CASH_EXPENSE'
+  | 'SUPPLIER_PAYMENT'
+  | 'CASH_TRANSFER'
+  | 'FLOAT_ADJUSTMENT'
+  | 'OTHER'
+
+export type PosPaidOutClass = 'EXPENSE' | 'ADVANCE' | 'TRANSFER' | 'BILL_SETTLEMENT'
+
+/**
+ * `PosCashMovementRequest` as a PAID_OUT (V536). The refund references the schema declares
+ * (saleId, invoiceId, ...) are deliberately absent: the server refuses any of them, since a paid-out
+ * is never a refund.
+ */
+export type PosPaidOutRequest = {
+  type: 'PAID_OUT'
+  amount: number
+  note: string
+  category: PosPaidOutCategory
+  accountingClass: PosPaidOutClass | null
+  currency: string
+  billId: string | null
+  receiptObjectId: string | null
+  missingReceiptReason: string | null
+}
+
+export type PosPaidOutDto = {
+  movementId: string
+  shiftId: string
+  tillId: string
+  type: 'PAID_OUT'
+  amount: number
+  currency: string
+  note: string
+  category: PosPaidOutCategory
+  accountingClass: PosPaidOutClass
+  billId: string | null
+  billPaymentId: string | null
+  receiptObjectId: string | null
+  missingReceiptReason: string | null
+  reviewFlags: ('NOTE_NAMES_DOCUMENT' | 'NOTE_MENTIONS_REFUND' | 'CATEGORY_OTHER' | 'MISSING_RECEIPT')[]
+  recordedBy: string
+  recordedAt: string
+  /** The same key and body paid out before: the stored paid-out, nothing written again (a 200). */
+  replayed: boolean
+}
+
+/** The key is per till on the server: a retry with it is answered with the first paid-out. */
+export function recordPaidOut(
+  shiftId: string,
+  body: PosPaidOutRequest,
+  idempotencyKey: string,
+): Promise<PosPaidOutDto> {
+  return apiRequest<PosPaidOutDto>(`${POS_SHIFTS_PATH}/${id(shiftId)}/cash-movements`, {
+    method: 'POST',
+    body,
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
+}
+
+/** `PosCashReceiptController`'s limit and V536's CHECK. */
+export const PAID_OUT_RECEIPT_MAX_BYTES = 10 * 1024 * 1024
+export const PAID_OUT_RECEIPT_TYPES = ['image/jpeg', 'image/png', 'application/pdf'] as const
+
+export type PosCashReceiptDto = {
+  receiptObjectId: string
+  contentType: string
+  byteSize: number
+  sha256: string
+  uploadedAt: string
+}
+
+/**
+ * Uploaded before the paid-out that names it. The malware scan runs inside the request, so it gets
+ * the slip upload's longer wait.
+ */
+export function uploadPaidOutReceipt(tillId: string, file: Blob, name: string): Promise<PosCashReceiptDto> {
+  const body = new FormData()
+  body.append('file', file, name)
+  return apiRequest<PosCashReceiptDto>(`${POS_TILLS_PATH}/${id(tillId)}/cash-movements/receipts`, {
+    method: 'POST',
+    body,
+    timeoutMs: 60_000,
   })
 }
 
@@ -543,8 +840,9 @@ export type PosDaySummaryDto = {
     tips: number
     discounts: number
     vat: number
-    paidOut: number
-    paidIn: number
+    /** Null when the day's rows span more than one currency (backend a2c9fcf0c): withheld, never 0. */
+    paidOut: number | null
+    paidIn: number | null
     notYetAccepted: number
     onAccountOpen: { count: number; amount: number }
   }
@@ -561,6 +859,40 @@ export function posDayPath(date: string, branchId: string): string {
   return withQuery(`${POS_PATH}/days/${id(date)}`, { branchId })
 }
 
+/* --------------------------------------------------------------- open numbers */
+
+/** A printed number no invoice carries yet. It stays listed until it is filed, set aside or not. */
+export type PosOpenNumberDto = {
+  tillId: string
+  tillNumber: number
+  invoiceNumber: string
+  refusalCode: string | null
+  reason: string | null
+  soldAt: string | null
+  amount: number | null
+  firstRecordedAt: string
+  passed: boolean
+  setAsideAt: string | null
+  setAsideBy: string | null
+  setAsideReason: string | null
+}
+
+export function posOpenNumbersPath(branchId: string): string {
+  return withQuery(`${POS_PATH}/open-numbers`, { branchId })
+}
+
+/** `pos.till.manage`. Lets the queue move on and closes nothing; only on a server with `openNumbers`. */
+export function setAsideOpenNumber(
+  tillId: string,
+  invoiceNumber: string,
+  reason: string,
+): Promise<PosOpenNumberDto> {
+  return apiRequest<PosOpenNumberDto>(`${POS_PATH}/open-numbers/set-aside`, {
+    method: 'POST',
+    body: { tillId, invoiceNumber, reason },
+  })
+}
+
 /* -------------------------------------------------------------------- refunds */
 
 export type PosRefundLookupLine = {
@@ -575,6 +907,16 @@ export type PosRefundLookupLine = {
   vatRate: number | null
   vatCategory: string | null
   refundable: boolean
+  /**
+   * The line credits 0.000, so it comes back as a stock return with no credit note. Absent from a
+   * server that cannot take such a return yet, and the till then refunds as before.
+   */
+  givenFree?: boolean
+  /**
+   * DEC-30-01: an earlier credit note from the invoice screens does not say whether goods came back,
+   * so the server marks the line not refundable here and refuses it (`POS_REFUND_LINE_CREDIT_UNCLEAR`).
+   */
+  creditUnclear?: boolean
 }
 
 export type PosRefundLookupDto = {
@@ -606,22 +948,69 @@ export type PosRefundRequest = {
   tillId: string
   reason: PosRefundReason
   reasonNote: string | null
-  lines: { lineNumber: number; quantity: number; backOnShelf: boolean }[]
-  moneyBack: { method: 'CASH' | 'CARD' | 'TRANSFER' | 'REDUCE_BALANCE'; amount: number }[]
+  /**
+   * Numbered by the sale line. `hsCode` only for a goods line of a full tax invoice that has none,
+   * after the server asked for it (`HS_CODE_REQUIRED`, IBR-174-OM); the server checks it against
+   * CL-08-OM-HS (`HS_CODE_UNKNOWN`).
+   */
+  lines: { lineNumber: number; quantity: number; backOnShelf: boolean; hsCode?: string }[]
+  moneyBack: {
+    method: PosRefundMoneyMethod
+    amount: number
+    /** On card, the machine's approval reference, optional as on a card sale. */
+    reference?: string | null
+  }[]
+}
+
+export type PosRefundMoneyMethod = 'CASH' | 'CARD' | 'TRANSFER' | 'REDUCE_BALANCE'
+
+/**
+ * What a refund of these lines comes to, from the server's own figures, and how its money goes back
+ * unless the cashier changes it (backend `POST .../refund-quote`). Issues nothing.
+ */
+export type PosRefundQuoteDto = {
+  total: number
+  lastRefund: boolean
+  suggested: { method: PosRefundMoneyMethod; amount: number }[]
+  /** What the card can still get back: paid by card, less earlier card refunds. */
+  cardLimit: number
+  /** The most that may go out in cash, card or transfer. */
+  payOutLimit: number
+  /** What must come off what the customer owes. */
+  reduceBalance: number
+  /**
+   * Money no way the sale was paid can take back. It is never put in `suggested`, so the cashier
+   * routes it: guessing cash is what paid card sales back from the drawer before the quote.
+   */
+  toChoose?: number
 }
 
 export type PosRefundDto = {
   refundId: string
   saleId: string
-  creditNoteId: string
-  creditNoteNumber: string
+  /** Null when only given-away lines came back: nothing was issued. */
+  creditNoteId: string | null
+  creditNoteNumber: string | null
+  stockOnly?: boolean
   totals: PosTotals
   warnings: PosWarning[]
   replayed?: boolean
+  /** `lineNumber` is the credit note's line (1..n), `originalLineNumber` the sale's. */
+  lines?: { lineNumber: number; originalLineNumber: number }[]
 }
 
 export function refundLookupPath(invoiceNumber: string): string {
   return withQuery(POS_REFUND_LOOKUP_PATH, { invoiceNumber: invoiceNumber.trim() })
+}
+
+export function quotePosRefund(
+  saleId: string,
+  body: Pick<PosRefundRequest, 'tillId' | 'lines'>,
+): Promise<PosRefundQuoteDto> {
+  return apiRequest<PosRefundQuoteDto>(`${POS_SALES_PATH}/${id(saleId)}/refund-quote`, {
+    method: 'POST',
+    body,
+  })
 }
 
 export function createPosRefund(
@@ -696,4 +1085,97 @@ export function attachPosSlip(
 /** A key for one write, 16 to 128 of `[A-Za-z0-9._:-]`. */
 export function newPosKey(kind: string): string {
   return `pos-${kind}-${crypto.randomUUID()}`
+}
+
+/**
+ * `GET /pos/shifts/currency-exceptions` (backend cb02428c7, openapi 626a6235b; FIN-2a-REPORT): the
+ * shifts whose drawer figure the server withholds, because their cash states more than one currency
+ * or a paid-in or paid-out states none. Newest first, at most 500 (`truncated`). No field adds
+ * amounts across currencies, and a withheld figure arrives as null, never 0.
+ */
+export type PosCurrencyExceptionCash = {
+  /** Null, with currencyRecorded false, for movements recorded with no currency. */
+  currency: string | null
+  currencyRecorded: boolean
+  paidIn: number | null
+  paidOut: number | null
+  movements: number
+}
+
+export type PosCurrencyExceptionShift = {
+  shiftId: string
+  tillId: string
+  tillNumber: number
+  branchId: string
+  cashier: { userId: string; name: string | null } | null
+  status: 'OPEN' | 'ENDED_UNCOUNTED' | 'CLOSED'
+  businessDate: string
+  openedAt: string
+  endedAt: string | null
+  state: 'POS_SHIFT_CURRENCY_UNRECORDED' | 'POS_SHIFT_CURRENCY_MIXED'
+  currencies: string[]
+  unrecordedMovements: number
+  cash: PosCurrencyExceptionCash[]
+  /** As stored at the close, summed across the shift's records before the mix was refused. */
+  storedClose: {
+    closedAt: string
+    expectedCash: number | null
+    countedCash: number | null
+    overShort: number | null
+    currencyRecorded: boolean
+  } | null
+}
+
+export type PosCurrencyExceptions = {
+  from: string
+  to: string
+  truncated: boolean
+  shifts: PosCurrencyExceptionShift[]
+}
+
+/** Business dates, both required; at most 92 days apart, else 400 POS_REPORT_RANGE_INVALID. */
+export function currencyExceptionsPath(from: string, to: string, branchId: string | null): string {
+  return withQuery(`${POS_PATH}/shifts/currency-exceptions`, { from, to, branchId })
+}
+
+/**
+ * `GET /pos/tills/held-sales` (backend 5c81f18d4; HS-STALL-VIS): one item per till and printed
+ * number the server held for validation or that a later sale was refused behind
+ * (POS_TILL_NUMBER_GAP), most recently active first, at most 500 (`truncated`). Hold times and
+ * block times are kept apart; `reason` is null when only a block is on record.
+ */
+export type PosHeldSale = {
+  tillId: string
+  tillNumber: number
+  /** Null on a WITHHELD item whose sale the server holds no number for (review QW5R-6). */
+  heldNumber: string | null
+  reason: string | null
+  lines: number[]
+  firstHeldAt: string | null
+  lastHeldAt: string | null
+  reHeldCount: number
+  firstBlockedAt: string | null
+  lastBlockedAt: string | null
+  expectedNumber: string | null
+  overdue: boolean
+  /**
+   * HELD when absent (a server from before REFUSED). WITHHELD (backend f598aa39b, QW4R-3): a filed
+   * sale for which the till printed no tax receipt, for a manager to follow up; its reason is
+   * POS_RECEIPT_WITHHELD and its held times are the times it was marked; never overdue. Typed as a
+   * string so a kind this build does not know is shown neutrally rather than as a hold. REFUSED
+   * (backend 58e98b2ed, QB1R-5): a queued sale invoice authoring refused at issue; nothing at the till
+   * corrects it, the till's later numbers wait behind it, and it is never overdue itself.
+   */
+  kind?: string
+  /** REFUSED only, else null or absent. */
+  firstRefusedAt?: string | null
+  lastRefusedAt?: string | null
+  /** REFUSED only: refused again after the first; 0 or absent otherwise. */
+  reRefusedCount?: number
+}
+
+export type PosHeldSales = { items: PosHeldSale[]; truncated: boolean }
+
+export function heldSalesPath(tillId?: string | null): string {
+  return withQuery(`${POS_PATH}/tills/held-sales`, { tillId })
 }

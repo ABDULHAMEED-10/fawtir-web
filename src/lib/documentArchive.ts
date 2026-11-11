@@ -110,7 +110,24 @@ export const TDD_STATUSES = [
   'TO_DISREGARD',
   'DISREGARD_SUBMITTED',
   'DEAD_LETTERED',
+  // Backend V491: the obligation on a network with no tax authority endpoint to report to.
+  'NOT_TESTED',
 ] as const
+
+export type TddStatus = (typeof TDD_STATUSES)[number]
+
+const isTddStatus = (status: string): status is TddStatus =>
+  (TDD_STATUSES as readonly string[]).includes(status)
+
+/**
+ * The words for a report status. The archive's `tdd.status` is an open string, and a value this
+ * build does not know (NOT_TESTED arrived with V491 and leaked as `documents.chip.NOT_TESTED`)
+ * reads as "not recognised" rather than as a raw i18n key.
+ */
+export function tddStatusKey(status: string | null, scope: 'chip' | 'tdd'): string {
+  if (!status) return `documents.${scope}.none`
+  return isTddStatus(status) ? `documents.${scope}.${status}` : `documents.${scope}.unknown`
+}
 
 /** Tax years worth offering: this one and the nine before it, which is the retention horizon. */
 export function taxYears(today: string): number[] {
@@ -347,13 +364,19 @@ export function heldArtefacts(
     }))
 }
 
-/** "INV-2038.xml", "INV-2038-TDD.xml": the name a person would give each file. */
-export function artefactFileName(number: string, id: ArtefactId): string | null {
+/**
+ * The name saved when the server names none. A server with backend #824 names each rendition in
+ * Content-Disposition by one rule (A-7b), and that name wins (saveDownload). These follow the
+ * same rule, unsafe characters as "_", so a numbered document saves alike from either server; an
+ * unnumbered one differs, as the server names it by a submission id this page never reads.
+ */
+export function artefactFileName(rawNumber: string, id: ArtefactId): string | null {
+  const number = rawNumber.replace(/[^A-Za-z0-9._-]/g, '_')
   switch (id) {
     case 'xml':
       return `${number}.xml`
     case 'tdd':
-      return `${number}-TDD.xml`
+      return `${number}-tdd.xml`
     case 'pdf':
       return `${number}.pdf`
     case 'qr':
@@ -404,7 +427,7 @@ export function statusChip(item: ArchiveItemDto): { key: string; tone: ChipTone 
         : status === 'PENDING' || status === 'SUBMITTED' || status === 'DELIVERED_UNCONFIRMED'
           ? 'blue'
           : 'grey'
-  return { key: `documents.chip.${status}`, tone }
+  return { key: tddStatusKey(status, 'chip'), tone }
 }
 
 /** The retention class in the list's short words ("10 years", "15 years · property"). */

@@ -1085,7 +1085,7 @@ describe('a disputed bill', () => {
     const meta = screen.getByText(
       (_, element) =>
         element?.tagName === 'P' &&
-        /^13 open · 2 overdue · .*3,140\.000 disputed on 1 refused debit note$/.test(
+        /^13 open · 2 overdue · .*3,140\.000 disputed on 1 rejected bill or refused debit note$/.test(
           element.textContent ?? '',
         ),
     )
@@ -1096,8 +1096,10 @@ describe('a disputed bill', () => {
     expect(visible.textContent).not.toContain('OMR')
   })
 
-  // Owner's answer D3 (12 Oct 2026): the line names refused debit notes, with every plural form.
-  it('counts refused debit notes, in English and in Arabic', async () => {
+  // Owner's answer D3 (12 Oct 2026) named refused debit notes, with every plural form. The figure
+  // also counts rejected bills (BillSummary.disputedCount, JdbcBillProjectionAdapter), so the line
+  // names both (B-7, local E2E 2026-10-29).
+  it('counts rejected bills and refused debit notes, in English and in Arabic', async () => {
     summaryResponse = () => json(200, { ...SUMMARY, disputedCount: 2, disputedTotal: 12.6 })
     renderBills()
     expect(await screen.findByText('8,765.432')).toBeTruthy()
@@ -1105,7 +1107,7 @@ describe('a disputed bill', () => {
       screen.getByText(
         (_, element) =>
           element?.tagName === 'P' &&
-          /^13 open · 2 overdue · .*12\.600 disputed on 2 refused debit notes$/.test(
+          /^13 open · 2 overdue · .*12\.600 disputed on 2 rejected bills or refused debit notes$/.test(
             element.textContent ?? '',
           ),
       ),
@@ -1114,10 +1116,10 @@ describe('a disputed bill', () => {
 
     const ar = (count: number) =>
       i18n.getFixedT('ar')('billsPage.kpi.payableDisputed', { amount: 'X', count })
-    expect(ar(1)).toBe('X متنازع عليها في إشعار مدين مرفوض واحد')
-    expect(ar(2)).toBe('X متنازع عليها في إشعارين مدينين مرفوضين')
-    expect(ar(3)).toBe('X متنازع عليها في 3 إشعارات مدينة مرفوضة')
-    expect(ar(11)).toBe('X متنازع عليها في 11 إشعارًا مدينًا مرفوضًا')
+    expect(ar(1)).toBe('X متنازع عليها في فاتورة مرفوضة أو إشعار مدين مرفوض')
+    expect(ar(2)).toBe('X متنازع عليها في مستندين: فواتير مرفوضة أو إشعارات مدينة مرفوضة')
+    expect(ar(3)).toBe('X متنازع عليها في 3 مستندات: فواتير مرفوضة أو إشعارات مدينة مرفوضة')
+    expect(ar(11)).toBe('X متنازع عليها في 11 مستندًا: فواتير مرفوضة أو إشعارات مدينة مرفوضة')
   })
 
   it('says nothing when there is no dispute', async () => {
@@ -1735,6 +1737,36 @@ describe('draft rows under the source filter', () => {
       expect(screen.getAllByRole('row')).toHaveLength(2) // the header and the one bill
     },
   )
+
+  // RC5 E2E D-05: the server's tab counts are bills only, and the badge read 0 above the drafts.
+  it('counts the draft rows in the Needs attention and All badges', async () => {
+    withDrafts()
+    summaryResponse = () =>
+      json(200, {
+        ...SUMMARY,
+        needsAttention: { ...SUMMARY.needsAttention, draft: 2 },
+        tabs: { ...SUMMARY.tabs, needsAttention: 0, all: 0 },
+      })
+    listResponses = [() => json(200, itemsPage([], 0))]
+    renderBills()
+    expect(await screen.findByText('Nizwa Hardware Store')).toBeTruthy()
+    expect(screen.getAllByText('Draft, confirm details')).toHaveLength(2)
+    expect(badge(/^Needs attention/).textContent).toBe('2')
+    expect(badge(/^All/).textContent).toBe('2')
+    // The other tabs list no drafts.
+    expect(badge(/^Paid/).textContent).toBe('17')
+  })
+
+  it('counts only the uploads it draws under "Uploaded"', async () => {
+    withDrafts()
+    countsResponse = () =>
+      json(200, { ...SUMMARY, tabs: { ...SUMMARY.tabs, needsAttention: 1, all: 1 } })
+    renderBills('/expenditure/bills?source=uploaded')
+    expect(await screen.findByText('Nizwa Hardware Store')).toBeTruthy()
+    await screen.findByText('Qalhat Marine Supplies')
+    await waitFor(() => expect(badge(/^Needs attention/).textContent).toBe('2'), SLOW)
+    expect(badge(/^All/).textContent).toBe('2')
+  })
 
   it('says nothing matches, not that the ledger is empty, when only drafts exist and the filter hides them', async () => {
     withDrafts()

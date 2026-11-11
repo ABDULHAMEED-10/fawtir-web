@@ -7,6 +7,8 @@ import { BUSINESS_TIME_ZONE, formatAmount } from '../../lib/format'
 import type { CashDto, ReceivableRowDto } from '../../api/reports/dashboard'
 import type { BillSummaryDto } from '../../api/expenditure/bills'
 import { omrRow, partOfDay, toNumber, type TileView } from './dashboardData'
+import { UnappliedCredit } from '../../components/invoice/UnappliedCredit'
+import { creditHeld, netOf } from '../../lib/unappliedCredit'
 import salesIcon from '../../assets/dashboard/kpi-sales.svg'
 import receivablesIcon from '../../assets/dashboard/kpi-receivables.svg'
 import payablesIcon from '../../assets/dashboard/kpi-payables.svg'
@@ -99,6 +101,7 @@ export function KpiCards({
 
   const cashRow = cash.kind === 'ok' ? omrRow(cash.data.byCurrency) : undefined
   const owed = receivables.kind === 'ok' ? omrRow(receivables.data) : undefined
+  const credit = creditHeld(owed?.unappliedCredit)
 
   return (
     <div className="grid gap-4 md:grid-cols-3">
@@ -132,6 +135,14 @@ export function KpiCards({
         <Meta badge={t('dashboard.kpi.open', { count: owed?.openCount ?? 0 })}>
           {t('dashboard.kpi.overdue', { count: owed?.overdueCount ?? 0 })}
         </Meta>
+        {credit !== null && owed ? (
+          <UnappliedCredit
+            credit={credit}
+            net={netOf(owed.outstanding, credit, 'OMR')}
+            currency="OMR"
+            className="mt-2"
+          />
+        ) : null}
       </KpiCard>
 
       <KpiCard icon={payablesIcon} title={t('dashboard.kpi.payables')} view={payables}>

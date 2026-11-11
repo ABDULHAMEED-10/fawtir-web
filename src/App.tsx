@@ -6,7 +6,7 @@ import { BusinessIdentityPage } from './pages/BusinessIdentityPage'
 import { BusinessTypePage } from './pages/BusinessTypePage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { HomePage } from './pages/HomePage'
-import { ContactPage, FeaturesPage, PricingPage } from './pages/SitePages'
+import { ContactPage, FeaturesPage, LegalPage, PricingPage } from './pages/SitePages'
 import { LoginPage } from './pages/LoginPage'
 import { LoginCodePage } from './pages/LoginCodePage'
 import { NewPasswordPage } from './pages/NewPasswordPage'
@@ -26,6 +26,7 @@ import { BillsPage } from './pages/BillsPage'
 import { BillDetailPage } from './pages/BillDetailPage'
 import { UploadBillPage } from './pages/UploadBillPage'
 import { WaitingDocumentsPage } from './pages/WaitingDocumentsPage'
+import { RejectedDocumentsPage } from './pages/RejectedDocumentsPage'
 import { ScanReceiptsPage } from './pages/ScanReceiptsPage'
 import { PaymentRunPage, PaymentRunsListPage } from './pages/PaymentRunPage'
 import { RecurringBillsPage } from './pages/RecurringBillsPage'
@@ -116,6 +117,10 @@ import {
   PosTodayPage,
   PosClosePage,
   PosRefundPage,
+  PosOfflineHoldsPage,
+  PosDiscountFlagsPage,
+  PosHeldSalesPage,
+  PosCurrencyExceptionsPage,
 } from './pages/PosPage'
 import { QuotationsPage } from './pages/QuotationsPage'
 import { NewQuotationPage } from './pages/NewQuotationPage'
@@ -204,6 +209,7 @@ import {
   ValidationPolicyPage,
 } from './pages/ConsolePage'
 import { VerifyCodePage } from './pages/VerifyCodePage'
+import { SiteScrollTop } from './pages/HomePage/site'
 import { ErpGated, PlanGated } from './components/plan'
 import { DemoModule } from './components/feedback/DemoModule'
 
@@ -214,11 +220,15 @@ function App() {
   return (
     <div dir={isRtl ? 'rtl' : 'ltr'} className="min-h-dvh font-sans text-text-primary">
       <BrowserRouter>
+        <SiteScrollTop />
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/features" element={<FeaturesPage />} />
           <Route path="/contact" element={<ContactPage />} />
+          <Route path="/terms" element={<LegalPage doc="terms" />} />
+          <Route path="/privacy" element={<LegalPage doc="privacy" />} />
+          <Route path="/refund-policy" element={<LegalPage doc="refund" />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/login/mfa" element={<LoginCodePage />} />
           <Route path="/signup" element={<SignupPage />} />
@@ -248,6 +258,7 @@ function App() {
           <Route path="/expenditure/bills/upload/:intakeId" element={<UploadBillPage />} />
           <Route path="/expenditure/bills/scan" element={<ScanReceiptsPage />} />
           <Route path="/expenditure/bills/waiting" element={<WaitingDocumentsPage />} />
+          <Route path="/expenditure/bills/rejected" element={<RejectedDocumentsPage />} />
           <Route path="/expenditure/payments" element={<PaymentRunsListPage />} />
           <Route path="/expenditure/payments/new" element={<PaymentRunPage />} />
           <Route path="/expenditure/payments/:runId" element={<PaymentRunPage />} />
@@ -345,7 +356,8 @@ function App() {
           <Route path="/catalog/:id/sells" element={<DemoModule module="catalog"><ItemSellsPage /></DemoModule>} />
           <Route path="/catalog/:id/used" element={<DemoModule module="catalog"><ItemUsedPage /></DemoModule>} />
           <Route path="/catalog/:id/changes" element={<DemoModule module="catalog"><ItemChangesPage /></DemoModule>} />
-          <Route path="/catalog/:id/options" element={<DemoModule module="catalog"><ItemOptionsPage /></DemoModule>} />
+          {/* Reads and writes the item's sizes and options on the server: no sample ribbon. */}
+          <Route path="/catalog/:id/options" element={<ItemOptionsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/peppol" element={<PeppolTaxPage />} />
           <Route path="/settings/branches" element={<BranchesPage />} />
@@ -393,6 +405,10 @@ function App() {
           <Route path="/pos/today" element={<PosTodayPage />} />
           <Route path="/pos/close" element={<PosClosePage />} />
           <Route path="/pos/refund" element={<PosRefundPage />} />
+          <Route path="/pos/offline-holds" element={<PosOfflineHoldsPage />} />
+          <Route path="/pos/discount-flags" element={<PosDiscountFlagsPage />} />
+          <Route path="/pos/held-sales" element={<PosHeldSalesPage />} />
+          <Route path="/pos/currency-exceptions" element={<PosCurrencyExceptionsPage />} />
           <Route path="/income/debit-notes" element={<DebitNotesPage />} />
           <Route
             path="/trade-documents/quotations"

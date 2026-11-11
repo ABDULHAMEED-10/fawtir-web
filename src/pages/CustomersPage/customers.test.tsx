@@ -435,6 +435,8 @@ describe('customer list mapping', () => {
       state: 'settled',
       amount: null,
       note: null,
+      credit: null,
+      net: null,
     })
   })
 })
@@ -504,4 +506,71 @@ describe("a customer's New invoice while the subscription is read-only (ST-2, CA
       expect(screen.getAllByRole('menuitem').length).toBeGreaterThan(0)
     },
   )
+})
+
+describe('Unapplied credit on the customers page (D-30(a))', () => {
+  it('shows the directory\'s credit, who holds it and the server\'s net under the receivables, which stay what is owed', async () => {
+    summaryResponse = () =>
+      json(200, {
+        ...SUMMARY,
+        receivables: {
+          ...SUMMARY.receivables,
+          unappliedCredit: -45.25,
+          customersWithCredit: 2,
+          netOutstanding: 1189.25,
+        },
+      })
+    renderCustomers()
+    await screen.findByText('Sohar Port Logistics')
+    const subtitle = screen.getByRole('heading', { level: 1, name: 'Customers' }).nextElementSibling
+    expect(subtitle?.textContent).toMatch(/1,234\.500 receivable$/)
+    const card = screen.getByText('Owed by 6 customers').closest('article')!
+    expect(within(card).getByText('1,234.500')).toBeTruthy()
+    const credit = within(card).getByTestId('unapplied-credit')
+    expect(within(credit).getByText('-45.250')).toBeTruthy()
+    expect(within(credit).getByText('1,189.250')).toBeTruthy()
+    expect(credit.textContent).toContain('Customers holding credit: 2')
+  })
+
+  it('shows a row\'s credit and net beside what the customer owes, and a customer only in credit as settled with its credit', async () => {
+    receivablesResponse = () =>
+      json(200, {
+        currencyCode: 'OMR',
+        asOf: '2026-09-15',
+        items: [owing({ unappliedCredit: -20, netBalance: 825.125 })],
+      })
+    const { unmount } = renderCustomers()
+    expect(await screen.findByText('845.125')).toBeTruthy()
+    const row = screen.getByText('845.125').closest('tr')!
+    const credit = within(row).getByTestId('unapplied-credit')
+    expect(within(credit).getByText('-20.000')).toBeTruthy()
+    expect(within(credit).getByText('825.125')).toBeTruthy()
+    unmount()
+
+    receivablesResponse = () =>
+      json(200, {
+        currencyCode: 'OMR',
+        asOf: '2026-09-15',
+        items: [
+          owing({
+            outstanding: 0,
+            overdue: 0,
+            openInvoices: 0,
+            daysOverdue: null,
+            unappliedCredit: -12.5,
+            netBalance: -12.5,
+          }),
+        ],
+      })
+    renderCustomers()
+    expect(await screen.findByText('Settled')).toBeTruthy()
+    const held = screen.getByTestId('unapplied-credit')
+    expect(within(held).getAllByText('-12.500')).toHaveLength(2)
+  })
+
+  it('leaves the card and the rows as they were when the server sends no credit', async () => {
+    renderCustomers()
+    expect(await screen.findByText('845.125')).toBeTruthy()
+    expect(screen.queryByTestId('unapplied-credit')).toBeNull()
+  })
 })

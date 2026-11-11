@@ -1,0 +1,431 @@
+{
+  "name": "qr-vectors",
+  "version": 1,
+  "note": "Shared by the web (posQr.ts) and the backend (PintOmQrPayloadFactory, PintOmSellerUuid, PintOmQrTlvCodec); both repos keep identical bytes and pin the SHA-256 of the LF form. ASCII only: non-ASCII text is written as JSON escapes. SA v1.0.3 is the authority; every row without \"side\" holds the output of today's certified code, including review R-2. Rows marked \"side\": \"web\" pin only the web encoder's own fail-closed checks on input the backend never receives in that form (a negative or exponent amount, unknown minor units, a non-Muscat or unknown zone, a soldAt that is not a real instant); the backend skips them. An amount row with \"lines\" runs on the backend through the calculation engine, its projection, the authored mapper and the factory: the header allowance is allocated to the lines (the mapper emits no document-level allowance), and \"subtotals\", \"taxable\" and \"vat\" are that projection, which is what the web passes to its encoder.",
+  "uuidNamespace": "e0bc4ac8-b025-46e5-a76d-0c893fc3027e",
+  "payloads": [
+    {
+      "id": "T-X1 SA App D.1 a.ii full/simplified (table and code example; the printed D.2 Base64 contradicts its own table, audit D)",
+      "fields": {
+        "qrVersion": "1.1",
+        "invoiceType": "01",
+        "invoiceNumber": "INVOICE-01",
+        "sellerName": "\u0628\u0627\u0626\u0639",
+        "sellerVatin": "OM1234567891",
+        "issueDate": "2026-05-13",
+        "issueTime": "18:31:00",
+        "totalWithVat": "302.340",
+        "vatTotal": "14.520"
+      },
+      "sellerUuid": "454cb7ea-f1f7-5b69-9e0b-756f002efa52",
+      "payload": "AQMxLjECAjAxAwpJTlZPSUNFLTAxBAjYqNin2KbYuQUMT00xMjM0NTY3ODkxBgoyMDI2LTA1LTEzBwgxODozMTowMAgHMzAyLjM0MAkGMTQuNTIwCiQ0NTRjYjdlYS1mMWY3LTViNjktOWUwYi03NTZmMDAyZWZhNTI="
+    },
+    {
+      "id": "T-X1 SA App D.1 b.ii profit margin",
+      "fields": {
+        "qrVersion": "1.1",
+        "invoiceType": "02",
+        "invoiceNumber": "INVOICE-01",
+        "sellerName": "\u0628\u0627\u0626\u0639",
+        "sellerVatin": "OM1234567892",
+        "issueDate": "2026-05-13",
+        "issueTime": "18:30:00",
+        "totalWithVat": "1032.210",
+        "vatTotal": null
+      },
+      "sellerUuid": "9724a780-2360-502a-b6a2-201bf0f068c6",
+      "payload": "AQMxLjECAjAyAwpJTlZPSUNFLTAxBAjYqNin2KbYuQUMT00xMjM0NTY3ODkyBgoyMDI2LTA1LTEzBwgxODozMDowMAgIMTAzMi4yMTAJJDk3MjRhNzgwLTIzNjAtNTAyYS1iNmEyLTIwMWJmMGYwNjhjNg=="
+    },
+    {
+      "id": "T-X2 repo PintOmSellerUuidTest full, Al Naseem",
+      "fields": {
+        "qrVersion": "1.1",
+        "invoiceType": "01",
+        "invoiceNumber": "INV-2026-0001",
+        "sellerName": "Al Naseem Trading LLC",
+        "sellerVatin": "OM11003554",
+        "issueDate": "2026-07-13",
+        "issueTime": "10:15:30",
+        "totalWithVat": "4550.500",
+        "vatTotal": "216.690"
+      },
+      "sellerUuid": "1c97f8a7-58f8-5ee4-84c3-f53f2560409f",
+      "payload": "AQMxLjECAjAxAw1JTlYtMjAyNi0wMDAxBBVBbCBOYXNlZW0gVHJhZGluZyBMTEMFCk9NMTEwMDM1NTQGCjIwMjYtMDctMTMHCDEwOjE1OjMwCAg0NTUwLjUwMAkHMjE2LjY5MAokMWM5N2Y4YTctNThmOC01ZWU0LTg0YzMtZjUzZjI1NjA0MDlm"
+    },
+    {
+      "id": "T-X2 repo PintOmSellerUuidTest profit margin, Al Naseem",
+      "fields": {
+        "qrVersion": "1.1",
+        "invoiceType": "02",
+        "invoiceNumber": "INV-2026-0001",
+        "sellerName": "Al Naseem Trading LLC",
+        "sellerVatin": "OM11003554",
+        "issueDate": "2026-07-13",
+        "issueTime": "10:15:30",
+        "totalWithVat": "4550.500",
+        "vatTotal": null
+      },
+      "sellerUuid": "96cb525f-6090-5072-a5e3-fdeb9e3f2b4a",
+      "payload": "AQMxLjECAjAyAw1JTlYtMjAyNi0wMDAxBBVBbCBOYXNlZW0gVHJhZGluZyBMTEMFCk9NMTEwMDM1NTQGCjIwMjYtMDctMTMHCDEwOjE1OjMwCAg0NTUwLjUwMAkkOTZjYjUyNWYtNjA5MC01MDcyLWE1ZTMtZmRlYjllM2YyYjRh"
+    },
+    {
+      "id": "T-X5 uppercase only in the UUID name: sharp s and e-acute (Java ROOT: STRASSE CAFE-acute)",
+      "fields": {
+        "qrVersion": "1.1",
+        "invoiceType": "01",
+        "invoiceNumber": "INV-2026-0001",
+        "sellerName": "Stra\u00dfe Caf\u00e9",
+        "sellerVatin": "OM11003554",
+        "issueDate": "2026-07-13",
+        "issueTime": "10:15:30",
+        "totalWithVat": "4550.500",
+        "vatTotal": "216.690"
+      },
+      "sellerUuid": "9d1a155f-b55e-5853-8706-58e95c480d7e",
+      "payload": "AQMxLjECAjAxAw1JTlYtMjAyNi0wMDAxBA1TdHJhw59lIENhZsOpBQpPTTExMDAzNTU0BgoyMDI2LTA3LTEzBwgxMDoxNTozMAgINDU1MC41MDAJBzIxNi42OTAKJDlkMWExNTVmLWI1NWUtNTg1My04NzA2LTU4ZTk1YzQ4MGQ3ZQ=="
+    },
+    {
+      "id": "T-X5 a name with surrounding spaces is kept untrimmed",
+      "fields": {
+        "qrVersion": "1.1",
+        "invoiceType": "01",
+        "invoiceNumber": "INV-2026-0001",
+        "sellerName": "  Al Naseem  ",
+        "sellerVatin": "OM11003554",
+        "issueDate": "2026-07-13",
+        "issueTime": "10:15:30",
+        "totalWithVat": "4550.500",
+        "vatTotal": "216.690"
+      },
+      "sellerUuid": "5611beef-d52c-5221-8f64-fb299478b4a0",
+      "payload": "AQMxLjECAjAxAw1JTlYtMjAyNi0wMDAxBA0gIEFsIE5hc2VlbSAgBQpPTTExMDAzNTU0BgoyMDI2LTA3LTEzBwgxMDoxNTozMAgINDU1MC41MDAJBzIxNi42OTAKJDU2MTFiZWVmLWQ1MmMtNTIyMS04ZjY0LWZiMjk5NDc4YjRhMA=="
+    },
+    {
+      "id": "T-X5 a 255-byte value is accepted (127 Arabic letters + 1)",
+      "fields": {
+        "qrVersion": "1.1",
+        "invoiceType": "01",
+        "invoiceNumber": "INV-2026-0001",
+        "sellerName": "\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628A",
+        "sellerVatin": "OM11003554",
+        "issueDate": "2026-07-13",
+        "issueTime": "10:15:30",
+        "totalWithVat": "4550.500",
+        "vatTotal": "216.690"
+      },
+      "sellerUuid": "ad2e1b9f-f2f5-5101-946a-10214b08d66c",
+      "payload": "AQMxLjECAjAxAw1JTlYtMjAyNi0wMDAxBP/YqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqNio2KjYqEEFCk9NMTEwMDM1NTQGCjIwMjYtMDctMTMHCDEwOjE1OjMwCAg0NTUwLjUwMAkHMjE2LjY5MAokYWQyZTFiOWYtZjJmNS01MTAxLTk0NmEtMTAyMTRiMDhkNjZj"
+    },
+    {
+      "id": "T-X5 a 256-byte value is refused (128 Arabic letters: bytes, not characters)",
+      "fields": {
+        "qrVersion": "1.1",
+        "invoiceType": "01",
+        "invoiceNumber": "INV-2026-0001",
+        "sellerName": "\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628\u0628",
+        "sellerVatin": "OM11003554",
+        "issueDate": "2026-07-13",
+        "issueTime": "10:15:30",
+        "totalWithVat": "4550.500",
+        "vatTotal": "216.690"
+      },
+      "refused": "value over 255 bytes"
+    },
+    {
+      "id": "T-X5 a 700-character Base64 payload is accepted",
+      "fields": {
+        "qrVersion": "1.1",
+        "invoiceType": "01",
+        "invoiceNumber": "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII",
+        "sellerName": "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+        "sellerVatin": "OM11003554",
+        "issueDate": "2026-07-13",
+        "issueTime": "10:15:30",
+        "totalWithVat": "4550.500",
+        "vatTotal": "216.690"
+      },
+      "sellerUuid": "0b1bae94-651f-5869-9247-ed37d82c7199",
+      "payload": "AQMxLjECAjAxA6ZJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJBP9OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk4FCk9NMTEwMDM1NTQGCjIwMjYtMDctMTMHCDEwOjE1OjMwCAg0NTUwLjUwMAkHMjE2LjY5MAokMGIxYmFlOTQtNjUxZi01ODY5LTkyNDctZWQzN2Q4MmM3MTk5",
+      "payloadLength": 700
+    },
+    {
+      "id": "T-X5 a name of only U+001C..U+001F is blank to Java isBlank, so refused",
+      "fields": {
+        "qrVersion": "1.1",
+        "invoiceType": "01",
+        "invoiceNumber": "INV-2026-0001",
+        "sellerName": "\u001c\u001d\u001e\u001f",
+        "sellerVatin": "OM11003554",
+        "issueDate": "2026-07-13",
+        "issueTime": "10:15:30",
+        "totalWithVat": "4550.500",
+        "vatTotal": "216.690"
+      },
+      "refused": "a blank value (Java isBlank)"
+    },
+    {
+      "id": "T-X5 a name of only a no-break space is not blank to Java isBlank, so accepted",
+      "fields": {
+        "qrVersion": "1.1",
+        "invoiceType": "01",
+        "invoiceNumber": "INV-2026-0001",
+        "sellerName": "\u00a0",
+        "sellerVatin": "OM11003554",
+        "issueDate": "2026-07-13",
+        "issueTime": "10:15:30",
+        "totalWithVat": "4550.500",
+        "vatTotal": "216.690"
+      },
+      "sellerUuid": "c32ecc8c-b430-58ec-977f-a12a042db37a",
+      "payload": "AQMxLjECAjAxAw1JTlYtMjAyNi0wMDAxBALCoAUKT00xMTAwMzU1NAYKMjAyNi0wNy0xMwcIMTA6MTU6MzAICDQ1NTAuNTAwCQcyMTYuNjkwCiRjMzJlY2M4Yy1iNDMwLTU4ZWMtOTc3Zi1hMTJhMDQyZGIzN2E="
+    },
+    {
+      "id": "T-X5 the next padded length, 704 characters, is refused (701 cannot occur)",
+      "fields": {
+        "qrVersion": "1.1",
+        "invoiceType": "01",
+        "invoiceNumber": "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII",
+        "sellerName": "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+        "sellerVatin": "OM11003554",
+        "issueDate": "2026-07-13",
+        "issueTime": "10:15:30",
+        "totalWithVat": "4550.500",
+        "vatTotal": "216.690"
+      },
+      "refused": "base64 704 characters"
+    }
+  ],
+  "negative": [
+    {
+      "id": "T-X2 the superseded v1.0.1 layout (no invoice number, version 1.0) must not be what the current layout yields",
+      "uuidName": [
+        "1.0",
+        "01",
+        "\u0628\u0627\u0626\u0639",
+        "OM1234567891",
+        "2026-05-13",
+        "18:31:00",
+        "302.340",
+        "14.520"
+      ],
+      "sellerUuid": "16bd390c-de51-52c0-9caa-ad124a8c3ba3",
+      "currentLayout": "T-X1 SA App D.1 a.ii full/simplified (table and code example; the printed D.2 Base64 contradicts its own table, audit D)"
+    }
+  ],
+  "amounts": [
+    {
+      "id": "T-X3 net 1.010 at 5%: tag 9 unrounded, tag 8 from the 2-dp parts (receipt prints 1.061)",
+      "taxable": "1.010",
+      "vat": "0.051",
+      "minorUnits": 3,
+      "totalWithVat": "1.060",
+      "vatTotal": "0.051"
+    },
+    {
+      "id": "T-X3 ibr-co-15: 10.005 + 0.505 is 10.01 + 0.51",
+      "taxable": "10.005",
+      "vat": "0.505",
+      "minorUnits": 3,
+      "totalWithVat": "10.520",
+      "vatTotal": "0.505"
+    },
+    {
+      "id": "T-X3 half-up boundary below: 0.104 stays 0.10",
+      "taxable": "2.004",
+      "vat": "0.104",
+      "minorUnits": 3,
+      "totalWithVat": "2.100",
+      "vatTotal": "0.104"
+    },
+    {
+      "id": "T-X3 half-up boundary at: 2.005 becomes 2.01",
+      "taxable": "2.005",
+      "vat": "0.100",
+      "minorUnits": 3,
+      "totalWithVat": "2.110",
+      "vatTotal": "0.100"
+    },
+    {
+      "id": "T-X3 zero VAT",
+      "taxable": "2.000",
+      "vat": "0.000",
+      "minorUnits": 3,
+      "totalWithVat": "2.000",
+      "vatTotal": "0.000"
+    },
+    {
+      "id": "T-X3 a scale below the minor units is padded",
+      "taxable": "5",
+      "vat": "0.25",
+      "minorUnits": 3,
+      "totalWithVat": "5.250",
+      "vatTotal": "0.250"
+    },
+    {
+      "id": "T-X3 a scale above the minor units is kept, never truncated (2-minor-unit currency)",
+      "taxable": "1.005",
+      "vat": "0.051",
+      "minorUnits": 2,
+      "totalWithVat": "1.06",
+      "vatTotal": "0.051"
+    },
+    {
+      "id": "T-X3 two VAT categories, S 5% and Z 0%: tag 9 is the sum of the breakdown, tag 8 from the 2-dp parts",
+      "lines": [
+        { "category": "S", "rate": "5", "net": "1.010" },
+        { "category": "Z", "rate": "0", "net": "2.000" }
+      ],
+      "headerAllowance": "0.000",
+      "minorUnits": 3,
+      "subtotals": [
+        { "category": "S", "rate": "5", "taxable": "1.010", "vat": "0.051" },
+        { "category": "Z", "rate": "0", "taxable": "2.000", "vat": "0.000" }
+      ],
+      "taxable": "3.010",
+      "vat": "0.051",
+      "totalWithVat": "3.060",
+      "vatTotal": "0.051"
+    },
+    {
+      "id": "T-X3 a header allowance of 1.000 over S 5% and Z 0% is allocated to the lines, never subtracted again",
+      "lines": [
+        { "category": "S", "rate": "5", "net": "10.000" },
+        { "category": "Z", "rate": "0", "net": "5.000" }
+      ],
+      "headerAllowance": "1.000",
+      "minorUnits": 3,
+      "subtotals": [
+        { "category": "S", "rate": "5", "taxable": "9.333", "vat": "0.467" },
+        { "category": "Z", "rate": "0", "taxable": "4.667", "vat": "0.000" }
+      ],
+      "taxable": "14.000",
+      "vat": "0.467",
+      "totalWithVat": "14.470",
+      "vatTotal": "0.467"
+    },
+    {
+      "id": "T-X3 a negative amount gives no QR",
+      "taxable": "-1.000",
+      "vat": "0.050",
+      "minorUnits": 3,
+      "refused": true,
+      "side": "web"
+    },
+    {
+      "id": "T-X3 an exponent gives no QR",
+      "taxable": "1E+1",
+      "vat": "0.050",
+      "minorUnits": 3,
+      "refused": true,
+      "side": "web"
+    },
+    {
+      "id": "T-X3 unknown minor units give no QR",
+      "taxable": "1.000",
+      "vat": "0.050",
+      "minorUnits": null,
+      "refused": true,
+      "side": "web"
+    }
+  ],
+  "moments": [
+    {
+      "id": "T-X4 23:30 in Muscat, fraction dropped",
+      "soldAt": "2026-11-05T19:30:00.123Z",
+      "zone": "Asia/Muscat",
+      "issueDate": "2026-11-05",
+      "issueTime": "23:30:00"
+    },
+    {
+      "id": "T-X4 truncated, not rounded",
+      "soldAt": "2026-11-05T19:59:59.999Z",
+      "zone": "Asia/Muscat",
+      "issueDate": "2026-11-05",
+      "issueTime": "23:59:59"
+    },
+    {
+      "id": "T-X4 truncated beyond milliseconds too",
+      "soldAt": "2026-11-05T19:59:59.999999Z",
+      "zone": "Asia/Muscat",
+      "issueDate": "2026-11-05",
+      "issueTime": "23:59:59"
+    },
+    {
+      "id": "T-X4 midnight is 00:00:00, not 24:00:00",
+      "soldAt": "2026-11-05T20:00:00.000Z",
+      "zone": "Asia/Muscat",
+      "issueDate": "2026-11-06",
+      "issueTime": "00:00:00"
+    },
+    {
+      "id": "T-X4 00:30 the next day",
+      "soldAt": "2026-11-05T20:30:00Z",
+      "zone": "Asia/Muscat",
+      "issueDate": "2026-11-06",
+      "issueTime": "00:30:00"
+    },
+    {
+      "id": "T-X4 a second before UTC midnight",
+      "soldAt": "2026-11-05T23:59:59Z",
+      "zone": "Asia/Muscat",
+      "issueDate": "2026-11-06",
+      "issueTime": "03:59:59"
+    },
+    {
+      "id": "T-X4 UTC midnight",
+      "soldAt": "2026-11-06T00:00:00Z",
+      "zone": "Asia/Muscat",
+      "issueDate": "2026-11-06",
+      "issueTime": "04:00:00"
+    },
+    {
+      "id": "T-X4 an offset instant is the same instant",
+      "soldAt": "2026-11-06T00:30:00+04:00",
+      "zone": "Asia/Muscat",
+      "issueDate": "2026-11-06",
+      "issueTime": "00:30:00"
+    },
+    {
+      "id": "T-X6 a non-Muscat zone gives no QR",
+      "soldAt": "2026-11-05T19:30:00Z",
+      "zone": "Asia/Kolkata",
+      "refused": true,
+      "side": "web"
+    },
+    {
+      "id": "T-X6 a zone that is not a zone gives no QR",
+      "soldAt": "2026-11-05T19:30:00Z",
+      "zone": "Mars/Olympus",
+      "refused": true,
+      "side": "web"
+    },
+    {
+      "id": "T-X4 a soldAt that is not an instant gives no QR",
+      "soldAt": "2026-11-05 19:30",
+      "zone": "Asia/Muscat",
+      "refused": true,
+      "side": "web"
+    },
+    {
+      "id": "T-X4 an impossible date does not roll over (30 February)",
+      "soldAt": "2026-02-30T10:00:00Z",
+      "zone": "Asia/Muscat",
+      "refused": true,
+      "side": "web"
+    },
+    {
+      "id": "T-X4 an impossible time does not roll over (24:00:00)",
+      "soldAt": "2026-11-05T24:00:00Z",
+      "zone": "Asia/Muscat",
+      "refused": true,
+      "side": "web"
+    },
+    {
+      "id": "T-X4 an impossible offset does not parse (+24:00)",
+      "soldAt": "2026-11-05T19:30:00+24:00",
+      "zone": "Asia/Muscat",
+      "refused": true,
+      "side": "web"
+    }
+  ]
+}

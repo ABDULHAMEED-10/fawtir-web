@@ -174,7 +174,7 @@ function RecurringBill({ id }: { id: string }) {
     return (
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
         {read.read.status === 'failed' ? (
-          <ApiReadFailure error={read.read.error} retry={read.retry} />
+          <ApiReadFailure error={read.read.error} retry={read.retry} notFoundOn400 />
         ) : (
           <LoadingNotice />
         )}

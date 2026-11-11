@@ -141,3 +141,47 @@ describe('the words for stock line warnings', () => {
     ).toContain('السطر 1')
   })
 })
+
+describe('a catalogue product that names neither goods nor service (A-12)', () => {
+  const pressed = () =>
+    screen
+      .getAllByRole('button', { pressed: true })
+      .map((button) => button.textContent)
+      .filter((text) => text === 'Goods' || text === 'Service')
+
+  it('leaves the line unchosen, even when its unit reads as a service unit', async () => {
+    products = [
+      product({
+        id: 'p-3',
+        code: 'STD-5',
+        name: 'Office chair',
+        defaultUnitCode: 'HUR',
+        classificationGoodsOrService: null,
+      }),
+    ]
+    renderComposer()
+    await pick(/Office chair/)
+    expect(pressed()).toEqual([])
+    fireEvent.click(screen.getByRole('button', { name: 'Service' }))
+    expect(pressed()).toEqual(['Service'])
+  })
+
+  it('takes the product’s own classification when it has one', async () => {
+    products = [product({ classificationGoodsOrService: 'S', name: 'Barista lesson', code: 'SVC-1' })]
+    renderComposer()
+    await pick(/Barista lesson/)
+    expect(pressed()).toEqual(['Service'])
+  })
+})
+
+describe('issuing a line that is neither goods nor service (A-12)', () => {
+  it('asks for the choice before issue', async () => {
+    const { problemsBeforeIssue } = await import('../../lib/invoiceDraft')
+    const problems = problemsBeforeIssue({
+      customerType: 'business',
+      lines: [{ itemType: null }],
+    } as unknown as Parameters<typeof problemsBeforeIssue>[0])
+    expect(problems).toEqual([{ field: 'itemType', line: 0, key: 'invoiceDraft.problem.itemType' }])
+    expect(i18n.t('invoiceDraft.problem.itemType')).toBe('Choose whether this line is goods or a service.')
+  })
+})

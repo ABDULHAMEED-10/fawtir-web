@@ -99,8 +99,13 @@ const REFUSALS: Record<string, string> = {
   BILL_PAYMENT_ALREADY_REVERSED: 'apiErrors.refused.paymentAlreadyReversed',
   // Reversing a payment of a bill in a run whose bank file is made (owner's sentence, 8 Oct 2026).
   BILL_PAYMENT_REVERSAL_IN_SENT_RUN: 'apiErrors.refused.paymentReversalInSentRun',
+  // 409 on reversing the bill side of a till paid-out (backend V536, FIN-M3 §4.3.6): its correction is
+  // open question OQ-F18, so the sentence offers no other route.
+  BILL_PAYMENT_PAID_FROM_TILL: 'apiErrors.refused.paymentPaidFromTill',
   APPROVAL_ALREADY_GIVEN: 'apiErrors.refused.approvalAlreadyGiven',
   APPROVAL_REJECTION_REASON_REQUIRED: 'apiErrors.refused.approvalReasonRequired',
+  // Reopening a rejected bill (backend V523) with no reason.
+  APPROVAL_REOPEN_REASON_REQUIRED: 'billDetail.refused.reopenReasonRequired',
   // Exporting or marking paid a run that holds a held bill. The payment run screens name this
   // code themselves (`RUN_REFUSALS`), so this is what any other screen says.
   PAYMENT_RUN_BILL_ON_HOLD: 'apiErrors.refused.paymentRunBillOnHold',
@@ -112,6 +117,9 @@ const REFUSALS: Record<string, string> = {
   // The note a decision on a held Peppol copy carries (backend V493).
   BILL_DUPLICATE_RESOLUTION_NOTE_REQUIRED: 'billDetail.duplicate.refused.noteRequired',
   BILL_DUPLICATE_RESOLUTION_NOTE_TOO_LONG: 'billDetail.duplicate.refused.noteTooLong',
+  // A13 (backend, 400): a release with no reason. The dialog does not send one, so this answers a
+  // bundle cached from before the reason was required, or any other caller.
+  CREDIT_NOTE_RELEASE_REASON_REQUIRED: 'supplierCreditNoteDetail.release.refused.reasonRequired',
 }
 
 /**
@@ -123,6 +131,9 @@ const REFUSAL_VALUES: Record<
   (problem: Readonly<Record<string, unknown>>) => Record<string, string>
 > = {
   CREDIT_NOTE_TARGET_IN_PAYMENT_RUN: (problem) => ({
+    run: String(problem.paymentRunReference ?? ''),
+  }),
+  CREDIT_NOTE_RELEASE_BILL_IN_PAYMENT_RUN: (problem) => ({
     run: String(problem.paymentRunReference ?? ''),
   }),
   BILL_PAYMENT_REVERSAL_IN_SENT_RUN: (problem) => ({
@@ -144,10 +155,33 @@ const CONFLICT_REFUSALS: Record<string, string> = {
   // `/apply` or `/refund` on a note held as a later Peppol copy (backend V493), reached when the
   // hold opened after the screen was read.
   CREDIT_NOTE_HELD_AS_DUPLICATE: 'supplierCreditNotes.held.refused',
+  // A keyed `/refund` (backend P0, 2026-10-31): the key was used for other figures, or its first
+  // request is still running. Neither is "reload and try again": the first needs the person to
+  // check what was recorded, the second to press again unchanged, which the server replays.
+  CREDIT_NOTE_REFUND_IDEMPOTENCY_KEY_REUSED: 'supplierCreditNoteDetail.refundKeyReused',
+  CREDIT_NOTE_REFUND_IN_PROGRESS: 'supplierCreditNoteDetail.refundInProgress',
+  // E11 (client decision 2026-11-08): a rejected note is refused its refund. The page offers none on
+  // a note it reads as rejected (N23), so this answers one rejected after the page was read.
+  CREDIT_NOTE_REFUND_REJECTED: 'supplierCreditNoteDetail.refundRejected',
+  // Releasing a note's credit from a bill (backend #827), each about what the two hold now.
+  CREDIT_NOTE_NOT_APPLIED_TO_BILL: 'supplierCreditNoteDetail.release.refused.changed',
+  CREDIT_NOTE_APPLICATION_ALREADY_RELEASED: 'supplierCreditNoteDetail.release.refused.changed',
+  CREDIT_NOTE_RELEASE_BILL_IN_PAYMENT_RUN: 'supplierCreditNoteDetail.release.refused.inRun',
+  CREDIT_NOTE_RELEASE_OVERPAYMENT_SETTLED: 'supplierCreditNoteDetail.release.refused.overpayment',
+  CREDIT_NOTE_RELEASE_DEBIT_NOTE_TARGET: 'supplierCreditNoteDetail.release.refused.debitNote',
+  // Setting a note against the bill it was released from.
+  CREDIT_NOTE_RELEASED_FROM_BILL: 'supplierCreditNoteDetail.release.refused.reapply',
   // A held Peppol copy (backend V493): deciding it, and the plain release it refuses.
   BILL_DUPLICATE_ALREADY_RESOLVED: 'billDetail.duplicate.refused.alreadyResolved',
   BILL_NOT_HELD_AS_DUPLICATE: 'billDetail.duplicate.refused.notHeld',
   BILL_DUPLICATE_SAME_DOCUMENT_UUID: 'billDetail.duplicate.refused.sameDocumentUuid',
+  // Backend batch 43 round 19 maker-checker: the reviewer recorded one of the two documents.
+  BILL_DUPLICATE_DECIDER_IS_RECORDER: 'billDetail.duplicate.refused.deciderIsRecorder',
+  // Backend batch 43 round 20: a person recorded one of the pair after V229 but no recorder is
+  // stored, so the server refuses rather than guess who the maker was.
+  BILL_DUPLICATE_RECORDER_UNKNOWN: 'billDetail.duplicate.refused.recorderUnknown',
+  // Backend batch 43 round 28: the potential coincidences changed after the page read them.
+  BILL_DUPLICATE_EVIDENCE_CHANGED: 'billDetail.duplicate.refused.evidenceChanged',
   BILL_HOLD_DUPLICATE_RELEASE_REFUSED: 'billDetail.duplicate.refused.releaseRefused',
   // Approving a copy that became a held duplicate after the screen was read.
   BILL_APPROVAL_HELD_AS_DUPLICATE: 'billDetail.duplicate.refused.approvalHeld',
@@ -155,6 +189,40 @@ const CONFLICT_REFUSALS: Record<string, string> = {
   BILL_REJECTION_HELD_AS_DUPLICATE: 'billDetail.duplicate.refused.rejectionHeld',
   // Accepting a debit note that became a held duplicate after the screen was read.
   DEBIT_NOTE_HELD_AS_DUPLICATE: 'supplierDebitNotes.held.refused',
+  // A rejection is taken back by a reopen, never by an approval (backend V523, owner batch 29).
+  BILL_APPROVAL_REJECTED_NEEDS_REOPEN: 'billDetail.refused.needsReopen',
+  BILL_REOPEN_NOT_REJECTED: 'billDetail.refused.changed',
+  BILL_REOPEN_HELD_AS_DUPLICATE: 'billDetail.duplicate.refused.reopenHeld',
+  // R8: `/apply`, `/apply-what-fits` or `/apply-on-recording` on a rejected note. A row whose
+  // `approval` reads REJECTED offers no "Set against" (5160f592), so this answers the rest: a note
+  // rejected after the screen was read, or a row from a server that sends no `approval`.
+  CREDIT_NOTE_REJECTED: 'supplierCreditNotes.refused.rejected',
+  // Rejecting a standalone note that names the document it corrects, or a self-billed note tied
+  // to an issued invoice (backend 1afc80536, review finding B1): once that document is on file
+  // the credit is set against it whatever the decision, so the server refuses the rejection,
+  // interim and fail-closed pending an owner decision. Approval is not refused, so the sentence
+  // offers it.
+  CREDIT_NOTE_REJECTION_NAMES_PRECEDING_DOCUMENT: 'billDetail.refused.creditNotePrecedingDocument',
+  // Booking goods in (backend V519, DEC-30-08): the whole receipt is refused and nothing is received.
+  PRODUCT_STOCK_UNIT_MISMATCH: 'apiErrors.refused.receiptStockUnitMismatch',
+  // A line written before V519 recorded no unit, and the receipt stated none (`statedUnit`): the
+  // sentence asks for the unit the goods were counted in, the one way past it (DEC-30-08).
+  GOODS_RECEIPT_STOCK_UNIT_REQUIRED: 'apiErrors.refused.receiptStockUnitRequired',
+  // Supplier cash dated in a closed accounting period (backend V545 OD-P5, ClosedPeriodPostingGuard).
+  // Keep-as-credit, apply-credit and a payment reversal are dated today by the server, so this
+  // sentence names no date to change; the screens where the person picks the date say
+  // PERIOD_CLOSED_CHOSEN_DATE_KEY instead. "Reload and try again" could never get past it.
+  PERIOD_CLOSED: 'apiErrors.refused.periodClosed',
+}
+
+/**
+ * The closed-period refusal on a screen where the person chose the date (a refund, marking a run
+ * paid), so choosing another date is a way past it.
+ */
+export const PERIOD_CLOSED_CHOSEN_DATE_KEY = 'apiErrors.refused.periodClosedChosenDate'
+
+export function isPeriodClosedRefusal(error: unknown): boolean {
+  return conflictRefusalKey(error) !== null && (error as ApiError).code === 'PERIOD_CLOSED'
 }
 
 function conflictRefusalKey(error: unknown): string | null {
@@ -187,7 +255,8 @@ export function refusalMessageKey(error: unknown): string | null {
 
 /** The values a refusal's sentence names, or undefined when it names none. */
 export function refusalMessageValues(error: unknown): Record<string, string> | undefined {
-  if (!isExpenditureRefusal(error) || error.code === null) return undefined
+  if (!(error instanceof ApiError) || error.code === null) return undefined
+  if (!isExpenditureRefusal(error) && conflictRefusalKey(error) === null) return undefined
   return Object.hasOwn(REFUSAL_VALUES, error.code)
     ? REFUSAL_VALUES[error.code](error.problem)
     : undefined

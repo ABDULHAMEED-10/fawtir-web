@@ -29,6 +29,8 @@ import {
   loadHistory,
   loadInternalNote,
   loadDispatch,
+  loadReceiptQr,
+  receiptQrPath,
   releaseBuyerEmail,
   loadInvoice,
   loadPayments,
@@ -36,11 +38,13 @@ import {
   type InvoiceAttachmentDto,
   type InvoiceDetailDto,
   type InvoiceDispatchDto,
+  type InvoiceReceiptQrDto,
   type InvoiceLineWarningDto,
   type InvoiceHistoryDto,
   type InvoicePaymentDto,
   type InvoiceReceivableDto,
   type InvoiceSendResultDto,
+  deliveryBlockerKey,
 } from '../../api/invoices/detail'
 import { stockLineWarningTexts } from '../../lib/stockLineWarnings'
 import { loadBranches, type BranchDto } from '../../api/invoices/drafts'
@@ -70,6 +74,12 @@ import { IssueInvoiceModal } from '../../components/invoice/IssueInvoiceModal'
 import { DraftApprovalCard, useSalesApproval } from '../../components/invoice/DraftApprovalCard'
 import { editWaitsOnApproval, issueWaitsOnApproval } from '../../lib/salesApproval'
 import { SendInvoiceModal } from '../../components/invoice/SendInvoiceModal'
+import { HeldHsCodesModal } from '../../components/invoice/HeldHsCodesModal'
+import { isHeldForHsCode, missingHsLines } from '../../lib/heldHsCodes'
+import { receiptQrShown } from '../../lib/invoiceReceiptQr'
+import { useServerQr } from '../../components/invoice/useServerQr'
+import { PRINT_SHEET_CLASS } from '../../components/print/printSheet'
+import type { HeldHsCodeAmendmentDto } from '../../api/invoices/detail'
 import {
   RELEASE_REFUSALS,
   buyerDeliveryNote,
@@ -95,7 +105,10 @@ import {
 import { dueDateFor, muscatToday } from '../../lib/invoiceIssue'
 import {
   PAYMENT_REFUSALS,
+  ISSUED_DEBIT_NOTE_LOCKED,
   attachmentsEditable,
+  cancelBlockOf,
+  issuedDebitNoteLocked,
   dueNote,
   isDraft,
   isSelfBilled,
@@ -117,7 +130,7 @@ import {
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatDate, formatInstant, initialsOf } from '../../lib/format'
 import { formatFileSize } from '../../lib/files'
-import { can, useSession } from '../../lib/session/session'
+import { can, mayRequest, useSession } from '../../lib/session/session'
 import { usePlanIncludes } from '../../lib/planAccess'
 import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 import backIcon from '../../assets/invoice-details/back.svg'
@@ -142,6 +155,8 @@ import uploadIcon from '../../assets/create-invoice/upload.svg'
 import editIcon from '../../assets/actions/edit.svg'
 import debitNoteIcon from '../../assets/actions/invoice.svg'
 import deleteIcon from '../../assets/actions/delete.svg'
+import { UnappliedCredit } from '../../components/invoice/UnappliedCredit'
+import { creditHeld } from '../../lib/unappliedCredit'
 
 type Tone = ReturnType<typeof statusOf>['tone']
 
@@ -272,7 +287,11 @@ function InvoiceScreen() {
     document && can(session, 'customer.read') ? `/v1/customers/${document.customerId}` : null,
     () => loadCustomer(document!.customerId),
   )
-  const branches = useApiRead<BranchDto[]>(document ? '/v1/branches' : null, loadBranches)
+  // `branch.read` only: a reader without it answered 403 here (B-14); the branch is then unnamed.
+  const branches = useApiRead<BranchDto[]>(
+    document && mayRequest(session, 'branch.read') ? '/v1/branches' : null,
+    loadBranches,
+  )
   const branchLabel = useBranchName()
   // The live profile stands in for the seller only where the document carries no issued snapshot
   // (a draft, or a server older than the snapshot), and only for a reader the profile admits.
@@ -287,6 +306,15 @@ function InvoiceScreen() {
     document && !isDraft(document) ? `${invoicePath(id)}/dispatch` : null,
     () => loadDispatch(id),
   )
+  // QR E-3: only an issued invoice can carry a receipt QR. A credit or debit note answers
+  // NOT_AN_ISSUED_SALE until QR-D-5 is ruled, so a note is not asked.
+  const receiptQrAsked =
+    document !== null && document.authoringState === 'ISSUED' && document.type === 'INVOICE'
+  const receiptQr = useApiRead<InvoiceReceiptQrDto>(
+    receiptQrAsked ? receiptQrPath(id) : null,
+    () => loadReceiptQr(id),
+  )
+  const receiptQrView = receiptQrShown(receiptQrAsked ? receiptQr.read : null)
   // A Send's answer, or a newer read while the server was mid-step. Kept apart from the read so a
   // refresh does not blank the line with a loader every few seconds.
   const [dispatchLatest, setDispatchLatest] = useState<InvoiceDispatchDto | null>(null)
@@ -365,6 +393,7 @@ function InvoiceScreen() {
         : Promise.resolve(),
   )
   const [sending, setSending] = useState(false)
+  const [addingHsCodes, setAddingHsCodes] = useState(false)
   // The credit and debit notes that correct this invoice (I-10/I-11), listed on the invoice so a
   // reader sees why its balance moved and can open each note.
   const notesPath =
@@ -390,6 +419,8 @@ function InvoiceScreen() {
   // The reminder banner (Figma 154:163981): what would go out for an issued, unsettled invoice.
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' }).format(new Date())
   const owed = receivable.read.status === 'ready' ? receivable.read.data : null
+  // D-30(a): credit notes or payments above the document's total; held, never set against it.
+  const heldCredit = creditHeld(owed?.unappliedCredit)
   const chaseable =
     document !== null &&
     document.authoringState === 'ISSUED' &&
@@ -401,8 +432,10 @@ function InvoiceScreen() {
     loadReminderPreview(previewPath!),
   )
   // The ladder, so the banner can say "Reminder 2 of 4" and when the next one goes out.
+  // The schedule is the settings' (`admin.settings.manage`); anyone else got a 403 (B-14) and the
+  // banner reads the ladder as unknown, as it did after that refusal.
   const schedule = useApiRead<ReminderScheduleDto>(
-    chaseable ? REMINDER_SCHEDULE_PATH : null,
+    chaseable && mayRequest(session, 'admin.settings.manage') ? REMINDER_SCHEDULE_PATH : null,
     loadReminderSchedule,
   )
   const [remindersOpen, setRemindersOpen] = useState(false)
@@ -437,6 +470,8 @@ function InvoiceScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const [paying, setPaying] = useState(false)
+  // Set by a payment refusal that says the balance moved (DA-12): the page re-reads on close.
+  const balanceStale = useRef(false)
   // The payment being reversed, and the key minted when its confirmation opened: confirming twice
   // is one reversal, not two refusals.
   const [reversing, setReversing] = useState<{ id: string; amount: number; key: string } | null>(
@@ -457,7 +492,7 @@ function InvoiceScreen() {
         {invoice.read.status === 'loading' ? (
           <LoadingNotice />
         ) : (
-          <ApiReadFailure error={invoice.read.error} retry={invoice.retry} />
+          <ApiReadFailure error={invoice.read.error} retry={invoice.retry} notFoundOn400 />
         )}
       </div>
     )
@@ -470,6 +505,7 @@ function InvoiceScreen() {
     return <Navigate to={`/expenditure/self-billing/${encodeURIComponent(data.id)}`} replace />
   }
   const draft = isDraft(data)
+  const recordedStock = stockLineWarningTexts(t, data.warnings)
   const noteType = data.type === 'CREDIT_NOTE' || data.type === 'DEBIT_NOTE' ? data.type : null
   // Self-billing inverts the parties: the tenant is the buyer and customerId names the seller,
   // so every counterparty label on this page flips with the document type.
@@ -484,24 +520,47 @@ function InvoiceScreen() {
       ? branches.read.data.find((branch) => branch.id === data.branchId)
       : undefined
   const branchName = issuingBranch ? branchLabel.label(issuingBranch) : undefined
+  // The document's own customerName (C-5, backend #824) stands in while the customer record is
+  // unread or refused; a server before #824 sends null, and the page says it does not know.
   const customerName =
-    customer.read.status === 'ready' ? customer.read.data.displayName : t(party.unknown)
+    customer.read.status === 'ready'
+      ? customer.read.data.displayName
+      : (data.customerName ?? t(party.unknown))
   const onPeppol =
     customer.read.status === 'ready' && customer.read.data.peppolDelivery === 'ACTIVE'
   const due = dueNote(owed, today)
   const vatRates = [
     ...new Set(data.lines.map((line) => `${line.en16931Category}:${line.taxRate ?? 0}`)),
   ]
+  // One category word for the header and the totals line: the totals hard-coded "Standard" and
+  // read "VAT · Standard 0%" on a zero-rated invoice (TEST verification 2026-10-29).
+  const vatCategory = data.lines[0]
+    ? t(`invoiceDetails.category.${data.lines[0].en16931Category}`, {
+        defaultValue: data.lines[0].taxCategoryCode,
+      })
+    : ''
+  // Its own words: Arabic needs the definite, agreeing form after "الضريبة" ("الضريبة · القياسية"),
+  // which the header's "نسبة قياسية" does not take.
+  const vatRowLabel = (category: string, code: string, rate: number) =>
+    t('invoiceDetails.totals.vatRate', {
+      category: t(`invoiceDetails.totals.category.${category}`, {
+        defaultValue: t(`invoiceDetails.category.${category}`, { defaultValue: code }),
+      }),
+      rate,
+    })
   const vatTreatment =
     data.lines.length === 0
       ? '—'
       : vatRates.length > 1
         ? t('invoiceDetails.vat.mixed')
-        : t('invoiceDetails.vat.rate', {
-            category: t(`invoiceDetails.category.${data.lines[0].en16931Category}`, {
-              defaultValue: data.lines[0].taxCategoryCode,
-            }),
+        : // Its own words per category: "{{category}} rate" read "Zero-rated rate · 0%", and the
+          // Arabic "نسبة {{category}}" read "نسبة بنسبة صفر" (A-8, local E2E 2026-10-29).
+          t(`invoiceDetails.vat.treatment.${data.lines[0].en16931Category}`, {
             rate: data.lines[0].taxRate ?? 0,
+            defaultValue: t('invoiceDetails.vat.rate', {
+              category: vatCategory,
+              rate: data.lines[0].taxRate ?? 0,
+            }),
           })
   const sentAt =
     history.read.status === 'ready'
@@ -545,10 +604,28 @@ function InvoiceScreen() {
       adoptDispatch(null)
       dispatchRead.retry()
     } catch (error) {
-      setNotice({ body: refusalText(t, error) })
+      setNotice({ body: refusalText(t, error, noteType) })
+      // A refusal on a settlement the page did not show yet: re-read, so the menu stops offering it.
+      if (error instanceof ApiError && error.code && Object.hasOwn(CANCEL_REFUSALS, error.code)) {
+        setCancelling(false)
+        receivable.retry()
+        notes.retry()
+      }
     } finally {
       setBusy(false)
     }
+  }
+
+  const hsCodesAdded = (result: HeldHsCodeAmendmentDto) => {
+    setAddingHsCodes(false)
+    setNotice({
+      key: result.dispatch === 'RELEASED' ? 'heldHs.done.released' : 'heldHs.done.stillOwed',
+    })
+    invoice.retry()
+    history.retry()
+    // The release changes the dispatch; the line under the title is read again rather than guessed.
+    adoptDispatch(null)
+    dispatchRead.retry()
   }
 
   const releaseHeldEmail = async () => {
@@ -708,15 +785,45 @@ function InvoiceScreen() {
       onSelect: () => void releaseHeldEmail(),
     })
   }
-  if (data.authoringState === 'ISSUED' && can(session, 'invoice.cancel')) {
+  // Owner v2 A1/K5: the user adds the HS code (or Other) to an invoice held for one and releases it
+  // under the same number. Offered only for that hold, which is the only one the route releases, and
+  // with invoice.issue, the permission the route asks.
+  if (
+    data.authoringState === 'ISSUED' &&
+    isHeldForHsCode(dispatch) &&
+    missingHsLines(data).length > 0 &&
+    mayIssue &&
+    can(session, 'invoice.issue')
+  ) {
+    moreActions.push({
+      id: 'addHsCodes',
+      labelKey: 'heldHs.action',
+      icon: sendIcon,
+      onSelect: () => setAddingHsCodes(true),
+    })
+  }
+  const cancelBlock = cancelBlockOf(receivable.read, notesPath ? notes.read : null)
+  const debitLocked = issuedDebitNoteLocked(data.type, data.authoringState === 'ISSUED')
+  if (
+    data.authoringState === 'ISSUED' &&
+    can(session, 'invoice.cancel') &&
+    (debitLocked || cancelBlock !== 'unknown')
+  ) {
+    const blockedKey = debitLocked
+      ? ISSUED_DEBIT_NOTE_LOCKED
+      : cancelBlock === null || cancelBlock === 'unknown'
+        ? null
+        : cancelBlockedKey(cancelBlock, noteType)
+    // A settled document keeps the item, so the reader who looks for Cancel learns why it cannot
+    // be done instead of finding it gone; it no longer opens the confirmation.
     moreActions.push({
       id: 'cancel',
       labelKey: noteType
         ? `salesNote.detail.cancelAction.${noteType}`
         : 'invoiceDetails.actions.cancel',
       icon: deleteIcon,
-      danger: true,
-      onSelect: () => setCancelling(true),
+      danger: blockedKey === null,
+      onSelect: () => (blockedKey === null ? setCancelling(true) : setNotice({ key: blockedKey })),
     })
   }
 
@@ -741,6 +848,7 @@ function InvoiceScreen() {
       lineTotals={totals}
       money={money}
       day={day}
+      qrPayload={receiptQrView.payload}
     />
   )
 
@@ -907,6 +1015,19 @@ function InvoiceScreen() {
         <section className="rounded-sm border border-primary-300 bg-primary-25 p-4">
           <p className="text-sm font-medium leading-[1.5] text-text-secondary">
             {t('invoiceDetails.draftNotice')}
+          </p>
+        </section>
+      ) : null}
+
+      {/* The stock warnings recorded at issue (V518), which the single read returns from batch 39
+          STK-Q4B on for invoices as well as notes. Not while the arrival notice already says them. */}
+      {!draft && !notice && recordedStock.length > 0 ? (
+        <section
+          className="rounded-sm border border-primary-300 bg-primary-25 p-4"
+          data-testid="invoice-recorded-stock-warnings"
+        >
+          <p className="text-sm font-medium leading-[1.5] text-text-secondary">
+            {[t('invoiceDetails.stockWarnings'), ...recordedStock].join(' ')}
           </p>
         </section>
       ) : null}
@@ -1078,6 +1199,14 @@ function InvoiceScreen() {
                   />
                 </div>
               </div>
+              {heldCredit !== null ? (
+                <UnappliedCredit
+                  credit={heldCredit}
+                  currency={owed.currency}
+                  hint
+                  className="mt-4"
+                />
+              ) : null}
 
               {/* `peppolResponse` and `deliveredAt` are TODO(backend) and never answered, so nothing here reads them: a delivery is claimed only from the dispatch the server reports, never from a field whose meaning the API has not defined. */}
               <div className="mt-4 flex items-center gap-2 rounded-sm bg-surface-background px-3 py-2.5">
@@ -1104,10 +1233,19 @@ function InvoiceScreen() {
                         ]
                           .filter(Boolean)
                           .join(' · ')
-                      : // A reader who may not see the customer gets the fact without a placeholder name.
-                        customer.read.status === 'ready'
-                        ? t('invoiceDetails.delivered.notSent', { customer: customerName })
-                        : t('invoiceDetails.notSentYet')}
+                      : [
+                          // A reader who may not see the customer gets the fact without a placeholder name.
+                          customer.read.status === 'ready'
+                            ? t('invoiceDetails.delivered.notSent', { customer: customerName })
+                            : t('invoiceDetails.notSentYet'),
+                          // The server sends `deliveryBlocker` only while nothing was submitted, so it
+                          // belongs on this branch alone (IMPL2-D1, InvoiceResponse at a17fad205).
+                          data.deliveryBlocker
+                            ? t(`invoiceDetails.deliveryBlocker.${deliveryBlockerKey(data.deliveryBlocker)}`)
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
                 </p>
               </div>
             </section>
@@ -1118,7 +1256,7 @@ function InvoiceScreen() {
             action={
               can(session, 'customer.read') && customer.read.status === 'ready' ? (
                 <Link
-                  to={`/customers/${data.customerId}`}
+                  to={`/customers/${data.customerId}/edit`}
                   className="inline-flex items-center gap-0.5 text-base font-semibold text-primary-800"
                 >
                   {t(party.view)}
@@ -1227,7 +1365,7 @@ function InvoiceScreen() {
                 >
                   <img src={zoomInIcon} alt="" className="size-5" />
                 </button>
-                {/* TODO(backend): no PDF is rendered for a document yet; download and print wait for it. */}
+                {/* TODO(backend): no PDF is rendered for a document yet; download waits for it. */}
                 <button
                   type="button"
                   disabled
@@ -1237,19 +1375,25 @@ function InvoiceScreen() {
                 >
                   <img src={downloadIcon} alt="" className="size-5" />
                 </button>
+                {/* QR E-3: a consumer's invoice prints its preview with the server's receipt QR.
+                    Any other waits for the PDF, so no consumer sheet goes out without its QR. */}
                 <button
                   type="button"
-                  disabled
-                  title={t('invoiceDetails.pdf.unavailable')}
+                  disabled={receiptQrView.payload === null}
+                  onClick={() => window.print()}
+                  title={
+                    receiptQrView.payload === null ? t('invoiceDetails.pdf.unavailable') : undefined
+                  }
                   aria-label={t('invoiceDetails.print')}
-                  className="rounded-sm p-0.5 disabled:opacity-40"
+                  className="rounded-sm p-0.5 hover:bg-neutral-25 disabled:opacity-40 disabled:hover:bg-transparent"
                 >
                   <img src={printIcon} alt="" className="size-5" />
                 </button>
                 {/* TODO(backend): sharing a copy of the invoice waits for the rendered PDF and the
                     share calls (INCOME.md rows SH.1 to SH.3). When live, hide both on a deemed
                     supply too (no buyer copy). Hidden while read-only (owner, 23 Oct). */}
-                {mayShare ? (
+                {/* Sharing sends the document, so it needs what Send needs (C-9). */}
+                {mayShare && can(session, 'invoice.issue') ? (
                   <>
                     <button
                       type="button"
@@ -1286,8 +1430,21 @@ function InvoiceScreen() {
               title={t('invoiceDetails.pdf.previewNote')}
               className="max-h-[560px] overflow-auto rounded-sm bg-surface-background p-3"
             >
-              <div style={{ zoom }}>{preview}</div>
+              {/* The pane's copy is the one Print puts on paper; the full-screen one is not marked.
+                  Marked only while Print is enabled, so any other invoice prints as it did before
+                  the sheet (review QW3R-2). */}
+              <div
+                style={{ zoom }}
+                className={receiptQrView.payload === null ? undefined : PRINT_SHEET_CLASS}
+              >
+                {preview}
+              </div>
             </div>
+            {receiptQrView.noteKey ? (
+              <p className="mt-2 text-xs font-medium text-text-quaternary">
+                {t(receiptQrView.noteKey)}
+              </p>
+            ) : null}
           </section>
         </aside>
       </div>
@@ -1306,7 +1463,17 @@ function InvoiceScreen() {
                 <th className="py-2 text-start font-semibold">{t('invoiceDetails.col.vat')}</th>
                 <th className="py-2 text-start font-semibold">{t('invoiceDetails.col.qty')}</th>
                 <th className="py-2 text-start font-semibold">{t('invoiceDetails.col.unit')}</th>
-                <th className="py-2 text-start font-semibold">{t('invoiceDetails.col.disc')}</th>
+                <th className="py-2 text-start font-semibold">
+                  {/* "Disc %" only when every discount is a percentage: a fixed 4.000 under it
+                      read as 4% (DA-15, local E2E 2026-10-29). */}
+                  {t(
+                    data.lines.every(
+                      (line) => line.discountValue === 0 || line.discountType === 'PERCENTAGE',
+                    )
+                      ? 'invoiceDetails.col.disc'
+                      : 'invoiceDetails.col.discount',
+                  )}
+                </th>
                 <th className="py-2 text-end font-semibold">{t('invoiceDetails.col.total')}</th>
               </tr>
             </thead>
@@ -1368,15 +1535,30 @@ function InvoiceScreen() {
                 'text-success-700',
               ],
               ['invoiceDetails.totals.net', money(data.totals.taxableAmount), 'text-text-primary'],
-              [
-                vatRates.length === 1 && data.lines[0]
-                  ? t('invoiceDetails.totals.vatRate', { rate: data.lines[0].taxRate ?? 0 })
-                  : t('invoiceDetails.totals.vatOnly'),
-                money(data.totals.vatAmount),
-                'text-text-primary',
-              ],
-            ].map(([key, value, tone]) => (
-              <div key={key} className="flex items-center justify-between gap-4 text-sm">
+              // One VAT row per category and rate, each the server's own figure (A-8b, backend
+              // #824). A server before it sends no subtotals: one row, named only when every line
+              // shares one category and rate, since splitting the VAT here would invent figures.
+              ...(data.totals.taxSubtotals?.length
+                ? data.totals.taxSubtotals.map((subtotal) => [
+                    vatRowLabel(subtotal.en16931Category, subtotal.taxCategoryCode, subtotal.rate),
+                    money(subtotal.vatAmount),
+                    'text-text-primary',
+                  ])
+                : [
+                    [
+                      vatRates.length === 1 && data.lines[0]
+                        ? vatRowLabel(
+                            data.lines[0].en16931Category,
+                            data.lines[0].taxCategoryCode,
+                            data.lines[0].taxRate ?? 0,
+                          )
+                        : t('invoiceDetails.totals.vatOnly'),
+                      money(data.totals.vatAmount),
+                      'text-text-primary',
+                    ],
+                  ]),
+            ].map(([key, value, tone], index) => (
+              <div key={`${index}-${key}`} className="flex items-center justify-between gap-4 text-sm">
                 <span className="font-medium text-text-tertiary">
                   {key.startsWith('invoiceDetails.') ? t(key) : key}
                 </span>
@@ -1680,6 +1862,18 @@ function InvoiceScreen() {
                   amount={money(owed.documentTotal)}
                   amountClassName="font-semibold text-text-primary"
                 />
+                {/* Without the credit, "Paid 0.000 of 52.500, Outstanding 42.000" did not add up. */}
+                {owed.creditedAmount > 0 ? (
+                  <>
+                    {' · '}
+                    {t('invoiceDetails.credited')}{' '}
+                    <OmAmount
+                      size="xs"
+                      amount={money(owed.creditedAmount)}
+                      amountClassName="font-semibold text-text-primary"
+                    />
+                  </>
+                ) : null}
               </span>
               <span className="inline-flex items-center gap-1">
                 {t('invoiceDetails.outstanding')}{' '}
@@ -1820,7 +2014,11 @@ function InvoiceScreen() {
           initialIssueDate={muscatToday()}
           initialDueDate={dueDateFor(reference, muscatToday(), data.details?.paymentTerms?.code)}
           kind={noteType ?? 'INVOICE'}
-          customerId={data.customerId}
+          customerEditPath={
+            can(session, 'customer.manage')
+              ? `/customers/${encodeURIComponent(data.customerId)}/edit`
+              : undefined
+          }
           onClose={() => setIssuing(false)}
           onIssued={(issued) => {
             setIssuing(false)
@@ -1844,6 +2042,14 @@ function InvoiceScreen() {
         />
       ) : null}
 
+      {addingHsCodes ? (
+        <HeldHsCodesModal
+          invoice={data}
+          onClose={() => setAddingHsCodes(false)}
+          onDone={hsCodesAdded}
+        />
+      ) : null}
+
       {sending ? (
         <SendInvoiceModal
           invoiceId={data.id}
@@ -1861,7 +2067,18 @@ function InvoiceScreen() {
           outstanding={owed.outstandingAmount}
           issueDate={data.issueDate}
           today={today}
-          onClose={() => setPaying(false)}
+          onBalanceChanged={() => {
+            balanceStale.current = true
+          }}
+          onClose={() => {
+            setPaying(false)
+            // Read again only once the dialog is gone: a re-read blanks the receivable, and the
+            // dialog is drawn only while it is there.
+            if (balanceStale.current) {
+              balanceStale.current = false
+              afterPayment()
+            }
+          }}
           onRecorded={() => {
             setPaying(false)
             setNotice({ key: 'invoiceDetails.done.recorded' })
@@ -1971,6 +2188,7 @@ function DocumentPreview({
   lineTotals: totals,
   money,
   day,
+  qrPayload,
 }: {
   data: InvoiceDetailDto
   status: string
@@ -1981,8 +2199,11 @@ function DocumentPreview({
   lineTotals: Map<number, number>
   money: (value: number | null | undefined) => string
   day: (value: string | null) => string
+  /** The server's receipt QR payload, drawn as given; null draws none. */
+  qrPayload: string | null
 }) {
   const { t } = useTranslation()
+  const qr = useServerQr(qrPayload)
   const kind =
     data.type === 'CREDIT_NOTE'
       ? 'creditNote'
@@ -2113,6 +2334,13 @@ function DocumentPreview({
       {data.details?.customerVisibleNote ? (
         <p className="mt-4 text-[8px] text-text-quaternary">{data.details.customerVisibleNote}</p>
       ) : null}
+      {qr ? (
+        <img
+          src={qr}
+          alt={t('invoiceDetails.preview.qrAlt')}
+          className="ms-auto mt-3 block size-[78px]"
+        />
+      ) : null}
     </div>
   )
 }
@@ -2229,7 +2457,30 @@ function fileKind(file: InvoiceAttachmentDto): string {
   return file.contentType.split('/').pop()?.toUpperCase() ?? ''
 }
 
-function refusalText(t: Translate, error: unknown): string {
+function cancelBlockedKey(
+  block: 'corrections' | 'payments',
+  noteType: 'CREDIT_NOTE' | 'DEBIT_NOTE' | null,
+): string {
+  if (block === 'corrections')
+    return noteType
+      ? 'invoiceDetails.cancelBlocked.correctionsOnNote'
+      : 'invoiceDetails.cancelBlocked.corrections'
+  return noteType ? 'invoiceDetails.cancelBlocked.paymentsOnNote' : 'invoiceDetails.cancelBlocked.payments'
+}
+
+/** The server's cancel refusals that a page read before the note or payment cannot foresee. */
+const CANCEL_REFUSALS: Record<string, 'corrections' | 'payments'> = {
+  INVOICE_CANCEL_HAS_CORRECTIONS: 'corrections',
+  INVOICE_CANCEL_HAS_PAYMENTS: 'payments',
+}
+
+function refusalText(
+  t: Translate,
+  error: unknown,
+  noteType: 'CREDIT_NOTE' | 'DEBIT_NOTE' | null = null,
+): string {
+  if (error instanceof ApiError && error.code && Object.hasOwn(CANCEL_REFUSALS, error.code))
+    return t(cancelBlockedKey(CANCEL_REFUSALS[error.code], noteType))
   if (error instanceof ApiError && error.code === 'STALE_INVOICE_VERSION')
     return t('invoiceDetails.refused.stale')
   if (error instanceof ApiError && error.code === 'INVOICE_NOT_CANCELLABLE')

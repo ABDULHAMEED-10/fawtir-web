@@ -5,6 +5,30 @@ import { issueRefusalOf } from './invoiceIssue'
 
 const refused = (code: string) => new ApiError({ status: 400, problemType: 'request-rejected', code })
 
+// Backend 073d5261c (QR-E2): the issue route's 422 for a zone that does not keep Muscat time.
+describe('issue refused for a company zone that is not Oman time', () => {
+  it('words TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE without its code, in English and Arabic', async () => {
+    const error = new ApiError({
+      status: 422,
+      problemType: 'tenant-timezone-not-supported-for-e-invoice',
+      code: 'TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE',
+    })
+    const refusal = issueRefusalOf(error)
+    expect(refusal).toEqual({ field: null, key: 'invoiceIssue.refused.timezoneNotOman' })
+    await i18n.changeLanguage('en')
+    expect(i18n.t(refusal!.key)).toMatch(/Asia\/Muscat/)
+    expect(i18n.t(refusal!.key)).not.toMatch(/TENANT_TIMEZONE/)
+    // QEW-2: no settings path or company administrator can change the zone on the web.
+    expect(i18n.t(refusal!.key)).toMatch(/Fawtir support/)
+    expect(i18n.t('invoiceIssue.refused.timezone')).toMatch(/Fawtir support/)
+    expect(i18n.t('invoiceIssue.refused.timezone')).not.toMatch(/settings/i)
+    await i18n.changeLanguage('ar')
+    expect(i18n.exists(refusal!.key, { lng: 'ar', fallbackLng: false })).toBe(true)
+    expect(i18n.t(refusal!.key)).toMatch(/Asia\/Muscat/)
+    await i18n.changeLanguage('en')
+  })
+})
+
 describe("issue refused on the company's own incomplete details", () => {
   it.each([
     ['SELLER_ADDRESS_INCOMPLETE', 'invoiceIssue.refused.sellerAddressIncomplete'],

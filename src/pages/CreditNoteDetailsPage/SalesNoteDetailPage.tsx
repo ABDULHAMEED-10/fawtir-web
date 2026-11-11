@@ -1,6 +1,7 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { stockLineWarningTexts } from '../../lib/stockLineWarnings'
 import { AppShell } from '../../layouts/AppShell'
 import {
   ActionMenu,
@@ -36,6 +37,8 @@ import {
   type InvoiceHistoryDto,
   type InvoicePaymentDto,
   type InvoiceReceivableDto,
+  type InvoiceLineWarningDto,
+  deliveryBlockerKey,
 } from '../../api/invoices/detail'
 import type { NoteKind } from '../../api/invoices/drafts'
 import { loadCustomer, type CustomerDto } from '../../api/customers/customers'
@@ -47,10 +50,13 @@ import {
 import { buyerParty, sellerParty } from '../../lib/documentParties'
 import { RecordPaymentModal } from '../InvoiceDetailsPage/RecordPaymentModal'
 import {
+  ISSUED_DEBIT_NOTE_LOCKED,
   PAYMENT_REFUSALS,
   isDraft,
   lineTotals,
+  noteCancelRefusalKey,
   paymentRows,
+  refundedOnNote,
   timelineOf,
 } from '../../lib/invoiceDetail'
 import { describeApiFailure } from '../../lib/apiFailure'
@@ -88,6 +94,8 @@ import editIcon from '../../assets/actions/edit.svg'
 import invoiceActionIcon from '../../assets/actions/invoice.svg'
 import deleteIcon from '../../assets/actions/delete.svg'
 import uploadIcon from '../../assets/create-invoice/upload.svg'
+import { UnappliedCredit } from '../../components/invoice/UnappliedCredit'
+import { creditHeld } from '../../lib/unappliedCredit'
 
 type Chip = { bg: string; text: string }
 const STATUS_STYLES: Record<NoteListStatus, Chip> = {
@@ -228,20 +236,42 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
   const original = useApiRead<InvoiceDetailDto>(originalId ? invoicePath(originalId) : null, () =>
     loadInvoice(originalId!),
   )
+  // The refunds on the credited invoice, read only where Cancel would be offered on an issued
+  // credit note: a refunded note may not be cancelled (DA-2), and nothing the page already reads
+  // says whether it was refunded.
+  const refundsPath =
+    credit && document?.authoringState === 'ISSUED' && originalId && can(session, 'invoice.cancel')
+      ? `${invoicePath(originalId)}/payments`
+      : null
+  const originalPayments = useApiRead<InvoicePaymentDto[]>(refundsPath, () =>
+    loadPayments(originalId!),
+  )
   const originalOwed = useApiRead<InvoiceReceivableDto>(
     originalId ? `${invoicePath(originalId)}/receivable` : null,
     () => loadReceivable(originalId!),
   )
 
-  const issuedNumber = (location.state as { issuedNumber?: string | null } | null)?.issuedNumber
+  const arrival = location.state as {
+    issuedNumber?: string | null
+    stockWarnings?: InvoiceLineWarningDto[]
+  } | null
+  const issuedNumber = arrival?.issuedNumber
   const [notice, setNotice] = useState<string | null>(
-    issuedNumber ? t(`salesNote.issued.${kindKey}`, { number: issuedNumber }) : null,
+    issuedNumber
+      ? [
+          t(`salesNote.issued.${kindKey}`, { number: issuedNumber }),
+          ...stockLineWarningTexts(t, arrival?.stockWarnings),
+        ].join(' ')
+      : null,
   )
   useEffect(() => {
     if (issuedNumber) navigate(location.pathname, { replace: true, state: null })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const [paying, setPaying] = useState(false)
+  // Set by a payment refusal that says the balance moved (DA-12): the page re-reads on close,
+  // since a re-read while the dialog is open would unmount it.
+  const balanceStale = useRef(false)
   const [reversing, setReversing] = useState<{ id: string; amount: number; key: string } | null>(
     null,
   )
@@ -276,7 +306,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
         {note.read.status === 'loading' ? (
           <LoadingNotice />
         ) : (
-          <ApiReadFailure error={note.read.error} retry={note.retry} />
+          <ApiReadFailure error={note.read.error} retry={note.retry} notFoundOn400 />
         )}
       </div>
     )
@@ -287,11 +317,19 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
   const owed = receivable.read.status === 'ready' ? receivable.read.data : null
   const orig = original.read.status === 'ready' ? original.read.data : null
   const origOwed = originalOwed.read.status === 'ready' ? originalOwed.read.data : null
+  // The note's own customerName and correctionOfInvoiceNumber (C-5, backend #824) stand in while
+  // the customer or the original invoice is unread or refused; a server before #824 sends null.
   const customerName =
     customer.read.status === 'ready'
       ? customer.read.data.displayName
-      : t('salesNote.compose.customerUnknown')
-  const invoiceNumber = orig?.invoiceNumber ?? originalId ?? '—'
+      : (data.customerName ?? t('salesNote.compose.customerUnknown'))
+  // A placeholder while the original invoice is still being read: the raw UUID fallback flashed
+  // into every "Reverses ..." sentence before the number arrived (TEST verification 2026-10-29).
+  // A failed read keeps the id, the only handle left on the invoice.
+  const invoiceNumber =
+    orig?.invoiceNumber ??
+    data.correctionOfInvoiceNumber ??
+    (originalId && original.read.status === 'loading' ? '…' : (originalId ?? '—'))
   const money = (value: number | null | undefined) =>
     value === null || value === undefined ? '—' : formatAmount(value, data.currency, language)
   const day = (value: string | null | undefined) => (value ? formatDate(value, language) : '—')
@@ -320,21 +358,36 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
           ) / 1000,
         )
       : 0
+  // A note whose whole amount is recorded as paid back (a till refund) is settled, whichever else
+  // the invoice carries: nothing is due and nothing was applied.
+  const refunded =
+    credit && originalPayments.read.status === 'ready'
+      ? refundedOnNote(data.id, originalPayments.read.data)
+      : 0
+  const refundedInFull = credit && total !== null && refunded > 0 && refunded >= total - 0.0005
   const refund: number | null = !credit
     ? 0
-    : soleCredit && total !== null
-      ? Math.min(total, overpaid)
-      : null
+    : refundedInFull
+      ? 0
+      : soleCredit && total !== null
+        ? Math.min(total, overpaid)
+        : null
   const applied: number | null =
-    credit && total !== null && refund !== null ? Math.round((total - refund) * 1000) / 1000 : null
+    refundedInFull
+      ? 0
+      : credit && total !== null && refund !== null
+        ? Math.round((total - refund) * 1000) / 1000
+        : null
   const refunding = refund !== null && refund > 0
-  const nowDue =
-    !credit && total !== null
-      ? Math.round(
-          ((origOwed?.outstandingAmount ?? 0) + (owed?.outstandingAmount ?? total)) * 1000,
-        ) / 1000
-      : null
+  // A debit note is its own receivable, linked to the invoice it corrects; the invoice's balance
+  // never takes it in (D-24, owner 6 Nov 2026). What is due here is the note's own outstanding
+  // amount, never the invoice's added to it.
+  const nowDue = !credit && total !== null ? (owed?.outstandingAmount ?? total) : null
+  // D-30(a): credit notes or payments above the debit note's total; held, never set against it.
+  const heldCredit = credit ? null : creditHeld(owed?.unappliedCredit)
 
+  const blockerKey = deliveryBlockerKey(data.deliveryBlocker)
+  // Manual delivery only: a detail page never reads `peppolResponse` (api/invoices/detail.ts).
   const status: NoteListStatus = draft
     ? 'draft'
     : data.authoringState !== 'ISSUED'
@@ -342,9 +395,11 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
       : data.deliveryState !== 'SENT_MANUALLY'
         ? 'toSend'
         : credit
-          ? refunding
-            ? 'refundDue'
-            : 'applied'
+          ? refundedInFull
+            ? 'refunded'
+            : refunding
+              ? 'refundDue'
+              : 'applied'
           : owed?.overdue
             ? 'overdue'
             : owed?.paymentState === 'PAID'
@@ -355,6 +410,11 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
   const toneClass = credit ? 'text-danger-700' : 'text-success-700'
   const rates = new Set(data.lines.map((line) => line.taxRate ?? 0))
   const firstLine = data.lines[0]
+  // Lines at different rates have no one rate to name.
+  const vatLabel =
+    rates.size > 1
+      ? t(`salesNote.detail.totals.vatMixed.${kindKey}`)
+      : t(`salesNote.detail.totals.vat.${kindKey}`, { rate: firstLine?.taxRate ?? 0 })
   const taxCategory = firstLine
     ? `${t(`salesNote.detail.category.${Object.hasOwn(CATEGORY_WORDS, firstLine.en16931Category) ? CATEGORY_WORDS[firstLine.en16931Category] : 'standard'}`)} · ${rates.size === 1 ? `${firstLine.taxRate ?? 0}%` : t('salesNote.detail.mixedRates')}`
     : '—'
@@ -362,6 +422,12 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
   const reasonKey = reasonLabelKey(kind, reasonCode, data.details?.correctionReasonDetail)
   const reasonLabel = reasonKey ? t(reasonKey) : (reasonCode ?? '—')
   const reference = data.details?.buyerReference ?? data.details?.subject ?? null
+
+  const cancelBlockedKey: string | null = credit
+    ? refunded > 0
+      ? 'salesNote.detail.cancelBlocked.refunded'
+      : null
+    : ISSUED_DEBIT_NOTE_LOCKED
 
   const cancel = async () => {
     const text = reason.trim()
@@ -376,7 +442,17 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
       note.retry()
       history.retry()
     } catch (error) {
-      setNotice(refusalText(t, error))
+      setNotice(refusalText(t, error, kind))
+      if (error instanceof ApiError && error.code === 'INVOICE_CANCEL_HAS_PAYMENTS') {
+        setCancelling(false)
+        originalPayments.retry()
+        receivable.retry()
+      }
+      // D-3 refusals are permanent for this note: another reason or a reload cannot change them, so
+      // the dialog closes rather than inviting a second try. Nothing on the page changed, so no read.
+      if (error instanceof ApiError && error.code && D3_CANCEL_REFUSALS.has(error.code)) {
+        setCancelling(false)
+      }
     } finally {
       setBusy(false)
     }
@@ -452,15 +528,27 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
           },
         ]
       : []),
-    ...(data.authoringState === 'ISSUED' && can(session, 'invoice.cancel')
+    // A credit note's refunds decide; until that read answers Cancel is not offered. An issued
+    // debit note is never cancelled here (D-26). A blocked note keeps the item and says why
+    // instead of opening the confirmation the server would refuse (DA-2).
+    ...(data.authoringState === 'ISSUED' &&
+    can(session, 'invoice.cancel') &&
+    (!credit || originalPayments.read.status === 'ready')
       ? [
-          {
-            id: 'cancel',
-            labelKey: `salesNote.detail.cancelAction.${kind}`,
-            icon: deleteIcon,
-            danger: true,
-            onSelect: () => setCancelling(true),
-          },
+          cancelBlockedKey !== null
+            ? {
+                id: 'cancel',
+                labelKey: `salesNote.detail.cancelAction.${kind}`,
+                icon: deleteIcon,
+                onSelect: () => setNotice(t(cancelBlockedKey)),
+              }
+            : {
+                id: 'cancel',
+                labelKey: `salesNote.detail.cancelAction.${kind}`,
+                icon: deleteIcon,
+                danger: true,
+                onSelect: () => setCancelling(true),
+              },
         ]
       : []),
   ]
@@ -523,11 +611,10 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
         data.totals && data.totals.totalDiscount > 0 ? money(data.totals.totalDiscount) : undefined,
       net: money(data.totals?.taxableAmount ?? null),
       vat: money(data.totals?.vatAmount ?? null),
-      vatLabel: t(`salesNote.detail.totals.vat.${kindKey}`, { rate: firstLine?.taxRate ?? 0 }),
+      vatLabel,
       total: money(total),
     },
     notes: data.details?.customerVisibleNote ?? undefined,
-    qrPayload: `${data.invoiceNumber ?? data.id}|${data.issueDate ?? ''}|${total ?? ''}`,
   }
 
   return (
@@ -581,7 +668,14 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
               </>
             ) : (
               <>
-                <button type="button" onClick={preview.print} className={GHOST_BUTTON}>
+                {/* As on the invoice page: no PDF is rendered for a document yet, and the drawn
+                    sheet carries no QR, so a note neither downloads nor prints (RC5 E2E D-03). */}
+                <button
+                  type="button"
+                  disabled
+                  title={t('invoiceDetails.pdf.unavailable')}
+                  className={GHOST_BUTTON}
+                >
                   <img src={downloadIcon} alt="" className="size-5" />
                   {t('salesNote.detail.download')}
                 </button>
@@ -684,7 +778,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
               </div>
               <div>
                 <p className="text-sm font-medium text-[#727579]">
-                  {t(credit ? 'salesNote.detail.appliedTo' : 'salesNote.detail.addedTo', {
+                  {t(credit ? 'salesNote.detail.appliedTo' : 'salesNote.detail.linkedTo', {
                     invoice: invoiceNumber,
                   })}
                 </p>
@@ -721,6 +815,9 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
                 )}
               </div>
             </div>
+            {heldCredit !== null && owed ? (
+              <UnappliedCredit credit={heldCredit} currency={owed.currency} hint className="mx-4 mb-4" />
+            ) : null}
             {credit && refunding ? (
               <div className="mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 rounded-sm bg-success-100 px-4 py-3">
                 <div>
@@ -783,7 +880,15 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
                 <img src={warningIcon} alt="" className="mt-0.5 size-4 shrink-0" />
                 <span>
                   <span className="font-semibold">{t('salesNote.detail.notSent')}</span>{' '}
-                  {t(`salesNote.detail.notSentHint.${kindKey}`, { customer: customerName })}
+                  {/* "Ready to deliver over Peppol" is untrue while the server reports a blocker, so
+                      the blocker takes the hint's place, in the same span (W2-D1, as IMPL2-D1). */}
+                  {blockerKey
+                    ? t(
+                        blockerKey === 'other'
+                          ? `salesNote.detail.blocked.other.${kindKey}`
+                          : `salesNote.detail.blocked.${blockerKey}`,
+                      )
+                    : t(`salesNote.detail.notSentHint.${kindKey}`, { customer: customerName })}
                 </span>
               </div>
             ) : null}
@@ -795,7 +900,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
             action={
               can(session, 'customer.read') && customer.read.status === 'ready' ? (
                 <Link
-                  to={`/customers/${data.customerId}`}
+                  to={`/customers/${data.customerId}/edit`}
                   className="inline-flex items-center gap-0.5 text-base font-semibold text-primary-800"
                 >
                   {t('salesNote.detail.viewCustomer')}
@@ -828,7 +933,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
                             ? refunding
                               ? 'salesNote.detail.settled'
                               : 'salesNote.detail.balanceReduced'
-                            : 'salesNote.detail.balanceIncreased',
+                            : 'salesNote.detail.billedSeparately',
                         )}
                       </span>
                     ) : null}
@@ -1054,9 +1159,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
                   />
                 </div>
                 <div className="flex items-center justify-between gap-4 text-sm">
-                  <span className="font-medium text-text-tertiary">
-                    {t(`salesNote.detail.totals.vat.${kindKey}`, { rate: firstLine?.taxRate ?? 0 })}
-                  </span>
+                  <span className="font-medium text-text-tertiary">{vatLabel}</span>
                   <OmAmount
                     size="xs"
                     prefix={sign}
@@ -1444,15 +1547,19 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
               <div className="flex items-center gap-2.5">
                 <button
                   type="button"
+                  disabled
+                  title={t('invoiceDetails.pdf.unavailable')}
                   aria-label={t('salesNote.detail.download')}
-                  onClick={preview.print}
+                  className="disabled:opacity-40"
                 >
                   <img src={downloadIcon} alt="" className="size-6" />
                 </button>
                 <button
                   type="button"
+                  disabled
+                  title={t('invoiceDetails.pdf.unavailable')}
                   aria-label={t('salesNote.detail.print')}
-                  onClick={preview.print}
+                  className="disabled:opacity-40"
                 >
                   <img src={printIcon} alt="" className="size-6" />
                 </button>
@@ -1503,7 +1610,16 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
           outstanding={owed.outstandingAmount}
           issueDate={data.issueDate}
           today={today}
-          onClose={() => setPaying(false)}
+          onBalanceChanged={() => {
+            balanceStale.current = true
+          }}
+          onClose={() => {
+            setPaying(false)
+            if (balanceStale.current) {
+              balanceStale.current = false
+              afterPayment()
+            }
+          }}
           onRecorded={() => {
             setPaying(false)
             setNotice(t('salesNote.detail.done.recorded'))
@@ -1604,7 +1720,11 @@ function previewLabels(t: Translate) {
   }
 }
 
-function refusalText(t: Translate, error: unknown): string {
+const D3_CANCEL_REFUSALS = new Set(['CREDIT_NOTE_CANCEL_TILL_REFUND', 'CREDIT_NOTE_CANCEL_HAS_STOCK_RETURN'])
+
+function refusalText(t: Translate, error: unknown, kind?: NoteKind): string {
+  const blocked = kind ? noteCancelRefusalKey(error, kind) : null
+  if (blocked) return t(blocked)
   if (error instanceof ApiError && error.code === 'STALE_INVOICE_VERSION')
     return t('salesNote.detail.refused.stale')
   if (error instanceof ApiError && error.code === 'INVOICE_NOT_CANCELLABLE')

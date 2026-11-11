@@ -65,15 +65,14 @@ const INFERRED = [
   { rowNumbers: [9], column: 'Customer', value: 'Nizwa Souq Cafe', matchedTo: 'Nizwa Souq Café' },
 ]
 
-/** Non-blocking: a blank TAX_CATEGORY cell read as standard rate. */
-const WARNINGS = [
-  {
-    rowNumbers: [6, 7],
-    column: 'Tax category',
-    code: 'TAX_CATEGORY_DEFAULTED',
-    message: 'No VAT category was given, so this line was set to standard rate (5%).',
-  },
-]
+/** Non-blocking: a blank TAX_CATEGORY cell read as standard rate, one warning per row as the server sends it. */
+const WARNINGS = [6, 7].map((rowNumber) => ({
+  rowNumber,
+  column: 'Tax category',
+  code: 'TAX_CATEGORY_DEFAULTED',
+  severity: 'WARNING',
+  message: 'No VAT category was given, so this line was set to standard rate (5%).',
+}))
 
 const UNRESOLVED = [
   { description: 'Cardamom syrup 750 ml', itemType: 'GOODS', rowCount: 3 },

@@ -1,7 +1,7 @@
 import type { CreditNoteRowDto, CreditNoteSettlementDto } from '../api/expenditure/notes'
 import type { BillRowDto } from '../api/expenditure/bills'
 import { receiptReportNote } from './billDetail'
-import { creditStateOf, isHeldUnspent } from './supplierNoteList'
+import { creditStateOf, isHeldUnspent, isRejectedUnspent, rejectedRow } from './supplierNoteList'
 
 /**
  * Credit notes a supplier issued to us: Expenditure > Credit notes (Figma 163:18691, 163:19080,
@@ -132,6 +132,46 @@ const SOURCE_ARRIVAL: Record<CreditNoteRowDto['source'], string> = {
   SELF_BILLED: 'supplierNotes.activity.arrivedSelfBilled',
 }
 
+/** Credit of this note that stands on one bill, and can be released from it. */
+export type StandingCredit = {
+  billId: string
+  billNumber: string | null
+  amount: number
+}
+
+/**
+ * What can be released, as `CreditNoteService.release` decides it: every APPLIED row with no
+ * RELEASED row naming it, or, on a note with no rows at all, what its BTOM-031 link gives the bill.
+ * A supplier debit note is left out: the server refuses it (P10 on backend #827).
+ */
+export function standingCredits(
+  row: CreditNoteRowDto,
+  settlements: CreditNoteSettlementDto[],
+  linkedBillTypeCode: string | null,
+): StandingCredit[] {
+  if (settlements.length === 0) {
+    const billId = row.credits.billId
+    return row.credits.applied && billId && row.balance.applied > 0 && linkedBillTypeCode !== '383'
+      ? [{ billId, billNumber: row.credits.billNumber, amount: row.balance.applied }]
+      : []
+  }
+  const released = new Set(settlements.map((settlement) => settlement.releasedSettlementId))
+  return settlements.flatMap((settlement) =>
+    settlement.kind === 'APPLIED' &&
+    settlement.billId &&
+    settlement.billDocumentTypeCode !== '383' &&
+    !released.has(settlement.id)
+      ? [
+          {
+            billId: settlement.billId,
+            billNumber: settlement.billNumber ?? null,
+            amount: settlement.amount,
+          },
+        ]
+      : [],
+  )
+}
+
 /**
  * The Activity list, newest first: where the note stands now, what has been done with it (the
  * settlement rows), whether it was reported, and how it arrived.
@@ -144,8 +184,27 @@ export function creditActivity(
   const bill = row.credits.billNumber ?? ''
   const credited = row.creditedAmount ?? 0
   const state = creditStateOf(row)
-  const current: NoteActivity =
-    state === 'PARTLY_USED'
+  // Released from its bill: the server refuses setting it there again, so the bill is not what it waits for.
+  // After a release the row keeps the bill's number but answers `billId` null, so the number is what matches.
+  const releasedFromBill = settlements.some(
+    (settlement) => settlement.kind === 'RELEASED' && settlement.billNumber === row.credits.billNumber,
+  )
+  // R8: "Waiting to be set against the bill" contradicted the Rejected chip (Agent 10 N27), since
+  // the server refuses every apply of a rejected note. Its current entry says that instead, in the
+  // words the decision card already uses; a spent note keeps the entry of where its credit went.
+  const rejectedNow = isRejectedUnspent({
+    status: state,
+    heldAsDuplicate: row.heldAsDuplicate === true,
+    rejected: rejectedRow(row),
+  })
+  const current: NoteActivity = rejectedNow
+    ? {
+        id: 'now',
+        titleKey: 'supplierCreditNotes.state.rejected',
+        detailKey: 'supplierCreditNotes.refused.rejected',
+        tone: 'current',
+      }
+    : state === 'PARTLY_USED'
       ? {
           // Part of it is used or refunded (the rows below say which): what is left waits.
           id: 'now',
@@ -157,10 +216,13 @@ export function creditActivity(
       : state === 'UNAPPLIED'
         ? {
             id: 'now',
-            titleKey: 'supplierCreditNotes.detail.activity.waiting',
-            detailKey: bill
-              ? 'supplierCreditNotes.detail.activity.waitingDetail'
-              : 'supplierCreditNotes.detail.activity.waitingNoBill',
+            titleKey: releasedFromBill
+              ? 'supplierCreditNotes.state.waitingForBill'
+              : 'supplierCreditNotes.detail.activity.waiting',
+            detailKey:
+              bill && !releasedFromBill
+                ? 'supplierCreditNotes.detail.activity.waitingDetail'
+                : 'supplierCreditNotes.detail.activity.waitingNoBill',
             values: { bill, amount: fmt.money(credited), left: fmt.money(row.balance.remaining) },
             tone: 'current',
           }
@@ -198,22 +260,31 @@ export function creditActivity(
       id: settlement.id,
       // Names the bill it went to when the server says which; an older server leaves it out.
       titleKey:
-        settlement.kind === 'APPLIED'
+        settlement.kind === 'RELEASED'
           ? settlement.billNumber
-            ? 'supplierCreditNotes.detail.activity.settledAppliedTo'
-            : 'supplierCreditNotes.detail.activity.settledApplied'
-          : 'supplierCreditNotes.detail.activity.settledRefunded',
+            ? 'supplierCreditNotes.detail.activity.settledReleasedFrom'
+            : 'supplierCreditNotes.detail.activity.settledReleased'
+          : settlement.kind === 'APPLIED'
+            ? settlement.billNumber
+              ? 'supplierCreditNotes.detail.activity.settledAppliedTo'
+              : 'supplierCreditNotes.detail.activity.settledApplied'
+            : 'supplierCreditNotes.detail.activity.settledRefunded',
       detailKey:
-        settlement.kind === 'APPLIED'
-          ? 'supplierCreditNotes.detail.activity.settledAppliedDetail'
-          : settlement.paymentReference
-            ? 'supplierCreditNotes.detail.activity.settledRefundedRef'
-            : 'supplierCreditNotes.detail.activity.settledRefundedDetail',
+        settlement.kind === 'RELEASED'
+          ? settlement.reason
+            ? 'supplierCreditNotes.detail.activity.settledReleasedReason'
+            : 'supplierCreditNotes.detail.activity.settledAppliedDetail'
+          : settlement.kind === 'APPLIED'
+            ? 'supplierCreditNotes.detail.activity.settledAppliedDetail'
+            : settlement.paymentReference
+              ? 'supplierCreditNotes.detail.activity.settledRefundedRef'
+              : 'supplierCreditNotes.detail.activity.settledRefundedDetail',
       values: {
         bill: settlement.billNumber ?? '',
         amount: fmt.money(settlement.amount),
         date: fmt.date(settlement.settledOn),
         reference: settlement.paymentReference ?? '',
+        reason: settlement.reason ?? '',
         when: fmt.when(settlement.occurredAt),
       },
       tone: 'done' as const,

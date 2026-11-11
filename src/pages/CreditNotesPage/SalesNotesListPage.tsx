@@ -54,7 +54,7 @@ import {
   type NoteListStatus,
   type NoteTab,
 } from '../../lib/salesNote'
-import { can, useSession } from '../../lib/session/session'
+import { can, mayRequest, useSession } from '../../lib/session/session'
 import creditedIcon from '../../assets/credit-notes/kpi-credited.svg'
 import refundDueIcon from '../../assets/credit-notes/kpi-refund-due.svg'
 import appliedIcon from '../../assets/credit-notes/kpi-applied.svg'
@@ -241,7 +241,11 @@ function NotesList({ kind }: { kind: NoteKind }) {
         : null,
     [credit, figures.read],
   )
-  const branches = useApiRead<BranchDto[]>('/v1/branches', loadBranches)
+  // `branch.read` only: without it the list asked anyway and got a 403 (B-14).
+  const branches = useApiRead<BranchDto[]>(
+    mayRequest(session, 'branch.read') ? '/v1/branches' : null,
+    loadBranches,
+  )
   const { label: branchLabel } = useBranchName()
   const branchName = (id: string | null | undefined) => {
     const branch =
@@ -460,11 +464,13 @@ function NotesList({ kind }: { kind: NoteKind }) {
                 {figure
                   ? kpi.id === 'overdue' && figure.count === 0
                     ? t('salesNote.list.kpi.overdueNone')
-                    : t(`salesNote.list.kpi.${kpi.id}Meta`, {
-                        count: figure.count,
-                        notes: count(figure.count),
-                        days: count(figure.days ?? 0),
-                      })
+                    : figure.count === null
+                      ? t(`salesNote.list.kpi.${kpi.id}MetaUncounted`)
+                      : t(`salesNote.list.kpi.${kpi.id}Meta`, {
+                          count: figure.count,
+                          notes: count(figure.count),
+                          days: count(figure.days ?? 0),
+                        })
                   : // Failed, or a figure the summary does not carry (a credit note's refunds, 4.2).
                     figures.read.status === 'failed' || summary
                     ? t('salesNote.list.kpi.unavailable')
@@ -925,8 +931,8 @@ function PaymentCell({ cell }: { cell: ReturnType<typeof debitPaymentOf> }) {
       >
         {cell.kind === 'late'
           ? t('salesNote.list.payment.daysLate', { count: cell.days })
-          : cell.addedToInvoice
-            ? t('salesNote.list.payment.addedToInvoice')
+          : cell.separateFromInvoice
+            ? t('salesNote.list.payment.separateFromInvoice')
             : cell.daysLeft !== null
               ? t('salesNote.list.payment.inDays', { count: cell.daysLeft })
               : ''}

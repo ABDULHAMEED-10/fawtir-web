@@ -4,6 +4,7 @@ import { loadSupplierPage, supplierListPath } from '../api/expenditure/suppliers
 import { productSearchPath, searchProducts } from '../api/catalog/products'
 import { archiveListPath, loadArchiveList } from '../api/compliance/archive'
 import { formatAmount } from './format'
+import { NOTE_ROUTES } from './salesNote'
 import type { Hit } from './shell'
 
 const PER_KIND = 4
@@ -54,7 +55,11 @@ export async function searchEverywhere(
         kind: 'invoice',
         title: row.invoiceNumber ?? row.customerName ?? '',
         subtitle: row.invoiceNumber ? (row.customerName ?? '') : '',
-        to: `/invoices/${row.id}`,
+        // A note opens on its own page, which shows the invoice it corrects (as from the list).
+        to:
+          row.type === 'CREDIT_NOTE' || row.type === 'DEBIT_NOTE'
+            ? `${NOTE_ROUTES[row.type]}/${row.id}`
+            : `/invoices/${row.id}`,
         // The currency code leads the figure; the search box swaps "OMR" for the rial sign.
         trailing: row.totals
           ? `${row.currency} ${formatAmount(row.totals.totalAmount, row.currency, language)}`

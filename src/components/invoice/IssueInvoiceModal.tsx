@@ -44,7 +44,7 @@ export function IssueInvoiceModal({
   kind = 'INVOICE',
   selfBilled = false,
   approvalPage,
-  customerId,
+  customerEditPath,
   onClose,
   onIssued,
 }: {
@@ -68,8 +68,8 @@ export function IssueInvoiceModal({
    * that page (the composer), so a refusal to issue before approval can link to it.
    */
   approvalPage?: string
-  /** The draft's customer, so a refusal about its address links to the customer's form. */
-  customerId?: string | null
+  /** The customer's edit page, so an incomplete buyer address can be fixed from the refusal. */
+  customerEditPath?: string
   onClose: () => void
   onIssued: (invoice: InvoiceDetailDto) => void
 }) {
@@ -146,12 +146,6 @@ export function IssueInvoiceModal({
         setErrors({ [refusal.field]: refusal.key })
       } else if (refusal) {
         setFailure(t(refusal.key, refusal.values))
-        if (error instanceof ApiError && error.code === 'BUYER_ADDRESS_INCOMPLETE') {
-          setFailureLink({
-            to: customerId ? `/customers/${encodeURIComponent(customerId)}/edit` : '/customers',
-            labelKey: 'invoiceIssue.openCustomer',
-          })
-        }
         // At 0 left the way on is to buy extra documents ahead, for those who may (EX-1).
         // Read-only, the upgrade is still offered but no extras are bought until it is paid (ST-2).
         if (error instanceof ApiError && error.code === 'QUOTA_EXCEEDED' && mayManagePlan) {
@@ -166,6 +160,9 @@ export function IssueInvoiceModal({
         const body = t(message.key, message.values)
         setFailure(message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body)
         setFailureLink(subscriptionRestrictedAction(error))
+      }
+      if (customerEditPath && error instanceof ApiError && error.code === 'BUYER_ADDRESS_INCOMPLETE') {
+        setFailureLink({ to: customerEditPath, labelKey: 'invoiceIssue.refused.buyerAddressAction' })
       }
       if (approvalPage && sendsForApprovalFromDraft(error)) {
         setFailureLink({ to: approvalPage, labelKey: 'salesApproval.actions.openDraft' })

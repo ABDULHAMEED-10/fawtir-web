@@ -916,10 +916,25 @@ the screens still draw without an answer. Rows P.11 and P.12 are done.
 | ---- | --- | --- |
 | P.26 | The price rule at the till ("Afternoon lull applied 20% off the drinks") and its totals row | price rules are not served to the till yet (the rules API is not merged). The sale line keeps `rulePercent` and sends it as the line's percentage discount once a rule fills it; asked: the rules that apply to a branch and time, or the till sale applying them itself |
 | P.27 | The Sizes badge and "3 sizes · 4 add-ons" on a shelf tile before it is tapped, and a photo on the tile | list rows of `GET /v1/products` carry `sizes`, `variants` and `addOns` as null, so the till reads each product when it is tapped; asked: a count of sizes and add-ons (or the arrays) on list rows, and a product image |
-| P.28 | The QR on a receipt printed while the till is offline | the till numbers an offline sale from its own series and sends it later, but the QR's payload is made by the server; asked: what the device may print offline (the TLV it can build itself) |
+| P.28 | The QR on a receipt printed while the till is offline | **Being implemented** per the owner decision of 2026-11-05 (web QR-W1..W3, backend QR-B1..B3; QR-W1, the encoder and the shared fixture `qr-vectors.v1.json`, is done). The offline sale keeps its original identity: the issue date and time, number and Seller UUID it was printed with; the time it reaches the server is recorded separately. The till prints the QR it builds itself; at filing the server compares it with its own, and a mismatch fails closed (the sale is held, never filed with a different QR). Until the till has the server's QR profile, or when any check fails, it prints "QR to follow" and the sale still goes ahead. Written confirmation from the Tax Authority is still pending. |
 | P.29 | "Email it" and "Text it" on the receipt screen | no route sends a till receipt by e-mail or SMS; only printing works |
 | P.30 | "One of your customers since April 2025" and the customer's own price account ("Hotel accounts · 12% off") on the company match | neither is on the customer read; the till shows the city, the Peppol id and the terms |
 | P.31 | "Accepted by the OTA" on the sale being refunded | `GET /v1/pos/refund-lookup` does not carry the invoice's filing state; asked: `filing` as on the sale |
+
+## Update 2026-10-29 (E2E acceptance: refunds and the Paid card)
+
+- **4.1, credit notes, corrected (ACC-3):** the 2026-09-29 note above says Applied to invoices
+  is `issuedTotal` "because no refund is recorded". That stopped being true with backend V477: a
+  POS refund is recorded against the sale's credit note, so `issuedTotal` overstates what was
+  applied to invoices by every POS-refunded amount. The card and the Applied tab still read
+  `issuedTotal`, because the summary carries no refunded figure to take out. Asked:
+  `refundedTotal` (count and total, in `currencyCode`) on
+  `GET /v1/authored-invoices/summary?type=CREDIT_NOTE`, or an `appliedTotal` that leaves refunds
+  out; the card will then read it.
+
+| # | The design shows | Ask |
+|---|---|---|
+| 4.20 | Income "Paid" card, "N invoices collected" (ACC-10) | `paidTotal` and `paidInvoices` on `GET /v1/authored-invoices/summary` count every receivable with nothing left owed, however it was cleared: an invoice a credit note cleared counts with no cash, and debit notes count as invoices. The card is now titled "Settled" and says "N documents settled by payment or credit". Asked: a cash-collected figure (payments net of reversals, invoices only, in `currencyCode`) for the card to say "Paid" again |
 
 ## Update 2026-10-29 (Catalog › Groups)
 
@@ -961,3 +976,19 @@ delivery's `supplierReference` on its movement row.
 | P.25 (update) | Counted products on an invoice's lines | **Fixed by backend #808**: the credit note composer reads `keepCount` on each invoice line and reads no product; only a line without the field (an older server) is read one by one as before |
 | P.27 (update) | Sizes and add-ons on a shelf tile before it is tapped | **Fixed by backend #808** for the sizes and add-ons: the tile says "2 sizes · 1 add-on" and opens the chooser from the row, at each variant's `branchPrice`, with no read on the tap; the shelf kept on the device carries them, so an item never opened sells while the till is offline. Still asked: a product image (every tile shows an illustration) |
 | P.31 (update) | "Accepted by the OTA" on the sale being refunded | **Fixed by backend #808**: the pill is drawn when the lookup's `filing.acceptedAt` is set. A lookup without `filing` falls back to the sale's own read when the screen makes it (an older server without `tip`); otherwise no pill |
+| P.28 (update) | One refused queued sale must not stop the till (E2E 30 Oct 2026, H-1) | **Asks backend `fix/pos-queued-sale-readonly`**: a queued sale is always filed, even while read-only; under a minute old the server answers 425 `POS_QUEUED_SALE_TOO_EARLY` (`retryAfterSeconds`) and the till resends the same key; `GET /pos/tills` says `skipsStuckNumbers: true`, and a sale may then name `skippedNumbers` to pass numbers it cannot file yet. Against a server without these the till still works: a refused sale stays visible and is retried, and later sales wait behind it in number order. |
+
+## Update 2026-10-30 (read-model fields of backend #824, not deployed yet)
+
+The web reads the fields backend #824 (`fix/release-closure-batch`) adds and works as before
+against a server without them: every field is optional, and an absent one leaves the screen as it
+was, never with a figure worked out in the browser. These rows depend on #824 being deployed.
+
+| #    | What the screen needs | Backend |
+| ---- | --- | --- |
+| 4.1 (update) | Applied to invoices, corrected (ACC-3) | **Fixed by backend #824**: the card reads `issuedTotal.total` less `refundedTotal.total`, and it shows no count: a till refund can pay out part of its note and offset the rest, and `refundedTotal` counts such a note once any money went back, so no server figure counts the applied notes. The Applied tab still lists and counts every issued note. Without `refundedTotal` the card reads `issuedTotal` as before |
+| 4.2 (update) | The Refunded card | **Fixed by backend #824** for the card: it reads `refundedTotal` (count and amount paid back). Still asked: Refund due (card and tab), the Refunded tab's rows, the Refund column and Record refund, which need refund tracking per note |
+| 4.20 (update) | Income "Paid" card (ACC-10) | **Fixed by backend #824**: with `collectedTotal` the card is titled "Paid" again and reads its total and "N invoices collected". Without it the card stays "Settled" over `paidTotal`, which is not cash in |
+| 1.3 (update) | The Peppol/OTA column (A-4b) | **Fixed by backend #824** for the ledger state: an issued row's `deliveryState` QUEUED, SENDING, SENT, DELIVERED, DELIVERED_UNCONFIRMED or UNDELIVERABLE prints a pill (Queued, Sending, Sent, Delivered, Delivered unconfirmed, Not delivered) whose hint is the detail page's sentence for the same state. DELIVERED and DELIVERED_UNCONFIRMED also count as delivered for the "To be sent" pill (1.8), as AP and AB do. NOT_SUBMITTED, and `deliveryBlocker`, print nothing: a server before #824 sends NOT_SUBMITTED and CANONICAL_HANDOFF_NOT_ENABLED on every issued row, so neither can be told from that server's answer |
+| 4.21 | One VAT row per category in an invoice's totals (A-8b) | **Fixed by backend #824**: `totals.taxSubtotals[]` prints one "VAT · {category} {rate}%" row per entry with its `vatAmount`. Without it a mixed invoice keeps one "VAT" row with the document's VAT, and a single-category one its named row, as before; the browser does not split VAT by category |
+| 4.22 | The single read's list-row fields (C-5) | **Fixed by backend #824**: `customerName` names the customer on an invoice or note while the customer record is unread or refused, and `correctionOfInvoiceNumber` names the corrected invoice while the original is unread or refused. `payment` and `approvalState` are not read from it: the pages already read the receivable and the approval request |

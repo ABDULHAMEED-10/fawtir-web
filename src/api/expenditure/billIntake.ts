@@ -3,19 +3,60 @@ import { ApiError } from '../errors'
 
 /**
  * Bill intake (`BillIntakeController`): a supplier's file is stored first, then a person confirms
- * the bill's fields into a payable. There is no OCR: a PDF or photo comes back with nothing read,
- * and only a Peppol/UBL XML file fills its fields in (`extractionStatus: EXTRACTED`).
+ * the bill's fields into a payable. A Peppol/UBL XML file is parsed exactly; a PDF or photo is read
+ * by the document reader while the upload waits (EXPENDITURE.md rows 1.6 and 1.10), and says how
+ * sure it was in `extracted.reading`. Reading off, failed or over the limit: nothing is filled in.
  */
 export const BILL_INTAKE_PATH = '/v1/bills/intake'
 
 /** `BillIntake.MAXIMUM_BYTES`, and the server's multipart limit. */
 export const INTAKE_MAX_BYTES = 10 * 1024 * 1024
 
+/**
+ * What today's gateway lets through (`FAWTIR_GATEWAY_MAX_REQUEST_BYTES`). The screens promise this
+ * size and shrink photos above it; nothing is refused here, so a server that takes more still
+ * gets more. TODO: set to INTAKE_MAX_BYTES once backend #818 is deployed.
+ */
+export const INTAKE_LIVE_MAX_BYTES = 1024 * 1024
+/** The same, for the words on the screens. */
+export const INTAKE_LIVE_MAX_MB = INTAKE_LIVE_MAX_BYTES / (1024 * 1024)
+
 export type IntakeSourceDto = 'UPLOADED' | 'SCANNED'
 
 /** 380 a bill, 381 a supplier's credit note, 383 a supplier's debit note (`ConfirmRequest`). */
 export type IntakeDocumentTypeDto = '380' | '381' | '383'
 export type ExtractionStatusDto = 'NONE' | 'EXTRACTED' | 'FAILED'
+
+/**
+ * `BillDocumentReading.outcome`. `READING_UNAVAILABLE` is the shared reader's own answer; the
+ * intake gives `reading: null` instead today, and it is kept here so either reads as "not read".
+ */
+export type ReadingOutcomeDto =
+  | 'READ'
+  | 'READ_FAILED'
+  | 'DAILY_LIMIT_REACHED'
+  | 'PLAN_FEATURE_NOT_INCLUDED'
+  | 'READING_UNAVAILABLE'
+
+/**
+ * `BillDocumentReading`: what the reader said beside the values of a PDF, JPEG or PNG. Null for
+ * UBL XML, while reading is off, and from a server older than the reader. A person's correction
+ * (PUT) keeps it, with `workedOut` emptied.
+ */
+export type BillReadingDto = {
+  outcome: ReadingOutcomeDto
+  /** The PDF's own page count, 1 for a photo; null for a PDF that cannot be opened. */
+  pageCount: number | null
+  /** 0 to 1 per field, keyed as `confidence`; `lines` is the lowest line's score. */
+  scores: Record<string, number>
+  /** A receipt's guessed `EXPENSE_CATEGORIES` value; null for a bill or when none fits. */
+  category: string | null
+  categoryConfidence: number
+  /** The VAT rate printed for the whole document, as a percentage. */
+  vatRate: number | null
+  /** Fields worked out rather than read: `vat` from the total and the rate (row 1.10). */
+  workedOut: string[]
+}
 
 /** `ExtractedBillFields`. Every value is advice; confirm takes the person's fields. */
 export type ExtractedFieldsDto = {
@@ -42,6 +83,8 @@ export type ExtractedFieldsDto = {
     confident: boolean
   }[]
   confidence: Record<string, boolean>
+  /** Absent from a server older than the reader, which reads as null. */
+  reading?: BillReadingDto | null
 }
 
 /** `IntakeResponse`. */
@@ -62,14 +105,25 @@ export type IntakeDto = {
   note?: string | null
 }
 
-/** `invoice.payment.manage`. PDF, JPEG, PNG or UBL XML, at most 10 MiB. */
-export function uploadIntake(file: File, source: IntakeSourceDto): Promise<IntakeDto> {
+/**
+ * `invoice.payment.manage`. PDF, JPEG, PNG or UBL XML, at most 10 MiB. With reading on, the call
+ * waits for the malware scan and the read, which can pass a minute. Just above the gateway's 120 s
+ * for this route and below nginx's 130 s, so the browser does not give up while the server may
+ * still answer. `read: 'none'` is for a bill typed by hand with the file attached: the file is
+ * stored and no read is spent on it. A server older than the option ignores it and reads as before.
+ */
+export function uploadIntake(
+  file: File,
+  source: IntakeSourceDto,
+  options: { read?: 'none' } = {},
+): Promise<IntakeDto> {
   const form = new FormData()
   form.append('file', file)
-  return apiRequest<IntakeDto>(`${BILL_INTAKE_PATH}?source=${source}`, {
+  const read = options.read ? `&read=${options.read}` : ''
+  return apiRequest<IntakeDto>(`${BILL_INTAKE_PATH}?source=${source}${read}`, {
     method: 'POST',
     body: form,
-    timeoutMs: 60_000,
+    timeoutMs: 125_000,
   })
 }
 
@@ -120,8 +174,20 @@ export type ConfirmIntakeDto = {
     paidOn: string | null
     pettyCash?: true
   } | null
-  /** The bill a possible-duplicate refusal named, which the person says is a different bill. */
-  notDuplicateOf: string | null
+  /**
+   * Always null (owner approval, batch 43 round 18, "Frontend Option 1"): the legacy single field
+   * takes no reason, so the override is sent as `notDuplicateOfIds` with `overrideReason` only.
+   * Still sent, as null, because the confirm body has always carried it.
+   */
+  notDuplicateOf: null
+  /**
+   * Every bill the refusals listed that the person says is a different bill, at most 20, sent with
+   * `overrideReason`. Only after a refusal that carried `duplicates`: a server before the list
+   * refuses a body with a field it does not know (fail-on-unknown-properties).
+   */
+  notDuplicateOfIds?: string[]
+  /** Why they are different bills, trimmed, at most 280 characters; required with the list. */
+  overrideReason?: string
   /**
    * TODO(backend): EXPENDITURE.md M.2. A receipt's VAT category when it has no lines (S5, Z0,
    * E0): 0% and Exempt both carry a zero rate and are otherwise sent the same.
@@ -161,6 +227,13 @@ export type ConfirmedBillDto = {
    * from an older server, which does not say.
    */
   creditApplied?: { billId: string; amount: number } | null
+  /**
+   * Whether the bill has an open possible-duplicate hold now, read from the server's hold store
+   * (owner approval, batch 43 round 25, W-1). A hold a person places afterwards does not set it
+   * (PRV43-EXP5 L-2), and a replay after the hold was decided answers false. Absent from an older
+   * server, which does not say: absent is unknown, never "not held".
+   */
+  held?: boolean
 }
 
 export function confirmIntake(id: string, body: ConfirmIntakeDto): Promise<ConfirmedBillDto> {
@@ -211,6 +284,43 @@ export function possibleDuplicateOf(error: unknown): PossibleDuplicateDto | null
   if (typeof found !== 'object' || found === null) return null
   const bill = found as Record<string, unknown>
   return typeof bill.billId === 'string' ? (bill as unknown as PossibleDuplicateDto) : null
+}
+
+const isDuplicateDto = (value: unknown): value is PossibleDuplicateDto =>
+  typeof value === 'object' &&
+  value !== null &&
+  typeof (value as Record<string, unknown>).billId === 'string'
+
+/**
+ * Every bill a 409 `BILL_INTAKE_POSSIBLE_DUPLICATE` named, or null for any other failure.
+ * `listed` says the refusal carried `duplicates` (oldest first, at most five per answer), which
+ * only a server that takes `notDuplicateOfIds` sends; an older one names `duplicateOf` alone.
+ *
+ * `heldForReview` is the server's `heldForReviewIfListed` (batch 43 round 19): listing the matches
+ * records the bill held for an approver. Only a literal `true` counts, so a server that does not
+ * send it never has a refusal presented as a submission.
+ *
+ * `figuresOnly` is the server's `figuresOnly` (batch 43 round 25, residual (1)): every match shares
+ * only figures with the bill, no supplier VAT number, participant or record, so it is a potential
+ * coincidence and must not be worded as this supplier's bill. Only a literal `true` counts, so an
+ * older server keeps the sentence it always had.
+ */
+export function possibleDuplicates(error: unknown): {
+  matches: PossibleDuplicateDto[]
+  listed: boolean
+  heldForReview: boolean
+  figuresOnly: boolean
+} | null {
+  const single = possibleDuplicateOf(error)
+  if (!single) return null
+  const problem = (error as ApiError).problem
+  const heldForReview = problem.heldForReviewIfListed === true
+  const figuresOnly = problem.figuresOnly === true
+  const duplicates = problem.duplicates
+  if (!Array.isArray(duplicates))
+    return { matches: [single], listed: false, heldForReview, figuresOnly }
+  const matches = duplicates.filter(isDuplicateDto)
+  return { matches: matches.length > 0 ? matches : [single], listed: true, heldForReview, figuresOnly }
 }
 
 /** `IntakePage`. `status=UNCONFIRMED` (the server's default) lists what was uploaded or scanned and never confirmed. */

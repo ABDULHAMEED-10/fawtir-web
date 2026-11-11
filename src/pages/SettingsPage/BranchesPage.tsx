@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
@@ -6,6 +6,9 @@ import { CloseBranchDialog } from './CloseBranchDialog'
 import { ActionMenu, Rial } from '../../components/ui'
 import { Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
+import { useEntitlements } from '../../hooks/useEntitlements'
+import { hasPermission } from '../../lib/identity/entitlements'
+import { POS_TILLS_PATH, loadAllPosTills, type PosTillDto } from '../../api/pos/pos'
 import { formatAmount, formatDate } from '../../lib/format'
 import {
   branchDisplayName,
@@ -42,6 +45,9 @@ import closeIcon from '../../assets/settings/menu-close.svg'
  * the gaps: no branch-manager concept, a person has one home branch, no per-till usage log). Those
  * cells fall back to a plain count instead; nothing here is invented. See
  * docs/backend-guides/INCOME.md, "Update 2026-09-27 (branches)".
+ *
+ * The Till column counts the branch's tills from `GET /v1/pos/tills`. The overview's `devices` is
+ * something else: devices of the people who work in the branch, which is 0 where a till has sold.
  */
 export function BranchesPage() {
   const { t } = useTranslation()
@@ -132,6 +138,16 @@ function Content({
   onDone: (message: string) => void
 }) {
   const { t } = useTranslation()
+  const { entitlements } = useEntitlements()
+  const canReadTills = entitlements !== null && hasPermission(entitlements, 'pos.read')
+  const tills = useApiRead<PosTillDto[]>(canReadTills ? POS_TILLS_PATH : null, loadAllPosTills).read
+  // Null until read, and for a reader who may not see tills: the card then says it does not know.
+  const tillCounts = useMemo(() => {
+    if (tills.status !== 'ready') return null
+    const counts = new Map<string, number>()
+    for (const till of tills.data) counts.set(till.branchId, (counts.get(till.branchId) ?? 0) + 1)
+    return counts
+  }, [tills])
 
   if (overview.branches.length === 0) {
     return (
@@ -167,7 +183,13 @@ function Content({
       </div>
 
       {overview.branches.map((branch) => (
-        <BranchCard key={branch.id} branch={branch} renewsOn={renewsOn} onDone={onDone} />
+        <BranchCard
+          key={branch.id}
+          branch={branch}
+          tillCount={tillCounts ? (tillCounts.get(branch.id) ?? 0) : null}
+          renewsOn={renewsOn}
+          onDone={onDone}
+        />
       ))}
     </>
   )
@@ -202,10 +224,12 @@ function Kpi({
 
 function BranchCard({
   branch,
+  tillCount,
   renewsOn,
   onDone,
 }: {
   branch: BranchOverviewRow
+  tillCount: number | null
   renewsOn: string | null
   onDone: (message: string) => void
 }) {
@@ -322,7 +346,7 @@ function BranchCard({
                 id: 'tills',
                 labelKey: 'branches.menu.tillDevices',
                 icon: deviceIcon,
-                hint: String(branch.devices),
+                hint: tillCount === null ? '-' : String(tillCount),
               },
               {
                 id: 'trading',
@@ -448,19 +472,17 @@ function BranchCard({
 
             <Cell label={t('branches.col.till')}>
               <p className="flex items-baseline gap-1.5">
-                {branch.devices === 0 ? (
+                {tillCount === null || tillCount === 0 ? (
                   <span className="text-lg font-semibold text-text-primary">
-                    {t('branches.none')}
+                    {tillCount === null ? '-' : t('branches.none')}
                   </span>
                 ) : (
                   <>
                     <span className="text-lg font-semibold text-text-primary tabular-nums">
-                      {branch.devices}
+                      {tillCount}
                     </span>
                     <span className="text-xs font-medium text-text-quaternary">
-                      {t('branches.devices', { count: branch.devices })
-                        .replace(String(branch.devices), '')
-                        .trim()}
+                      {t('branches.tillUnit', { count: tillCount })}
                     </span>
                   </>
                 )}

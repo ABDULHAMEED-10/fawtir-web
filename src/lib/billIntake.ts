@@ -1,8 +1,10 @@
 import type {
+  BillReadingDto,
   ConfirmIntakeDto,
   IntakeCorrectionsDto,
   IntakeDto,
 } from '../api/expenditure/billIntake'
+import { ApiError, NetworkError } from '../api/errors'
 import type { ReferenceDataDto, TaxCategoryDto } from '../api/reference/referenceData'
 import { calculateInvoice, formatAtScale, projectInvoice } from './invoiceMath'
 import { DESIGN_REFERENCE, omanTaxCategories } from './invoiceDraft'
@@ -10,13 +12,17 @@ import { DESIGN_REFERENCE, omanTaxCategories } from './invoiceDraft'
 /**
  * The bill form behind Upload a bill, Record a bill and Scan receipts (E-10).
  *
- * Nothing here pretends the file was read: a PDF or photo arrives with every field empty and the
- * person types the bill beside it (decision 1). Only a UBL XML file carries values, and those
- * fill the fields as plain starting text, with no "read" or "unsure" marking.
+ * A UBL XML file carries values, and those fill the fields as plain starting text, with no
+ * "unsure" marking. A PDF or photo is filled only when the document reader read it
+ * (`extracted.reading.outcome` READ, EXPENDITURE.md 1.6 and 1.10); what it was unsure of is
+ * marked amber until the person types over it. Otherwise every field is empty and the person
+ * types the bill beside the file (decision 1).
  */
 
 export type BillLine = {
   id: string
+  /** A line the reader could not read whole (`confident: false` on a read file): amber until edited. */
+  unsure?: boolean
   description: string
   quantity: string
   unitPrice: string
@@ -88,14 +94,7 @@ export type BillForm = {
 }
 
 export type BillField =
-  | 'supplier'
-  | 'billNumber'
-  | 'issueDate'
-  | 'dueDate'
-  | 'currency'
-  | 'vat'
-  | 'total'
-  | 'lines'
+  'supplier' | 'billNumber' | 'issueDate' | 'dueDate' | 'currency' | 'vat' | 'total' | 'lines'
 
 export type BillProblems = Partial<Record<BillField, string>>
 
@@ -139,6 +138,21 @@ const money3 = (value: number | null | undefined) =>
 const DESIGN_CODES = new Set(DESIGN_REFERENCE.taxCategories.map((row) => row.code))
 
 /**
+ * The supplier on the list whose VAT number is the one the file states, or null when none or more
+ * than one is (DB-12). The list search matches part of a VAT number, so only an exact match counts,
+ * and a tie is left to the person rather than guessed.
+ */
+export function supplierWithVat<T extends { vatNumber: string | null }>(
+  rows: readonly T[],
+  vat: string | null | undefined,
+): T | null {
+  const wanted = (vat ?? '').trim().toUpperCase()
+  if (!wanted) return null
+  const found = rows.filter((row) => (row.vatNumber ?? '').trim().toUpperCase() === wanted)
+  return found.length === 1 ? found[0] : null
+}
+
+/**
  * What an XML bill carried, or what a person saved on the intake earlier, as starting values. A
  * fresh PDF or photo has nothing, so the form stays blank.
  */
@@ -159,6 +173,7 @@ export function fromIntake(intake: IntakeDto, base: BillForm = blankBillForm()):
     lines:
       read.lines.length > 0
         ? read.lines.map((line) => {
+            const unsure = readingOf(intake) !== null && !line.confident
             // A category the file or an earlier save named wins; else 5% is S5 and 0% Z0.
             const code =
               line.taxCategoryCode && DESIGN_CODES.has(line.taxCategoryCode)
@@ -171,6 +186,7 @@ export function fromIntake(intake: IntakeDto, base: BillForm = blankBillForm()):
               unitPrice: money3(line.unitPrice),
               vatRate: rateOfCategory(DESIGN_REFERENCE.taxCategories, code),
               taxCategoryCode: code,
+              ...(unsure ? { unsure: true } : {}),
             }
           })
         : base.lines,
@@ -186,6 +202,93 @@ export function savedDetails(intake: IntakeDto): boolean {
   const read = intake.extracted
   if (!read || intake.extractionStatus === 'EXTRACTED') return false
   return Object.values(read.confidence).some(Boolean) || read.lines.length > 0
+}
+
+/* ------------------------------------------------------------- document reading */
+
+/**
+ * The fields the reader scores (`BillDocumentReading.scores`), in the order the server lists
+ * them. The design's "11 of 13" counted fields the API does not have; the count is out of what
+ * was actually scored.
+ */
+export const READ_FIELDS = [
+  'supplierName',
+  'supplierVatNumber',
+  'billNumber',
+  'issueDate',
+  'dueDate',
+  'currency',
+  'net',
+  'vat',
+  'total',
+  'lines',
+] as const
+export type ReadField = (typeof READ_FIELDS)[number]
+
+/** The reader is sure at 0.9 and above (`ExtractedBillFields.CONFIDENT_AT`). */
+export const CONFIDENT_AT = 0.9
+
+/** The reading of a PDF or photo the reader actually read, else null (XML, off, failed, limit). */
+export function readingOf(intake: IntakeDto): BillReadingDto | null {
+  const reading = intake.extracted?.reading ?? null
+  return reading && reading.outcome === 'READ' ? reading : null
+}
+
+const hasValue = (intake: IntakeDto, field: ReadField) => {
+  const value = intake.extracted?.[field]
+  if (field === 'lines') return Array.isArray(value) && value.length > 0
+  return value !== null && value !== undefined && String(value).trim() !== ''
+}
+
+/**
+ * The fields to mark amber on a read file: scored below 0.9, missing, or worked out rather than
+ * read (row 1.10). A field a person corrected and saved (`PUT`) is confident on the server and is
+ * not marked again when the bill is resumed. Empty for anything that was not read.
+ */
+export function unsureFields(intake: IntakeDto): Set<ReadField> {
+  const reading = readingOf(intake)
+  const unsure = new Set<ReadField>()
+  if (!reading) return unsure
+  const confidence = intake.extracted.confidence ?? {}
+  for (const field of READ_FIELDS) {
+    const worked = (reading.workedOut ?? []).includes(field)
+    const doubtful = (reading.scores?.[field] ?? 0) < CONFIDENT_AT || !hasValue(intake, field)
+    if (worked || (doubtful && confidence[field] !== true)) unsure.add(field)
+  }
+  return unsure
+}
+
+/** "11 of 13 fields confident": the scored fields, and how many of them are not amber. */
+export function confidentCount(intake: IntakeDto): { read: number; fields: number } | null {
+  const reading = readingOf(intake)
+  if (!reading) return null
+  const scored = READ_FIELDS.filter((field) => field in (reading.scores ?? {}))
+  const fields = scored.length > 0 ? scored : [...READ_FIELDS]
+  const unsure = unsureFields(intake)
+  return { read: fields.filter((field) => !unsure.has(field)).length, fields: fields.length }
+}
+
+/** Whether the VAT was worked out from the total and the rate rather than read (row 1.10). */
+export function vatWorkedOut(intake: IntakeDto): boolean {
+  return (readingOf(intake)?.workedOut ?? []).includes('vat')
+}
+
+/** A receipt's guessed category, only when it is one Scan receipts offers. */
+export function guessedCategory(intake: IntakeDto): string | null {
+  const category = readingOf(intake)?.category ?? null
+  return category && EXPENSE_CATEGORIES.some((entry) => entry.value === category) ? category : null
+}
+
+/**
+ * Why a PDF or photo was not read, when the person can do something about it: today's limit, or
+ * a plan without "Scan bills and receipts". A failed or unavailable read says nothing more than
+ * "not read". The upload itself always succeeded.
+ */
+export function notReadReason(intake: IntakeDto): 'dailyLimit' | 'plan' | null {
+  const outcome = intake.extracted?.reading?.outcome
+  if (outcome === 'DAILY_LIMIT_REACHED') return 'dailyLimit'
+  if (outcome === 'PLAN_FEATURE_NOT_INCLUDED') return 'plan'
+  return null
 }
 
 /** Plain `123.450` for the API; the engine's own string groups thousands for display. */
@@ -275,7 +378,10 @@ export function billProblems(
 export type ConfirmExtras = {
   category?: string | null
   paidOnTheSpot?: ConfirmIntakeDto['paidOnTheSpot']
-  notDuplicateOf?: string | null
+  notDuplicateOf?: null
+  /** Sent, with `overrideReason`, only when given: a server before the list refuses the field. */
+  notDuplicateOfIds?: string[]
+  overrideReason?: string
   /**
    * Defaults to a bill. A caller confirming a supplier's credit or debit note states it, because
    * the same intake takes all three and the type is what decides which way the money points.
@@ -329,7 +435,10 @@ export function toConfirmation(form: BillForm, extras: ConfirmExtras = {}): Conf
     purchaseOrderReference: null,
     category: extras.category ?? null,
     paidOnTheSpot: extras.paidOnTheSpot ?? null,
-    notDuplicateOf: extras.notDuplicateOf ?? null,
+    notDuplicateOf: null,
+    ...(extras.notDuplicateOfIds?.length
+      ? { notDuplicateOfIds: extras.notDuplicateOfIds, overrideReason: extras.overrideReason }
+      : {}),
     // TODO(backend): EXPENDITURE.md M.2. A receipt's category: 0% zero-rated and exempt apart.
     ...(extras.taxCategoryCode ? { taxCategoryCode: extras.taxCategoryCode } : {}),
     ...(extras.note?.trim() ? { note: extras.note.trim() } : {}),
@@ -408,6 +517,9 @@ export const BILL_CONFIRM_REFUSALS: Record<string, { field: BillField | null; ke
   // so all three screens read them.
   BILL_INTAKE_PETTY_CASH_NOT_CASH: { field: null, key: 'billIntake.refused.pettyCashNotCash' },
   BILL_NOTE_TOO_LONG: { field: null, key: 'billIntake.refused.noteTooLong' },
+  // A payment sent with a bill the server would hold as a possible duplicate (PRV43-WEBEXP L-5).
+  // Not the bill page's onHold wording: a duplicate hold is never released by hand.
+  BILL_PAYMENT_ON_HOLD: { field: null, key: 'billIntake.refused.paymentOnHold' },
 }
 
 /** Why an upload was refused, by the server's code. */
@@ -418,6 +530,19 @@ export const UPLOAD_REFUSALS: Record<string, string> = {
   // The pickers always send a file, so this shows only if a request reaches the server without
   // one.
   BILL_INTAKE_FILE_REQUIRED: 'billIntake.upload.fileRequired',
+}
+
+/** The wording for an upload that may have reached the server after all. */
+export const UPLOAD_MAY_HAVE_ARRIVED = 'billIntake.upload.mayHaveArrived'
+
+/**
+ * The browser or the gateway stopped waiting (504), which says nothing about the server: it can
+ * still finish, store the intake and count the read. Saying the upload failed invites a second
+ * one, and the stored file shows on the Bills list as an upload to confirm.
+ */
+export function uploadMayHaveArrived(error: unknown): boolean {
+  if (error instanceof NetworkError) return error.reason === 'timeout'
+  return error instanceof ApiError && error.status === 504
 }
 
 /** The picker's `accept`, and what the server takes. */

@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { DateField } from '../../components/ui'
+import { DateField, Select } from '../../components/ui'
 import { FieldLabel, SectionCard } from '../../components/form'
 import { selectAllOnFocus } from '../../components/invoice'
+import { unitOptions } from '../../components/invoice/unitOptions'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import {
@@ -16,7 +17,9 @@ import {
   type GoodsReceiptDto,
   type PurchaseOrderAction,
   type PurchaseOrderDto,
+  type PurchaseOrderLineDto,
 } from '../../api/expenditure/purchaseOrders'
+import { getProduct, type ProductDto } from '../../api/catalog/products'
 import { loadSupplier, supplierPath, type SupplierDetailDto } from '../../api/expenditure/suppliers'
 import { BRANCHES_PATH, loadBranches, type BranchDto } from '../../api/invoices/drafts'
 import { useBranchName } from '../../components/branch/useBranchName'
@@ -24,11 +27,21 @@ import { describeApiFailure } from '../../lib/apiFailure'
 import {
   acceptsReceipts,
   canCancel,
+  lacksStockUnit,
   nextAction,
   orderStockRefusalKey,
   outstandingOn,
+  readsStockUnits,
+  receiptLineRequest,
+  receiptUnitRefused,
   receivedByLine,
+  statedUnitAsk,
+  statedUnitOf,
+  type StatedUnitAsk,
+  type StockUnitSource,
 } from '../../lib/purchaseOrders'
+import { unitLabel } from '../../lib/salesNote'
+import { useReferenceData } from '../../lib/reference/referenceData'
 import { earlySettlementNote, termsNote } from '../../lib/supplierRecord'
 import { formatAmount, formatDate, formatInstant, initialsOf } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
@@ -159,7 +172,7 @@ function PurchaseOrderDetail({ id }: { id: string }) {
         {order.read.status === 'loading' ? (
           <LoadingNotice />
         ) : (
-          <ApiReadFailure error={order.read.error} retry={order.retry} />
+          <ApiReadFailure error={order.read.error} retry={order.retry} notFoundOn400 />
         )}
       </div>
     )
@@ -500,35 +513,79 @@ function BookIn({
   onFailure: (error: unknown) => void
 }) {
   const { t } = useTranslation()
+  const session = useSession()
   const [receivedOn, setReceivedOn] = useState('')
   const [note, setNote] = useState('')
   const [quantities, setQuantities] = useState<Record<string, string>>({})
+  const [units, setUnits] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
+  // `busy` disables the button only after a render; a double click inside one tick would post the
+  // receipt twice, and a second partial receipt is accepted, booking the goods in twice.
+  const submitting = useRef(false)
+
+  const reads = readsStockUnits(order)
+  const askingProducts = [
+    ...new Set(
+      order.lines
+        .filter((line) => lacksStockUnit(line, reads) && outstandingOn(line, received) > 0)
+        .map((line) => line.productId as string),
+    ),
+  ]
+  const mayReadProducts = can(session, 'product.read')
+  const products = useApiRead<ProductDto[]>(
+    askingProducts.length > 0 && mayReadProducts
+      ? `purchase-order-stock-units:${askingProducts.join(',')}`
+      : null,
+    () => Promise.all(askingProducts.map((productId) => getProduct(productId))),
+  )
+  const source: StockUnitSource =
+    askingProducts.length === 0 || !mayReadProducts || products.read.status === 'failed'
+      ? { status: 'unknown' }
+      : products.read.status === 'ready'
+        ? {
+            status: 'known',
+            products: new Map(products.read.data.map((product) => [product.id, product])),
+          }
+        : { status: 'checking' }
+  const askOf = (line: PurchaseOrderLineDto) => statedUnitAsk(line, reads, source)
 
   const entered = order.lines
     .map((line) => ({ line, value: Number(quantities[line.id] ?? '') }))
     .filter((entry) => Number.isFinite(entry.value) && entry.value > 0)
+    .map((entry) => {
+      const ask = askOf(entry.line)
+      return { ...entry, ask, statedUnit: statedUnitOf(ask, units[entry.line.id]) }
+    })
 
   const overBooked = entered.filter((entry) => entry.value > outstandingOn(entry.line, received))
-  const canBook = entered.length > 0 && overBooked.length === 0 && !busy
+  const unitMissing = entered.filter((entry) => entry.ask.kind !== 'none' && !entry.statedUnit)
+  const canBook =
+    entered.length > 0 && overBooked.length === 0 && unitMissing.length === 0 && !busy
 
   const book = async () => {
+    if (submitting.current) return
+    submitting.current = true
     setBusy(true)
     try {
       await recordGoodsReceipt(order.id, {
         receivedOn: receivedOn || null,
         note: note.trim() || null,
-        lines: entered.map((entry) => ({
-          purchaseOrderLineId: entry.line.id,
-          quantityReceived: entry.value,
-        })),
+        lines: entered.map((entry) => receiptLineRequest(entry.line, entry.value, entry.statedUnit)),
       })
       setQuantities({})
+      setUnits({})
       setNote('')
       onDone()
     } catch (error) {
+      // The unit shown is no longer the product's: read it again and ask afresh, so a confirmation
+      // given against the old unit is never sent again.
+      if (receiptUnitRefused(error)) {
+        setUnits({})
+        products.retry()
+      }
       onFailure(error)
     } finally {
+      submitting.current = false
       setBusy(false)
     }
   }
@@ -539,25 +596,36 @@ function BookIn({
       <div className="mt-4 flex flex-col gap-2">
         {order.lines.map((line) => {
           const left = outstandingOn(line, received)
+          const ask = left > 0 ? askOf(line) : null
           return (
-            <div key={line.id} className="flex flex-wrap items-center justify-between gap-3">
-              <span className="text-sm font-medium text-text-secondary">
-                {line.description}
-                <span className="ms-2 text-xs text-text-quaternary">
-                  {t('purchaseOrder.stillDue', { count: left })}
+            <div key={line.id} className="flex flex-col gap-1.5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="text-sm font-medium text-text-secondary">
+                  {line.description}
+                  <span className="ms-2 text-xs text-text-quaternary">
+                    {t('purchaseOrder.stillDue', { count: left })}
+                  </span>
                 </span>
-              </span>
-              <input
-                inputMode="decimal"
-                value={quantities[line.id] ?? ''}
-                disabled={left === 0}
-                onFocus={selectAllOnFocus}
-                onChange={(event) =>
-                  setQuantities({ ...quantities, [line.id]: event.target.value })
-                }
-                aria-label={t('purchaseOrder.receiveFor', { item: line.description })}
-                className={`${FIELD_SHELL} h-[46px] w-28 text-end`}
-              />
+                <input
+                  inputMode="decimal"
+                  value={quantities[line.id] ?? ''}
+                  disabled={left === 0}
+                  onFocus={selectAllOnFocus}
+                  onChange={(event) =>
+                    setQuantities({ ...quantities, [line.id]: event.target.value })
+                  }
+                  aria-label={t('purchaseOrder.receiveFor', { item: line.description })}
+                  className={`${FIELD_SHELL} h-[46px] w-28 text-end`}
+                />
+              </div>
+              {ask && ask.kind !== 'none' ? (
+                <StatedUnit
+                  line={line}
+                  ask={ask}
+                  answer={units[line.id]}
+                  onAnswer={(unit) => setUnits({ ...units, [line.id]: unit })}
+                />
+              ) : null}
             </div>
           )
         })}
@@ -566,6 +634,10 @@ function BookIn({
       {overBooked.length > 0 ? (
         <p role="alert" className="mt-3 text-sm font-medium text-warning-700">
           {t('purchaseOrder.error.overBooked', { item: overBooked[0].line.description })}
+        </p>
+      ) : unitMissing.length > 0 && unitMissing[0].ask.kind !== 'checking' ? (
+        <p role="alert" className="mt-3 text-sm font-medium text-warning-700">
+          {t('purchaseOrder.stock.statedUnit.missing', { item: unitMissing[0].line.description })}
         </p>
       ) : null}
 
@@ -599,6 +671,68 @@ function BookIn({
         {t(busy ? 'common.saving' : 'purchaseOrder.bookIn')}
       </button>
     </SectionCard>
+  )
+}
+
+/**
+ * The unit a line written before V519 is booked in (DEC-30-08), stated by the person counting the
+ * goods: the catalogue's unit to confirm when it could be read, else a unit to pick. Never
+ * pre-answered, since an answer the screen gave would be the silent conversion the rule refuses.
+ */
+function StatedUnit({
+  line,
+  ask,
+  answer,
+  onAnswer,
+}: {
+  line: PurchaseOrderLineDto
+  ask: Exclude<StatedUnitAsk, { kind: 'none' }>
+  answer: string | undefined
+  onAnswer: (unit: string) => void
+}) {
+  const { t } = useTranslation()
+  const reference = useReferenceData()
+  const noteId = `stated-unit-note-${line.id}`
+  if (ask.kind === 'checking') {
+    return (
+      <p className="text-xs font-medium text-text-quaternary">
+        {t('purchaseOrder.stock.statedUnit.checking')}
+      </p>
+    )
+  }
+  return (
+    <div className="flex flex-col gap-1.5">
+      <p id={noteId} className="text-xs font-medium text-text-quaternary">
+        {t('purchaseOrder.stock.statedUnit.legacyNote')}
+      </p>
+      {ask.kind === 'confirm' ? (
+        <label className="flex items-start gap-3 text-sm font-medium text-text-secondary">
+          <input
+            type="checkbox"
+            checked={answer === ask.unit}
+            onChange={(event) => onAnswer(event.target.checked ? ask.unit : '')}
+            aria-describedby={noteId}
+            className="mt-0.5 size-5 shrink-0 rounded-[4px] accent-[#2c4eb7]"
+          />
+          <span>
+            {t('purchaseOrder.stock.statedUnit.confirm', { unit: unitLabel(ask.unit, t) })}
+          </span>
+        </label>
+      ) : (
+        <div className="w-full max-w-[240px]">
+          <Select
+            value={answer ?? ''}
+            onChange={onAnswer}
+            options={unitOptions('goods', t, answer || undefined, reference)}
+            placeholder={t('purchaseOrder.stock.statedUnit.choose')}
+            ariaLabel={t('purchaseOrder.stock.statedUnit.chooseFor', { item: line.description })}
+            ariaDescribedBy={noteId}
+            compact
+            quiet
+          />
+        </div>
+      )}
+    </div>
   )
 }
 

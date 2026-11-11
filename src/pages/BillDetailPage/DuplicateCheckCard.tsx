@@ -9,6 +9,7 @@ import {
   DUPLICATE_NOTE_MAX_LENGTH,
   resolveDuplicateBill,
   type BillDetailDto,
+  type DuplicateCoincidenceDto,
   type DuplicateResolutionDto,
 } from '../../api/expenditure/bills'
 import { isCreditNote } from '../../lib/billDetail'
@@ -17,6 +18,7 @@ import {
   duplicateCheckOf,
   isNoteRefusal,
   refusalMeansStale,
+  suspectedBodyKey,
   type DuplicateCheck,
 } from '../../lib/billDuplicate'
 import { toBillListItem } from '../../lib/billList'
@@ -28,12 +30,6 @@ const TITLE: Record<DuplicateCheck['state'], string> = {
   suspected: 'billDetail.duplicate.title.suspected',
   confirmed: 'billDetail.duplicate.title.confirmed',
   notDuplicate: 'billDetail.duplicate.title.notDuplicate',
-}
-
-const BODY: Record<DuplicateCheck['state'], string> = {
-  suspected: 'billDetail.duplicate.body.suspected',
-  confirmed: 'billDetail.duplicate.body.confirmed',
-  notDuplicate: 'billDetail.duplicate.body.notDuplicate',
 }
 
 const DONE: Record<DuplicateResolutionDto, string> = {
@@ -113,7 +109,9 @@ export function DuplicateCheckCard({
     setBusy(true)
     setError(null)
     try {
-      await resolveDuplicateBill(billId, deciding, text)
+      // The version of the coincidences on screen, so a change since the read is refused, and
+      // refreshed below as stale, instead of being decided unseen.
+      await resolveDuplicateBill(billId, deciding, text, detail.duplicateEvidence?.version ?? null)
       const done = DONE[deciding]
       close()
       onDecided(done)
@@ -133,10 +131,14 @@ export function DuplicateCheckCard({
   const noteError = error?.field ? error.text : null
   const decided =
     check.state !== 'suspected' && check.hold?.duplicateResolvedAt ? check.hold : null
+  const body = suspectedBodyKey(
+    check.state,
+    original.status === 'ready' ? original.data.bill.source : original.status,
+  )
 
   return (
     <Card id="duplicate-check" title={t(TITLE[check.state])}>
-      <p className="text-sm font-medium leading-[1.5] text-text-tertiary">{t(`${BODY[check.state]}${kind}`)}</p>
+      <p className="text-sm font-medium leading-[1.5] text-text-tertiary">{t(`${body}${kind}`)}</p>
       {decided?.duplicateResolvedAt ? (
         <p className="mt-2 text-sm font-medium leading-[1.5] text-text-tertiary">
           <span className="font-semibold text-text-primary">
@@ -146,7 +148,9 @@ export function DuplicateCheckCard({
           </span>
           {userId !== null && decided.duplicateResolvedBy === userId
             ? ` · ${t('billDetail.activity.byYou')}`
-            : null}
+            : decided.duplicateResolvedByName
+              ? ` · ${t('billDetail.activity.byName', { name: decided.duplicateResolvedByName })}`
+              : null}
           {decided.duplicateResolutionNote ? `: “${decided.duplicateResolutionNote}”` : null}
         </p>
       ) : null}
@@ -182,10 +186,16 @@ export function DuplicateCheckCard({
         )}
       </div>
 
-      {check.sameDocumentUuid ? (
+      {/* "Confirm it as a duplicate" is advice for an undecided copy only; it stayed after the
+          confirmation (B-12). */}
+      {check.sameDocumentUuid && check.state === 'suspected' ? (
         <p className="mt-4 text-sm font-medium leading-[1.5] text-text-tertiary">
           {t(`billDetail.duplicate.sameUuid${kind}`)}
         </p>
+      ) : null}
+
+      {detail.duplicateEvidence && detail.duplicateEvidence.coincidences.length > 0 ? (
+        <Coincidences coincidences={detail.duplicateEvidence.coincidences} language={language} />
       ) : null}
 
       {actions.confirm ? (
@@ -278,6 +288,76 @@ export function DuplicateCheckCard({
         ) : null}
       </Modal>
     </Card>
+  )
+}
+
+/**
+ * The potential coincidences the server attached to the hold or found since (round 28, O-A
+ * Option 1), apart from the copy the hold names: nothing ties them to this supplier, so they are
+ * never shown as that copy or as duplicates. Each keeps the status the server gave it on this
+ * read, so one that changed or went away is still listed and says so.
+ */
+function Coincidences({
+  coincidences,
+  language,
+}: {
+  coincidences: DuplicateCoincidenceDto[]
+  language: string
+}) {
+  const { t } = useTranslation()
+  const title = t('billDetail.duplicate.coincidences.title')
+  const notStated = t('billDetail.notStated')
+  const money = (row: DuplicateCoincidenceDto): ReactNode =>
+    row.totalIncludingVat === null ? (
+      notStated
+    ) : row.currencyCode === 'OMR' ? (
+      <>
+        <span className="me-1">
+          <Rial />
+        </span>
+        {formatAmount(row.totalIncludingVat, row.currencyCode, language)}
+      </>
+    ) : (
+      `${formatAmount(row.totalIncludingVat, row.currencyCode ?? '', language)} ${row.currencyCode ?? ''}`.trim()
+    )
+  return (
+    <section aria-label={title} className="mt-4 rounded-sm border border-border-subtle bg-white p-3.5">
+      <SideHeading text={title} />
+      <p className="mt-2 text-sm font-medium leading-[1.5] text-text-tertiary">
+        {t('billDetail.duplicate.coincidences.intro')}
+      </p>
+      <ul className="mt-3 flex flex-col gap-2.5">
+        {coincidences.map((row) => (
+          <li key={row.billId} className="flex flex-wrap items-center justify-between gap-3">
+            {/* All figures null: the id is no longer one of this company's Peppol documents, so
+                there is nothing to show or open, only that it went. */}
+            {row.source === null ? (
+              <span className="text-sm font-semibold text-text-primary">
+                {t('billDetail.duplicate.coincidences.notOnFile')}
+              </span>
+            ) : (
+              <span className="text-sm font-semibold text-text-primary">
+                {row.billNumber ?? notStated} ·{' '}
+                {row.issueDate ? formatDate(row.issueDate, language) : notStated} · {money(row)}
+              </span>
+            )}
+            <span className="flex items-center gap-3">
+              <span className="text-sm font-medium text-text-tertiary">
+                {t(`billDetail.duplicate.coincidences.status.${row.status}`)}
+              </span>
+              {row.source !== null ? (
+                <Link
+                  to={`/expenditure/bills/${encodeURIComponent(row.billId)}`}
+                  className="text-sm font-semibold text-primary-700 hover:underline"
+                >
+                  {t('billDetail.duplicate.openOriginal')}
+                </Link>
+              ) : null}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 

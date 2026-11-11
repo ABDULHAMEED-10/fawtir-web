@@ -37,6 +37,7 @@ import {
   dueBy,
   dueNote,
   groupBySupplier,
+  candidateTwinOf,
   markPaidBlockKey,
   paidOn,
   refusalOf,
@@ -321,7 +322,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
 
   if (runId && loaded.read.status === 'loading') return <LoadingNotice />
   if (runId && loaded.read.status === 'failed')
-    return <ApiReadFailure error={loaded.read.error} retry={loaded.retry} />
+    return <ApiReadFailure error={loaded.read.error} retry={loaded.retry} notFoundOn400 />
 
   const accountOptions = [
     ...(accounts.read.status === 'ready' ? accounts.read.data : []),
@@ -391,8 +392,11 @@ function RunBuilder({ runId }: { runId: string | null }) {
                   setNotice(null)
                   loaded.retry()
                 }}
+                // Cancelling a sent run says the bank paid nothing, a settlement fact: the server
+                // asks bill.settle on top of invoice.payment.manage there (batch 39 SEC/EXP,
+                // owner-approved). The menu itself stays under canManage.
                 onCancelSent={
-                  canManage && run.state === 'EXPORTED' ? () => setCancellingSent(true) : undefined
+                  canSettle && run.state === 'EXPORTED' ? () => setCancellingSent(true) : undefined
                 }
               />
             ) : null}
@@ -661,6 +665,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
                                     })
                                   : t('paymentRuns.noDate')}
                               </p>
+                              <CandidateTwinLink bill={bill} />
                               {blocks.has(bill.billId) && !takenOut.has(bill.billId) ? (
                                 <MarkPaidBlockChip label={t(blocks.get(bill.billId)!)} />
                               ) : null}
@@ -1077,5 +1082,25 @@ function RunBuilder({ runId }: { runId: string | null }) {
         />
       ) : null}
     </div>
+  )
+}
+
+/** Read once per row: the twin decides whether the link shows, where it goes and what it says. */
+function CandidateTwinLink({
+  bill,
+}: {
+  bill: Pick<RunBill, 'duplicateOf' | 'possibleDuplicateOf' | 'heldCopyId'>
+}) {
+  const { t } = useTranslation()
+  const twin = candidateTwinOf(bill)
+  if (!twin) return null
+  return (
+    <Link
+      to={`/expenditure/bills/${twin.otherId}`}
+      data-testid="run-candidate-twin"
+      className="mt-0.5 block text-[10px] font-semibold leading-[1.2] text-pending-700 hover:underline"
+    >
+      {t(`paymentRuns.twin.${twin.certainty}`)}
+    </Link>
   )
 }

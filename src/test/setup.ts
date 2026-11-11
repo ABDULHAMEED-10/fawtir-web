@@ -1,10 +1,20 @@
 import { beforeEach } from 'vitest'
 import { configure } from '@testing-library/react'
 import { resetCompanyContact } from '../lib/companyContact'
+import { releaseTillLocks } from '../lib/posTillLock'
+import { fakeLocks, installLocks } from './fakeLocks'
 
 // Fawtir's contact details are read once per page load (`lib/companyContact.ts`). A test is a page
 // load of its own: without this the first test in a file answers every later one from its stubs.
 beforeEach(() => resetCompanyContact())
+
+// POS-TABLOCK: a till numbers offline sales only while it holds the till's Web Lock, and jsdom has
+// no `navigator.locks`. Each test is a fresh browser: a new lock manager, and no lock this module
+// instance still thinks it holds from the test before.
+beforeEach(() => {
+  releaseTillLocks()
+  if (typeof window !== 'undefined') installLocks(fakeLocks())
+})
 
 // `findByRole` walks the accessibility tree of the whole screen — the console shell's sidebar
 // included — and under the full suite's parallel load that took longer than Testing Library's

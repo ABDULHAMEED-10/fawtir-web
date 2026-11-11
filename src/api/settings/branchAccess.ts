@@ -64,6 +64,26 @@ export type PermissionLimit = 'OWN' | 'MAX_PERCENT'
 /** `PermissionGrant`: a grant may carry the limit its permission offers; it replaces the role's. */
 export type PersonGrant = { code: string; qualifier: PermissionLimit | null; value: number | null }
 
+/**
+ * `CarriedLimit` (backend 37b2fedca, review FR2-1): an own grant a role collapse carried from a
+ * company role that set no limit, held at MAX_PERCENT 0. Read-only: the server refuses a 0 sent as a
+ * grant, keeps the limit through a save that does not name its code, replaces it when one does, and
+ * removes it when the save lists it in `clearCarried` (de914262a). It follows the person into any
+ * later role (review FR2-3), so the screen says so.
+ */
+export type CarriedLimit = { code: string; qualifier: PermissionLimit; value: number }
+
+/**
+ * `discountLimitNotice` (owner Q12, backend 4f1ddc683): whether the company's RC5 discount limits,
+ * the carried ones among them, are in force. NOT_NOTIFIED: not yet told, effectiveAt null, the limits
+ * read as before RC5. NOTIFIED: in force from effectiveAt. IN_FORCE: in force (effectiveAt the noticed
+ * date, or null for a company created since the release).
+ */
+export type DiscountLimitNotice = {
+  status: 'NOT_NOTIFIED' | 'NOTIFIED' | 'IN_FORCE'
+  effectiveAt: string | null
+}
+
 /** `PersonPermissions`: `effective` is the role's permissions plus the grants minus the denials. */
 export type PersonPermissionsDto = {
   userId: string
@@ -72,17 +92,26 @@ export type PersonPermissionsDto = {
   grants: PersonGrant[]
   denials: string[]
   effective: string[]
+  /** Absent from a server before 37b2fedca. */
+  carriedLimits?: CarriedLimit[]
+  /** Absent from a server before 4f1ddc683. */
+  discountLimitNotice?: DiscountLimitNotice
 }
 
 export function loadPersonPermissions(userId: string): Promise<PersonPermissionsDto> {
   return apiRequest<PersonPermissionsDto>(personPermissionsPath(userId))
 }
 
-/** Full replacement of the person's own grants and denials. */
+/**
+ * Full replacement of the person's own grants and denials. `clearCarried` (de914262a, owner Q14 B)
+ * removes carried limits without a denial; it is sent only when it names something, so a save that
+ * clears nothing reads the same to a server from before it.
+ */
 export function savePersonPermissions(
   userId: string,
   grants: PersonGrant[],
   denials: string[],
+  clearCarried: string[] = [],
 ): Promise<PersonPermissionsDto> {
   return apiRequest<PersonPermissionsDto>(personPermissionsPath(userId), {
     method: 'PUT',
@@ -93,6 +122,7 @@ export function savePersonPermissions(
           : { code: grant.code },
       ),
       denials,
+      ...(clearCarried.length ? { clearCarried } : {}),
     },
   })
 }

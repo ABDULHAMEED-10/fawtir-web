@@ -393,8 +393,10 @@ Checked on 2026-09-28 against PDK 1.4.4. Findings from that check are in
 - Payment methods use **UNCL4461** codes (for example 30 bank transfer, 10 cash, 48 card).
   Units use **UN/ECE Rec. 20** codes, with `ZZ` for "Other".
 - A customer on Peppol is addressed by the participant id **`0248:` followed by the VAT number**.
-- **Full tax invoices** go to business (B2B) and government (B2G) customers over Peppol;
-  **simplified invoices** go to consumers (B2C) with a QR code.
+- **Full tax invoices** go to business (B2B) customers over Peppol; a government customer is
+  issued the same full tax invoice as a business. B2G is NOT_VERIFIED for RC5: no Oman authority
+  defines a B2G document, profile or mandatory field (owner ruling 2026-11-07,
+  OWNER-RC5-B2G-WORDING-20261107p). **Simplified invoices** go to consumers (B2C) with a QR code.
 - Records are kept **ten years** under the Oman VAT Law, **fifteen** for property, and cannot be
   edited or deleted while retention runs.
 - **Self-billing:** a buyer may issue invoices on a supplier's behalf only under a signed, active

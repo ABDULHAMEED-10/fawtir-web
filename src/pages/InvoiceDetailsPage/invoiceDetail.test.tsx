@@ -19,6 +19,12 @@ import { paymentProblems, paymentRows, statusOf, timelineOf } from '../../lib/in
 import { InvoiceDetailsPage } from './InvoiceDetailsPage'
 import { ApiError } from '../../api'
 import { dueDateFor, issueProblems, issueRefusalOf, muscatToday } from '../../lib/invoiceIssue'
+import QRCode from 'qrcode'
+
+// QR E-3: spied so a test can prove the encoder is fed the server's payload and nothing else.
+vi.mock('qrcode', () => ({
+  default: { toDataURL: vi.fn(async (payload: string) => `data:image/png;base64,${payload}`) },
+}))
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
 const ID = '11111111-1111-1111-1111-111111111111'
@@ -37,6 +43,7 @@ const ADMIN: Entitlements = {
     'invoice.payment.manage',
     'customer.read',
     'creditnote.create',
+    'branch.read',
   ],
   scopes: [],
   featureFlags: {},
@@ -120,6 +127,14 @@ const RECEIVABLE: InvoiceReceivableDto = {
   paymentState: 'PARTIALLY_PAID',
   overdue: false,
   dueDate: '2026-09-30',
+}
+
+/** Nothing paid and nothing credited: the only receivable an issued invoice may be cancelled with. */
+const UNSETTLED: InvoiceReceivableDto = {
+  ...RECEIVABLE,
+  paidAmount: 0,
+  outstandingAmount: 56.7,
+  paymentState: 'UNPAID',
 }
 
 const PAYMENTS: InvoicePaymentDto[] = [
@@ -224,9 +239,13 @@ let fetchMock: ReturnType<typeof vi.fn>
 let invoiceResponse: () => Response
 let receivableResponse: () => Response
 let cancelResponse: () => Response
+/** The notes that correct the invoice, as `GET /authored-invoices?correctionOf=` lists them. */
+let notesResponse: () => Response
 let payResponse: () => Response
 let issueResponse: () => Response
 let dispatchResponse: () => Response
+/** `GET /authored-invoices/{id}/receipt-qr`; the business buyer here has none unless a test says so. */
+let receiptQrResponse: () => Response
 let sendResponse: () => Response
 let attachmentFiles: Array<{
   id: string
@@ -261,9 +280,12 @@ beforeEach(async () => {
   invoiceResponse = () => json(200, invoice())
   receivableResponse = () => json(200, RECEIVABLE)
   cancelResponse = () => json(200, invoice({ authoringState: 'CANCELLED', version: 5 }))
+  notesResponse = () => json(200, { content: [], page: 0, size: 50, totalElements: 0 })
   payResponse = () => json(200, PAYMENTS[0])
   issueResponse = () => json(200, invoice({ version: 5 }))
   dispatchResponse = () => json(200, NOT_SENT)
+  receiptQrResponse = () => json(200, { status: 'NOT_APPLICABLE', payload: null })
+  vi.mocked(QRCode.toDataURL).mockClear()
   sendResponse = () => json(200, DISPATCHED)
   attachmentFiles = [
     {
@@ -302,6 +324,7 @@ beforeEach(async () => {
     }
     if (url === `${URL_BASE}/history`) return json(200, HISTORY)
     if (url === `${URL_BASE}/dispatch`) return dispatchResponse()
+    if (url === `${URL_BASE}/receipt-qr`) return receiptQrResponse()
     if (url === `${URL_BASE}/send` && method === 'POST') return sendResponse()
     if (url === `${URL_BASE}/internal-note`)
       return json(200, { internalNote: 'Chase Hamed in September.' })
@@ -344,9 +367,8 @@ beforeEach(async () => {
     if (url === '/api/v1/settings/subscription') return subscriptionResponse()
     if (url === '/api/v1/payment-reminders/schedule')
       return json(200, { offsets: [-3, 0, 7, 14], enabled: true })
-    // The notes that correct the invoice; none in these fixtures.
-    if (url.startsWith('/api/v1/authored-invoices?'))
-      return json(200, { content: [], page: 0, size: 50, totalElements: 0 })
+    // The notes that correct the invoice; none unless a test says otherwise.
+    if (url.startsWith('/api/v1/authored-invoices?')) return notesResponse()
     if (url.startsWith('/api/v1/compliance/activity?') && method === 'GET')
       return activityListResponse()
     if (url.startsWith('/api/v1/compliance/activity/') && method === 'GET') {
@@ -427,6 +449,10 @@ describe('An invoice, wired to the API', () => {
     expect((await screen.findAllByText('Partially paid')).length).toBeGreaterThan(0)
     expect(screen.getAllByText('Sohar Port Logistics').length).toBeGreaterThan(0)
     expect(screen.getAllByText('VAT OM1100999001').length).toBeGreaterThan(0)
+    // There is no /customers/:id route; the catch-all sent this link to the marketing home.
+    expect((await screen.findByRole('link', { name: /View customer/ })).getAttribute('href')).toBe(
+      '/customers/c-1/edit',
+    )
     // The branch and the terms are on the page and again on the preview's paper.
     expect(screen.getAllByText('Head office').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Net 30 days').length).toBeGreaterThan(0)
@@ -589,10 +615,12 @@ describe('An invoice, wired to the API', () => {
   })
 
   it('cancels with a reason, and reads a refusal as its own sentence', async () => {
+    receivableResponse = () => json(200, UNSETTLED)
     renderInvoice()
     await screen.findByRole('heading', { level: 1, name: 'Invoice INV-2026-0042' })
-    // Cancelling lives in the header's overflow menu, as the design draws it.
-    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    // Cancelling lives in the header's overflow menu, as the design draws it. The menu waits on
+    // the receivable and the notes list, which decide whether Cancel may be offered (A-0).
+    fireEvent.click(await screen.findByRole('button', { name: 'More actions' }))
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel invoice' }))
     expect(await screen.findByText(/does not tell the customer/)).toBeTruthy()
     const confirm = screen.getByRole('button', { name: 'Cancel the invoice' }) as HTMLButtonElement
@@ -615,9 +643,10 @@ describe('An invoice, wired to the API', () => {
         code: 'DELIVERED_INVOICE_CANCELLATION_NOT_APPROVED',
         detail: 'no',
       })
+    receivableResponse = () => json(200, UNSETTLED)
     renderInvoice()
     await screen.findByRole('heading', { level: 1, name: 'Invoice INV-2026-0042' })
-    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'More actions' }))
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel invoice' }))
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Too late' } })
     fireEvent.click(screen.getByRole('button', { name: 'Cancel the invoice' }))
@@ -640,6 +669,99 @@ describe('An invoice, wired to the API', () => {
     invoiceResponse = () => json(404, { type: 'https://api.fawtir.om/problems/not-found' })
     renderInvoice()
     expect(await screen.findByText('Not found')).toBeTruthy()
+  })
+
+  it('reads a malformed id (400 on the read) as not found, with nothing to retry', async () => {
+    invoiceResponse = () =>
+      json(400, { type: 'https://api.fawtir.om/problems/validation-failed', status: 400 })
+    renderInvoice()
+    expect(await screen.findByText('Not found')).toBeTruthy()
+    expect(screen.queryByText(/Some details were not accepted/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
+  })
+
+  it('names the VAT category on the totals line as the header does, zero-rated included', async () => {
+    const base = invoice()
+    invoiceResponse = () =>
+      json(
+        200,
+        invoice({
+          lines: [{ ...base.lines[0], taxCategoryCode: 'Z', en16931Category: 'Z', taxRate: 0 }],
+          totals: { ...base.totals!, vatAmount: 0, totalAmount: 54 },
+        }),
+      )
+    renderInvoice()
+    expect(await screen.findByText('VAT · Zero-rated 0%')).toBeTruthy()
+    expect(screen.queryByText(/Standard 0%/)).toBeNull()
+  })
+
+  it('words the totals VAT line in natural Arabic, standard and zero-rated', async () => {
+    await i18n.changeLanguage('ar')
+    const view = renderInvoice()
+    expect(await screen.findByText('الضريبة · القياسية 5%')).toBeTruthy()
+    view.unmount()
+    const base = invoice()
+    invoiceResponse = () =>
+      json(
+        200,
+        invoice({
+          lines: [{ ...base.lines[0], taxCategoryCode: 'Z', en16931Category: 'Z', taxRate: 0 }],
+          totals: { ...base.totals!, vatAmount: 0, totalAmount: 54 },
+        }),
+      )
+    renderInvoice()
+    expect(await screen.findByText('الضريبة · بنسبة صفرية 0%')).toBeTruthy()
+  })
+
+  it.each([
+    ['en', 'S', 5, 'Standard rate · 5%'],
+    ['en', 'Z', 0, 'Zero-rated · 0%'],
+    ['ar', 'S', 5, 'النسبة القياسية · 5%'],
+    ['ar', 'Z', 0, 'بنسبة صفرية · 0%'],
+  ])('heads the VAT treatment in plain words, %s %s (A-8)', async (lang, category, rate, words) => {
+    await i18n.changeLanguage(lang)
+    const base = invoice()
+    invoiceResponse = () =>
+      json(
+        200,
+        invoice({
+          lines: [{ ...base.lines[0], taxCategoryCode: category, en16931Category: category, taxRate: rate }],
+        }),
+      )
+    renderInvoice()
+    expect(await screen.findByText(words)).toBeTruthy()
+    // "Zero-rated rate" and "نسبة بنسبة صفر" were the words this replaces.
+    expect(screen.queryByText(/Zero-rated rate|نسبة بنسبة/)).toBeNull()
+  })
+
+  it('names the credit in the payments footer, so paid, credited and outstanding add up', async () => {
+    receivableResponse = () =>
+      json(200, {
+        ...RECEIVABLE,
+        documentTotal: 52.5,
+        paidAmount: 0,
+        creditedAmount: 10.5,
+        outstandingAmount: 42,
+        paymentState: 'UNPAID',
+      })
+    renderInvoice()
+    const footer = await screen.findAllByText(
+      (_, element) =>
+        element?.tagName === 'SPAN' &&
+        /Paid.*of.*52\.500.*·\s*Credited.*10\.500/.test(element.textContent ?? ''),
+    )
+    expect(footer.length).toBeGreaterThan(0)
+  })
+
+  it('names no credit in the payments footer when nothing was credited', async () => {
+    renderInvoice()
+    await waitFor(() => expect(screen.getAllByText('56.700')).toHaveLength(4))
+    expect(
+      screen.queryAllByText(
+        (_, element) =>
+          element?.tagName === 'SPAN' && /Paid.*of.*·\s*Credited/.test(element.textContent ?? ''),
+      ),
+    ).toHaveLength(0)
   })
 
   it('marks an invoice a till sale issued From the till, naming the till, in English and Arabic', async () => {
@@ -892,6 +1014,24 @@ describe('Recording and reversing payments', () => {
     expect(await screen.findByText('Payment reversed.')).toBeTruthy()
   })
 
+  it('says a till payment of a refunded or credited invoice is corrected at the till (FIN-4 Option B′)', async () => {
+    payResponse = () =>
+      json(409, {
+        type: 'https://api.fawtir.om/problems/conflict',
+        code: 'PAYMENT_REVERSAL_AFTER_REFUND_OR_CREDIT',
+        detail: 'no',
+      })
+    renderInvoice()
+    await screen.findByText('Reversed')
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Reverse' }))[0])
+    fireEvent.click(await screen.findByRole('button', { name: 'Reverse the payment' }))
+    await waitFor(() => expect(calls()).toContain(`POST ${URL_BASE}/payments/pay-1/reverse`))
+    expect(
+      await screen.findByText(/already has a refund or credit note, so it cannot be reversed/),
+    ).toBeTruthy()
+    expect(screen.queryByText('Payment reversed.')).toBeNull()
+  })
+
   it('offers neither to someone who may not manage payments, nor on a paid invoice', async () => {
     who = {
       ...ADMIN,
@@ -1098,6 +1238,36 @@ describe('invoice detail mapping', () => {
         outcome: 'REFUSED',
       },
     ])
+  })
+
+  // NOT RUN (static only). Backend 5597b0250 (HS Slice A, V534).
+  it('names the HS code amendment of a held invoice, in English and Arabic', () => {
+    const [entry] = timelineOf(
+      {
+        entries: [
+          {
+            id: 'h-10',
+            eventType: 'ISSUED_HS_CODE_AMENDED',
+            outcome: 'SUCCEEDED',
+            invoiceVersion: 2,
+            changedFieldsHash: null,
+            actorId: 'u-2',
+            occurredAt: '2026-11-05T07:00:00Z',
+          },
+        ],
+        truncated: false,
+        limit: 200,
+      },
+      'u-1',
+    )
+    expect(entry).toEqual({
+      key: 'invoiceDetails.event.ISSUED_HS_CODE_AMENDED',
+      at: '2026-11-05T07:00:00Z',
+      byYou: false,
+      outcome: null,
+    })
+    expect(i18n.exists(entry.key, { lng: 'en' })).toBe(true)
+    expect(i18n.exists(entry.key, { lng: 'ar' })).toBe(true)
   })
 })
 
@@ -1619,6 +1789,7 @@ describe('E28: a read-only subscription hides new documents and sending (plan v4
   ])('hides Credit note, Debit note, Send, Duplicate and periodic while %s; reading stays', async (_, status) => {
     who = OWNER
     subscriptionResponse = () => json(200, status)
+    receivableResponse = () => json(200, UNSETTLED)
     renderInvoice()
     await screen.findByRole('heading', { level: 1, name: 'Invoice INV-2026-0042' })
     await waitFor(() => expect(subscriptionReads().length).toBeGreaterThan(0))
@@ -2235,5 +2406,766 @@ describe('Sales approval on a draft', () => {
     ).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Send for approval' })).toBeTruthy()
     expect(screen.queryByText(/Not enough people/)).toBeNull()
+  })
+})
+
+describe('Cancel is not offered on an invoice something already settles (A-0)', () => {
+  const ISSUED_CREDIT_NOTE = {
+    id: 'cn-1',
+    type: 'CREDIT_NOTE',
+    version: 1,
+    authoringState: 'ISSUED',
+    deliveryState: 'NOT_SUBMITTED',
+    customerId: 'c-1',
+    currency: 'OMR',
+    invoiceNumber: 'CRN-2026-0003',
+    issueDate: '2026-08-05',
+    dueDate: null,
+    details: null,
+    lines: [],
+    totals: { totalAmount: 10 },
+    customerName: null,
+    payment: null,
+    correctionOfInvoiceId: ID,
+  }
+
+  const openMenu = async () => {
+    renderInvoice()
+    await screen.findByRole('heading', {
+      level: 1,
+      name: i18n.t('invoiceDetails.title', { id: 'INV-2026-0042' }),
+    })
+    // Both reads decide the menu, so the menu is opened only once both have answered.
+    await waitFor(() => expect(calls()).toContain(`GET ${URL_BASE}/receivable`))
+    await waitFor(() =>
+      expect(calls().some((call) => call.startsWith('GET /api/v1/authored-invoices?'))).toBe(true),
+    )
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('invoiceDetails.actions.more') }))
+  }
+
+  it('offers Cancel on an issued invoice with no payment and no note', async () => {
+    receivableResponse = () => json(200, UNSETTLED)
+    await openMenu()
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel invoice' }))
+    expect(await screen.findByRole('dialog', { name: 'Cancel this invoice?' })).toBeTruthy()
+  })
+
+  it('does not open the cancel dialog once a credit note is issued against it, and says why', async () => {
+    receivableResponse = () => json(200, { ...UNSETTLED, creditedAmount: 10, outstandingAmount: 46.7 })
+    notesResponse = () =>
+      json(200, { content: [ISSUED_CREDIT_NOTE], page: 0, size: 50, totalElements: 1 })
+    await openMenu()
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel invoice' }))
+    expect(
+      await screen.findByText(
+        'This invoice cannot be cancelled: credit or debit notes have been issued against it.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByRole('dialog', { name: 'Cancel this invoice?' })).toBeNull()
+    expect(calls()).not.toContain(`POST ${URL_BASE}/cancel`)
+  })
+
+  it('reads an issued debit note on the list as a correction even before the balance shows it', async () => {
+    receivableResponse = () => json(200, UNSETTLED)
+    notesResponse = () =>
+      json(200, {
+        content: [{ ...ISSUED_CREDIT_NOTE, id: 'dn-1', type: 'DEBIT_NOTE', invoiceNumber: 'DBN-1' }],
+        page: 0,
+        size: 50,
+        totalElements: 1,
+      })
+    await openMenu()
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel invoice' }))
+    expect(await screen.findByText(/credit or debit notes have been issued against it/)).toBeTruthy()
+    expect(screen.queryByRole('dialog', { name: 'Cancel this invoice?' })).toBeNull()
+  })
+
+  it('does not open the cancel dialog once a payment is recorded, and says why', async () => {
+    receivableResponse = () => json(200, RECEIVABLE)
+    await openMenu()
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel invoice' }))
+    expect(
+      await screen.findByText(
+        'This invoice cannot be cancelled: payments are recorded against it.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByRole('dialog', { name: 'Cancel this invoice?' })).toBeNull()
+    expect(calls()).not.toContain(`POST ${URL_BASE}/cancel`)
+  })
+
+  it('a draft or cancelled note on the list does not block cancelling', async () => {
+    receivableResponse = () => json(200, UNSETTLED)
+    notesResponse = () =>
+      json(200, {
+        content: [
+          { ...ISSUED_CREDIT_NOTE, authoringState: 'DRAFT', invoiceNumber: null },
+          { ...ISSUED_CREDIT_NOTE, id: 'cn-2', authoringState: 'CANCELLED' },
+        ],
+        page: 0,
+        size: 50,
+        totalElements: 2,
+      })
+    await openMenu()
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel invoice' }))
+    expect(await screen.findByRole('dialog', { name: 'Cancel this invoice?' })).toBeTruthy()
+  })
+
+  it.each([
+    [
+      'en',
+      'INVOICE_CANCEL_HAS_CORRECTIONS',
+      'This invoice cannot be cancelled: credit or debit notes have been issued against it.',
+    ],
+    ['en', 'INVOICE_CANCEL_HAS_PAYMENTS', 'This invoice cannot be cancelled: payments are recorded against it.'],
+    [
+      'ar',
+      'INVOICE_CANCEL_HAS_CORRECTIONS',
+      'لا يمكن إلغاء هذه الفاتورة: صدرت عليها إشعارات دائنة أو مدينة.',
+    ],
+    ['ar', 'INVOICE_CANCEL_HAS_PAYMENTS', 'لا يمكن إلغاء هذه الفاتورة: سُجّلت عليها دفعات.'],
+  ])('a page that is out of date reads the 409 %s %s as its own sentence', async (lang, code, sentence) => {
+    // The page still believes nothing settles the invoice; the server knows better.
+    receivableResponse = () => json(200, UNSETTLED)
+    cancelResponse = () =>
+      json(409, { type: 'https://api.fawtir.om/problems/conflict', status: 409, code, detail: 'no' })
+    await i18n.changeLanguage(lang)
+    await openMenu()
+    fireEvent.click(await screen.findByRole('menuitem', { name: i18n.t('invoiceDetails.actions.cancel') }))
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Wrong customer' } })
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('invoiceDetails.cancel.confirm') }))
+    expect(await screen.findByText(sentence)).toBeTruthy()
+    expect(screen.queryByText('no')).toBeNull()
+  })
+})
+
+describe('a reader who may only read (B-14, C-9)', () => {
+  it('is offered no sharing and asks for no branches or reminder schedule', async () => {
+    who = READ_ONLY
+    receivableResponse = () => json(200, UNSETTLED)
+    renderInvoice()
+    await screen.findByRole('heading', { level: 1, name: 'Invoice INV-2026-0042' })
+    await waitFor(() => expect(calls()).toContain(`GET ${URL_BASE}/receivable`))
+    expect(screen.queryByRole('button', { name: 'Send by email' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Share on WhatsApp' })).toBeNull()
+    expect(calls()).not.toContain('GET /api/v1/branches')
+    expect(calls()).not.toContain('GET /api/v1/payment-reminders/schedule')
+  })
+})
+
+describe('Cancel when the page cannot tell, and on a note (A-0 review)', () => {
+  const menuItems = async () => {
+    await screen.findByRole('heading', { level: 1 })
+    const more = screen.queryByRole('button', { name: 'More actions' })
+    if (more) fireEvent.click(more)
+    return screen.queryAllByRole('menuitem').map((item) => item.textContent ?? '')
+  }
+
+  it.each([
+    ['the receivable', () => (receivableResponse = () => json(500, { status: 500 }))],
+    ['the notes list', () => (notesResponse = () => json(500, { status: 500 }))],
+  ])('offers no Cancel, and no hint, when %s cannot be read', async (_, fail) => {
+    receivableResponse = () => json(200, UNSETTLED)
+    fail()
+    renderInvoice()
+    await waitFor(() => expect(calls()).toContain(`GET ${URL_BASE}/receivable`))
+    await waitFor(() =>
+      expect(calls().some((call) => call.startsWith('GET /api/v1/authored-invoices?'))).toBe(true),
+    )
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect((await menuItems()).some((text) => /Cancel/.test(text))).toBe(false)
+    expect(screen.queryByText(/cannot be cancelled/)).toBeNull()
+  })
+
+  // D-26 (owner, 6 Nov 2026): an issued debit note is never cancelled here, paid, unpaid, or with
+  // its receivable unread. Until then a paid one explained its payments.
+  it.each([
+    ['paid', () => json(200, { ...UNSETTLED, paidAmount: 5, outstandingAmount: 51.7 })],
+    ['unpaid', () => json(200, UNSETTLED)],
+    ['unread', () => json(500, { status: 500 })],
+  ])('says an issued debit note (%s) cannot be cancelled here, and sends nothing', async (_, owed) => {
+    invoiceResponse = () =>
+      json(200, invoice({ type: 'DEBIT_NOTE', correctionOfInvoiceId: 'inv-0', invoiceNumber: 'DBN-2026-0001' }))
+    receivableResponse = owed
+    renderInvoice()
+    await screen.findByRole('heading', { level: 1, name: 'Debit note DBN-2026-0001' })
+    fireEvent.click(await screen.findByRole('button', { name: 'More actions' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Cancel debit note' }))
+    expect(await screen.findByText(i18n.t('salesNote.detail.debitLocked'))).toBeTruthy()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(calls().some((call) => call.startsWith('POST') && call.endsWith('/cancel'))).toBe(false)
+    // Credit notes against a debit note stay disallowed (D-26): none is offered from it.
+    expect(screen.queryByRole('button', { name: i18n.t('invoiceDetails.actions.creditNote') })).toBeNull()
+  })
+
+  it.each([
+    ['en', 'This note cannot be cancelled: credit or debit notes have been issued against it.'],
+    ['ar', 'لا يمكن إلغاء هذا الإشعار: صدرت عليه إشعارات دائنة أو مدينة.'],
+  ])('reads a corrections refusal on a note page as the note’s (%s)', async (lang, sentence) => {
+    await i18n.changeLanguage(lang)
+    // A credit note: an issued debit note no longer sends its cancel at all (D-26).
+    invoiceResponse = () =>
+      json(200, invoice({ type: 'CREDIT_NOTE', correctionOfInvoiceId: 'inv-0', invoiceNumber: 'CRN-2026-0001' }))
+    receivableResponse = () => json(200, UNSETTLED)
+    cancelResponse = () =>
+      json(409, { status: 409, code: 'INVOICE_CANCEL_HAS_CORRECTIONS', detail: 'no' })
+    renderInvoice()
+    fireEvent.click(await screen.findByRole('button', { name: i18n.t('invoiceDetails.actions.more') }))
+    fireEvent.click(
+      await screen.findByRole('menuitem', { name: i18n.t('salesNote.detail.cancelAction.CREDIT_NOTE') }),
+    )
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Raised twice' } })
+    fireEvent.click(
+      screen.getByRole('button', { name: i18n.t('salesNote.detail.cancelConfirm.CREDIT_NOTE') }),
+    )
+    expect(await screen.findByText(sentence)).toBeTruthy()
+  })
+})
+
+describe('issuing to a Peppol customer whose address is incomplete (backend #817)', () => {
+  it.each([
+    [
+      'en',
+      "This customer's address is incomplete for Peppol: add the street, additional street, city, postal code and address line 3, then issue again.",
+    ],
+    [
+      'ar',
+      'عنوان هذا العميل غير مكتمل لإرسال Peppol: أضف الشارع والشارع الإضافي والمدينة والرمز البريدي وسطر العنوان 3، ثم أصدر الفاتورة مرة أخرى.',
+    ],
+  ])('says what to complete and links to the customer (%s)', async (lang, sentence) => {
+    await i18n.changeLanguage(lang)
+    who = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.issue', 'customer.manage'] }
+    invoiceResponse = () =>
+      json(
+        200,
+        invoice({
+          authoringState: 'DRAFT',
+          version: 2,
+          invoiceNumber: null,
+          issueDate: null,
+          dueDate: null,
+          issuedAt: null,
+          totals: null,
+        }),
+      )
+    receivableResponse = () =>
+      json(200, { ...RECEIVABLE, paymentState: 'NOT_APPLICABLE', documentTotal: null, outstandingAmount: null, paidAmount: 0 })
+    issueResponse = () =>
+      json(400, { status: 400, code: 'BUYER_ADDRESS_INCOMPLETE', detail: 'The customer address is incomplete' })
+    renderInvoice()
+    fireEvent.click(await screen.findByRole('button', { name: i18n.t('invoiceIssue.action') }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('invoiceIssue.submit') }))
+    expect(await screen.findByText(sentence)).toBeTruthy()
+    expect(
+      screen
+        .getByRole('link', { name: i18n.t('invoiceIssue.refused.buyerAddressAction') })
+        .getAttribute('href'),
+    ).toBe('/customers/c-1/edit')
+    expect(screen.queryByText(/The customer address is incomplete/)).toBeNull()
+  })
+})
+
+describe('a payment refused because the balance moved in another tab (DA-12)', () => {
+  it.each([
+    ['en', 'What is owed changed since this page was opened. Closing this dialog shows the current balance.'],
+    ['ar', 'تغيّر المبلغ المستحق منذ فتح هذه الصفحة. يُظهر إغلاق هذه النافذة الرصيد الحالي.'],
+  ])('says so in the dialog and reads the balance again once it closes (%s)', async (lang, sentence) => {
+    await i18n.changeLanguage(lang)
+    payResponse = () =>
+      json(400, { status: 400, code: 'PAYMENT_EXCEEDS_OUTSTANDING', detail: 'too much' })
+    renderInvoice()
+    fireEvent.click(await screen.findByRole('button', { name: i18n.t('invoiceDetails.payments.add') }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('invoiceDetails.pay.submit') }))
+    expect(await within(dialog).findByText(sentence)).toBeTruthy()
+    const reads = () => calls().filter((call) => call === `GET ${URL_BASE}/receivable`).length
+    const before = reads()
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('common.cancel') }))
+    await waitFor(() => expect(reads()).toBe(before + 1))
+  })
+})
+
+describe('the discount column says what kind of discount it holds (DA-15)', () => {
+  const withDiscount = (discountType: 'PERCENTAGE' | 'FIXED_AMOUNT', discountValue: number) => {
+    const base = invoice()
+    invoiceResponse = () =>
+      json(200, invoice({ lines: [{ ...base.lines[0], discountType, discountValue }] }))
+  }
+
+  it('heads a fixed discount "Discount" and prints it as money', async () => {
+    withDiscount('FIXED_AMOUNT', 4)
+    renderInvoice()
+    const table = (await screen.findByRole('columnheader', { name: /^(Disc %|Discount)$/ })).closest('table')!
+    expect(within(table).getByText('Discount')).toBeTruthy()
+    expect(within(table).queryByText('Disc %')).toBeNull()
+    expect(within(table).getByText('4.000')).toBeTruthy()
+  })
+
+  it('keeps "Disc %" for a percentage', async () => {
+    withDiscount('PERCENTAGE', 10)
+    renderInvoice()
+    const table = (await screen.findByRole('columnheader', { name: /^(Disc %|Discount)$/ })).closest('table')!
+    expect(within(table).getByText('Disc %')).toBeTruthy()
+    expect(within(table).getByText('10%')).toBeTruthy()
+  })
+})
+
+describe('stock warnings recorded at issue, on the single read (batch 39 STK-Q4B)', () => {
+  it('shows an issued invoice’s recorded STOCK_BELOW_ZERO in words, never the server’s text', async () => {
+    invoiceResponse = () =>
+      json(
+        200,
+        invoice({
+          warnings: [
+            {
+              line: 1,
+              code: 'STOCK_BELOW_ZERO',
+              message: 'Sold more than the branch had counted; on hand is now -2',
+            },
+          ],
+        }),
+      )
+    renderInvoice()
+    const box = await screen.findByTestId('invoice-recorded-stock-warnings')
+    expect(box.textContent).toContain('When it was issued, stock noted:')
+    expect(box.textContent).toContain('Line 1: it took the stock below zero. Count it when you can.')
+    expect(box.textContent).not.toContain('on hand is now')
+  })
+
+  it('shows nothing for a read without stock warnings, an older server, or other codes only', async () => {
+    for (const warnings of [undefined, null, [], [{ line: 1, code: 'ZR_NOT_ON_LIST' }]]) {
+      cleanup()
+      invoiceResponse = () => json(200, invoice({ warnings: warnings as never }))
+      renderInvoice()
+      expect(await screen.findByRole('link', { name: 'Duplicate' })).toBeTruthy()
+      expect(screen.queryByTestId('invoice-recorded-stock-warnings')).toBeNull()
+    }
+  })
+
+  it('does not say them twice on arrival from the composer, whose notice already does', async () => {
+    invoiceResponse = () =>
+      json(200, invoice({ warnings: [{ line: 1, code: 'STOCK_BELOW_ZERO' }] }))
+    render(
+      <ReferenceDataContext.Provider value={SEEDED_REFERENCE}>
+        <MemoryRouter
+          initialEntries={[
+            {
+              pathname: `/invoices/${ID}`,
+              state: {
+                issuedNumber: 'INV-2026-0042',
+                stockWarnings: [{ line: 1, code: 'STOCK_BELOW_ZERO' }],
+              },
+            },
+          ]}
+        >
+          <Routes>
+            <Route path="/invoices/:id" element={<InvoiceDetailsPage />} />
+          </Routes>
+        </MemoryRouter>
+      </ReferenceDataContext.Provider>,
+    )
+    expect(await screen.findByText(/Line 1: it took the stock below zero/)).toBeTruthy()
+    expect(screen.queryByTestId('invoice-recorded-stock-warnings')).toBeNull()
+  })
+})
+
+describe('why nothing was sent, from the server\'s deliveryBlocker (IMPL2-D1)', () => {
+  it.each([
+    [
+      'CANONICAL_HANDOFF_NOT_ENABLED',
+      "Not yet sent to Sohar Port Logistics · Peppol sending isn't switched on here yet, so nothing has been sent",
+    ],
+    [
+      'DISPATCH_NOT_ACTIVE',
+      'Not yet sent to Sohar Port Logistics · Peppol sending is switched off here at the moment, so nothing has been sent',
+    ],
+    [
+      'SOMETHING_NEW',
+      "Not yet sent to Sohar Port Logistics · This invoice can't be sent over Peppol from here at the moment",
+    ],
+  ])('%s is said on the delivery line', async (blocker, line) => {
+    invoiceResponse = () => json(200, invoice({ deliveryBlocker: blocker }))
+    renderInvoice()
+    await screen.findByRole('heading', { level: 1, name: 'Invoice INV-2026-0042' })
+    expect(await screen.findByText(line)).toBeTruthy()
+  })
+
+  it('a null blocker adds nothing to the delivery line', async () => {
+    invoiceResponse = () => json(200, invoice({ deliveryBlocker: null }))
+    renderInvoice()
+    await screen.findByRole('heading', { level: 1, name: 'Invoice INV-2026-0042' })
+    expect(await screen.findByText('Not yet sent to Sohar Port Logistics')).toBeTruthy()
+    expect(screen.queryByText(/Peppol sending|sent over Peppol from here/)).toBeNull()
+  })
+
+  it('a reader who may not see the customer still gets the blocker', async () => {
+    who = READ_ONLY
+    invoiceResponse = () => json(200, invoice({ deliveryBlocker: 'DISPATCH_NOT_ACTIVE' }))
+    renderInvoice()
+    await screen.findByRole('heading', { level: 1, name: 'Invoice INV-2026-0042' })
+    expect(
+      await screen.findByText(
+        'Not sent yet · Peppol sending is switched off here at the moment, so nothing has been sent',
+      ),
+    ).toBeTruthy()
+  })
+})
+
+// Owner v2 A1 / K5 (HS-A-UI): an invoice held at dispatch for a goods line with no HS code is given
+// the code here and released under the same number, through POST held-hs-codes.
+describe('adding the missing HS code to a held invoice', () => {
+  const HELD: InvoiceDispatchDto = {
+    ...NOT_SENT,
+    state: 'DEAD_LETTERED',
+    reasonCode: 'LINE_HS_CODE_MISSING',
+    attempts: 1,
+    sendable: false,
+  }
+  const GOODS_NO_CODE = () =>
+    invoice({
+      lines: [
+        { ...invoice().lines[0], classification: { goodsOrService: 'G', hsCode: null } },
+        {
+          ...invoice().lines[0],
+          lineNumber: 2,
+          description: 'Delivery',
+          classification: { goodsOrService: 'S', hsCode: null, serviceTypeCode: null },
+        },
+      ],
+    })
+  let posts: { url: string; body: unknown }[]
+  let amendResponse: () => Response
+
+  beforeEach(() => {
+    who = SENDER
+    posts = []
+    invoiceResponse = () => json(200, GOODS_NO_CODE())
+    dispatchResponse = () => json(200, HELD)
+    amendResponse = () => json(200, { invoice: invoice({ version: 5 }), dispatch: 'RELEASED' })
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === `${URL_BASE}/held-hs-codes` && init?.method === 'POST') {
+        posts.push({ url, body: JSON.parse(String(init.body)) })
+        return amendResponse()
+      }
+      return base(url, init)
+    })
+  })
+
+  async function openMenu() {
+    renderInvoice()
+    await screen.findByRole('heading', { name: i18n.t('invoiceDetails.title', { id: 'INV-2026-0042' }) })
+    await waitFor(() => expect(calls()).toContain(`GET ${URL_BASE}/dispatch`))
+    await waitFor(() =>
+      expect(calls().some((call) => call.startsWith('GET /api/v1/authored-invoices?'))).toBe(true),
+    )
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('invoiceDetails.actions.more') }))
+  }
+
+  it('offers the action, asks only for the goods line, and sends its code, the version and the reason', async () => {
+    await openMenu()
+    fireEvent.click(await screen.findByRole('menuitem', { name: i18n.t('heldHs.action') }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('Line 1: Green beans')).toBeTruthy()
+    expect(within(dialog).queryByText(/Delivery/)).toBeNull()
+    const submit = within(dialog).getByRole('button', { name: i18n.t('heldHs.submit') }) as HTMLButtonElement
+    expect(submit.disabled).toBe(true)
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('heldHs.useOtherFor', { line: 1 }) }))
+    expect(submit.disabled).toBe(true)
+    fireEvent.change(within(dialog).getByRole('textbox', { name: /Why the codes are being added/ }), {
+      target: { value: 'Buyer confirmed the goods' },
+    })
+    expect(submit.disabled).toBe(false)
+    fireEvent.click(submit)
+    await waitFor(() => expect(posts).toHaveLength(1))
+    expect(posts[0].body).toEqual({
+      expectedVersion: 4,
+      lines: [{ lineNumber: 1, hsCode: '000000000000' }],
+      reason: 'Buyer confirmed the goods',
+    })
+    expect(await screen.findByText(i18n.t('heldHs.done.released'))).toBeTruthy()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
+  it('words a code the Oman list does not have, naming the line, and keeps the dialog open', async () => {
+    amendResponse = () =>
+      new Response(
+        JSON.stringify({ status: 422, code: 'HS_CODE_INVALID', line: 1, field: 'hsCode' }),
+        { status: 422, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+    await openMenu()
+    fireEvent.click(await screen.findByRole('menuitem', { name: i18n.t('heldHs.action') }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Line 1: Green beans' }), {
+      target: { value: '123' },
+    })
+    fireEvent.change(within(dialog).getByRole('textbox', { name: /Why the codes are being added/ }), {
+      target: { value: 'Found the code' },
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('heldHs.submit') }))
+    expect(
+      await within(dialog).findByText(i18n.t('heldHs.refused.invalid.line', { line: '1' })),
+    ).toBeTruthy()
+    expect((within(dialog).getByRole('textbox', { name: 'Line 1: Green beans' }) as HTMLInputElement).value).toBe(
+      '123',
+    )
+  })
+
+  it('is not offered for a hold an HS code does not release', async () => {
+    dispatchResponse = () => json(200, { ...HELD, reasonCode: 'SELLER_ADDRESS_INCOMPLETE' })
+    await openMenu()
+    expect(screen.queryByRole('menuitem', { name: i18n.t('heldHs.action') })).toBeNull()
+  })
+
+  it('is not offered without invoice.issue', async () => {
+    who = ADMIN
+    await openMenu()
+    expect(screen.queryByRole('menuitem', { name: i18n.t('heldHs.action') })).toBeNull()
+  })
+
+  it('says the hold can now be released, not that the fix is undecided', () => {
+    expect(i18n.t('invoiceDispatch.reason.lineHsCode')).not.toMatch(/not been decided/)
+    expect(i18n.t('invoiceDispatch.reason.lineHsCode')).toMatch(/same number/)
+  })
+
+  it('every new sentence is in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    for (const key of [
+      'heldHs.action',
+      'heldHs.title',
+      'heldHs.done.released',
+      'heldHs.refused.invalid.line',
+      'heldHs.refused.invalid.any',
+      'heldHs.refused.stale',
+    ]) {
+      expect(i18n.exists(key, { lng: 'ar', fallbackLng: false })).toBe(true)
+      expect(i18n.t(key, { number: 'INV-1', line: 1 })).not.toMatch(/[A-Za-z]{5,}/)
+    }
+    await i18n.changeLanguage('en')
+  })
+})
+
+describe('the receipt QR on the invoice preview (QR E-3)', () => {
+  const PAYLOAD = 'AQxBbCBOb29yIFRyYWRpbmcCDzMxMDEyMjM5MzUwMDAwMw=='
+  const qrImage = () => screen.queryByAltText(i18n.t('invoiceDetails.preview.qrAlt'))
+  const printButton = () => screen.getByRole('button', { name: 'Print' }) as HTMLButtonElement
+  const encoded = () => vi.mocked(QRCode.toDataURL).mock.calls.map(([payload]) => payload)
+
+  it('draws the server payload, and nothing else, for a consumer invoice and lets it be printed', async () => {
+    receiptQrResponse = () => json(200, { status: 'READY', payload: PAYLOAD })
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {})
+    renderInvoice()
+    await waitFor(() => expect(qrImage()).toBeTruthy())
+    expect(qrImage()!.getAttribute('src')).toBe(`data:image/png;base64,${PAYLOAD}`)
+    // The pane's sheet, with its QR, is the one element marked to print (QW2R-2); the shell is not.
+    expect(qrImage()!.closest('.fawtir-print-sheet')).toBeTruthy()
+    expect(document.querySelectorAll('.fawtir-print-sheet')).toHaveLength(1)
+    // The encoder sees exactly the string the server sent: no number, date or total of the page.
+    expect(new Set(encoded())).toEqual(new Set([PAYLOAD]))
+    expect(printButton().disabled).toBe(false)
+    fireEvent.click(printButton())
+    expect(print).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['PENDING', 'invoiceDetails.receiptQr.pending'],
+    ['NOT_APPLICABLE', 'invoiceDetails.receiptQr.notApplicable'],
+    ['NOT_AN_ISSUED_SALE', 'invoiceDetails.receiptQr.notAnIssuedSale'],
+  ])('draws no QR for %s, says why, and does not print', async (status, key) => {
+    // A payload beside a status that is not READY is still not drawn.
+    receiptQrResponse = () => json(200, { status, payload: PAYLOAD })
+    renderInvoice()
+    expect(await screen.findByText(i18n.t(key))).toBeTruthy()
+    expect(qrImage()).toBeNull()
+    expect(encoded()).toEqual([])
+    expect(printButton().disabled).toBe(true)
+    // Review QW3R-2: with Print off nothing is marked, so the browser's own print is as before.
+    expect(document.querySelectorAll('.fawtir-print-sheet')).toHaveLength(0)
+  })
+
+  it('draws no QR when the answer cannot be read, and says so', async () => {
+    receiptQrResponse = () => json(500, { status: 500 })
+    renderInvoice()
+    expect(await screen.findByText(i18n.t('invoiceDetails.receiptQr.unavailable'))).toBeTruthy()
+    expect(qrImage()).toBeNull()
+    expect(encoded()).toEqual([])
+    expect(printButton().disabled).toBe(true)
+    expect(document.querySelectorAll('.fawtir-print-sheet')).toHaveLength(0)
+  })
+
+  it('does not ask for a draft or a credit note', async () => {
+    invoiceResponse = () => json(200, invoice({ authoringState: 'DRAFT', invoiceNumber: null }))
+    renderInvoice()
+    await screen.findByRole('heading', { level: 1 })
+    cleanup()
+    invoiceResponse = () =>
+      json(200, invoice({ type: 'CREDIT_NOTE', correctionOfInvoiceId: 'inv-0', invoiceNumber: 'CRN-1' }))
+    renderInvoice()
+    await screen.findByRole('heading', { level: 1, name: 'Credit note CRN-1' })
+    expect(calls().some((call) => call.endsWith('/receipt-qr'))).toBe(false)
+  })
+
+  it('has every sentence in both languages', async () => {
+    for (const key of [
+      'invoiceDetails.receiptQr.pending',
+      'invoiceDetails.receiptQr.notApplicable',
+      'invoiceDetails.receiptQr.notAnIssuedSale',
+      'invoiceDetails.receiptQr.unavailable',
+      'invoiceDetails.preview.qrAlt',
+    ]) {
+      expect(i18n.exists(key, { lng: 'en' })).toBe(true)
+      expect(i18n.exists(key, { lng: 'ar' })).toBe(true)
+      expect(i18n.t(key, { lng: 'ar' })).not.toBe(i18n.t(key, { lng: 'en' }))
+    }
+  })
+})
+
+describe('an invoice held because its printed QR differs (QR E-4, PRINTED_QR_DIFFERS)', () => {
+  it('reads as held for review with nothing filed, never as refused or failed', async () => {
+    dispatchResponse = () =>
+      json(200, {
+        ...NOT_SENT,
+        state: 'DEAD_LETTERED',
+        reasonCode: 'PRINTED_QR_DIFFERS',
+        sendable: false,
+      })
+    renderInvoice()
+    expect(await screen.findByText(i18n.t('invoiceDispatch.state.heldPrintedQr'))).toBeTruthy()
+    // The delivery line joins the state and its reason with a middle dot.
+    const reason = i18n.t('invoiceDispatch.reason.printedQrDiffers')
+    expect(screen.getByText((content) => content.includes(reason))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('invoiceDispatch.state.deadLettered'))).toBeNull()
+    expect(screen.queryByText(/PRINTED_QR_DIFFERS/)).toBeNull()
+    expect(screen.queryByText(/refused|rejected/i)).toBeNull()
+  })
+})
+
+describe('the read-model fields of backend #824 on an invoice, each optional', () => {
+  const mixed = (subtotals?: NonNullable<InvoiceDetailDto['totals']>['taxSubtotals']) => {
+    const base = invoice()
+    return invoice({
+      lines: [
+        base.lines[0],
+        {
+          ...base.lines[0],
+          lineNumber: 2,
+          description: 'Dates for export',
+          quantity: 1,
+          unitPrice: 10,
+          taxCategoryCode: 'Z',
+          en16931Category: 'Z',
+          taxRate: 0,
+        },
+      ],
+      totals: {
+        ...base.totals!,
+        subtotal: 64,
+        taxableAmount: 64,
+        vatAmount: 2.7,
+        totalAmount: 66.7,
+        ...(subtotals ? { taxSubtotals: subtotals } : {}),
+      },
+    })
+  }
+  // The totals block's labels; the preview pane repeats the figures in its own type.
+  const TOTALS_LABEL = 'span.font-medium.text-text-tertiary'
+  const row = (label: string) =>
+    screen.getByText(label, { selector: TOTALS_LABEL }).parentElement as HTMLElement
+  const totalsVatLabels = () =>
+    screen.queryAllByText(/^VAT/, { selector: TOTALS_LABEL }).map((el) => el.textContent)
+
+  it('prints one VAT row per category with the server figure for each (A-8b)', async () => {
+    invoiceResponse = () =>
+      json(
+        200,
+        mixed([
+          {
+            taxCategoryCode: 'S',
+            en16931Category: 'S',
+            rate: 5,
+            exemptionReason: null,
+            exemptionReasonCode: null,
+            taxableAmount: 54,
+            vatAmount: 2.7,
+          },
+          {
+            taxCategoryCode: 'Z',
+            en16931Category: 'Z',
+            rate: 0,
+            exemptionReason: null,
+            exemptionReasonCode: 'VATZR-OM-01',
+            taxableAmount: 10,
+            vatAmount: 0,
+          },
+        ]),
+      )
+    renderInvoice()
+    expect(await screen.findByText('VAT · Standard 5%')).toBeTruthy()
+    expect(within(row('VAT · Standard 5%')).getByText('2.700')).toBeTruthy()
+    expect(within(row('VAT · Zero-rated 0%')).getByText('0.000')).toBeTruthy()
+    expect(totalsVatLabels()).toEqual(['VAT · Standard 5%', 'VAT · Zero-rated 0%'])
+  })
+
+  it('keeps one plain VAT row on a mixed invoice when the server sends no subtotals', async () => {
+    invoiceResponse = () => json(200, mixed())
+    renderInvoice()
+    await screen.findAllByText('Dates for export')
+    expect(totalsVatLabels()).toEqual(['VAT'])
+    expect(within(row('VAT')).getByText('2.700')).toBeTruthy()
+    expect(screen.queryByText(/^VAT · /)).toBeNull()
+  })
+
+  it("names the customer from the invoice when the customer record cannot be read (C-5)", async () => {
+    invoiceResponse = () => json(200, invoice({ customerName: 'Sohar Port Logistics' }))
+    const served = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url.startsWith('/api/v1/customers/') ? json(403, { status: 403 }) : served(url, init),
+    )
+    renderInvoice()
+    await screen.findAllByText('INV-2026-0042')
+    await waitFor(() => expect(screen.getAllByText(/Sohar Port Logistics/).length).toBeGreaterThan(0))
+  })
+
+  it('names nobody when neither the record nor the invoice says who the customer is', async () => {
+    invoiceResponse = () => json(200, invoice({ customerName: null }))
+    const served = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url.startsWith('/api/v1/customers/') ? json(403, { status: 403 }) : served(url, init),
+    )
+    renderInvoice()
+    await screen.findAllByText('INV-2026-0042')
+    await waitFor(() =>
+      expect(calls().some((call) => call.startsWith('GET /api/v1/customers/'))).toBe(true),
+    )
+    expect(screen.queryByText(/Sohar Port Logistics/)).toBeNull()
+  })
+})
+
+describe('Credit an over-credited or overpaid invoice holds (D-30(a))', () => {
+  it('shows the credit on its own line under a balance floored at zero, never folded into it', async () => {
+    receivableResponse = () =>
+      json(200, {
+        ...RECEIVABLE,
+        paidAmount: 56.7,
+        creditedAmount: 5,
+        outstandingAmount: 0,
+        unappliedCredit: -5,
+        paymentState: 'PAID',
+      })
+    renderInvoice()
+    const heading = await screen.findByRole('heading', { name: 'Outstanding balance' })
+    const card = heading.closest('section')!
+    const credit = within(card).getByTestId('unapplied-credit')
+    expect(within(credit).getByText('Unapplied credit')).toBeTruthy()
+    expect(within(credit).getByText('-5.000')).toBeTruthy()
+    expect(credit.textContent).toContain('not set against any other invoice')
+    // The balance itself stays the server's floored figure.
+    expect(within(card).getAllByText('0.000').length).toBeGreaterThan(0)
+  })
+
+  it('draws no credit line when the server sends none', async () => {
+    renderInvoice()
+    await screen.findByRole('heading', { name: 'Outstanding balance' })
+    expect(screen.queryByTestId('unapplied-credit')).toBeNull()
   })
 })

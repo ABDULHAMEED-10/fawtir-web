@@ -32,10 +32,9 @@ describe('Landing page', () => {
       i18n.t('landing.hero.word'),
     )
     for (const key of [
+      'landing.audience.titleEm',
       'landing.overview.titleEm',
-      'landing.features.titleEm',
-      'landing.steps.titleEm',
-      'landing.counter.titleEm',
+      'landing.features.otaEm',
       'landing.showcase.titleEm',
     ]) {
       expect(screen.getByText(i18n.t(key))).toBeTruthy()
@@ -48,18 +47,14 @@ describe('Landing page', () => {
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/v1/public/company-contact'])
   })
 
-  it('switches the step shown when a step is chosen', () => {
+  // The till's steps moved to the Features page's Point of sale tab (owner, 4 Nov 2026).
+  it('keeps the till steps off the home page and shows the four module cards', () => {
     renderHome()
 
-    expect(screen.getByRole('tab', { selected: true }).textContent).toBe(
-      i18n.t('landing.steps.tabs.sale'),
-    )
-    fireEvent.click(screen.getByRole('tab', { name: i18n.t('landing.steps.tabs.cleared') }))
-
-    expect(screen.getByRole('tab', { selected: true }).textContent).toBe(
-      i18n.t('landing.steps.tabs.cleared'),
-    )
-    expect(screen.getByText(i18n.t('landing.steps.cleared.body'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('landing.steps.titleEm'))).toBeNull()
+    for (const key of ['invoicing', 'bills', 'filing', 'reports']) {
+      expect(screen.getByAltText(i18n.t(`landing.features.${key}.alt`))).toBeTruthy()
+    }
   })
 
   it('links sign-up, pricing and the demo request to real places', () => {

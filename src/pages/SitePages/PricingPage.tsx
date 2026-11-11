@@ -31,6 +31,7 @@ import {
   SOFT,
   Texture,
   Washes,
+  useSiteMeta,
 } from '../HomePage/site'
 import { useFaqItems } from './faq'
 
@@ -52,6 +53,7 @@ const count = (value: number) => value.toLocaleString('en-US')
 
 export function PricingPage() {
   const { t } = useTranslation()
+  useSiteMeta('landing.meta.pricing.title', 'landing.meta.pricing.description')
   const [yearly, setYearly] = useState(false)
   const { read, reload } = usePlanCatalogue('public-plans', readPublicPlans)
   const plans = read.status === 'ready' ? read.plans : null
