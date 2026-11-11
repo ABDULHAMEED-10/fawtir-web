@@ -73,6 +73,7 @@ import {
   BundlePage,
   StockPage,
   StockDetailPage,
+  StockOpeningPage,
   PriceRulesPage,
   NewRulePage,
   UploadMenuPage,
@@ -338,6 +339,7 @@ function App() {
           />
           <Route path="/expenditure/reminders" element={<ExpenditureRemindersPage />} />
           <Route path="/stock" element={<StockPage />} />
+          <Route path="/stock/opening" element={<StockOpeningPage />} />
           <Route path="/stock/:id" element={<StockDetailPage />} />
           <Route path="/catalog" element={<CatalogPage />} />
           <Route path="/catalog/upload" element={<DemoModule module="catalog"><UploadMenuPage /></DemoModule>} />

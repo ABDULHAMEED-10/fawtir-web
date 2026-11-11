@@ -455,25 +455,36 @@ export function StockPage() {
         />
       ) : null}
     </>,
-    access.canAdjust ? (
-      <>
-        <button
-          type="button"
-          onClick={() => setDialog('count')}
-          className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-        >
-          {t('stock.countTheShelves')}
-        </button>
-        <button
-          type="button"
-          onClick={() => setDialog('delivery')}
-          className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-        >
-          <img src={downloadIcon} alt="" className="size-[18px]" />
-          {t('stock.recordWhatCameIn')}
-        </button>
-      </>
-    ) : undefined,
+    <>
+      {/* Opening stock: what each item had when the company started (Abdul, 29 Oct 2026). A
+          page to read, like an item's page, so it is open to every stock reader; setting it
+          inside needs stock.adjust and the plan's stock switch. */}
+      <Link
+        to="/stock/opening"
+        className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+      >
+        {t('stock.opening.title')}
+      </Link>
+      {access.canAdjust ? (
+        <>
+          <button
+            type="button"
+            onClick={() => setDialog('count')}
+            className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+          >
+            {t('stock.countTheShelves')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setDialog('delivery')}
+            className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+          >
+            <img src={downloadIcon} alt="" className="size-[18px]" />
+            {t('stock.recordWhatCameIn')}
+          </button>
+        </>
+      ) : null}
+    </>,
   )
 }
 

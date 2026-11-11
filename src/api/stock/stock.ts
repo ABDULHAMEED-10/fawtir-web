@@ -1,4 +1,5 @@
-import { apiRequest } from '../client'
+import { apiDownload, apiRequest, type ApiDownload } from '../client'
+import { ApiError } from '../errors'
 import { fromSpringPage, type Page, type SpringPage } from '../page'
 import { withQuery } from '../query'
 
@@ -108,7 +109,13 @@ export type StockSummaryDto = {
  * or credit note since cancelled, plus for a sale and minus for a return. An older server sends none.
  */
 export type StockMovementType =
-  'SALE' | 'RECEIPT' | 'WRITE_OFF' | 'COUNT_CORRECTION' | 'REFUND_RETURN' | 'CANCEL_REVERSAL'
+  | 'SALE'
+  | 'RECEIPT'
+  | 'WRITE_OFF'
+  | 'COUNT_CORRECTION'
+  | 'REFUND_RETURN'
+  | 'CANCEL_REVERSAL'
+  | 'OPENING'
 
 export type StockSourceType =
   | 'POS_SALE'
@@ -120,6 +127,7 @@ export type StockSourceType =
   | 'STOCK_COUNT'
   | 'WRITE_OFF'
   | 'CANCELLATION'
+  | 'OPENING'
 
 export type StockMovementDto = {
   id: string
@@ -201,7 +209,13 @@ export type StockCountRequest = {
 }
 
 export type WriteOffReason =
-  'DAMAGED' | 'EXPIRED' | 'LOST' | 'STOLEN' | 'OWN_USE' | 'SAMPLE_OR_TASTING' | 'OTHER'
+  | 'DAMAGED'
+  | 'EXPIRED'
+  | 'LOST'
+  | 'STOLEN'
+  | 'OWN_USE'
+  | 'SAMPLE_OR_TASTING'
+  | 'OTHER'
 
 export const WRITE_OFF_REASONS: WriteOffReason[] = [
   'DAMAGED',
@@ -232,14 +246,23 @@ export type StockDeliveryRequest = {
 
 export type StockAdjustmentResponse = {
   adjustmentId: string
+  /** STK-… for counts and write-offs, DLV-… for deliveries, OPN-… for opening stock. */
   number: string
-  kind: 'COUNT' | 'WRITE_OFF' | 'DELIVERY'
+  kind: 'COUNT' | 'WRITE_OFF' | 'DELIVERY' | 'OPENING'
   supplierId?: string
   lines: {
     productId: string
     variantId: string | null
     onHandAfter: number
     movementId: string
+    /** OPENING: the line's place in `items`, or its spreadsheet row (header = 1) on an import. */
+    row?: number
+    /** OPENING: the quantity before it (the previous opening, or 0). */
+    previousQuantity?: number
+    quantity?: number
+    unitCost?: number | null
+    value?: number | null
+    averageCostAfter?: number | null
   }[]
 }
 
@@ -363,6 +386,153 @@ export function putReorderLevels(body: {
   items: { productId: string; variantId: string | null; reorderLevel: number | null }[]
 }): Promise<{ branchId: string; content: StockRowDto[] }> {
   return apiRequest(`${STOCK_PATH}/reorder-levels`, { method: 'PUT', body })
+}
+
+/* -------------------------------------------------------------- opening stock */
+
+/**
+ * Opening stock (Abdul Hameed, 29 Oct 2026): per item and branch, the quantity on hand when the
+ * company starts and, optionally, what one unit cost before VAT, so the stock value starts right.
+ * Its own movement, typed or imported; locked once anything else moves the item (a sale, a
+ * delivery, a count, a write-off, a return), after which it is changed with a count.
+ *
+ * Reading the list and the import format needs `stock.read` and is open whatever the plan; the
+ * writes need `stock.adjust` and the plan's `stock` switch, and stay allowed while the
+ * subscription is read-only. All lines or none: a refusal lists every line's problem.
+ */
+export const STOCK_OPENING_PATH = `${STOCK_PATH}/opening`
+export const STOCK_OPENING_IMPORT_PATH = `${STOCK_OPENING_PATH}/import`
+export const STOCK_OPENING_FORMAT_PATH = `${STOCK_OPENING_PATH}/import-format`
+
+/** The server's own size limit for the import file. */
+export const STOCK_OPENING_IMPORT_MAX_BYTES = 5 * 1024 * 1024
+/** Items one save may carry. */
+export const STOCK_OPENING_MAX_ITEMS = 500
+
+export type StockOpeningState = 'NOT_SET' | 'SET' | 'LOCKED'
+
+export type StockOpeningRowDto = {
+  productId: string
+  variantId: string | null
+  code: string
+  variantCode: string | null
+  name: string
+  nameAr: string | null
+  variantName: string | null
+  variantRetired?: boolean
+  productActive?: boolean
+  keepCount: boolean
+  unitCode: string
+  state: StockOpeningState
+  opening: {
+    quantity: number
+    unitCost: number | null
+    value: number | null
+    adjustmentId?: string
+    number: string
+    movementId?: string
+    setAt: string
+    setBy: { userId?: string | null; name: string | null }
+  } | null
+  /** null = not counted yet. */
+  onHand: number | null
+  /** The first movement that is not an opening. */
+  lockedBy: Exclude<StockMovementType, 'OPENING'> | null
+  lockedAt: string | null
+}
+
+export type StockOpeningPageDto = SpringPage<StockOpeningRowDto> & { branchId: string }
+
+export type StockOpeningItem = {
+  productId: string
+  variantId?: string
+  quantity: number
+  unitCost?: number
+}
+
+export type StockOpeningRequest = { branchId: string; items: StockOpeningItem[] }
+
+/** One line's problem in a refused opening: `row` is the 1-based line, or the file's row. */
+export type StockOpeningProblem = {
+  row: number | null
+  column: string | null
+  productId: string | null
+  variantId: string | null
+  code: string | null
+  message: string | null
+}
+
+export function stockOpeningPath(query: {
+  branchId: string
+  state?: StockOpeningState
+  page?: number
+  size?: number
+}): string {
+  return withQuery(STOCK_OPENING_PATH, {
+    branchId: query.branchId,
+    state: query.state,
+    page: query.page && query.page > 0 ? query.page : undefined,
+    size: query.size,
+  })
+}
+
+export async function loadStockOpeningPage(path: string): Promise<Page<StockOpeningRowDto>> {
+  return fromSpringPage(await apiRequest<StockOpeningPageDto>(path))
+}
+
+/** `stock.adjust` and the plan's `stock` switch. The key is the save's, so a retry counts once. */
+export function postStockOpening(
+  idempotencyKey: string,
+  body: StockOpeningRequest,
+): Promise<StockAdjustmentResponse> {
+  return apiRequest<StockAdjustmentResponse>(STOCK_OPENING_PATH, {
+    method: 'POST',
+    body,
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
+}
+
+/** The same rules from a UTF-8 CSV: the catalogue spreadsheet's columns may stay. */
+export function postStockOpeningImport(
+  idempotencyKey: string,
+  branchId: string,
+  file: File,
+): Promise<StockAdjustmentResponse> {
+  const form = new FormData()
+  form.append('file', file)
+  return apiRequest<StockAdjustmentResponse>(withQuery(STOCK_OPENING_IMPORT_PATH, { branchId }), {
+    method: 'POST',
+    body: form,
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
+}
+
+/** A CSV header with two example rows. */
+export function downloadStockOpeningFormat(): Promise<ApiDownload> {
+  return apiDownload(STOCK_OPENING_FORMAT_PATH)
+}
+
+const textOrNull = (value: unknown) => (typeof value === 'string' && value !== '' ? value : null)
+
+/** Every line's problem a refused opening listed; empty for any other failure. */
+export function stockOpeningProblems(error: unknown): StockOpeningProblem[] {
+  if (!(error instanceof ApiError)) return []
+  const errors = error.problem.errors
+  if (!Array.isArray(errors)) return []
+  return errors.flatMap((entry: unknown) => {
+    if (typeof entry !== 'object' || entry === null) return []
+    const e = entry as Record<string, unknown>
+    return [
+      {
+        row: typeof e.row === 'number' ? e.row : null,
+        column: textOrNull(e.column),
+        productId: textOrNull(e.productId),
+        variantId: textOrNull(e.variantId),
+        code: textOrNull(e.code),
+        message: textOrNull(e.message),
+      },
+    ]
+  })
 }
 
 /** A key the server accepts (16 to 128 of `[A-Za-z0-9._:-]`). */
