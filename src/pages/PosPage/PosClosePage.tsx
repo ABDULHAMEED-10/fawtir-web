@@ -1,15 +1,17 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
-import { Rial, withRial } from '../../components/ui'
+import { Rial, Select, withRial } from '../../components/ui'
 import { selectAllOnFocus } from '../../components/invoice/numericInput'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { PosFootNote } from './PosFootNote'
 import { PosTillGate } from './PosTillGate'
+import { TillMoneyInput } from './TillMoneyInput'
 import { CashIcon, CheckIcon, ClockIcon } from './posIcons'
 import { omr, omrSigned, tillTime, toBaisa } from '../../lib/pos'
 import { parseBaisa } from '../../lib/posPayment'
+import { formatAmount } from '../../lib/format'
 import {
   DENOMINATIONS,
   SHORT_REASONS,
@@ -17,21 +19,63 @@ import {
   countedTotal,
   denominationLabel,
   figuresOf,
+  parseSignedBaisa,
+  startingCount,
+  withheldFigures,
   type Counted,
 } from '../../lib/posClose'
-import { posRefusalKey, refusalValues } from '../../lib/posRefusals'
+import { previewRefusalMessage, refusalSentence } from '../../lib/posRefusals'
 import { useApiRead } from '../../hooks'
+import { ApiError } from '../../api/errors'
 import {
   addCashMovement,
   closePosShift,
   closePreviewPath,
   newPosKey,
+  recordPaidOut,
   setShiftFloat,
+  uploadPaidOutReceipt,
   type OverShortReason,
+  type PosPaidOutCategory,
+  type PosPaidOutClass,
+  type PosPaidOutRequest,
+  type PosCashMovementDto,
   type PosClosePreviewDto,
   type PosShiftCloseDto,
 } from '../../api/pos/pos'
 import type { TillState } from '../../lib/posTill'
+import { useUncertainSale } from '../../lib/posSale'
+import {
+  PAID_OUT_CATEGORIES,
+  choosableClasses,
+  dropsHeldReceipt,
+  fixedClass,
+  keyForAttempt,
+  loadPaidOutStore,
+  outcomeUnknown,
+  paidOutGap,
+  paidOutRefusal,
+  refusedOnRetry,
+  keepsAttemptAfter,
+  paidOutRequest,
+  isLocked,
+  mayUnlock,
+  pendingBody,
+  receiptProblem,
+  savePaidOutStore,
+  unlockWaitMs,
+  type PaidOutStore,
+} from '../../lib/posPaidOut'
+import { apiRequest } from '../../api/client'
+import { fitForUpload } from '../../lib/billUpload'
+import { CURRENCIES } from '../../lib/billIntake'
+import { billListPath, loadBillPage, type BillRowDto } from '../../api/expenditure/bills'
+import {
+  flushBeforeShiftEnd,
+  queuedFor,
+  useQueuedSales,
+  type ShiftEndFlush,
+} from '../../lib/posQueue'
 
 type Ready = Extract<TillState, { status: 'ready' }>
 
@@ -45,7 +89,7 @@ function Line({
   tone,
   icon,
 }: {
-  label: string
+  label: ReactNode
   note?: string
   value: string
   tone?: 'add' | 'take' | 'sum'
@@ -156,9 +200,13 @@ function NothingOpen({ closed }: { closed: PosShiftCloseDto | null }) {
               value={omr(toBaisa(closed.countedCash))}
             />
             <Sum
-              money
+              money={closed.expectedCash != null}
               label={t('pos.close.summary.expected')}
-              value={omr(toBaisa(closed.expectedCash))}
+              value={
+                closed.expectedCash == null
+                  ? t('pos.close.notAvailable')
+                  : omr(toBaisa(closed.expectedCash))
+              }
             />
             <Sum money label={t('pos.close.summary.toBank')} value={omr(toBaisa(closed.toBank))} />
             <Sum
@@ -202,43 +250,169 @@ function NothingOpen({ closed }: { closed: PosShiftCloseDto | null }) {
   )
 }
 
+function NotYourShift({ error }: { error: ApiError }) {
+  const { t } = useTranslation()
+  return (
+    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
+      <Link
+        to="/pos"
+        className="inline-flex items-center gap-1.5 text-sm font-semibold text-text-tertiary hover:text-primary-700"
+      >
+        ‹ {t('pos.backToTill')}
+      </Link>
+      <p className="rounded-md bg-surface-card px-6 py-12 text-center text-sm font-medium text-text-tertiary">
+        {refusalSentence(t, error)}
+      </p>
+    </div>
+  )
+}
+
+/** Refused or withheld drawer figures: worded, with no close (FIN-M3-CURRENCY-MIX; D-CUR-3 is a manager's). */
+function ShiftWithheld({
+  error,
+  preview,
+}: {
+  error?: ApiError
+  preview?: PosClosePreviewDto
+}) {
+  const { t } = useTranslation()
+  const figure = (value: number | null | undefined) =>
+    value == null ? t('pos.close.notAvailable') : omr(toBaisa(value))
+  return (
+    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
+      <Link
+        to="/pos"
+        className="inline-flex items-center gap-1.5 text-sm font-semibold text-text-tertiary hover:text-primary-700"
+      >
+        ‹ {t('pos.backToTill')}
+      </Link>
+      <div className="rounded-md bg-surface-card px-6 py-8">
+        <p role="alert" className="text-sm font-medium text-pending-700">
+          {error
+            ? t(previewRefusalMessage(error).key, previewRefusalMessage(error).values)
+            : t('pos.close.figuresWithheld')}
+        </p>
+        {preview ? (
+          <dl className="mt-4 flex flex-col gap-2 text-sm">
+            {(
+              [
+                ['pos.close.paidIn', preview.paidIn],
+                ['pos.close.paidOut', preview.paidOut],
+                ['pos.close.shouldHold', preview.expectedCash],
+              ] as const
+            ).map(([label, value]) => (
+              <div key={label} className="flex justify-between gap-3">
+                <dt className="font-medium text-text-tertiary">{t(label)}</dt>
+                <dd className="font-semibold text-text-primary">{figure(value)}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+const CURRENCY_REFUSALS = new Set(['POS_SHIFT_CURRENCY_MIXED', 'POS_SHIFT_CURRENCY_UNRECORDED'])
+
 function CloseShift({ till, shiftId }: { till: Ready; shiftId: string }) {
   const preview = useApiRead<PosClosePreviewDto>(closePreviewPath(shiftId))
+  // Kept here, above the form, because the form is remounted by the reload that follows a send.
+  const [sentBeforeClose, setSentBeforeClose] = useState(0)
+  // Likewise the paid-out in flight: a reload while its outcome is unknown must not cost its key
+  // or its uploaded receipt, or the retry would be a second paid-out (FIN-M3). Read once from the
+  // tab's storage, so a page reload keeps them too (review W4-2).
+  const paidOut = useRef<PaidOutStore | null>(null)
+  if (paidOut.current === null) paidOut.current = loadPaidOutStore(till.till.id, shiftId)
   if (preview.read.status === 'loading') return <LoadingNotice />
   if (preview.read.status === 'failed') {
+    // The till's open shift is someone else's (`pos.close` with OWN): not a missing permission.
+    if (preview.read.error instanceof ApiError && preview.read.error.code === 'POS_SHIFT_NOT_OWN') {
+      return <NotYourShift error={preview.read.error} />
+    }
+    if (preview.read.error instanceof ApiError && CURRENCY_REFUSALS.has(preview.read.error.code ?? '')) {
+      return <ShiftWithheld error={preview.read.error} />
+    }
     return <ApiReadFailure error={preview.read.error} retry={preview.retry} />
   }
-  return <CloseForm till={till} preview={preview.read.data} reload={preview.retry} />
+  // A withheld figure leaves nothing to count against: shown as not available, never as 0.
+  if (withheldFigures(preview.read.data).length > 0) return <ShiftWithheld preview={preview.read.data} />
+  return (
+    <CloseForm
+      till={till}
+      preview={preview.read.data}
+      reload={preview.retry}
+      paidOut={paidOut.current as PaidOutStore}
+      sentBeforeClose={sentBeforeClose}
+      onSent={(count) => {
+        setSentBeforeClose((before) => before + count)
+        preview.retry()
+      }}
+    />
+  )
 }
 
 function CloseForm({
   till,
   preview,
   reload,
+  paidOut,
+  sentBeforeClose,
+  onSent,
 }: {
   till: Ready
   preview: PosClosePreviewDto
   reload: () => void
+  paidOut: PaidOutStore
+  sentBeforeClose: number
+  /** Sales were filed: the expected cash on screen no longer includes everything the server has. */
+  onSent: (count: number) => void
 }) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language.startsWith('ar') ? 'ar' : 'en-GB'
   const figures = figuresOf(preview)
   const [byNote, setByNote] = useState(false)
-  const [total, setTotal] = useState(figures.expected)
+  const [total, setTotal] = useState<number | null>(startingCount(figures.expected))
   const [counted, setCounted] = useState<Counted>({})
-  const [reason, setReason] = useState<OverShortReason>(SHORT_REASONS[0].id)
+  const [reason, setReason] = useState<OverShortReason | null>(null)
   const [note, setNote] = useState('')
-  const [terminalText, setTerminalText] = useState((figures.terminal / 1000).toFixed(3))
+  // A net card figure below zero is not prefilled: RC2 takes no negative machine total, and a machine
+  // may print sales and refunds apart, so the cashier types what it shows.
+  const [terminalText, setTerminalText] = useState(
+    figures.terminal < 0 ? '' : (figures.terminal / 1000).toFixed(3),
+  )
   const [cardNote, setCardNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [refusal, setRefusal] = useState<unknown>(null)
   const [closed, setClosed] = useState<PosShiftCloseDto | null>(null)
   const key = useRef<{ fingerprint: string; key: string } | null>(null)
+  const waiting = useQueuedSales(till.till.id)
+  // A sale whose outcome is unknown may be recorded in this shift: closing now would count the cash
+  // without it, and the hold outlives the shift (RBW2-6). The close waits until it is settled.
+  const held = useUncertainSale(till.till.id)
+  const [sending, setSending] = useState(false)
+  const [unsent, setUnsent] = useState<ShiftEndFlush | null>(null)
+  const warned = unsent !== null && waiting.length > 0
+  const seenWaiting = useRef(waiting.length)
 
-  const cash = byNote ? countedTotal(counted) : total
+  // Any filing while this form is up changes the server's expected cash: the pre-close send, a run
+  // that outlived its bound and finished after the warning, or the till's background sender. Each
+  // reloads the preview, so Close anyway never closes against figures the cashier can no longer
+  // trust (PRV42W-2). Held back while the pre-close send runs, so that send reloads once, at its end,
+  // and while the close itself is in flight: a remount then would drop its confirmation (PRV42W-10).
+  // A filing in either window is counted once busy clears, unless the close went through.
+  useEffect(() => {
+    if (sending || busy || closed) return
+    const filed = seenWaiting.current - waiting.length
+    seenWaiting.current = waiting.length
+    if (filed > 0) onSent(filed)
+  }, [waiting.length, sending, busy, closed, onSent])
+
+  const cash = byNote ? countedTotal(counted) : (total ?? 0)
   const gap = cash - figures.expected
   const share = figures.cashTaken ? Math.abs(gap) / figures.cashTaken : 0
-  const terminal = terminalText.trim() ? parseBaisa(terminalText) : null
+  const terminal = terminalText.trim() ? parseSignedBaisa(terminalText) : null
+  const terminalNegative = terminal != null && terminal < 0
   const cardDiffers = terminal != null && terminal !== figures.terminal
   const floatLeft = Math.min(toBaisa(till.till.defaultFloat), Math.max(0, cash))
   const day = new Date(`${preview.businessDate}T12:00:00`).toLocaleDateString(locale, {
@@ -246,15 +420,66 @@ function CloseForm({
     day: 'numeric',
     month: 'long',
   })
-  const ready = !busy && !closed && (!cardDiffers || cardNote.trim().length > 0)
+  const countKnown = byNote || total !== null
+  const needsReason = countKnown && gap !== 0 && reason === null
+  const ready =
+    !busy &&
+    !closed &&
+    countKnown &&
+    !needsReason &&
+    !terminalNegative &&
+    (!cardDiffers || cardNote.trim().length > 0)
+
+  /** One bounded send of this till's waiting sales; whatever is left stays queued and is shown. */
+  const sendWaiting = async (): Promise<ShiftEndFlush> => {
+    if (queuedFor(till.till.id).length === 0) return { outcome: 'done', left: [] }
+    setSending(true)
+    try {
+      return await flushBeforeShiftEnd(till.till.id, { sender: till.userId })
+    } catch {
+      return { outcome: 'offline', left: queuedFor(till.till.id) }
+    } finally {
+      setSending(false)
+    }
+  }
+
+  /**
+   * Null when anything was filed: the effect above reloads the preview, and the count is checked
+   * against fresh figures before the shift is closed rather than against the ones the cashier saw.
+   */
+  const sendThenRecount = async (): Promise<ShiftEndFlush | null> => {
+    const before = queuedFor(till.till.id).length
+    const result = await sendWaiting()
+    return before - result.left.length > 0 ? null : result
+  }
+
+  const sendAgain = async () => {
+    setBusy(true)
+    const result = await sendThenRecount()
+    if (result) setUnsent(result)
+    setBusy(false)
+  }
 
   const close = async () => {
+    if (held) return
     setBusy(true)
     setRefusal(null)
+    // A queued sale that reaches the server after this close is not in its count, and a signed one
+    // is held for a manager (O-1), so the waiting ones get one bounded try first. Once the cashier
+    // has been told what is left, the next press closes: the close is warned about, never stopped
+    // (blocking it is not approved, batch 42 OFF-4).
+    if (!warned) {
+      const result = await sendThenRecount()
+      if (!result || result.left.length > 0) {
+        if (result) setUnsent(result)
+        setBusy(false)
+        return
+      }
+    }
     const body = closeRequest({
       byNote,
       counted,
-      total,
+      total: cash,
       floatLeft,
       terminal,
       terminalExpected: figures.terminal,
@@ -370,14 +595,10 @@ function CloseForm({
                 <p className="text-xs font-semibold text-text-tertiary">
                   {t('pos.close.actuallyIn')}
                 </p>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  dir="ltr"
+                <TillMoneyInput
                   readOnly={byNote}
-                  value={(cash / 1000).toFixed(3)}
-                  onFocus={selectAllOnFocus}
-                  onChange={(event) => setTotal(parseBaisa(event.target.value))}
+                  baisa={byNote ? cash : total}
+                  onBaisa={setTotal}
                   aria-label={t('pos.close.actuallyIn')}
                   className="mt-2 h-[60px] w-full rounded-sm border-2 border-primary-700 bg-primary-25 px-4 text-end text-2xl font-semibold text-text-primary outline-none"
                 />
@@ -419,15 +640,17 @@ function CloseForm({
               <div
                 className={[
                   'min-w-[260px] flex-1 rounded-sm p-4',
-                  gap === 0 ? 'bg-success-100' : 'bg-pending-100',
+                  countKnown && gap === 0 ? 'bg-success-100' : 'bg-pending-100',
                 ].join(' ')}
               >
                 <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-quaternary">
-                  {gap === 0
-                    ? t('pos.close.balances')
-                    : gap < 0
-                      ? t('pos.close.shortBy')
-                      : t('pos.close.overBy')}
+                  {!countKnown
+                    ? t('pos.close.notCounted')
+                    : gap === 0
+                      ? t('pos.close.balances')
+                      : gap < 0
+                        ? t('pos.close.shortBy')
+                        : t('pos.close.overBy')}
                 </p>
                 <p
                   className={[
@@ -436,9 +659,9 @@ function CloseForm({
                   ].join(' ')}
                 >
                   <Rial />
-                  {omr(Math.abs(gap))}
+                  {countKnown ? omr(Math.abs(gap)) : omr(0)}
                 </p>
-                {gap !== 0 ? (
+                {countKnown && gap !== 0 ? (
                   <p className="mt-2 text-xs font-medium leading-[1.6] text-text-tertiary">
                     {t('pos.close.shortStory', {
                       expected: omr(figures.expected),
@@ -459,7 +682,7 @@ function CloseForm({
               />
               <Line
                 label={t('pos.close.cashTaken')}
-                note={t('pos.close.cashTakenNote', { sales: figures.cashSales })}
+                note={t('pos.close.cashTakenNote', { count: figures.cashSales, sales: figures.cashSales })}
                 value={`+${omr(figures.cashTaken)}`}
                 tone="add"
               />
@@ -488,12 +711,30 @@ function CloseForm({
                 tone="take"
               />
               <Line label={t('pos.close.shouldHold')} value={omr(figures.expected)} tone="sum" />
+              {/* Shown beside the expected figure, never added to it (FIN option (i)): a counted
+                  close that includes this cash records the over, and this line explains it. */}
+              {(preview.lateCashFromHandedOverShift ?? 0) > 0 ? (
+                <Line
+                  label={withRial(
+                    t('pos.close.lateCash', {
+                      amount: omr(toBaisa(preview.lateCashFromHandedOverShift ?? 0)),
+                    }),
+                  )}
+                  note={t('pos.close.lateCashHint')}
+                  value=""
+                />
+              ) : null}
             </div>
           </section>
 
           <CashMovements
             shiftId={preview.shiftId}
+            tillId={till.till.id}
             canSetFloat={preview.salesCount === 0}
+            canPayIn={till.can.close}
+            canPayOut={till.can.payOut}
+            canLinkBill={till.can.billSettle}
+            paidOut={paidOut}
             onRecorded={reload}
           />
 
@@ -582,6 +823,29 @@ function CloseForm({
                   )}
                 />
               ) : null}
+              {/* This device's queue, which the server cannot see: notYetAccepted below counts only
+                  sales it already has. */}
+              {waiting.length > 0 ? (
+                <LooseEnd
+                  done={false}
+                  title={t('pos.pendingSync.closeTitle', { count: waiting.length })}
+                  note={
+                    <>
+                      {t('pos.pendingSync.closeNote')}
+                      <span dir="ltr" className="mt-1 block">
+                        {waiting.map((entry) => entry.number).join(', ')}
+                      </span>
+                      {waiting.some((entry) => entry.refusal) ? (
+                        <span className="mt-1 block">
+                          {t('pos.pendingSync.someRefused', {
+                            count: waiting.filter((entry) => entry.refusal).length,
+                          })}
+                        </span>
+                      ) : null}
+                    </>
+                  }
+                />
+              ) : null}
               <LooseEnd
                 done={preview.looseEnds.notYetAccepted === 0}
                 title={
@@ -617,12 +881,29 @@ function CloseForm({
                   </span>
                   <span className="block text-xs font-medium leading-[1.5] text-text-quaternary">
                     {withRial(
-                      t('pos.close.terminalTotalNote', {
-                        amount: `OMR ${omr(figures.terminal)}`,
-                        payments: preview.looseEnds.cardSalesForTerminalCheck.count,
-                      }),
+                      figures.terminal < 0
+                        ? t('pos.close.terminalNetNote', {
+                            gross: `OMR ${omr(figures.terminal + figures.cardRefunded)}`,
+                            refunds: `OMR ${omr(figures.cardRefunded)}`,
+                            net: `OMR ${omrSigned(figures.terminal)}`,
+                            payments: preview.looseEnds.cardSalesForTerminalCheck.count,
+                          })
+                        : t('pos.close.terminalTotalNote', {
+                            amount: `OMR ${omr(figures.terminal)}`,
+                            count: preview.looseEnds.cardSalesForTerminalCheck.count,
+                            payments: preview.looseEnds.cardSalesForTerminalCheck.count,
+                          }),
                     )}
                   </span>
+                  {figures.cardRefunded > 0 && figures.terminalNet && figures.terminal >= 0 ? (
+                    <span className="block text-xs font-medium leading-[1.5] text-text-quaternary">
+                      {withRial(
+                        t('pos.close.terminalRefunded', {
+                          amount: `OMR ${omr(figures.cardRefunded)}`,
+                        }),
+                      )}
+                    </span>
+                  ) : null}
                   <input
                     type="text"
                     inputMode="decimal"
@@ -633,7 +914,11 @@ function CloseForm({
                     aria-label={t('pos.close.terminalTotal')}
                     className={`${FIELD} max-w-[220px] text-end`}
                   />
-                  {cardDiffers && terminal != null ? (
+                  {terminalNegative ? (
+                    <span role="alert" className="text-xs font-medium text-pending-700">
+                      {t('pos.refusal.POS_CARD_TERMINAL_TOTAL_INVALID')}
+                    </span>
+                  ) : cardDiffers && terminal != null ? (
                     <>
                       <span className="text-xs font-medium text-pending-700">
                         {t('pos.close.terminalDiffers', {
@@ -676,16 +961,28 @@ function CloseForm({
             />
             <Sum label={t('pos.close.tips')} value={omr(toBaisa(preview.tips))} money />
             <Sum label={t('pos.close.refundedInCash')} value={omr(figures.cashRefunded)} money />
+            {figures.cardRefunded > 0 ? (
+              <Sum label={t('pos.close.refundedToCard')} value={omr(figures.cardRefunded)} money />
+            ) : null}
+            {figures.transferRefunded > 0 ? (
+              <Sum
+                label={t('pos.close.refundedByTransfer')}
+                value={omr(figures.transferRefunded)}
+                money
+              />
+            ) : null}
             <Sum
               label={t('pos.close.drawer')}
               value={
-                gap === 0
-                  ? t('pos.close.balances')
-                  : gap < 0
-                    ? t('pos.close.shortValue', { amount: omr(Math.abs(gap)) })
-                    : t('pos.day.overValue', { amount: omr(gap) })
+                !countKnown
+                  ? t('pos.close.notCounted')
+                  : gap === 0
+                    ? t('pos.close.balances')
+                    : gap < 0
+                      ? t('pos.close.shortValue', { amount: omr(Math.abs(gap)) })
+                      : t('pos.day.overValue', { amount: omr(gap) })
               }
-              tone={gap === 0 ? undefined : 'watch'}
+              tone={countKnown && gap === 0 ? undefined : 'watch'}
             />
             <Sum
               label={t('pos.close.toBank')}
@@ -698,19 +995,69 @@ function CloseForm({
               money
             />
           </div>
+          {!countKnown && !closed ? (
+            <p className="mx-5 mb-2 rounded-sm bg-pending-100 px-4 py-3 text-sm font-medium text-pending-700">
+              {t('pos.close.countFirst')}
+            </p>
+          ) : null}
+          {needsReason && !closed ? (
+            <p className="mx-5 mb-2 rounded-sm bg-pending-100 px-4 py-3 text-sm font-medium text-pending-700">
+              {t('pos.refusal.POS_OVER_SHORT_REASON_REQUIRED', {
+                counted: omr(cash),
+                expected: omr(figures.expected),
+              })}
+            </p>
+          ) : null}
           {refusal ? (
             <p
               role="alert"
               className="mx-5 mb-2 rounded-sm bg-pending-100 px-4 py-3 text-sm font-medium text-pending-700"
             >
-              {t(posRefusalKey(refusal), refusalValues(refusal))}
+              {refusalSentence(t, refusal)}
             </p>
+          ) : null}
+          {sentBeforeClose > 0 && !closed ? (
+            <p
+              role="status"
+              className="mx-5 mb-2 rounded-sm bg-success-100 px-4 py-3 text-sm font-medium text-success-700"
+            >
+              {t('pos.pendingSync.sentRecount', { count: sentBeforeClose })}
+            </p>
+          ) : null}
+          {warned && !closed ? (
+            <div
+              role="alert"
+              className="mx-5 mb-2 flex flex-col gap-2 rounded-sm bg-pending-100 px-4 py-3 text-sm font-medium text-pending-700"
+            >
+              <p>
+                {t(
+                  unsent?.outcome === 'offline'
+                    ? 'pos.pendingSync.closeLeftOffline'
+                    : 'pos.pendingSync.closeLeft',
+                  { count: waiting.length },
+                )}
+              </p>
+              <div>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void sendAgain()}
+                  className="inline-flex h-9 items-center rounded-sm border border-border-subtle bg-white px-4 text-xs font-semibold text-text-primary disabled:opacity-60"
+                >
+                  {t('pos.pendingSync.sendAgain')}
+                </button>
+              </div>
+            </div>
           ) : null}
           <div className="border-t border-border-subtle px-5 py-5">
             {closed ? (
               <p className="flex items-center gap-2 rounded-sm bg-success-100 px-3 py-3 text-sm font-medium text-success-700">
                 <CheckIcon className="size-4 shrink-0" />
                 {t('pos.close.closedAt', { time: tillTime(closed.closedAt, locale) })}
+              </p>
+            ) : held ? (
+              <p role="alert" className="rounded-sm bg-warning-100 px-3 py-3 text-sm font-semibold text-text-primary">
+                {t('pos.close.heldSale')}
               </p>
             ) : (
               <button
@@ -719,7 +1066,11 @@ function CloseForm({
                 onClick={() => void close()}
                 className="inline-flex h-[52px] w-full items-center justify-center rounded-sm bg-primary-700 text-base font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-50"
               >
-                {t('pos.close.closeTill')}
+                {sending
+                  ? t('pos.pendingSync.sending')
+                  : warned
+                    ? t('pos.pendingSync.closeAnyway')
+                    : t('pos.close.closeTill')}
               </button>
             )}
           </div>
@@ -732,25 +1083,50 @@ function CloseForm({
   )
 }
 
-/** Cash in or out of the drawer outside a sale, and the float while nothing is sold yet. */
+/**
+ * Cash in or out of the drawer outside a sale, and the float while nothing is sold yet. Each kind
+ * is offered only to whoever the server lets record it (backend cb9898ac3): a paid-out asks
+ * `pos.cash.pay_out`, a paid-in `pos.close`.
+ */
 function CashMovements({
   shiftId,
+  tillId,
   canSetFloat,
+  canPayIn,
+  canPayOut,
+  canLinkBill,
+  paidOut,
   onRecorded,
 }: {
   shiftId: string
+  tillId: string
   canSetFloat: boolean
+  canPayIn: boolean
+  canPayOut: boolean
+  canLinkBill: boolean
+  paidOut: PaidOutStore
   onRecorded: () => void
 }) {
   const { t } = useTranslation()
-  const [type, setType] = useState<'PAID_OUT' | 'PAID_IN' | 'FLOAT'>('PAID_OUT')
+  const kinds: ('PAID_OUT' | 'PAID_IN' | 'FLOAT')[] = [
+    ...(canPayOut ? (['PAID_OUT'] as const) : []),
+    ...(canPayIn ? (['PAID_IN'] as const) : []),
+    ...(canSetFloat ? (['FLOAT'] as const) : []),
+  ]
+  const [chosen, setType] = useState<'PAID_OUT' | 'PAID_IN' | 'FLOAT' | null>(kinds[0] ?? null)
+  // The float leaves the list once a sale is made; the choice then falls back to what remains.
+  const type = chosen && kinds.includes(chosen) ? chosen : (kinds[0] ?? null)
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
+  // FIN-PAIDIN-CUR: the paid-out's pattern (FIN-M3-CURRENCY-SRC, owner item 6.3). Nothing records a
+  // till's currency, so the cashier chooses it each time; none is assumed or prefilled, and the server
+  // checks the choice against the shift's own records (since a2c9fcf0c it refuses a paid-in without one).
+  const [currency, setCurrency] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<unknown>(null)
-  const kinds = canSetFloat
-    ? (['PAID_OUT', 'PAID_IN', 'FLOAT'] as const)
-    : (['PAID_OUT', 'PAID_IN'] as const)
+
+  if (type === null) return null
+  const needsCurrency = type === 'PAID_IN' && currency === ''
 
   const record = async () => {
     setBusy(true)
@@ -758,9 +1134,17 @@ function CashMovements({
     try {
       const value = parseBaisa(amount) / 1000
       if (type === 'FLOAT') await setShiftFloat(shiftId, value)
-      else await addCashMovement(shiftId, { type, amount: value, note: note.trim() || null })
+      else {
+        await addCashMovement(shiftId, {
+          type: 'PAID_IN',
+          amount: value,
+          note: note.trim() || null,
+          currency,
+        })
+      }
       setAmount('')
       setNote('')
+      setCurrency('')
       onRecorded()
     } catch (cause) {
       setError(cause)
@@ -798,52 +1182,709 @@ function CashMovements({
             </button>
           ))}
         </div>
-        <div className="flex flex-wrap gap-4">
-          <label className="flex min-w-0 flex-1 basis-[140px] flex-col gap-1.5">
-            <span className="text-xs font-medium text-text-tertiary">{t('pos.pay.amount')}</span>
-            <input
-              type="text"
-              inputMode="decimal"
-              dir="ltr"
-              value={amount}
-              placeholder="0.000"
-              onFocus={selectAllOnFocus}
-              onChange={(event) => setAmount(event.target.value)}
-              className={`${FIELD} text-end`}
-            />
-          </label>
-          {type !== 'FLOAT' ? (
-            <label className="flex min-w-0 flex-[2] basis-[200px] flex-col gap-1.5">
-              <span className="text-xs font-medium text-text-tertiary">
-                {t('pos.close.whatFor')}
-              </span>
-              <input
-                value={note}
-                maxLength={500}
-                onChange={(event) => setNote(event.target.value)}
-                placeholder={type === 'PAID_IN' ? t('pos.pay.optional') : undefined}
-                className={FIELD}
-              />
-            </label>
-          ) : null}
-        </div>
-        {error ? (
-          <p role="alert" className="text-xs font-medium text-danger-700">
-            {t(posRefusalKey(error), refusalValues(error))}
-          </p>
+        {/* FIN-P1 (owner 2026-11-05): paid-outs stay separate from refunds. A refund is a credit
+            note against its sale; cash handed back here would have no credit note behind it. */}
+        {type === 'PAID_OUT' ? (
+          <p className="text-xs font-medium text-text-quaternary">{t('pos.close.paidOutNotRefund')}</p>
         ) : null}
-        <div>
-          <button
-            type="button"
-            disabled={busy || parseBaisa(amount) <= 0 || (type === 'PAID_OUT' && !note.trim())}
-            onClick={() => void record()}
-            className="inline-flex h-10 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-50"
-          >
-            {t('pos.close.record')}
-          </button>
-        </div>
+        {type === 'PAID_OUT' ? (
+          <PaidOutForm
+            shiftId={shiftId}
+            tillId={tillId}
+            canLinkBill={canLinkBill}
+            store={paidOut}
+            onRecorded={onRecorded}
+          />
+        ) : (
+          <>
+            <div className="flex flex-wrap gap-4">
+              <label className="flex min-w-0 flex-1 basis-[140px] flex-col gap-1.5">
+                <span className="text-xs font-medium text-text-tertiary">{t('pos.pay.amount')}</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  dir="ltr"
+                  value={amount}
+                  placeholder="0.000"
+                  onFocus={selectAllOnFocus}
+                  onChange={(event) => setAmount(event.target.value)}
+                  className={`${FIELD} text-end`}
+                />
+              </label>
+              {type === 'PAID_IN' ? (
+                <label className="flex min-w-0 flex-1 basis-[140px] flex-col gap-1.5">
+                  <span className="text-xs font-medium text-text-tertiary">
+                    {t('pos.close.paidInCurrency')}
+                  </span>
+                  <Select
+                    quiet
+                    compact
+                    value={currency}
+                    ariaLabel={t('pos.close.paidInCurrency')}
+                    placeholder={t('pos.close.paidOutForm.choose')}
+                    onChange={setCurrency}
+                    options={CURRENCIES.map((code) => ({ value: code, label: code }))}
+                  />
+                </label>
+              ) : null}
+              {type !== 'FLOAT' ? (
+                <label className="flex min-w-0 flex-[2] basis-[200px] flex-col gap-1.5">
+                  <span className="text-xs font-medium text-text-tertiary">
+                    {t('pos.close.whatFor')}
+                  </span>
+                  <input
+                    value={note}
+                    maxLength={500}
+                    onChange={(event) => setNote(event.target.value)}
+                    placeholder={type === 'PAID_IN' ? t('pos.pay.optional') : undefined}
+                    className={FIELD}
+                  />
+                </label>
+              ) : null}
+            </div>
+            {type === 'PAID_IN' ? (
+              <p className="text-xs font-medium text-text-quaternary">
+                {t('pos.close.paidInCurrencyNote')}
+              </p>
+            ) : null}
+            {error ? (
+              <p role="alert" className="text-xs font-medium text-danger-700">
+                {refusalSentence(t, error)}
+              </p>
+            ) : null}
+            <div>
+              <button
+                type="button"
+                disabled={busy || parseBaisa(amount) <= 0 || needsCurrency}
+                onClick={() => void record()}
+                className="inline-flex h-10 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-50"
+              >
+                {t('pos.close.record')}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </section>
+  )
+}
+
+const fileIdentity = (file: File) => `${file.name}|${file.size}|${file.lastModified}`
+
+/**
+ * A paid-out (backend cb9898ac3, FIN-M3): what kind it is, how it is booked, the currency, and the
+ * receipt or why there is none. Never queued offline: it needs the server's drawer check and key.
+ */
+function PaidOutForm({
+  shiftId,
+  tillId,
+  canLinkBill,
+  store,
+  onRecorded,
+}: {
+  shiftId: string
+  tillId: string
+  canLinkBill: boolean
+  store: PaidOutStore
+  onRecorded: () => void
+}) {
+  const { t, i18n } = useTranslation()
+  const [amount, setAmount] = useState('')
+  const [note, setNote] = useState('')
+  const [category, setCategory] = useState<PosPaidOutCategory | null>(null)
+  const [chosenClass, setChosenClass] = useState<PosPaidOutClass | null>(null)
+  // FIN-M3-CURRENCY-SRC: nothing records a till's currency, so none is assumed or prefilled; the
+  // server refuses a paid-out without one rather than default it.
+  const [currency, setCurrency] = useState('')
+  const [file, setFile] = useState<File | null>(null)
+  // Bumped to empty the file picker, which React cannot clear by value.
+  const [picker, setPicker] = useState(0)
+  const [fileProblem, setFileProblem] = useState<'type' | 'size' | null>(null)
+  const [noReceipt, setNoReceipt] = useState(false)
+  const [reason, setReason] = useState('')
+  const [bill, setBill] = useState<BillRowDto | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<unknown>(null)
+  const [check, setCheck] = useState<
+    | { status: 'loading' }
+    | { status: 'ready'; moves: PosCashMovementDto[]; checkedAt: number }
+    | { status: 'failed'; error: unknown }
+    | null
+  >(null)
+  // Re-renders the locked view each second, so the unlock wait counts down (review W5-2).
+  const [, setTick] = useState(0)
+  const locked = isLocked(store)
+  useEffect(() => {
+    if (!locked) return
+    const timer = window.setInterval(() => setTick((value) => value + 1), 1000)
+    return () => window.clearInterval(timer)
+  }, [locked])
+
+  const linked = category === 'SUPPLIER_PAYMENT' && bill !== null
+  const fixed = category ? fixedClass(category, linked) : null
+  const choices = category ? choosableClasses(category, linked) : []
+  // A bill that states no currency is left to the server, never shown as "This bill is in ."
+  const billCurrencyDiffers =
+    linked && currency !== '' && !!bill?.currencyCode && bill.currencyCode !== currency
+  const gap = paidOutGap({
+    amount: parseBaisa(amount) / 1000,
+    note,
+    category,
+    chosenClass,
+    currency,
+    billId: linked && bill ? bill.id : null,
+    hasReceipt: !noReceipt && file !== null,
+    missingReceiptReason: noReceipt ? reason : null,
+  })
+
+  const chooseFile = (chosen: File | null) => {
+    setFile(null)
+    setFileProblem(null)
+    if (!chosen) return
+    const problem = receiptProblem(chosen)
+    if (problem) setFileProblem(problem)
+    else setFile(chosen)
+  }
+
+  const save = () => savePaidOutStore(tillId, shiftId, store)
+
+  /** A definite answer that recorded it (201, or the 200 replay of the first press). */
+  const settled = () => {
+    store.attempt = null
+    store.receipt = null
+    store.unknown = false
+    store.sentAt = null
+    save()
+    onRecorded()
+  }
+
+  const failed = (cause: unknown, sent: boolean, retried: boolean) => {
+    if (sent && (outcomeUnknown(cause) || (retried && refusedOnRetry(cause)))) {
+      // The server may have recorded it: from here on only the same body under the same key may
+      // go, until a definite answer or the cashier's check (review W4-1).
+      store.unknown = true
+      save()
+    } else if (sent && keepsAttemptAfter(cause)) {
+      // WB5-1: nothing was paid out, but the attempt, its key and the receipt stay (and are saved,
+      // so they outlive a reload): the same body sent again goes under the same key.
+      // W7R-3: only this press timed out. Sent from the locked view, an earlier press may still be
+      // recorded, so the lock and its wait stay: unlocking here would leave the fields empty, and a
+      // detail retyped differently would go under a new key as a second paid-out.
+      if (!store.unknown) store.sentAt = null
+      save()
+    } else {
+      // A definite refusal recorded nothing, so the next press is a fresh attempt whatever it says.
+      store.attempt = null
+      store.unknown = false
+      store.sentAt = null
+      if (dropsHeldReceipt(cause)) store.receipt = null
+      save()
+      // Uploading the same file again would only make a second copy of a receipt that already backs a
+      // paid-out, which is what the server refused; the cashier picks the receipt again on purpose.
+      if (cause instanceof ApiError && cause.code === 'POS_PAID_OUT_RECEIPT_ALREADY_USED') {
+        setFile(null)
+        setPicker((value) => value + 1)
+      }
+    }
+    setError(cause)
+  }
+
+  /** The locked press: the stored body, the stored key, nothing read from the fields. */
+  const sendAgain = async (body: PosPaidOutRequest, key: string) => {
+    setBusy(true)
+    setError(null)
+    // This send may itself still be in flight a minute from now: the wait restarts with it.
+    store.sentAt = Date.now()
+    save()
+    try {
+      await recordPaidOut(shiftId, body, key)
+      settled()
+    } catch (cause) {
+      failed(cause, true, true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /** The cashier's way out of the lock: read the shift's cash moves again before saying it is not there. */
+  const readMoves = async () => {
+    // Taken when the read is sent, not when it answers: the server's state is what it was then.
+    const checkedAt = Date.now()
+    setCheck({ status: 'loading' })
+    try {
+      const preview = await apiRequest<PosClosePreviewDto>(closePreviewPath(shiftId))
+      setCheck({
+        status: 'ready',
+        moves: preview.movements.filter((move) => move.type === 'PAID_OUT'),
+        checkedAt,
+      })
+    } catch (cause) {
+      setCheck({ status: 'failed', error: cause })
+    }
+  }
+
+  const notRecorded = (body: PosPaidOutRequest | null) => {
+    store.attempt = null
+    store.unknown = false
+    store.sentAt = null
+    save()
+    setCheck(null)
+    setError(null)
+    // An unreadable body leaves the form as it stands: nothing to refill it from.
+    if (!body) return
+    // The fields come back as they were sent (also after a reload, when the form had none); the
+    // receipt id stays held, so a paid-out that was in fact recorded is refused as ALREADY_USED.
+    setAmount(body.amount.toFixed(3))
+    setNote(body.note)
+    // K10: a supplier payment is not a category this user may choose (review WB4-3); a body kept from
+    // before bill.settle was withdrawn, or from another user of the tab, comes back without it.
+    const category = body.category === 'SUPPLIER_PAYMENT' && !canLinkBill ? null : body.category
+    setCategory(category)
+    const chosen = body.accountingClass
+    setChosenClass(
+      // The bill row is not kept, so the form comes back unlinked and a bill settlement unchosen.
+      category && chosen && choosableClasses(category, false).includes(chosen) ? chosen : null,
+    )
+    setCurrency(body.currency)
+    setNoReceipt(Boolean(body.missingReceiptReason))
+    setReason(body.missingReceiptReason ?? '')
+  }
+
+  const record = async () => {
+    if (!category) return
+    setBusy(true)
+    setError(null)
+    let sent = false
+    let retried = false
+    try {
+      let receiptObjectId: string | null = null
+      if (!noReceipt && file) {
+        const identity = fileIdentity(file)
+        if (store.receipt?.file === identity) {
+          receiptObjectId = store.receipt.receiptObjectId
+        } else {
+          // Photos above the gateway's limit go up shrunk, as a bill's photo does.
+          const fitted = await fitForUpload(file)
+          const uploaded = await uploadPaidOutReceipt(tillId, fitted, fitted.name)
+          store.receipt = { file: identity, receiptObjectId: uploaded.receiptObjectId }
+          receiptObjectId = uploaded.receiptObjectId
+        }
+      }
+      const body = paidOutRequest({
+        amount: parseBaisa(amount) / 1000,
+        note,
+        category,
+        chosenClass,
+        currency,
+        billId: linked && bill ? bill.id : null,
+        receiptObjectId,
+        missingReceiptReason: noReceipt ? reason : null,
+      })
+      const { attempt, key } = keyForAttempt(store.attempt, body)
+      retried = store.attempt?.key === key
+      store.attempt = attempt
+      store.sentAt = Date.now()
+      // Stored as unknown before it leaves: a reload while it is in flight cannot tell either.
+      savePaidOutStore(tillId, shiftId, { ...store, unknown: true })
+      sent = true
+      // A 200 replay is the paid-out the first press recorded: success, never a second one.
+      await recordPaidOut(shiftId, body, key)
+      settled()
+    } catch (cause) {
+      failed(cause, sent, retried)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Only a retry under a kept key leaves a 403 locked (B8R-1, WB5-2), so locked means that case.
+  const mayBeRecorded = locked && error !== null && refusedOnRetry(error)
+  const refusal = !error
+    ? null
+    : mayBeRecorded
+      ? { key: 'pos.close.paidOutForm.pending.mayBeRecorded', values: {} }
+      : locked && keepsAttemptAfter(error)
+        ? // The unlocked form's sentence says nothing was paid out and names Record it; here an
+          // earlier press may still be recorded and the button is Record it again (W7R-3).
+          { key: 'pos.close.paidOutForm.pending.timedOut', values: {} }
+        : paidOutRefusal(error, i18n.language)
+  const pending = pendingBody(store)
+
+  if (locked && store.attempt) {
+    const key = store.attempt.key
+    const waitSeconds = Math.ceil(unlockWaitMs(store, Date.now()) / 1000)
+    const unlockable = check?.status === 'ready' && mayUnlock(store, check.checkedAt)
+    return (
+      <div className="flex flex-col gap-3">
+        <p role="status" className="rounded-sm bg-pending-100 px-3 py-3 text-sm font-medium text-pending-700">
+          {t('pos.close.paidOutForm.pending.title')}
+        </p>
+        {pending ? (
+          <ul className="flex flex-col gap-1 text-sm font-medium text-text-secondary">
+            <li>
+              {formatAmount(pending.amount, pending.currency, i18n.language)} {pending.currency} ·{' '}
+              {t(`pos.close.paidOutForm.categories.${pending.category}`)}
+            </li>
+            <li>{pending.note}</li>
+            <li>
+              {pending.missingReceiptReason
+                ? t('pos.close.paidOutForm.pending.noReceipt', { reason: pending.missingReceiptReason })
+                : t('pos.close.paidOutForm.pending.receipt')}
+            </li>
+            {pending.billId ? <li>{t('pos.close.paidOutForm.pending.bill')}</li> : null}
+          </ul>
+        ) : (
+          // Fail closed (review N-W5a): without the body nothing can be sent again, and the lock
+          // lifts only through the re-read and the wait.
+          <p className="text-sm font-medium text-text-secondary">
+            {t('pos.close.paidOutForm.pending.unreadable')}
+          </p>
+        )}
+        <p className="text-xs font-medium text-text-quaternary">
+          {t(pending ? 'pos.close.paidOutForm.pending.hint' : 'pos.close.paidOutForm.pending.unreadableHint')}
+        </p>
+        {refusal ? (
+          <p role="alert" className="text-xs font-medium text-danger-700">
+            {t(refusal.key, refusal.values)}
+          </p>
+        ) : null}
+        <div className="flex flex-wrap gap-2">
+          {/* WB5-3: the same press would only be refused again; the way on is a manager's check. */}
+          {pending && !mayBeRecorded ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void sendAgain(pending, key)}
+              className="inline-flex h-10 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-50"
+            >
+              {t('pos.close.paidOutForm.pending.again')}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            disabled={busy || check?.status === 'loading'}
+            onClick={() => void readMoves()}
+            className="inline-flex h-10 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-50"
+          >
+            {t('pos.close.paidOutForm.pending.check')}
+          </button>
+        </div>
+        {check?.status === 'failed' ? (
+          <p role="alert" className="text-xs font-medium text-danger-700">
+            {refusalSentence(t, check.error)}
+          </p>
+        ) : null}
+        {check?.status === 'ready' ? (
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-medium text-text-tertiary">
+              {check.moves.length > 0
+                ? t('pos.close.paidOutForm.pending.movesFound')
+                : t('pos.close.paidOutForm.pending.movesNone')}
+            </p>
+            {check.moves.length > 0 ? (
+              <ul className="flex flex-col gap-1 text-sm font-medium text-text-secondary">
+                {check.moves.map((move) => (
+                  <li key={move.movementId}>
+                    {tillTime(move.recordedAt, i18n.language.startsWith('ar') ? 'ar' : 'en-GB')} ·{' '}
+                    {pending
+                      ? formatAmount(move.amount, pending.currency, i18n.language)
+                      : String(move.amount)}{' '}
+                    · {move.note ?? ''}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {waitSeconds > 0 ? (
+              <p className="text-xs font-medium text-text-quaternary">
+                {t('pos.close.paidOutForm.pending.wait', { seconds: waitSeconds })}
+              </p>
+            ) : !unlockable ? (
+              <p className="text-xs font-medium text-text-quaternary">
+                {t('pos.close.paidOutForm.pending.recheck')}
+              </p>
+            ) : null}
+            <div>
+              <button
+                type="button"
+                disabled={busy || !unlockable}
+                onClick={() => notRecorded(pending)}
+                className="inline-flex h-10 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-50"
+              >
+                {t('pos.close.paidOutForm.pending.notRecorded')}
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <div className="flex flex-wrap gap-4">
+        <label className="flex min-w-0 flex-1 basis-[140px] flex-col gap-1.5">
+          <span className="text-xs font-medium text-text-tertiary">{t('pos.pay.amount')}</span>
+          <input
+            type="text"
+            inputMode="decimal"
+            dir="ltr"
+            value={amount}
+            aria-label={t('pos.pay.amount')}
+            placeholder="0.000"
+            onFocus={selectAllOnFocus}
+            onChange={(event) => setAmount(event.target.value)}
+            className={`${FIELD} text-end`}
+          />
+        </label>
+        <label className="flex min-w-0 flex-1 basis-[140px] flex-col gap-1.5">
+          <span className="text-xs font-medium text-text-tertiary">
+            {t('pos.close.paidOutForm.currency')}
+          </span>
+          <Select
+            quiet
+            compact
+            value={currency}
+            ariaLabel={t('pos.close.paidOutForm.currency')}
+            placeholder={t('pos.close.paidOutForm.choose')}
+            onChange={setCurrency}
+            options={CURRENCIES.map((code) => ({ value: code, label: code }))}
+          />
+        </label>
+        <label className="flex min-w-0 flex-[2] basis-[200px] flex-col gap-1.5">
+          <span className="text-xs font-medium text-text-tertiary">{t('pos.close.whatFor')}</span>
+          <input
+            value={note}
+            aria-label={t('pos.close.whatFor')}
+            maxLength={500}
+            onChange={(event) => setNote(event.target.value)}
+            className={FIELD}
+          />
+        </label>
+      </div>
+      <p className="text-xs font-medium text-text-quaternary">
+        {t('pos.close.paidOutForm.currencyNote')}
+      </p>
+      <div className="flex flex-wrap gap-4">
+        <label className="flex min-w-0 flex-1 basis-[200px] flex-col gap-1.5">
+          <span className="text-xs font-medium text-text-tertiary">
+            {t('pos.close.paidOutForm.category')}
+          </span>
+          {/* Owner v2 K10: only staff who can settle supplier bills pay a supplier, linked or not.
+              Hidden here; the server is the check (K10-SUPPLIER backend). */}
+          <Select
+            quiet
+            compact
+            value={category ?? ''}
+            ariaLabel={t('pos.close.paidOutForm.category')}
+            placeholder={t('pos.close.paidOutForm.choose')}
+            onChange={(value) => {
+              const next = (value || null) as PosPaidOutCategory | null
+              setCategory(next)
+              setChosenClass(null)
+              if (next !== 'SUPPLIER_PAYMENT') setBill(null)
+            }}
+            options={PAID_OUT_CATEGORIES.filter(
+              (code) => code !== 'SUPPLIER_PAYMENT' || canLinkBill,
+            ).map((code) => ({ value: code, label: t(`pos.close.paidOutForm.categories.${code}`) }))}
+          />
+        </label>
+        {category && choices.length > 0 ? (
+          <label className="flex min-w-0 flex-1 basis-[200px] flex-col gap-1.5">
+            <span className="text-xs font-medium text-text-tertiary">
+              {t('pos.close.paidOutForm.class')}
+            </span>
+            <Select
+              quiet
+              compact
+              value={chosenClass ?? ''}
+              ariaLabel={t('pos.close.paidOutForm.class')}
+              placeholder={t('pos.close.paidOutForm.choose')}
+              onChange={(value) => setChosenClass((value || null) as PosPaidOutClass | null)}
+              options={choices.map((code) => ({
+                value: code,
+                label: t(`pos.close.paidOutForm.classes.${code}`),
+              }))}
+            />
+          </label>
+        ) : null}
+      </div>
+      {fixed ? (
+        <p className="text-xs font-medium text-text-quaternary">
+          {t('pos.close.paidOutForm.classFixed', {
+            class: t(`pos.close.paidOutForm.classes.${fixed}`),
+          })}
+        </p>
+      ) : null}
+      {category === 'SUPPLIER_PAYMENT' && canLinkBill ? (
+        <BillLink bill={bill} onChange={setBill} />
+      ) : null}
+      {billCurrencyDiffers ? (
+        <p role="alert" className="text-xs font-medium text-danger-700">
+          {t('pos.close.paidOutForm.billCurrency', { currency: bill?.currencyCode ?? '' })}
+        </p>
+      ) : null}
+      <div className="flex flex-col gap-1.5">
+        <span className="text-xs font-medium text-text-tertiary">
+          {t('pos.close.paidOutForm.receipt')}
+        </span>
+        {noReceipt ? (
+          <input
+            value={reason}
+            maxLength={500}
+            aria-label={t('pos.close.paidOutForm.noReceiptReason')}
+            placeholder={t('pos.close.paidOutForm.noReceiptReason')}
+            onChange={(event) => setReason(event.target.value)}
+            className={FIELD}
+          />
+        ) : (
+          <input
+            key={picker}
+            type="file"
+            accept="image/jpeg,image/png,application/pdf"
+            aria-label={t('pos.close.paidOutForm.receipt')}
+            onChange={(event) => chooseFile(event.target.files?.[0] ?? null)}
+            className="text-sm font-medium text-text-secondary"
+          />
+        )}
+        <p className="text-xs font-medium text-text-quaternary">
+          {noReceipt ? t('pos.close.paidOutForm.noReceiptNote') : t('pos.close.paidOutForm.receiptNote')}
+        </p>
+        {fileProblem ? (
+          <p role="alert" className="text-xs font-medium text-danger-700">
+            {t(`pos.close.paidOutForm.receiptProblem.${fileProblem}`)}
+          </p>
+        ) : null}
+        <label className="flex items-center gap-2 text-sm font-medium text-text-secondary">
+          <input
+            type="checkbox"
+            checked={noReceipt}
+            onChange={(event) => setNoReceipt(event.target.checked)}
+          />
+          {t('pos.close.paidOutForm.noReceipt')}
+        </label>
+      </div>
+      {refusal ? (
+        <p role="alert" className="text-xs font-medium text-danger-700">
+          {t(refusal.key, refusal.values)}
+        </p>
+      ) : null}
+      <div>
+        <button
+          type="button"
+          disabled={busy || gap !== null || billCurrencyDiffers}
+          onClick={() => void record()}
+          className="inline-flex h-10 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-50"
+        >
+          {t('pos.close.record')}
+        </button>
+      </div>
+    </>
+  )
+}
+
+/**
+ * The bill a supplier paid-out settles, offered only to a holder of `bill.settle`, which the server
+ * asks on top of `pos.cash.pay_out` (POS_PAID_OUT_BILL_FORBIDDEN). Approved bills only: the server
+ * refuses to pay any other.
+ */
+function BillLink({
+  bill,
+  onChange,
+}: {
+  bill: BillRowDto | null
+  onChange: (bill: BillRowDto | null) => void
+}) {
+  const { t, i18n } = useTranslation()
+  const [query, setQuery] = useState('')
+  const [found, setFound] = useState<BillRowDto[] | null>(null)
+  const [error, setError] = useState<unknown>(null)
+  const [busy, setBusy] = useState(false)
+
+  const describe = (row: BillRowDto) => ({
+    supplier: row.supplierName ?? '—',
+    number: row.supplierBillNumber ?? '—',
+    // Without a currency there are no minor units to format to, and none is assumed.
+    outstanding: row.currencyCode
+      ? formatAmount(row.outstandingAmount, row.currencyCode, i18n.language)
+      : String(row.outstandingAmount),
+    currency: row.currencyCode ?? '',
+  })
+
+  if (bill) {
+    return (
+      <div className="flex flex-wrap items-center gap-3 text-sm font-medium text-text-secondary">
+        <span>{t('pos.close.paidOutForm.billLinked', describe(bill))}</span>
+        <button
+          type="button"
+          onClick={() => onChange(null)}
+          className="inline-flex h-9 items-center rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+        >
+          {t('pos.close.paidOutForm.billUnlink')}
+        </button>
+      </div>
+    )
+  }
+
+  const find = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      const page = await loadBillPage(
+        billListPath({ filter: 'APPROVED', q: query, source: null, sort: 'NEWEST', page: 0, pageSize: 5 }),
+      )
+      setFound(page.items.filter((row) => row.outstandingAmount > 0))
+    } catch (cause) {
+      setFound(null)
+      setError(cause)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-xs font-medium text-text-tertiary">{t('pos.close.paidOutForm.bill')}</span>
+      <div className="flex flex-wrap gap-2">
+        <input
+          value={query}
+          aria-label={t('pos.close.paidOutForm.billSearch')}
+          placeholder={t('pos.close.paidOutForm.billSearch')}
+          onChange={(event) => setQuery(event.target.value)}
+          className={`${FIELD} min-w-0 flex-1 basis-[200px]`}
+        />
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void find()}
+          className="inline-flex h-11 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-50"
+        >
+          {t('pos.close.paidOutForm.billFind')}
+        </button>
+      </div>
+      {error ? (
+        <p role="alert" className="text-xs font-medium text-danger-700">
+          {t('pos.close.paidOutForm.billLookupFailed')}
+        </p>
+      ) : null}
+      {found && found.length === 0 ? (
+        <p className="text-xs font-medium text-text-quaternary">{t('pos.close.paidOutForm.billNone')}</p>
+      ) : null}
+      {found && found.length > 0 ? (
+        <ul className="flex flex-col gap-1">
+          {found.map((row) => (
+            <li key={row.id}>
+              <button
+                type="button"
+                onClick={() => onChange(row)}
+                className="text-start text-sm font-medium text-text-secondary hover:text-primary-700"
+              >
+                {t('pos.close.paidOutForm.billRow', describe(row))}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
   )
 }
 

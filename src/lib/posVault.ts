@@ -107,16 +107,18 @@ function subtle(): SubtleCrypto | null {
   return typeof crypto !== 'undefined' && crypto.subtle ? crypto.subtle : null
 }
 
-async function buyerKey(store: PosVault, create: boolean): Promise<CryptoKey | null> {
-  const kept = await store.get<CryptoKey>('keys', KEY_ID)
+async function vaultKey(store: PosVault, keyId: string, create: boolean): Promise<CryptoKey | null> {
+  const kept = await store.get<CryptoKey>('keys', keyId)
   if (kept || !create) return kept ?? null
   const made = await subtle()!.generateKey({ name: 'AES-GCM', length: 256 }, false, [
     'encrypt',
     'decrypt',
   ])
-  await store.put('keys', KEY_ID, made)
+  await store.put('keys', keyId, made)
   return made
 }
+
+const buyerKey = (store: PosVault, create: boolean) => vaultKey(store, KEY_ID, create)
 
 /** Seals the buyer of a queued sale; false when this device cannot, and the queue keeps it. */
 export async function sealBuyer(saleKey: string, consumer: PosConsumer): Promise<boolean> {
@@ -148,6 +150,66 @@ export async function openBuyer(saleKey: string): Promise<PosConsumer | null> {
     if (!sealed || !key) return null
     const plain = await subtle()!.decrypt({ name: 'AES-GCM', iv: sealed.iv }, key, sealed.data)
     return JSON.parse(new TextDecoder().decode(plain)) as PosConsumer
+  } catch {
+    return null
+  }
+}
+
+/* ------------------------------------------------------------ a held sale */
+
+/** A sealed value as text, for sessionStorage. */
+export type SealedText = { iv: string; data: string }
+
+/*
+ * A sale held with an unknown outcome (E-01) keeps its request in sessionStorage so a reload still
+ * sends exactly it again; its buyer, contact, card and slip details and the people's names are
+ * personal data, so they are sealed as the queue's buyer is (review RBW2-2). A key of its own, so
+ * forgetting the last queued buyer never takes it. Only a durable vault can seal: a key lost on
+ * reload could open nothing, and the caller then keeps the lock alone.
+ */
+const HELD_KEY_ID = 'heldSale'
+
+// A loop, not a spread: a long request would overflow the argument list.
+const toBase64 = (bytes: Uint8Array) => {
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary)
+}
+const fromBase64 = (text: string) =>
+  Uint8Array.from(atob(text), (char) => char.charCodeAt(0)) as Uint8Array<ArrayBuffer>
+
+/** Seals a held sale's details; null when this device cannot. */
+export async function sealHeld(value: unknown): Promise<SealedText | null> {
+  try {
+    const store = await posVault()
+    const webCrypto = subtle()
+    if (!store.durable || !webCrypto) return null
+    const key = await vaultKey(store, HELD_KEY_ID, true)
+    if (!key) return null
+    const iv = crypto.getRandomValues(new Uint8Array(new ArrayBuffer(12)))
+    const data = await webCrypto.encrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      new TextEncoder().encode(JSON.stringify(value)),
+    )
+    return { iv: toBase64(iv), data: toBase64(new Uint8Array(data)) }
+  } catch {
+    return null
+  }
+}
+
+/** The held sale's details as sealed; null when they cannot be opened on this device. */
+export async function openHeld<T>(sealed: SealedText): Promise<T | null> {
+  try {
+    const store = await posVault()
+    const key = await vaultKey(store, HELD_KEY_ID, false)
+    if (!key) return null
+    const plain = await subtle()!.decrypt(
+      { name: 'AES-GCM', iv: fromBase64(sealed.iv) },
+      key,
+      fromBase64(sealed.data),
+    )
+    return JSON.parse(new TextDecoder().decode(plain)) as T
   } catch {
     return null
   }

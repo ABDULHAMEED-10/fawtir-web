@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { matchPosConsumer, type PosConsumerMatch } from '../api/pos/pos'
 import { tillContact } from './posContact'
+import { toBaisa } from './pos'
 
 /**
  * "Matches customer on file": the customer a full invoice to the buyer typed at the till would be
@@ -25,23 +26,43 @@ export function matchRequest(tillId: string, buyer: BuyerTyped) {
   return { tillId, name, contact: contact.value, identifierScheme: buyer.scheme, identifierValue }
 }
 
+/**
+ * SIMPLIFIED_INVOICE_LIMIT as the backend contract states it (POST /pos/sales: taxable amount
+ * before VAT of 500.000 or more, ER Art. 146 as replaced by Decision 456/2022): such a sale can
+ * only be a full invoice to a named buyer. Read here only to ask for the buyer before payment
+ * (STUCKQR-1); the server judges the limit itself and its 422 stays the enforcement.
+ */
+export const SIMPLIFIED_LIMIT_BAISA = toBaisa(500)
+
+export function overSimplifiedLimit(beforeVatBaisa: number): boolean {
+  return beforeVatBaisa >= SIMPLIFIED_LIMIT_BAISA
+}
+
 /** The match worth saying: one stored under a name other than the one typed. */
 export function hintOf(found: PosConsumerMatch | null | undefined): PosConsumerMatch | null {
   return found && found.match !== 'none' && found.name && !found.sameName ? found : null
 }
 
+/**
+ * RB-1 STUCK-QR: the server would refuse a full tax sale to this buyer. Only an explicit false
+ * counts: an older server without the flag, a lookup still waiting, refused or offline leave the
+ * sale to the server, whose 422 stays the enforcement (a till offline never sees the flag).
+ */
+export function qrRefusedOf(found: PosConsumerMatch | null | undefined): boolean {
+  return found?.qrIssuableOnFullTax === false
+}
+
 export function useBuyerMatch(tillId: string, buyer: BuyerTyped, enabled: boolean) {
-  const [hint, setHint] = useState<PosConsumerMatch | null>(null)
+  const [answer, setAnswer] = useState<{ key: string; found: PosConsumerMatch } | null>(null)
   const request = enabled ? matchRequest(tillId, buyer) : null
   const key = request ? JSON.stringify(request) : ''
   useEffect(() => {
-    setHint(null)
     if (!key) return
     const controller = new AbortController()
     const timer = setTimeout(() => {
       matchPosConsumer(JSON.parse(key), controller.signal)
         .then((found) => {
-          if (!controller.signal.aborted) setHint(hintOf(found))
+          if (!controller.signal.aborted) setAnswer({ key, found })
         })
         .catch(() => undefined)
     }, MATCH_DEBOUNCE_MS)
@@ -50,5 +71,15 @@ export function useBuyerMatch(tillId: string, buyer: BuyerTyped, enabled: boolea
       controller.abort()
     }
   }, [key])
-  return hint
+  // Read only for the buyer as typed now: an answer about an ID since changed says nothing, so a
+  // refusal never outlives the ID it was about, nor a clearance the ID that replaced it.
+  const found = answer && answer.key === key ? answer.found : null
+  return {
+    hint: hintOf(found),
+    qrRefused: qrRefusedOf(found),
+    /** A whole buyer was typed, so the lookup goes (or went). */
+    asked: key !== '',
+    /** The lookup for the buyer as typed now has answered. */
+    answered: found !== null,
+  }
 }

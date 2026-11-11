@@ -7,6 +7,9 @@ import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNoti
 import { posSaleRowActions } from '../../lib/rowActions'
 import { muscatToday, omr, toBaisa } from '../../lib/pos'
 import { PosTillGate } from './PosTillGate'
+import { ReceiptReprint } from './PosReprint'
+import { reprintOffered } from '../../lib/posReprint'
+import { saleCashierLabel } from '../../lib/posAttribution'
 import { useApiRead } from '../../hooks'
 import {
   posDayPath,
@@ -25,6 +28,7 @@ import {
   payMethodKey,
   amountNote,
   saleState,
+  saleStateText,
   type TodayTabId,
 } from '../../lib/posToday'
 import type { TillState } from '../../lib/posTill'
@@ -63,6 +67,7 @@ function Today({ till }: { till: Ready }) {
   const [tab, setTab] = useState<TodayTabId>('all')
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(1)
+  const [reprinting, setReprinting] = useState<string | null>(null)
 
   const apiTab = TODAY_TABS.find((entry) => entry.id === tab)?.api ?? 'ALL'
   const figures = useApiRead<PosTodayDto>(posTodayPath({ branchId: till.branchId, date }))
@@ -153,6 +158,34 @@ function Today({ till }: { till: Ready }) {
               {t('pos.today.closingTill')}
             </Link>
           ) : null}
+          {/* Not only where this build signs: an unsigned queued sale with a manual discount is held too
+              (owner round 5, pts 6-8), so a reviewer needs the holds wherever the till sells offline. */}
+          {till.can.close || till.can.manage ? (
+            <Link
+              to="/pos/offline-holds"
+              className="inline-flex h-11 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+            >
+              {t('pos.offline.holds.link')}
+            </Link>
+          ) : null}
+          {/* pos.close only: unlike the holds page, which also shows a till manager the device keys,
+              this page has nothing for pos.till.manage alone, and its list would be refused. */}
+          {till.can.close ? (
+            <Link
+              to="/pos/discount-flags"
+              className="inline-flex h-11 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+            >
+              {t('pos.discountFlags.link')}
+            </Link>
+          ) : null}
+          {/* Today's own list is read under pos.read (GET /pos/sales), the report's permission, so
+              whoever sees this page may open it. */}
+          <Link to="/pos/currency-exceptions" className="inline-flex h-11 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25">
+            {t('pos.currencyExceptions.link')}
+          </Link>
+          <Link to="/pos/held-sales" className="inline-flex h-11 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25">
+            {t('pos.heldSales.link')}
+          </Link>
         </div>
       </div>
 
@@ -196,6 +229,7 @@ function Today({ till }: { till: Ready }) {
             value={omr(toBaisa(kpi.sales.amount))}
             money
             note={t('pos.today.soldNote', {
+              count: kpi.sales.count,
               sales: kpi.sales.count,
               average: omr(toBaisa(kpi.sales.average)),
             })}
@@ -287,7 +321,9 @@ function Today({ till }: { till: Ready }) {
             <div key={group.shiftId}>
               <div className="flex flex-wrap items-center justify-between gap-3 bg-surface-background px-6 py-2.5">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-quaternary">
-                  {t('pos.today.shiftOf', { who: group.cashier, till: group.tillNumber })}
+                  {group.cashier
+                    ? t('pos.today.shiftOf', { who: group.cashier, till: group.tillNumber })
+                    : t('pos.today.shiftUnverified', { till: group.tillNumber })}
                 </p>
                 <p className="text-xs font-medium text-text-quaternary">
                   {t('pos.today.groupTotal', {
@@ -298,7 +334,12 @@ function Today({ till }: { till: Ready }) {
               </div>
               <ul>
                 {group.sales.map((sale) => (
-                  <SaleRow key={sale.saleId} sale={sale} canRefund={till.can.refund} />
+                  <SaleRow
+                    key={sale.saleId}
+                    sale={sale}
+                    canRefund={till.can.refund}
+                    onReprint={() => setReprinting(sale.saleId)}
+                  />
                 ))}
               </ul>
             </div>
@@ -321,14 +362,31 @@ function Today({ till }: { till: Ready }) {
       </section>
 
       {day.read.status === 'ready' ? <DaySummary day={day.read.data} /> : null}
+
+      {reprinting ? (
+        <ReceiptReprint
+          saleId={reprinting}
+          branchName={till.branchName}
+          onClose={() => setReprinting(null)}
+        />
+      ) : null}
     </div>
   )
 }
 
-function SaleRow({ sale, canRefund }: { sale: PosTodaySaleRow; canRefund: boolean }) {
+function SaleRow({
+  sale,
+  canRefund,
+  onReprint,
+}: {
+  sale: PosTodaySaleRow
+  canRefund: boolean
+  onReprint: () => void
+}) {
   const { t } = useTranslation()
   const detail = payDetail(sale)
   const note = amountNote(sale)
+  const badge = saleStateText(sale)
   return (
     <li
       // Fixed columns from xl up, so payment, amount, badge and action line up on every row. From
@@ -347,7 +405,7 @@ function SaleRow({ sale, canRefund }: { sale: PosTodaySaleRow; canRefund: boolea
           {sale.invoiceNumber.split('-').slice(-1)[0]}
         </Link>
         <span className="mt-0.5 block truncate text-xs font-medium text-text-quaternary">
-          {sale.cashier.name}
+          {saleCashierLabel(sale, t)}
         </span>
       </span>
       <span className="min-w-[180px] flex-1 md:min-w-0">
@@ -381,9 +439,10 @@ function SaleRow({ sale, canRefund }: { sale: PosTodaySaleRow; canRefund: boolea
       <span className="flex shrink-0 md:col-start-3 md:row-start-2 xl:col-start-auto xl:row-start-auto">
         <span
           className={`inline-flex h-[26px] items-center gap-1.5 rounded-full px-2.5 text-[11px] font-semibold uppercase tracking-[0.04em] ${STATE_TONE[saleState(sale)]}`}
+          title={badge.hintKey ? t(badge.hintKey) : undefined}
         >
           <span className="size-1.5 rounded-full bg-current" />
-          {t(`pos.today.state.${saleState(sale)}`)}
+          {t(badge.key)}
         </span>
       </span>
       <span className="flex shrink-0 items-center justify-end gap-1.5 md:col-span-2 md:col-start-4 md:row-start-2 xl:col-span-1 xl:col-start-auto xl:row-start-auto">
@@ -404,7 +463,11 @@ function SaleRow({ sale, canRefund }: { sale: PosTodaySaleRow; canRefund: boolea
         ) : null}
         {/* The ⋮ as a bordered square the height of the button beside it. */}
         <span className="[&>div>button]:size-9 [&>div>button]:border [&>div>button]:border-border-subtle [&>div>button]:bg-white [&>div>button>img]:size-5">
-          <ActionMenu items={posSaleRowActions(sale.invoiceId)} label={t('pos.today.rowMenu')} />
+          {/* Any sale but a filed online one keeps the menu it had (reprintOffered, QW2R-3). */}
+          <ActionMenu
+            items={posSaleRowActions(sale.invoiceId, reprintOffered(sale) ? onReprint : undefined)}
+            label={t('pos.today.rowMenu')}
+          />
         </span>
       </span>
     </li>
@@ -455,13 +518,15 @@ function DaySummary({ day }: { day: PosDaySummaryDto }) {
                 ? t('pos.day.open')
                 : shift.uncountedHandover
                   ? t('pos.day.handedOver')
-                  : shift.overShort == null || toBaisa(shift.overShort) === 0
-                    ? t('pos.close.balances')
-                    : toBaisa(shift.overShort) < 0
-                      ? t('pos.close.shortValue', {
-                          amount: omr(Math.abs(toBaisa(shift.overShort))),
-                        })
-                      : t('pos.day.overValue', { amount: omr(toBaisa(shift.overShort)) })}
+                  : shift.overShort == null
+                    ? t('pos.close.notCounted')
+                    : toBaisa(shift.overShort) === 0
+                      ? t('pos.close.balances')
+                      : toBaisa(shift.overShort) < 0
+                        ? t('pos.close.shortValue', {
+                            amount: omr(Math.abs(toBaisa(shift.overShort))),
+                          })
+                        : t('pos.day.overValue', { amount: omr(toBaisa(shift.overShort)) })}
             </span>
             {shift.cardTerminalDifference != null && toBaisa(shift.cardTerminalDifference) !== 0 ? (
               <span className="text-xs font-medium text-pending-700">

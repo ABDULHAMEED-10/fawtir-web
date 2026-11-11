@@ -1192,6 +1192,8 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     let current = form
     setServerLineErrors({})
     setProblems([])
+    // The last try's notice ends here, not after the buyer is created: it would stay up meanwhile.
+    setNotice(null)
     if (consumer && !current.customerId) {
       setSaving(true)
       const customerId = await ensureConsumer().finally(() => setSaving(false))
@@ -1289,13 +1291,20 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     const missing = problemsBeforeIssue(form)
     if (missing.length > 0) {
       setProblems([...problemsBeforeSave(reference?.taxCategories ?? [], form), ...missing])
-      setNotice({ tone: 'error', body: t('invoiceDraft.fixFirst') })
+      // These checks bind only at issue, so the draft may well be saved already: the save
+      // wording read as if it were not (RC5 E2E D-06).
+      setNotice({ tone: 'error', body: t('invoiceDraft.fixFirstToIssue') })
       return
     }
     // Files still held (a failed upload leaves them) go up first, even when nothing else changed.
     const savedMeta =
       meta && !dirty && attachments.length === 0 ? meta : await persist({ forIssue: true })
-    if (savedMeta) setIssuing(savedMeta)
+    if (savedMeta) {
+      // Nothing is left to fix: an earlier "fields need attention" must not sit behind the dialog.
+      setProblems([])
+      setNotice((current) => (current?.tone === 'error' ? null : current))
+      setIssuing(savedMeta)
+    }
   }
 
   const discard = async () => {

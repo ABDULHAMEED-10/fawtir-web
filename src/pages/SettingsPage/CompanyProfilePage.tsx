@@ -14,6 +14,12 @@ import {
   saveIndustrialClassification,
 } from '../../api/company/industrialClassification'
 import {
+  SPECIAL_ZONE_LICENCE_PATH,
+  clearSpecialZoneLicence,
+  readSpecialZoneLicence,
+  saveSpecialZoneLicence,
+} from '../../api/company/specialZoneLicence'
+import {
   BRANDING_PATH,
   COMPANY_LOGO_URL,
   loadBranding,
@@ -97,6 +103,7 @@ const CHANGE_LABEL: Record<string, string> = {
   tradingName: 'tradingAs',
   commercialRegistrationNumber: 'commercialRegistration',
   country: 'country',
+  specialZoneLicenceNumber: 'specialZoneLicence',
   industrialClassification: 'industrialClassification',
   businessType: 'subBusinessType',
   invoiceLanguage: 'language',
@@ -129,6 +136,8 @@ type Profile = {
   poBox: string
   governorate: string
   subdivisionCode: string
+  /** IBT-029 under scheme SZLN (IBR-151-OM). Saved on its own route, only for a company in a zone. */
+  specialZoneLicence: string
   country: string
   contactPerson: string
   phone: string
@@ -193,6 +202,7 @@ const INITIAL: Profile = {
   poBox: '',
   governorate: '',
   subdivisionCode: '',
+  specialZoneLicence: '',
   country: 'Oman',
   contactPerson: '',
   phone: '',
@@ -247,6 +257,10 @@ export function CompanyProfilePage() {
   const [businessTypeSaveFailed, setBusinessTypeSaveFailed] = useState<
     'notAvailable' | 'failed' | null
   >(null)
+  // An older server has no such route: `undefined` stays, and there is no field.
+  const licenceRead = useApiRead(SPECIAL_ZONE_LICENCE_PATH, readSpecialZoneLicence).read
+  const [storedLicence, setStoredLicence] = useState<string | null | undefined>(undefined)
+  const [licenceRefused, setLicenceRefused] = useState(false)
   const [storedProfile, setStoredProfile] = useState<CompanyProfileDto | undefined>(undefined)
   const [profileSaveFailed, setProfileSaveFailed] = useState(false)
   /** Someone else saved the profile first; the operational fields were reloaded from the server. */
@@ -276,6 +290,15 @@ export function CompanyProfilePage() {
     setStoredActivity(activityRead.data.code)
     setForm((current) => ({ ...current, industrialClassification: activityRead.data.code ?? '' }))
   }, [activityRead])
+
+  useEffect(() => {
+    if (licenceRead.status !== 'ready') return
+    setStoredLicence(licenceRead.data.specialZoneLicenceNumber)
+    setForm((current) => ({
+      ...current,
+      specialZoneLicence: licenceRead.data.specialZoneLicenceNumber ?? '',
+    }))
+  }, [licenceRead])
 
   useEffect(() => {
     if (businessTypeRead.status !== 'ready') return
@@ -337,6 +360,7 @@ export function CompanyProfilePage() {
     () => ({
       ...INITIAL,
       industrialClassification: storedActivity ?? '',
+      specialZoneLicence: storedLicence ?? '',
       subBusinessType: storedBusinessType?.subBusinessType?.code ?? '',
       brandColour: storedBrandColour ?? INITIAL.brandColour,
       language: storedDefaults?.language
@@ -366,7 +390,7 @@ export function CompanyProfilePage() {
           }
         : {}),
     }),
-    [storedActivity, storedBusinessType, storedBrandColour, storedDefaults, storedProfile],
+    [storedActivity, storedLicence, storedBusinessType, storedBrandColour, storedDefaults, storedProfile],
   )
 
   // Searched by activity name; the code is the hint so a known code finds it too.
@@ -427,9 +451,16 @@ export function CompanyProfilePage() {
   }
 
   /** Which fields differ from what was stored — the footer names them rather than counting alone. */
+  // IBR-151-OM asks for the licence only when the seller's subdivision is stated and not mainland.
+  const showLicence =
+    storedLicence !== undefined && form.subdivisionCode !== '' && form.subdivisionCode !== 'MO'
+
   const dirty = useMemo(
-    () => (Object.keys(INITIAL) as (keyof Profile)[]).filter((key) => form[key] !== baseline[key]),
-    [form, baseline],
+    () =>
+      (Object.keys(INITIAL) as (keyof Profile)[]).filter(
+        (key) => form[key] !== baseline[key] && (key !== 'specialZoneLicence' || showLicence),
+      ),
+    [form, baseline, showLicence],
   )
 
   const totals = useMemo(() => {
@@ -702,6 +733,15 @@ export function CompanyProfilePage() {
                     options={subdivisionOptions}
                   />
                 </Field>
+                {showLicence ? (
+                  <Input
+                    bordered
+                    label={t('companyProfile.specialZoneLicence')}
+                    maxLength={50}
+                    value={form.specialZoneLicence}
+                    onChange={(event) => set('specialZoneLicence', event.target.value)}
+                  />
+                ) : null}
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Input
@@ -757,6 +797,11 @@ export function CompanyProfilePage() {
               {profileSaveFailed ? (
                 <p role="alert" className="text-xs font-medium text-danger-700">
                   {t('companyProfile.saveFailed')}
+                </p>
+              ) : null}
+              {licenceRefused ? (
+                <p role="alert" className="text-xs font-medium text-danger-700">
+                  {t('companyProfile.specialZoneLicenceRefused')}
                 </p>
               ) : null}
             </div>
@@ -1150,6 +1195,7 @@ export function CompanyProfilePage() {
               setProfileSaveFailed(false)
               setProfileConflict(false)
               setProfileFieldErrors([])
+              setLicenceRefused(false)
               // "Saved" means a request this click sent was answered; a click that sent nothing
               // says nothing.
               let sent = false
@@ -1232,6 +1278,32 @@ export function CompanyProfilePage() {
                   sent = true
                 } catch {
                   setProfileSaveFailed(true)
+                  return
+                }
+              }
+              // After the amendment: the server judges the licence by the subdivision it holds.
+              if (showLicence && form.specialZoneLicence !== baseline.specialZoneLicence) {
+                try {
+                  const licence = form.specialZoneLicence.trim()
+                  if (licence) {
+                    const stored = await saveSpecialZoneLicence(licence)
+                    setStoredLicence(stored.specialZoneLicenceNumber)
+                    setForm((current) => ({
+                      ...current,
+                      specialZoneLicence: stored.specialZoneLicenceNumber ?? '',
+                    }))
+                  } else {
+                    await clearSpecialZoneLicence()
+                    setStoredLicence(null)
+                    setForm((current) => ({ ...current, specialZoneLicence: '' }))
+                  }
+                  sent = true
+                } catch (error) {
+                  if (error instanceof ApiError && error.status === 400) {
+                    setLicenceRefused(true)
+                  } else {
+                    setProfileSaveFailed(true)
+                  }
                   return
                 }
               }

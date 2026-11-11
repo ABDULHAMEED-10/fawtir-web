@@ -89,6 +89,11 @@ export type CustomerSummaryDto = {
     overdueInvoices: number
     customersOwing: number
     customersOverdue: number
+    /** D-30(a), from 0c2d034d4: at or below zero, not part of `outstanding`. Absent before. */
+    unappliedCredit?: number
+    customersWithCredit?: number
+    /** `outstanding` plus `unappliedCredit`; can be below zero, never floored. */
+    netOutstanding?: number
   }
 }
 
@@ -102,6 +107,10 @@ export type CustomerReceivableDto = {
   partlyPaidInvoices: number
   oldestOverdueDueDate: string | null
   daysOverdue: number | null
+  /** D-30(a), from 0c2d034d4: this customer's credit, at or below zero. Absent before. */
+  unappliedCredit?: number
+  /** `outstanding` plus `unappliedCredit`; below zero when the customer is in credit. */
+  netBalance?: number
 }
 
 export type CustomerReceivablesDto = {

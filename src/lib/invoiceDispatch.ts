@@ -40,6 +40,8 @@ const STATE_KEYS: Record<InvoiceDispatchStateDto, string | null> = {
  * (an address, a line's classification) is final: the document cannot change, so the sentence says
  * what to do instead of "try again".
  */
+const PRINTED_QR_DIFFERS = 'PRINTED_QR_DIFFERS'
+
 export const DISPATCH_REASONS: Record<string, string> = {
   SELLER_ADDRESS_INCOMPLETE: 'invoiceDispatch.reason.sellerAddress',
   SELLER_CONTACT_INCOMPLETE: 'invoiceDispatch.reason.sellerContact',
@@ -71,6 +73,10 @@ export const DISPATCH_REASONS: Record<string, string> = {
   OUTBOUND_TRANSPORT_UNAVAILABLE: 'invoiceDispatch.reason.transportUnavailable',
   // The dispatcher returned no outcome at all: dead-lettered at once, not retried.
   AUTHORED_INVOICE_DISPATCH_NO_OUTCOME: 'invoiceDispatch.reason.noOutcome',
+  // QR E-4 (backend V541): the QR printed for the customer differs from the one the invoice would be
+  // filed with. Dead-lettered so nothing is filed, but never REFUSED: nothing refused the document,
+  // and only an operator's recovery compares again (AuthoredInvoiceSendService, QB2R-7).
+  [PRINTED_QR_DIFFERS]: 'invoiceDispatch.reason.printedQrDiffers',
 }
 
 /** Reasons recorded for a hold the worker lifts by itself once the tenant's standing is resolved. */
@@ -113,7 +119,10 @@ export function dispatchNotes(dispatch: InvoiceDispatchDto): { state: DispatchNo
           dispatch.reasonCode !== null &&
           DEFERRED_REASONS.has(dispatch.reasonCode)
         ? 'invoiceDispatch.state.heldSenderStanding'
-        : stateKeyOf(dispatch.state)
+        : dispatch.state === 'DEAD_LETTERED' && dispatch.reasonCode === PRINTED_QR_DIFFERS
+          ? // "Not sent: needs attention" would read as a failed or refused send; it is a hold.
+            'invoiceDispatch.state.heldPrintedQr'
+          : stateKeyOf(dispatch.state)
   const failed =
     dispatch.state === 'RETRY_SCHEDULED' || dispatch.state === 'DEAD_LETTERED'
   return {

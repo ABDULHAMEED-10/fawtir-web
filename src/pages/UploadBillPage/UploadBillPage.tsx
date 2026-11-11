@@ -10,6 +10,7 @@ import {
 } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import {
+  INTAKE_LIVE_MAX_MB,
   discardIntake,
   intakePath,
   loadIntake,
@@ -89,7 +90,7 @@ function UploadBill({ resumed = null }: { resumed?: Uploaded | null }) {
           accept={BILL_FILE_TYPES}
           source="UPLOADED"
           title={t('billIntake.upload.choose')}
-          hint={t('billIntake.upload.hint')}
+          hint={t('billIntake.upload.hint', { mb: INTAKE_LIVE_MAX_MB })}
           onUploaded={([first]) => setUploaded(first)}
         />
       ) : (

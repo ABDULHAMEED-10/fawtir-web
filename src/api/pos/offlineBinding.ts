@@ -1,0 +1,248 @@
+import { apiRequest } from '../client'
+import { withQuery } from '../query'
+import { POS_PATH, POS_SHIFTS_PATH, POS_TILLS_PATH } from './pos'
+
+/**
+ * The offline sale binding routes of `fix/b39-off` cf145c092 (V530; BINDING-DESIGN §3, §8.4, §10.1).
+ * Shapes are the backend records as written there; nothing here is inferred beyond them.
+ */
+
+/** The only algorithm the server accepts (`PosOfflineSigningKeyService.ALGORITHM`). */
+export const OFFLINE_SIGNING_ALGORITHM = 'ES256-P1363'
+
+export type OfflineKeyRegistration = {
+  /** Lowercase UUID made once per browser profile. */
+  deviceId: string
+  /** Base64 (not base64url) SPKI DER of the P-256 public key: 91 bytes. */
+  publicKey: string
+  algorithm: typeof OFFLINE_SIGNING_ALGORITHM
+  deviceTime: string
+}
+
+export type OfflineKeyRegistered = {
+  keyId: string
+  shiftId: string
+  tillId: string
+  registeredAt: string
+  validUntil: string
+  /** The first 32 hex characters of SHA-256 of the session id; the web cannot work it out itself. */
+  sessionMarker: string
+}
+
+export function registerOfflineSigningKey(
+  shiftId: string,
+  body: OfflineKeyRegistration,
+): Promise<OfflineKeyRegistered> {
+  return apiRequest<OfflineKeyRegistered>(
+    `${POS_SHIFTS_PATH}/${encodeURIComponent(shiftId)}/offline-signing-keys`,
+    { method: 'POST', body },
+  )
+}
+
+export type OfflineKeyRevoked = { keyId: string; revokedAt: string; filedSalesCount: number }
+
+/**
+ * No body: the route takes none (OFF/SEC confirmed at cf49f0447, WEB-MANIFEST §2.2), and with
+ * unknown properties refused a body would only risk a 400.
+ */
+export function revokeOfflineSigningKey(keyId: string): Promise<OfflineKeyRevoked> {
+  return apiRequest<OfflineKeyRevoked>(
+    `${POS_PATH}/offline-signing-keys/${encodeURIComponent(keyId)}/revoke`,
+    { method: 'POST' },
+  )
+}
+
+export type HoldStatus = 'OPEN' | 'RESOLVED'
+
+/**
+ * A Cashier with `pos.close` OWN gets only `holdId`, `saleId`, `invoiceNumber`, `soldAt`, `receivedAt`
+ * and `status`; every other member is null for them (L-5).
+ */
+export type OfflineHoldSummary = {
+  holdId: string
+  saleId: string
+  invoiceNumber: string
+  soldAt: string
+  receivedAt: string
+  status: HoldStatus
+  tillId: string | null
+  shiftId: string | null
+  filedByUserId: string | null
+  filedByName: string | null
+  reason: string | null
+  manualDiscount: boolean | null
+  serverTotal: number | null
+}
+
+export type OfflineHoldDetail = {
+  summary: OfflineHoldSummary
+  outcome: 'ABSENT' | 'INVALID' | string
+  revocationSource: 'KEY' | 'SESSION' | 'USER' | null
+  presentedKeyId: string | null
+  presentedDeviceId: string | null
+  keyRegisteredAt: string | null
+  keyValidUntil: string | null
+  requestHash: string | null
+  /** The signed envelope as JSON; null when none was presented or it was withheld. */
+  payload: unknown
+  payloadSha256: string | null
+  payloadWithheld: 'CARD_NUMBER' | string | null
+  signatureSha256: string | null
+  discountPercentMax: number | null
+  printedTotal: number | null
+  serverTotal: number | null
+  /**
+   * Why a sale that would have been filed LEGACY was held anyway, as the server recorded it at filing
+   * (PRV43-OFF2 N-1). Absent from an older server and null for a hold its proof alone explains.
+   */
+  heldFor?: OfflineHeldFor | null
+}
+
+export type OfflineHeldFor = {
+  causes: string[]
+  lines: OfflineHeldLine[]
+}
+
+export type OfflineHeldLine = {
+  line: number
+  cause: string
+  unitPrice: number | null
+  /** The catalogue price when the sale was filed, not when it was made: no history is kept. */
+  cataloguePriceAtFiling: number | null
+  unitCode: string | null
+  productUnitCode: string | null
+  notOnSale: boolean
+}
+
+export type OfflineHoldCandidate = {
+  shiftId: string
+  cashierUserId: string
+  cashierName: string | null
+  status: string
+  openedAt: string
+  endedAt: string | null
+}
+
+export type HoldDecision = 'ATTRIBUTE' | 'KEEP_UNATTRIBUTED'
+
+export type HoldResolution = {
+  holdId: string
+  decision: HoldDecision
+  shiftId: string | null
+  cashierUserId: string | null
+  discountAboveLimit: boolean
+  limitQualifier: string | null
+  resolvedBy: string
+  resolvedAt: string
+  replayed: boolean
+}
+
+export type LegacyOfflineSale = {
+  saleId: string
+  tillId: string
+  invoiceNumber: string
+  filedByUserId: string
+  filedByName: string | null
+  soldAt: string
+  receivedAt: string
+  total: number
+}
+
+/**
+ * `GET /pos/tills/{tillId}/offline-signing-keys` (fix/b39-off cf49f0447): the till's active keys, at
+ * most 100. A manager of the till gets every key, anyone else only their own. No public key, device
+ * or cashier name: what a revoker needs to pick the key and nothing more.
+ */
+export type ActiveOfflineKey = {
+  keyId: string
+  tillId: string
+  cashierUserId: string
+  registeredAt: string
+  validUntil: string
+}
+
+export function tillOfflineKeysPath(tillId: string): string {
+  return `${POS_TILLS_PATH}/${encodeURIComponent(tillId)}/offline-signing-keys`
+}
+
+export const OFFLINE_HOLDS_PATH = `${POS_PATH}/offline-attribution-holds`
+export const OFFLINE_LEGACY_SALES_PATH = `${POS_PATH}/offline-legacy-sales`
+
+export function offlineHoldsPath(branchId: string, status: HoldStatus | null): string {
+  return withQuery(OFFLINE_HOLDS_PATH, { branchId, status: status ?? undefined })
+}
+
+export function offlineHoldPath(holdId: string): string {
+  return `${OFFLINE_HOLDS_PATH}/${encodeURIComponent(holdId)}`
+}
+
+export function offlineHoldCandidatesPath(holdId: string): string {
+  return `${offlineHoldPath(holdId)}/candidates`
+}
+
+export function resolveOfflineHold(
+  holdId: string,
+  body: { decision: HoldDecision; shiftId?: string; reason: string },
+): Promise<HoldResolution> {
+  return apiRequest<HoldResolution>(`${offlineHoldPath(holdId)}/resolve`, { method: 'POST', body })
+}
+
+/** `from`/`to` are instants; the server refuses a range over 92 days (`POS_LEGACY_RANGE_INVALID`). */
+export function legacySalesPath(branchId: string, from: string, to: string): string {
+  return withQuery(OFFLINE_LEGACY_SALES_PATH, { branchId, from, to })
+}
+
+/**
+ * `GET /pos/discount-flags` (RC5 A2-a, A2-b at 598fd6715): sales the branch kept with a manual
+ * discount above the cashier's `pos.sell` limit, newest first, at most 200. An offline sale is
+ * already printed and paid, so the server keeps it and lists it here instead of refusing it.
+ * `limitPercent` is null when the cashier no longer holds `pos.sell`; `acknowledgedBy` is a user id
+ * only, the contract carries no name for it.
+ */
+export type DiscountFlag = {
+  saleId: string
+  tillId: string
+  invoiceNumber: string
+  soldAt: string
+  total: number
+  cashierUserId: string
+  cashierName: string | null
+  discountPercentMax: number
+  limitPercent: number | null
+  judgedAt: 'FILING' | 'RESOLUTION'
+  flaggedAt: string
+  acknowledgedBy: string | null
+  acknowledgedAt: string | null
+}
+
+export type DiscountFlagAcknowledgement = {
+  saleId: string
+  originatingCashierUserId: string
+  acknowledgedBy: string
+  acknowledgedAt: string
+  note: string | null
+  /** The same manager sent it again: the recorded acknowledgement, not a second one. */
+  replayed: boolean
+}
+
+export const DISCOUNT_FLAGS_PATH = `${POS_PATH}/discount-flags`
+
+/** The note's ceiling (`@Size(max = 500)` on the request record), in UTF-16 units as Java counts. */
+export const DISCOUNT_FLAG_NOTE_MAX = 500
+
+/** `from`/`to` are instants; the server refuses a range over 92 days (`POS_DISCOUNT_FLAG_RANGE_INVALID`). */
+export function discountFlagsPath(branchId: string, from: string, to: string): string {
+  return withQuery(DISCOUNT_FLAGS_PATH, { branchId, from, to })
+}
+
+/** A blank note is sent as null: the server stores a blank as null anyway, so nothing is lost. */
+export function acknowledgeDiscountFlag(
+  saleId: string,
+  note: string | null,
+): Promise<DiscountFlagAcknowledgement> {
+  const kept = note?.trim() ? note.trim() : null
+  return apiRequest<DiscountFlagAcknowledgement>(
+    `${DISCOUNT_FLAGS_PATH}/${encodeURIComponent(saleId)}/acknowledge`,
+    { method: 'POST', body: { note: kept } },
+  )
+}

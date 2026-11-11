@@ -990,8 +990,8 @@ describe('Record a bill (Figma 163:27781)', () => {
   const uploaded = () => calls('POST', '/api/v1/bills/intake?source=UPLOADED&read=none')
   const confirmed = (intake: string) => calls('POST', `/api/v1/bills/intake/${intake}/confirm`)
 
-  async function typeBill() {
-    who = { ...MANAGER, permissions: [...MANAGER.permissions, 'invoice.payment.manage'] }
+  async function typeBill(alsoHolds: string[] = []) {
+    who = { ...MANAGER, permissions: [...MANAGER.permissions, 'invoice.payment.manage', ...alsoHolds] }
     renderRecord()
     await screen.findByRole('radio', { name: /PO-0033/ })
     fireEvent.change(screen.getByLabelText(/Their bill number/), { target: { value: 'QMS-2050' } })
@@ -1044,6 +1044,28 @@ describe('Record a bill (Figma 163:27781)', () => {
 
     expect(await screen.findByText(/may still have been received/)).toBeTruthy()
     expect(confirmed('intake-1')).toHaveLength(0)
+  })
+
+  it('names a file the server refuses for size, and keeps the typed bill on the form', async () => {
+    const before = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url === '/api/v1/bills/intake?source=UPLOADED&read=none'
+        ? new Response(
+            JSON.stringify({
+              type: 'https://api.fawtir.om/problems/payload-too-large',
+              status: 413,
+            }),
+            { status: 413, headers: { 'Content-Type': 'application/problem+json' } },
+          )
+        : before(url, init),
+    )
+    await typeBill()
+    attach('bill.pdf')
+    send()
+
+    expect(await screen.findByText(/bill\.pdf is too large/)).toBeTruthy()
+    expect(confirmed('intake-1')).toHaveLength(0)
+    expect((screen.getByLabelText(/Their bill number/) as HTMLInputElement).value).toBe('QMS-2050')
   })
 
   it('does not say that about a confirm that timed out: its file is already stored', async () => {
@@ -1203,21 +1225,82 @@ describe('Record a bill (Figma 163:27781)', () => {
             currencyCode: 'OMR',
             source: 'UPLOADED',
           },
+          duplicates: [
+            {
+              billId: 'bill-old',
+              supplierBillNumber: 'QMS-2050',
+              issueDate: '2026-09-01',
+              total: 105,
+              currencyCode: 'OMR',
+              source: 'UPLOADED',
+            },
+          ],
         }),
         { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
       )
-    await typeBill()
+    await typeBill(['invoice.approve'])
     send()
     const different = await screen.findByRole('button', { name: "It's a different bill. Save it" })
     confirmResponse = succeed
     await waitFor(() => expect((different as HTMLButtonElement).disabled).toBe(false))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Why is this a different bill?' }), {
+      target: { value: 'Second order' },
+    })
     fireEvent.click(different)
 
     expect(await screen.findByText('bill page')).toBeTruthy()
     const posted = calls('POST', '/api/v1/bills').filter(([url]) => url === '/api/v1/bills')
     expect(posted).toHaveLength(2)
-    expect(JSON.parse(String(posted[1][1]?.body)).notDuplicateOf).toBe('bill-old')
+    expect(JSON.parse(String(posted[1][1]?.body))).toMatchObject({
+      notDuplicateOf: null,
+      notDuplicateOfIds: ['bill-old'],
+      overrideReason: 'Second order',
+    })
     expect(uploaded()).toHaveLength(0)
+  })
+
+  it('saves a bill with no file over two possible duplicates under a new key', async () => {
+    const succeed = confirmResponse
+    const bill = (id: string) => ({
+      billId: id,
+      supplierBillNumber: 'QMS-2050',
+      issueDate: '2026-09-01',
+      total: 105,
+      currencyCode: 'OMR',
+      source: 'UPLOADED',
+    })
+    confirmResponse = () =>
+      new Response(
+        JSON.stringify({
+          type: 'about:blank',
+          status: 409,
+          code: 'BILL_INTAKE_POSSIBLE_DUPLICATE',
+          duplicateOf: bill('bill-old'),
+          duplicates: [bill('bill-old'), bill('bill-older')],
+        }),
+        { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+    await typeBill(['invoice.approve'])
+    send()
+    const all = await screen.findByRole('button', { name: 'They are all different bills. Save it' })
+    confirmResponse = succeed
+    await waitFor(() => expect((all as HTMLButtonElement).disabled).toBe(false))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Why is this a different bill?' }), {
+      target: { value: 'Reissued number' },
+    })
+    fireEvent.click(all)
+
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    const posted = calls('POST', '/api/v1/bills').filter(([url]) => url === '/api/v1/bills')
+    expect(posted).toHaveLength(2)
+    expect(JSON.parse(String(posted[1][1]?.body))).toMatchObject({
+      notDuplicateOf: null,
+      notDuplicateOfIds: ['bill-old', 'bill-older'],
+      overrideReason: 'Reissued number',
+    })
+    const key = (call: (typeof posted)[number]) =>
+      ((call[1] as RequestInit).headers as Record<string, string>)['Idempotency-Key']
+    expect(key(posted[1])).not.toBe(key(posted[0]))
   })
 
   it('retries a refused save on the intake it already uploaded, not on a new one', async () => {
@@ -1290,21 +1373,38 @@ describe('Record a bill (Figma 163:27781)', () => {
             currencyCode: 'OMR',
             source: 'UPLOADED',
           },
+          duplicates: [
+            {
+              billId: 'bill-old',
+              supplierBillNumber: 'QMS-2050',
+              issueDate: '2026-09-01',
+              total: 105,
+              currencyCode: 'OMR',
+              source: 'UPLOADED',
+            },
+          ],
         }),
         { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
       )
-    await typeBill()
+    await typeBill(['invoice.approve'])
     attach('bill.pdf')
     send()
     const different = await screen.findByRole('button', { name: "It's a different bill. Save it" })
     confirmResponse = succeed
     await waitFor(() => expect((different as HTMLButtonElement).disabled).toBe(false))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Why is this a different bill?' }), {
+      target: { value: 'Second order' },
+    })
     fireEvent.click(different)
 
     expect(await screen.findByText('bill page')).toBeTruthy()
     expect(uploaded()).toHaveLength(1)
     expect(confirmed('intake-1')).toHaveLength(2)
-    expect(JSON.parse(String(confirmed('intake-1')[1][1]?.body)).notDuplicateOf).toBe('bill-old')
+    expect(JSON.parse(String(confirmed('intake-1')[1][1]?.body))).toMatchObject({
+      notDuplicateOf: null,
+      notDuplicateOfIds: ['bill-old'],
+      overrideReason: 'Second order',
+    })
   })
 
   // The owner's approved sentences, word for word.

@@ -1,4 +1,5 @@
-import { ApiError, NetworkError } from '../api'
+import { ApiError, NetworkError, serverCode } from '../api'
+import { PosTillLockUnavailable } from './posTillLock'
 
 /**
  * The till's refusals in our own words (handbook 3.3: never the server's `detail`). Every code
@@ -6,6 +7,13 @@ import { ApiError, NetworkError } from '../api'
  * anything else reads as the general failure.
  */
 const WORDED = new Set([
+  // Backend 073d5261c (QR-E2): an online sale or refund, refused before a number is taken, because the
+  // company's zone does not keep Muscat time. Fixed by an administrator, not by trying again.
+  'TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE',
+  // RB-1 STUCK-QR, TEMPORARY until a compliant implementation exists (owner, 6 Nov 2026, Option 1):
+  // a consumer's full tax invoice the server cannot issue with a receipt QR, refused with 422 before
+  // anything is charged, numbered or recorded. The buyer is not made a business; the cart is kept.
+  'POS_SALE_QR_UNAVAILABLE_FOR_BUYER',
   'SIMPLIFIED_INVOICE_LIMIT',
   'BUYER_IDENTIFIER_REQUIRED',
   'POS_PAYMENTS_DO_NOT_MATCH_TOTAL',
@@ -20,6 +28,8 @@ const WORDED = new Set([
   'POS_TILL_NUMBER_GAP',
   'POS_TILL_NUMBER_REPEATED',
   'POS_SALE_KEY_REUSED',
+  // RESEND-AUTH (backend 98c0066cb): the server found no sale under the key and closed it.
+  'POS_SALE_KEY_ABANDONED',
   'POS_CONSUMER_CONTACT_INVALID',
   'POS_CARD_APPROVAL_REQUIRED',
   'POS_COUNT_REQUIRED',
@@ -45,19 +55,101 @@ const WORDED = new Set([
   'POS_SHIFT_FLOAT_LOCKED',
   'POS_PAID_OUT_NOTE_REQUIRED',
   'POS_PAID_OUT_EXCEEDS_CASH',
+  // Backend cb9898ac3 (FIN-M3, V536): the paid-out's purpose, evidence, key and bill link, and the
+  // split of access (paid-out pos.cash.pay_out, paid-in pos.close).
+  'POS_PAID_OUT_FORBIDDEN',
+  'POS_CASH_MOVEMENT_FORBIDDEN',
+  'POS_PAID_OUT_DETAILS_REQUIRED',
+  'POS_PAID_OUT_IDEMPOTENCY_KEY_REQUIRED',
+  'POS_PAID_OUT_IDEMPOTENCY_KEY_REUSED',
+  'POS_PAID_OUT_CATEGORY_REQUIRED',
+  'POS_PAID_OUT_CLASS_REQUIRED',
+  'POS_PAID_OUT_CLASS_INVALID',
+  'POS_PAID_OUT_CURRENCY_REQUIRED',
+  'POS_PAID_OUT_RECEIPT_REQUIRED',
+  'POS_PAID_OUT_RECEIPT_NOT_FOUND',
+  // Backend 9ce2bdcf4 (review F4): a receipt backs one paid-out, on the till it was uploaded at, and
+  // the currency must be one cash is counted in.
+  'POS_PAID_OUT_RECEIPT_OTHER_TILL',
+  'POS_PAID_OUT_RECEIPT_ALREADY_USED',
+  'POS_PAID_OUT_CURRENCY_INVALID',
+  // Backend a2c9fcf0c (FIN-M3-CURRENCY-MIX 2a): a drawer total across currencies is withheld, and cash
+  // in a currency the shift's records do not state is refused before anything is recorded.
+  'POS_SHIFT_CURRENCY_MIXED',
+  'POS_SHIFT_CURRENCY_UNRECORDED',
+  'POS_PAID_OUT_CURRENCY_MISMATCH',
+  'POS_CASH_MOVEMENT_CURRENCY_MISMATCH',
+  'POS_REFUND_CURRENCY_MISMATCH',
+  'POS_CASH_MOVEMENT_CURRENCY_INVALID',
+  'POS_CASH_MOVEMENT_CURRENCY_REQUIRED',
+  'POS_SHIFT_CURRENCY_UNKNOWN',
+  // A coded 503 is a definite answer (outcomeUnknown): the server rolled the paid-out back. The
+  // attempt and its key are kept all the same (WB5-1), so the sentence can promise a safe resend.
+  'POS_PAID_OUT_TIMED_OUT',
+  'POS_PAID_OUT_BILL_FORBIDDEN',
+  // K10, an unlinked supplier payment without bill.settle (review WB4-2; backend e643ad188).
+  'POS_SUPPLIER_PAYMENT_REQUIRES_BILL_SETTLE',
+  'POS_PAID_OUT_BILL_LINK_INVALID',
+  'POS_PAID_OUT_REFUND_REFERENCE',
+  'POS_CASH_MOVEMENT_FIELDS_INVALID',
+  'POS_CASH_RECEIPT_INVALID',
   'POS_CASH_MOVEMENT_AMOUNT_INVALID',
   'POS_NOTE_TOO_LONG',
+  // Batch 39 SEC W-6 (owner): a card number typed into a cash-movement, close, card-difference or
+  // refund reason note. The problem names only `field`, never the value, and neither does this.
+  'POS_NOTE_CARD_NUMBER',
   'POS_SALE_NOT_FOUND',
   'POS_REFUND_NOT_OWN_SALE',
   'POS_REFUND_LINE_INVALID',
   'POS_REFUND_MONEY_INVALID',
   'POS_REFUND_REASON_NOTE_REQUIRED',
+  // DEC-30-05 (owner, 1 Nov 2026): cash back never takes the drawer below zero; the refusal names
+  // `cashInDrawer` and `cashRequested`. A server before it sends neither.
+  'POS_REFUND_CASH_EXCEEDS_DRAWER',
+  // DEC-30-01: a line whose credit history cannot say whether goods came back is refunded from the
+  // invoice, never at the till.
+  'POS_REFUND_LINE_CREDIT_UNCLEAR',
+  // The refund's credit note meets the sale's document ceiling (PosRestExceptionHandler sends both,
+  // as 409). Read as "Try again" they were retried into the same refusal, typically after a credit
+  // note from the invoice screen had used the sale up (PRV43-CMP F3-1, owner round 12). EXCEEDS
+  // must not say the sale is fully credited: a smaller refund may still fit.
+  'CREDIT_NOTE_NOTHING_CORRECTABLE',
+  'CREDIT_NOTE_EXCEEDS_CORRECTABLE_AMOUNT',
+  'POS_SALE_CANCELLED',
   'POS_REFUND_QUANTITY_EXCEEDS',
   'POS_REFUND_MONEY_DOES_NOT_MATCH',
   'POS_REFUND_MORE_THAN_PAID',
+  'POS_REFUND_CARD_MORE_THAN_PAID',
   'POS_REFUND_MORE_THAN_OWED',
   'POS_REFUND_KEY_REUSED',
+  'POS_REFUND_NOTHING_TO_PAY_BACK',
   'POS_SLIP_INVALID',
+  'DISCOUNT_ABOVE_LIMIT',
+  'HS_CODE_REQUIRED',
+  // Backend 8f04050ab (IBR-078-OM): an online full invoice with a line stating neither goods nor
+  // services is refused before its number is taken; `line` names it.
+  'GOODS_OR_SERVICE_REQUIRED',
+  // V530 offline binding (BINDING-DESIGN §13.1): the manager's hold review and key revocation.
+  'POS_OFFLINE_KEY_ALREADY_REVOKED',
+  'POS_OFFLINE_KEY_NOT_FOUND',
+  'POS_OFFLINE_KEY_HUMAN_ONLY',
+  'POS_ATTRIBUTION_HUMAN_ONLY',
+  'POS_ATTRIBUTION_SELF',
+  'POS_ATTRIBUTION_NOT_A_CANDIDATE',
+  'POS_ATTRIBUTION_ALREADY_RESOLVED',
+  'POS_ATTRIBUTION_HOLD_NOT_FOUND',
+  'POS_ATTRIBUTION_REVIEWER_ONLY',
+  'POS_LEGACY_RANGE_INVALID',
+  // RC5 A2-b (598fd6715): the manager's acknowledgement of a sale kept above the discount limit.
+  'POS_DISCOUNT_FLAG_HUMAN_ONLY',
+  'POS_DISCOUNT_FLAG_NOT_FOUND',
+  'POS_DISCOUNT_FLAG_SELF',
+  'POS_DISCOUNT_FLAG_ALREADY_ACKNOWLEDGED',
+  // Backend 3f483a01a (review FB-1): the sale's attribution hold is still open.
+  'POS_DISCOUNT_FLAG_HOLD_OPEN',
+  // Backend e19a99881 (review FB1-1): the hold resolved by attributing the sale, which judged it again.
+  'POS_DISCOUNT_FLAG_SUPERSEDED',
+  'POS_DISCOUNT_FLAG_RANGE_INVALID',
 ])
 
 /** Problem slugs (no `code`) the till words too. */
@@ -68,14 +160,155 @@ const SLUGS: Record<string, string> = {
   'branch-not-in-scope': 'pos.refusal.branch',
   'upload-infected': 'pos.refusal.infected',
   'upload-scan-unavailable': 'pos.refusal.scanUnavailable',
+  // A support session acting as someone else (RefusalType.IMPERSONATION_NOT_ALLOWED, no code). Read
+  // as 'forbidden' it suggested a missing permission, which no role grants back (review AW-1).
+  'impersonation-not-allowed': 'pos.refusal.impersonation',
+  // K30, an online sale: not queued, not numbered, so nothing was recorded.
+  'payload-too-large': 'pos.refusal.tooLarge',
+}
+
+/** A server before the refusal had a code says the figures only in its sentence. */
+function roleLimitInDetail(error: ApiError): { requested: string; limit: string } | null {
+  if (error.status !== 403 || error.code) return null
+  const detail = error.problem.detail
+  const found =
+    typeof detail === 'string'
+      ? /of ([\d.]+)% exceeds the ([\d.]+)% your role allows/.exec(detail)
+      : null
+  return found ? { requested: found[1], limit: found[2] } : null
+}
+
+const percent = (value: number) => String(Math.round(value * 100) / 100)
+
+/*
+ * Reviews WB2-2, WB3-2: i18next prints a missing value as "{{name}}". Every worded sentence that names
+ * a figure lists it here, and falls back to pos.refusal.withoutFigures.<CODE>, which names none, when
+ * the body did not carry it (an older server, a malformed body) or refusalValues would not take it.
+ * posRefusals.test.ts rebuilds this map from the English sentences, so a new placeholder without a
+ * fallback fails there.
+ */
+export const NEEDS: Readonly<Record<string, readonly string[]>> = {
+  SIMPLIFIED_INVOICE_LIMIT: ['limit'],
+  POS_PAYMENTS_DO_NOT_MATCH_TOTAL: ['received', 'expected'],
+  POS_PRODUCT_NOT_SELLABLE: ['line'],
+  POS_VARIANT_NOT_SELLABLE: ['line'],
+  POS_PRICE_NOT_CATALOGUE: ['line', 'expectedPrice'],
+  POS_TILL_NUMBER_GAP: ['expectedNumber'],
+  POS_ZERO_PRICE: ['line'],
+  POS_OVER_SHORT_REASON_REQUIRED: ['counted', 'expected'],
+  POS_CARD_DIFFERENCE_NOTE_REQUIRED: ['cardTerminalTotal', 'fawtirCardTotal'],
+  POS_PAID_OUT_EXCEEDS_CASH: ['expectedCash'],
+  POS_SHIFT_CURRENCY_MIXED: ['currencies'],
+  POS_SHIFT_CURRENCY_UNRECORDED: ['unrecordedMovements'],
+  POS_PAID_OUT_CURRENCY_MISMATCH: ['shiftCurrency', 'sentCurrency'],
+  POS_CASH_MOVEMENT_CURRENCY_MISMATCH: ['shiftCurrency', 'sentCurrency'],
+  POS_REFUND_CURRENCY_MISMATCH: ['saleCurrency', 'shiftCurrency'],
+  POS_REFUND_CASH_EXCEEDS_DRAWER: ['cashInDrawer', 'cashRequested'],
+  POS_REFUND_LINE_CREDIT_UNCLEAR: ['line'],
+  POS_REFUND_QUANTITY_EXCEEDS: ['remaining', 'line'],
+  POS_REFUND_MONEY_DOES_NOT_MATCH: ['expected'],
+  POS_REFUND_MORE_THAN_PAID: ['maxMoneyBack'],
+  POS_REFUND_CARD_MORE_THAN_PAID: ['maxCard'],
+  POS_REFUND_MORE_THAN_OWED: ['owed'],
+  DISCOUNT_ABOVE_LIMIT: ['requestedPercent', 'limitPercent'],
+  HS_CODE_REQUIRED: ['line'],
+  GOODS_OR_SERVICE_REQUIRED: ['line'],
+}
+
+const lacksFigures = (code: string, values: Record<string, string>) =>
+  (NEEDS[code] ?? []).some((name) => !values[name])
+
+function wordedKey(code: string, values: Record<string, string>): string {
+  return lacksFigures(code, values) ? `pos.refusal.withoutFigures.${code}` : `pos.refusal.${code}`
+}
+
+export type RefusalMessage = { key: string; values: Record<string, string> }
+
+/**
+ * The sentence for a refusal and the values it names, taken together (review WB3-3): a key rendered
+ * without its values is how "{{line}}" reached a cashier. Every POS call site words a refusal
+ * through this, or through {@link refusalSentence}.
+ */
+export function refusalMessage(error: unknown): RefusalMessage {
+  return { key: posRefusalKey(error), values: refusalValues(error) }
+}
+
+export function refusalSentence(
+  t: (key: string, values: Record<string, string>) => string,
+  error: unknown,
+): string {
+  const { key, values } = refusalMessage(error)
+  return t(key, values)
+}
+
+/**
+ * The close preview's own refusal is a read, so its sentence never says "Nothing was recorded"
+ * (review WB3-5): pos.close.withheld.<CODE>, with the same figure fallback.
+ */
+const READ_WORDED = new Set(['POS_SHIFT_CURRENCY_MIXED', 'POS_SHIFT_CURRENCY_UNRECORDED'])
+
+export function previewRefusalMessage(error: unknown): RefusalMessage {
+  const code = error instanceof ApiError ? error.code : null
+  if (!code || !READ_WORDED.has(code)) return refusalMessage(error)
+  const values = refusalValues(error)
+  return {
+    key: lacksFigures(code, values) ? `pos.close.withheld.withoutFigures.${code}` : `pos.close.withheld.${code}`,
+    values,
+  }
 }
 
 export function posRefusalKey(error: unknown): string {
   if (error instanceof NetworkError) return 'pos.refusal.offline'
+  if (error instanceof Error && error.name === 'PosSaleOutcomeUnknown') {
+    // Says why no answer came, so the cashier knows whether to check the connection.
+    const cause = (error as { noAnswer?: unknown }).noAnswer
+    if (cause === 'network') return 'pos.refusal.outcomeUnknownNetwork'
+    if (cause === 'server') return 'pos.refusal.outcomeUnknownServer'
+    return 'pos.refusal.outcomeUnknown'
+  }
+  // Matched by name, not instanceof: posQueue imports this module, so importing its class back
+  // would make the two a cycle. No number was printed for the sale (POS-MEMQ S8), so the
+  // general failure is not enough: the cashier must know no receipt number exists.
+  if (error instanceof Error && error.name === 'PosStorageUnavailable') {
+    // After its own request went out the server may have filed the sale, so "nothing was sent"
+    // would be untrue and could have it rung again (review XW-2).
+    return (error as { requested?: unknown }).requested === true
+      ? 'pos.refusal.storageUnavailableAfterSend'
+      : 'pos.refusal.storageUnavailable'
+  }
+  // Same name match as above. Not storage wording: the company's zone, not this device, is at fault
+  // (XT2-ZONE-UNREADABLE).
+  if (error instanceof Error && error.name === 'PosTenantZoneUnavailable') {
+    return 'pos.refusal.tenantZoneUnavailable'
+  }
+  // Same name match. Nothing was numbered or printed and the cart is kept (owner directive
+  // 2026-11-06 item B), so the sentence says that, not a storage or zone fault. After the sale's own
+  // request went out the server may have filed it (QW4R-1, as XW-2); behind unfiled sales the till
+  // is online, so "reconnect" would mislead (QW4R-8).
+  if (error instanceof Error && error.name === 'PosOfflineQrUnavailable') {
+    const refused = error as { requested?: unknown; behind?: unknown }
+    if (refused.requested === true) return 'pos.refusal.offlineQrUnavailableAfterSend'
+    if (refused.behind === true) return 'pos.refusal.offlineQrUnavailableBehind'
+    return 'pos.refusal.offlineQrUnavailable'
+  }
+  // Online-only RC5: nothing was numbered or printed and the cart is kept.
+  if (error instanceof Error && error.name === 'PosOfflineSellingOff') {
+    return (error as { behind?: unknown }).behind === true
+      ? 'pos.refusal.offlineSellingOffBehind'
+      : 'pos.refusal.offlineSellingOff'
+  }
+  // POS-TABLOCK refused the offline sale before it had a number: the cashier must know no receipt
+  // number exists. posTillLock imports nothing of ours, so unlike posQueue it can be imported here.
+  if (error instanceof PosTillLockUnavailable) {
+    return 'pos.refusal.tabLockUnavailable'
+  }
   if (error instanceof ApiError) {
-    if (error.code && WORDED.has(error.code)) return `pos.refusal.${error.code}`
+    if (error.code && WORDED.has(error.code)) return wordedKey(error.code, refusalValues(error))
     const slug = error.problemType ? SLUGS[error.problemType] : undefined
     if (slug) return slug
+    // WB5-5: an edge or proxy 413 without the gateway's problem type is the same refusal.
+    if (error.status === 413 && serverCode(error) === null) return 'pos.refusal.tooLarge'
+    if (roleLimitInDetail(error)) return 'pos.refusal.DISCOUNT_ABOVE_LIMIT'
     if (error.status === 403) return 'pos.refusal.forbidden'
   }
   return 'pos.refusal.failed'
@@ -87,7 +320,24 @@ const QUEUE_WORDED = new Set([
   'POS_SOLD_AT_IN_FUTURE',
   'SELLER_PARTICIPANT_NOT_VERIFIED',
   'INDUSTRIAL_CLASSIFICATION_REQUIRED',
+  'POS_QUEUED_SALE_HS_CODE_REQUIRED',
+  // Backend 8f04050ab (HS Slice B): a line stating neither goods nor services, held the same way.
+  'POS_QUEUED_SALE_GOODS_OR_SERVICE_REQUIRED',
+  // Set by this device (posQueue BUYER_UNAVAILABLE), never by the server: nothing was sent.
+  'POS_QUEUED_BUYER_UNAVAILABLE',
+  // Review QEW-3: a waiting entry's receipt is printed, so the online "nothing was recorded" would
+  // read as lost and could have it rung again.
+  'TENANT_TIMEZONE_NOT_SUPPORTED_FOR_E_INVOICE',
 ])
+
+/**
+ * The gateway's 413 (RequestSizeLimitFilter: problem type payload-too-large, no code), kept on an
+ * entry as HTTP_413. Owner v2 K30: the sale stays on the device as "too large to send", with no
+ * retry loop; the same body can never fit, so nothing on this device sends it again by itself.
+ */
+export function isTooLarge(code: string | null, slug: string | null): boolean {
+  return code === 'HTTP_413' || slug === 'payload-too-large'
+}
 
 const QUEUE_SLUGS: Record<string, string> = {
   'subscription-restricted': 'pos.queue.reason.readOnly',
@@ -96,11 +346,16 @@ const QUEUE_SLUGS: Record<string, string> = {
 }
 
 /** The sentence for a queued sale's stored refusal (handbook 3.3: never the server's `detail`). */
-export function queueRefusalKey(code: string | null, slug: string | null): string {
+export function queueRefusalKey(
+  code: string | null,
+  slug: string | null,
+  values: Record<string, string> = {},
+): string {
+  if (isTooLarge(code, slug)) return 'pos.queue.reason.tooLarge'
   if (code?.startsWith('SUBSCRIPTION_')) return 'pos.queue.reason.readOnly'
   if (code && QUEUE_WORDED.has(code)) return `pos.queue.reason.${code}`
   if (slug && QUEUE_SLUGS[slug]) return QUEUE_SLUGS[slug]
-  if (code && WORDED.has(code)) return `pos.refusal.${code}`
+  if (code && WORDED.has(code)) return wordedKey(code, values)
   const general = slug ? SLUGS[slug] : undefined
   if (general) return general
   if (code === 'HTTP_403') return 'pos.refusal.forbidden'
@@ -114,6 +369,16 @@ export function problemNumber(error: unknown, name: string): number | null {
   return typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : null
 }
 
+/**
+ * The quote route is missing or failing (a server before it, or a fault), as opposed to a refusal of
+ * these lines. The till then refunds nothing rather than send a split the screen guessed (A-03).
+ */
+export function quoteUnavailable(error: unknown): boolean {
+  if (!(error instanceof ApiError)) return false
+  if (error.status >= 500) return true
+  return (error.status === 404 || error.status === 405) && error.code === null
+}
+
 export function refusalCode(error: unknown): string | null {
   return error instanceof ApiError ? error.code : null
 }
@@ -122,18 +387,33 @@ export function refusalCode(error: unknown): string | null {
 export function refusalValues(error: unknown): Record<string, string> {
   if (!(error instanceof ApiError)) return {}
   const values: Record<string, string> = {}
+  const requestedPercent = problemNumber(error, 'requestedPercent')
+  const limitPercent = problemNumber(error, 'limitPercent')
+  if (requestedPercent != null && limitPercent != null) {
+    values.requestedPercent = percent(requestedPercent)
+    values.limitPercent = percent(limitPercent)
+  } else {
+    const worded = roleLimitInDetail(error)
+    if (worded) {
+      values.requestedPercent = percent(Number(worded.requested))
+      values.limitPercent = percent(Number(worded.limit))
+    }
+  }
   for (const name of [
     'expected',
     'received',
     'limit',
     'remaining',
     'maxMoneyBack',
+    'maxCard',
     'owed',
     'expectedCash',
     'expectedPrice',
     'counted',
     'cardTerminalTotal',
     'fawtirCardTotal',
+    'cashInDrawer',
+    'cashRequested',
   ]) {
     const value = problemNumber(error, name)
     if (value != null && Number.isFinite(value)) values[name] = value.toFixed(3)
@@ -142,5 +422,27 @@ export function refusalValues(error: unknown): Record<string, string> {
     const value = error.problem[name]
     if (value != null) values[name] = String(value)
   }
+  // FIN-M3-CURRENCY-MIX: only three-letter codes are taken, so a body cannot put text in a sentence.
+  for (const name of ['shiftCurrency', 'sentCurrency', 'saleCurrency']) {
+    const value = error.problem[name]
+    if (typeof value === 'string' && /^[A-Z]{3}$/.test(value)) values[name] = value
+  }
+  // All or nothing: a list with one entry dropped would name a mix that is not the shift's.
+  const currencies = error.problem.currencies
+  if (
+    Array.isArray(currencies) &&
+    currencies.length > 0 &&
+    currencies.every((code) => typeof code === 'string' && /^[A-Z]{3}$/.test(code))
+  ) {
+    values.currencies = currencies.join(', ')
+  }
+  const unrecorded = error.problem.unrecordedMovements
+  if (typeof unrecorded === 'number' && Number.isInteger(unrecorded) && unrecorded >= 0) {
+    values.unrecordedMovements = String(unrecorded)
+  }
+  // POS_QUEUED_SALE_HS_CODE_REQUIRED and POS_QUEUED_SALE_GOODS_OR_SERVICE_REQUIRED name every line they
+  // hold the sale for, not one `line`.
+  const lines = error.problem.lines
+  if (Array.isArray(lines) && lines.length > 0) values.lines = lines.map(String).join(', ')
   return values
 }

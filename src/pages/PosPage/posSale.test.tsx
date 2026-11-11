@@ -14,7 +14,7 @@ import {
   useFinishedSale,
   useOpenSale,
 } from '../../lib/posSale'
-import { resetPosQueue } from '../../lib/posQueue'
+import { noteQueueSender, resetPosQueue } from '../../lib/posQueue'
 import { heldSlipPhotos } from '../../lib/posSlipOutbox'
 import { memoryVault, setPosVault } from '../../lib/posVault'
 import { CashierPicker } from './CashierPicker'
@@ -51,6 +51,19 @@ const TILL = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
+// QR E-1: the profile comes only from GET /pos/tills/{id}; the till list never carries it. A
+// consumer sale is queued offline only with its QR (owner directive 2026-11-06).
+const QR_PROFILE = {
+  qrVersion: '1.1',
+  invoiceType: '01',
+  sellerName: 'Al Noor Trading LLC',
+  sellerVatin: 'OM1100012345',
+  issueDateZone: 'Asia/Muscat',
+  issueTimeZone: 'Asia/Muscat',
+  amountScale: 3,
+  profileVersion: 'c'.repeat(64),
+}
+
 /** The panel as the sale screen mounts it: on the shared open sale. */
 function SharedPanel() {
   const { lines } = useOpenSale()
@@ -59,7 +72,11 @@ function SharedPanel() {
 
 function Done() {
   const done = useFinishedSale()
-  return <p>done {done?.sale?.invoiceNumber ?? done?.queuedNumber}</p>
+  return (
+    <p data-queued-qr={done?.queuedQr ?? ''} data-queued-seller={JSON.stringify(done?.queuedSeller ?? null)}>
+      done {done?.sale?.invoiceNumber ?? done?.queuedNumber}
+    </p>
+  )
 }
 
 /** The till's totals are the invoice's (owner, 21 Oct 2026). */
@@ -108,15 +125,20 @@ describe('the sale panel', () => {
 describe('taking the payment (P.12)', () => {
   let calls: { url: string; init?: RequestInit }[]
   let saleReply: () => Response
+  /** The till list the server answers; a test swaps it to give the till another zone. */
+  let tillsReply: () => Response
 
   beforeEach(async () => {
     await i18n.changeLanguage('en')
     resetOpenSale(SAMPLE_SALE)
     resetPosQueue()
+    // The person signed in on this device: only the sales they queue go by themselves (round 5, P3b).
+    noteQueueSender('u-1')
     resetSharedRequests()
     forgetEntitlements()
     window.localStorage.clear()
     calls = []
+    tillsReply = () => json([TILL])
     saleReply = () =>
       json(
         {
@@ -137,7 +159,8 @@ describe('taking the payment (P.12)', () => {
         if (url === '/api/v1/branches') {
           return json([{ id: 'b-1', code: 'NZW', name: 'Nizwa', type: 'BRANCH', city: 'Nizwa' }])
         }
-        if (url.startsWith('/api/v1/pos/tills')) return json([TILL])
+        if (url === '/api/v1/pos/tills/till-1') return json({ ...TILL, qrProfile: QR_PROFILE })
+        if (url.startsWith('/api/v1/pos/tills')) return tillsReply()
         if (url === '/api/v1/pos/sales' && init?.method === 'POST') return saleReply()
         return new Response('', { status: 404 })
       }),
@@ -165,6 +188,40 @@ describe('taking the payment (P.12)', () => {
     expect(screen.getAllByText('5.084').length).toBeGreaterThan(0)
   })
 
+  // Owner decision XT2-ZONE-UNREADABLE (2026-11-05 item 4, Option A); Agent 10 test gap 1 on 346d0d06c.
+  it('an unreadable company zone says so, not storage, reads the till again, and sells once the zone is valid', async () => {
+    const withZone = (timeZone: string) => ({
+      ...TILL,
+      series: { INVOICE: { ...TILL.series.INVOICE, timeZone } },
+    })
+    const tillReads = () => calls.filter((call) => call.url.startsWith('/api/v1/pos/tills')).length
+    // The first read names a zone this browser cannot read; any read after it, a valid one.
+    let reads = 0
+    tillsReply = () => json([withZone(reads++ === 0 ? 'Not/AZone' : 'Asia/Muscat')])
+    renderPayment()
+    fireEvent.change(await screen.findByLabelText('Cash handed over'), { target: { value: '10' } })
+    fireEvent.click(screen.getByRole('button', { name: /Take 5.649 in cash/ }))
+    const before = tillReads()
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+
+    expect(await screen.findByText(i18n.t('pos.refusal.tenantZoneUnavailable'))).toBeTruthy()
+    expect(
+      i18n.t('pos.refusal.tenantZoneUnavailable').startsWith("Your company's time zone could not be verified."),
+    ).toBe(true)
+    // W7A-2: the zone is not the company's to set on the web.
+    expect(i18n.t('pos.refusal.tenantZoneUnavailable')).toMatch(/Fawtir support/)
+    expect(i18n.t('pos.refusal.tenantZoneUnavailable')).not.toMatch(/administrator|settings/i)
+    expect(screen.queryByText(i18n.t('pos.refusal.storageUnavailable'))).toBeNull()
+    expect(screen.queryByText(i18n.t('pos.refusal.storageUnavailableAfterSend'))).toBeNull()
+    expect(calls.filter((call) => call.url === '/api/v1/pos/sales')).toEqual([])
+    // till.retry(): the till list is read again.
+    await waitFor(() => expect(tillReads()).toBe(before + 1))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Finish the sale' }))
+    expect(await screen.findByText('done NZW-T01-INV-2026-000049')).toBeTruthy()
+    expect(calls.filter((call) => call.url === '/api/v1/pos/sales')).toHaveLength(1)
+  })
+
   it('sends the sale once, with its key, its catalogue lines and the cash handed over', async () => {
     renderPayment()
     fireEvent.change(await screen.findByLabelText('Cash handed over'), { target: { value: '10' } })
@@ -190,6 +247,24 @@ describe('taking the payment (P.12)', () => {
     expect(body.draft.customerId).toBeUndefined()
   })
 
+  // P-OFF (spec rev 3 §7): while offline numbering is stopped the till list carries no INVOICE key in
+  // `series`. An online sale is numbered by the server and goes through as before; the zone check,
+  // which reads the invoice series, is not triggered.
+  it('sells online as before on a till with no invoice series (P-OFF)', async () => {
+    tillsReply = () =>
+      json([{ ...TILL, series: { CREDIT_NOTE: { series: 'NZW-T01-CRN', year: 2026, nextValue: 3 } } }])
+    renderPayment()
+    fireEvent.change(await screen.findByLabelText('Cash handed over'), { target: { value: '10' } })
+    fireEvent.click(screen.getByRole('button', { name: /Take 5.649 in cash/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+    expect(await screen.findByText('done NZW-T01-INV-2026-000049')).toBeTruthy()
+
+    const sent = calls.filter((call) => call.url === '/api/v1/pos/sales')
+    expect(sent).toHaveLength(1)
+    expect(JSON.parse(String(sent[0].init?.body))).toMatchObject({ queuedOffline: false, invoiceNumber: null })
+    expect(screen.queryByText(i18n.t('pos.refusal.tenantZoneUnavailable'))).toBeNull()
+  })
+
   it('records a card as only what the cashier typed: the approval code is optional', async () => {
     renderPayment()
     fireEvent.click(await screen.findByRole('button', { name: /^Card/ }))
@@ -201,6 +276,60 @@ describe('taking the payment (P.12)', () => {
     await screen.findByText(/^done/)
     const body = JSON.parse(String(calls.find((c) => c.url === '/api/v1/pos/sales')?.init?.body))
     expect(body.payments).toEqual([{ method: 'CARD', amount: 5.649, cardApprovalCode: '898498' }])
+  })
+
+  it('at the document limit, says so without calling it monthly, and tells a cashier who can help', async () => {
+    saleReply = () =>
+      json(
+        {
+          type: 'https://api.fawtir.om/problems/quota-exceeded',
+          title: 'Conflict',
+          status: 409,
+          detail: 'The free trial of the Business plan includes 25 documents.',
+        },
+        409,
+      )
+    renderPayment()
+    fireEvent.click(await screen.findByRole('button', { name: /^Card/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Paid/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toContain(i18n.t('pos.refusal.quota'))
+    expect(alert.textContent).toContain(i18n.t('pos.refusal.quotaAskManager'))
+    expect(alert.textContent).not.toMatch(/month/i)
+    expect(screen.queryByRole('link', { name: i18n.t('extraDocuments.entry') })).toBeNull()
+  })
+
+  it('at the document limit, gives whoever manages the plan the way on, as the invoice screen does', async () => {
+    const reply = vi.mocked(fetch).getMockImplementation()!
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      const url = String(input)
+      if (url === '/api/v1/me/entitlements') {
+        return json({ ...CASHIER, permissions: [...CASHIER.permissions, 'tenant.plan.manage'] })
+      }
+      if (url === '/api/v1/settings/plan/changes') {
+        return json({ available: true, pending: null, history: [] })
+      }
+      return reply(input, init)
+    })
+    saleReply = () =>
+      json(
+        { type: 'https://api.fawtir.om/problems/quota-exceeded', title: 'Conflict', status: 409 },
+        409,
+      )
+    renderPayment()
+    fireEvent.click(await screen.findByRole('button', { name: /^Card/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Paid/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+    expect(
+      (await screen.findByRole('link', { name: i18n.t('extraDocuments.entry') })).getAttribute(
+        'href',
+      ),
+    ).toBe('/settings/plan/extra-documents')
+    expect(
+      (await screen.findByRole('link', { name: i18n.t('planGate.seePlans') })).getAttribute('href'),
+    ).toBe('/settings/plan')
+    expect(screen.queryByText(new RegExp(i18n.t('pos.refusal.quotaAskManager')))).toBeNull()
   })
 
   it('offers a full invoice when the sale is over the simplified limit, and asks for the buyer ID', async () => {
@@ -275,6 +404,179 @@ describe('taking the payment (P.12)', () => {
       })
     })
   })
+
+  async function sellOffline(detail: unknown) {
+    const answer = (url: string) => (url === '/api/v1/pos/tills/till-1' ? json(detail) : json([TILL]))
+    vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      calls.push({ url, init })
+      if (url === '/api/v1/me/entitlements') return json(CASHIER)
+      if (url === '/api/v1/branches') {
+        return json([{ id: 'b-1', code: 'NZW', name: 'Nizwa', type: 'BRANCH', city: 'Nizwa' }])
+      }
+      if (url.startsWith('/api/v1/pos/tills')) return answer(url)
+      if (url === '/api/v1/pos/sales') throw new TypeError('Failed to fetch')
+      return new Response('', { status: 404 })
+    })
+    renderPayment()
+    fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
+    await waitFor(() =>
+      expect(calls.some((call) => call.url === '/api/v1/pos/tills/till-1')).toBe(true),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+  }
+
+  async function soldOffline(detail: unknown) {
+    await sellOffline(detail)
+    const done = await screen.findByText('done NZW-T01-INV-2026-000049')
+    const [queued] = JSON.parse(window.localStorage.getItem('fawtir.pos.queue') ?? '[]')
+    return { done, body: queued.body }
+  }
+
+  it('offline with the till’s QR profile, the receipt shows the QR the queued sale carries (QR E-1)', async () => {
+    const { done, body } = await soldOffline({ ...TILL, qrProfile: QR_PROFILE })
+    expect(body.printedQr).toMatchObject({ profileVersion: QR_PROFILE.profileVersion })
+    expect(body.printedQr.payload).toMatch(/^[A-Za-z0-9+/]+=*$/)
+    expect(done.getAttribute('data-queued-qr')).toBe(body.printedQr.payload)
+    // QA-F11: the receipt header's seller is the one this QR was built from.
+    expect(JSON.parse(done.getAttribute('data-queued-seller') ?? 'null')).toEqual({
+      name: QR_PROFILE.sellerName,
+      vatNumber: QR_PROFILE.sellerVatin,
+    })
+  })
+
+  // Owner directive 2026-11-06 items A and B. Named cases: the kill switch off or an unverified
+  // seller (the server sends no profile), an unsupported zone, a profile version that is not one.
+  it.each([
+    ['no profile (kill switch off, or an unverified seller)', { ...TILL }],
+    ['an unsupported zone', { ...TILL, qrProfile: { ...QR_PROFILE, issueDateZone: 'Asia/Dubai' } }],
+    ['a malformed profile version', { ...TILL, qrProfile: { ...QR_PROFILE, profileVersion: 'stale' } }],
+  ])('offline with %s: no number, no receipt, nothing kept, the cart stays, and the cashier is told', async (_why, detail) => {
+    await sellOffline(detail)
+    // The till tried the server first, so the server may have the sale (QW4R-1, as XW-2).
+    expect(await screen.findByText(i18n.t('pos.refusal.offlineQrUnavailableAfterSend'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('pos.refusal.offlineQrUnavailable'))).toBeNull()
+    expect(screen.queryByText(/^done/)).toBeNull()
+    expect(screen.queryByText(/NZW-T01-INV-2026-000049/)).toBeNull()
+    expect(JSON.parse(window.localStorage.getItem('fawtir.pos.queue') ?? '[]')).toEqual([])
+    // E-01: the request went out, so the sale is held as sent: only the same sale again, or today's
+    // sales, never a changed one under a new key.
+    expect(screen.getByRole('button', { name: i18n.t('pos.pay.uncertain.retry') })).toBeTruthy()
+    expect(screen.getByRole('link', { name: i18n.t('pos.pay.uncertain.checkToday') })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Finish the sale' })).toBeNull()
+  })
+
+  // QW4R-1: the refusal after the request went out keeps the sale's key, so finishing the same cart
+  // once the till is back online is the same sale to the server, never a second one.
+  it('after a sent request is refused for want of a QR, finishing the same cart again reuses its key', async () => {
+    let up = false
+    vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      calls.push({ url, init })
+      if (url === '/api/v1/me/entitlements') return json(CASHIER)
+      if (url === '/api/v1/branches') {
+        return json([{ id: 'b-1', code: 'NZW', name: 'Nizwa', type: 'BRANCH', city: 'Nizwa' }])
+      }
+      if (url === '/api/v1/pos/tills/till-1') return json({ ...TILL })
+      if (url.startsWith('/api/v1/pos/tills')) return json([TILL])
+      if (url === '/api/v1/pos/sales') {
+        if (!up) throw new TypeError('Failed to fetch')
+        return saleReply()
+      }
+      return new Response('', { status: 404 })
+    })
+    renderPayment()
+    fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+    expect(await screen.findByText(i18n.t('pos.refusal.offlineQrUnavailableAfterSend'))).toBeTruthy()
+    up = true
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('pos.pay.uncertain.retry') }))
+    expect(await screen.findByText('done NZW-T01-INV-2026-000049')).toBeTruthy()
+    const keys = calls
+      .filter((call) => call.url === '/api/v1/pos/sales')
+      .map((call) => (call.init?.headers as Record<string, string>)['Idempotency-Key'])
+    expect(keys).toHaveLength(2)
+    expect(keys[1]).toBe(keys[0])
+  })
+
+  // QW4R-9: the cause of the intermittent posTillFixes failure. Finish pressed before the till's
+  // profile read has answered must wait for it, not sell as if the till had none.
+  it('a sale finished before the QR profile read answers waits for it and is queued with its QR', async () => {
+    let answerDetail: (() => void) | null = null
+    vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      calls.push({ url, init })
+      if (url === '/api/v1/me/entitlements') return json(CASHIER)
+      if (url === '/api/v1/branches') {
+        return json([{ id: 'b-1', code: 'NZW', name: 'Nizwa', type: 'BRANCH', city: 'Nizwa' }])
+      }
+      if (url === '/api/v1/pos/tills/till-1') {
+        await new Promise<void>((resolve) => {
+          answerDetail = resolve
+        })
+        return json({ ...TILL, qrProfile: QR_PROFILE })
+      }
+      if (url.startsWith('/api/v1/pos/tills')) return json([TILL])
+      if (url === '/api/v1/pos/sales') throw new TypeError('Failed to fetch')
+      return new Response('', { status: 404 })
+    })
+    renderPayment()
+    fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
+    await waitFor(() => expect(answerDetail).not.toBeNull())
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+    expect(screen.queryByText(/^done/)).toBeNull()
+    answerDetail!()
+    expect(await screen.findByText('done NZW-T01-INV-2026-000049')).toBeTruthy()
+    const [queued] = JSON.parse(window.localStorage.getItem('fawtir.pos.queue') ?? '[]')
+    expect(queued.body.printedQr).toMatchObject({ profileVersion: QR_PROFILE.profileVersion })
+  })
+
+  it('offline with storage that cannot keep the sale: "Not sold", no receipt, and no number until Check again (POS-MEMQ S8)', async () => {
+    saleReply = () => {
+      throw new TypeError('Failed to fetch')
+    }
+    renderPayment()
+    fireEvent.click(await screen.findByRole('button', { name: /^Card/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Paid/ }))
+    const realSet = Storage.prototype.setItem
+    const full = vi
+      .spyOn(Storage.prototype, 'setItem')
+      .mockImplementation(function (this: Storage, key: string, value: string) {
+        if (key === 'fawtir.pos.queue') {
+          throw new DOMException('The quota has been exceeded.', 'QuotaExceededError')
+        }
+        realSet.call(this, key, value)
+      })
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+      // Its request went out before the connection dropped, so the refusal does not say nothing was sent (XW-2).
+      expect(await screen.findByText(i18n.t('pos.refusal.storageUnavailableAfterSend'))).toBeTruthy()
+      expect(await screen.findByText(i18n.t('pos.storage.blocked'))).toBeTruthy()
+      expect(screen.queryByText(/^done/)).toBeNull()
+      expect(screen.queryByText(/NZW-T01-INV-2026-000049/)).toBeNull()
+    } finally {
+      full.mockRestore()
+    }
+    expect(JSON.parse(window.localStorage.getItem('fawtir.pos.queue') ?? '[]')).toEqual([])
+
+    // Storage works again but nothing has proved it: the sell control stays off, online or
+    // offline, while the notice shows (DES43 rev 4.7 D.9). The request went out, so the control is
+    // the held sale's own (E-01).
+    const retry = () =>
+      screen.getByRole('button', { name: i18n.t('pos.pay.uncertain.retry') }) as HTMLButtonElement
+    expect(retry().disabled).toBe(true)
+    fireEvent.click(retry())
+    expect(screen.queryByText(/^done/)).toBeNull()
+
+    // Check again proves storage; the next try takes the number that was never printed, once.
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('pos.storage.checkAgain') }))
+    await waitFor(() => expect(screen.queryByText(i18n.t('pos.storage.blocked'))).toBeNull())
+    fireEvent.click(retry())
+    expect(await screen.findByText('done NZW-T01-INV-2026-000049')).toBeTruthy()
+    const queued = JSON.parse(window.localStorage.getItem('fawtir.pos.queue') ?? '[]')
+    expect(queued).toHaveLength(1)
+    expect(queued[0].body.invoiceNumber).toBe('NZW-T01-INV-2026-000049')
+  })
 })
 
 describe('POS follow-ups (Abdul, 28 Oct 2026)', () => {
@@ -285,6 +587,8 @@ describe('POS follow-ups (Abdul, 28 Oct 2026)', () => {
     await i18n.changeLanguage('en')
     resetOpenSale(SAMPLE_SALE)
     resetPosQueue()
+    // The person signed in on this device: only the sales they queue go by themselves (round 5, P3b).
+    noteQueueSender('u-1')
     resetSharedRequests()
     forgetEntitlements()
     window.localStorage.clear()
@@ -300,6 +604,7 @@ describe('POS follow-ups (Abdul, 28 Oct 2026)', () => {
         if (url === '/api/v1/branches') {
           return json([{ id: 'b-1', code: 'NZW', name: 'Nizwa', type: 'BRANCH', city: 'Nizwa' }])
         }
+        if (url === '/api/v1/pos/tills/till-1') return json({ ...TILL, qrProfile: QR_PROFILE })
         if (url.startsWith('/api/v1/pos/tills')) return json([TILL])
         if (url === '/api/v1/auth/logout') return new Response(null, { status: 204 })
         if (!online) throw new TypeError('Failed to fetch')

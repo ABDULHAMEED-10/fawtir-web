@@ -341,7 +341,7 @@ describe('Dashboard, from the server', () => {
     }
   })
 
-  it('lists what is not ready, links what the company fixes, and waits on Fawtir for the rest', async () => {
+  it('lists every step with its progress: the company steps first with their buttons, then Fawtir, then the done ones', async () => {
     ADMIN.permissions = [...ADMIN.permissions, 'admin.settings.manage']
     answer({
       readiness: () =>
@@ -361,14 +361,23 @@ describe('Dashboard, from the server', () => {
     const section = within(
       (await screen.findByText(t('readiness.title'))).closest('section')!,
     )
-    const fixes = section.getAllByRole('link', { name: t('readiness.fix') }).map((link) => link.getAttribute('href'))
-    expect(fixes).toEqual(['/settings/company', '/settings/branches/new', '/settings/peppol'])
+    const fixes = section.getAllByRole('link').map((link) => [link.textContent, link.getAttribute('href')])
+    expect(fixes).toEqual([
+      [t('readiness.action.REGISTERED_ADDRESS'), '/settings/company'],
+      [t('readiness.action.ACTIVE_BRANCH'), '/settings/branches/new'],
+      [t('readiness.action.PARTICIPANT_VERIFIED'), '/settings/peppol'],
+    ])
     expect(section.getByText(t('readiness.awaitingFawtir'))).toBeTruthy()
-    expect(section.queryByText(t('readiness.item.CONTACT_PHONE'))).toBeNull()
+    expect(section.getByText(t('readiness.progress', { done: 1, total: 5 }))).toBeTruthy()
+    expect(section.getByRole('progressbar').getAttribute('aria-valuenow')).toBe('1')
+    const rows = section.getAllByRole('listitem').map((row) => row.textContent ?? '')
+    expect(rows[3]).toContain(t('readiness.item.COMPANY_VERIFIED'))
+    expect(rows[4]).toContain(t('readiness.item.CONTACT_PHONE'))
+    expect(rows[4]).toContain(t('readiness.done'))
     ADMIN.permissions = ADMIN.permissions.filter((code) => code !== 'admin.settings.manage')
   })
 
-  it('offers no "Fix this" to a reader who cannot change settings', async () => {
+  it('offers no settings button to a reader who cannot change settings', async () => {
     answer({
       readiness: () =>
         json(200, {
@@ -382,7 +391,7 @@ describe('Dashboard, from the server', () => {
       (await screen.findByText(t('readiness.title'))).closest('section')!,
     )
     await waitFor(() => expect(section.getByText(t('readiness.actionRequired'))).toBeTruthy())
-    expect(section.queryByRole('link', { name: t('readiness.fix') })).toBeNull()
+    expect(section.queryByRole('link')).toBeNull()
   })
 
   it('keeps the revenue switch: Month draws the months, Day and Week say "Not available yet"', async () => {

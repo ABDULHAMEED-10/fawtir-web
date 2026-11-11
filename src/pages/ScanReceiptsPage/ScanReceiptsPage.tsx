@@ -20,31 +20,35 @@ import {
 import { useApiRead } from '../../hooks'
 import { ApiError } from '../../api/errors'
 import {
+  INTAKE_LIVE_MAX_MB,
   INTAKE_MAX_BYTES,
   confirmIntake,
   discardIntake,
   loadIntake,
   loadIntakeFile,
-  possibleDuplicateOf,
-  uploadIntake,
   type IntakeDto,
-  type PossibleDuplicateDto,
 } from '../../api/expenditure/billIntake'
 import { describeApiFailure } from '../../lib/apiFailure'
+import {
+  overrideExtras,
+  overrideRefused,
+  reviewAfterRefusal,
+  type DuplicateOverride,
+  type DuplicateReview,
+  duplicateBodyKey,
+} from '../../lib/billDuplicateOverride'
+import { DuplicateReviewPanel } from '../../components/bills/DuplicateReviewPanel'
 import {
   BILL_CONFIRM_REFUSALS,
   CONFIDENT_AT,
   EXPENSE_CATEGORIES,
   RECEIPT_FILE_TYPES,
-  UPLOAD_MAY_HAVE_ARRIVED,
-  UPLOAD_REFUSALS,
   billProblems,
   blankBillForm,
   fileKindOf,
   fromIntake,
   guessedCategory,
   notReadReason,
-  uploadMayHaveArrived,
   readingOf,
   toConfirmation,
   unsureFields,
@@ -54,6 +58,7 @@ import {
   type BillProblems,
   type ReadField,
 } from '../../lib/billIntake'
+import { uploadInTurn } from '../../lib/billUpload'
 import { formatAmount, formatDate } from '../../lib/format'
 import { muscatToday } from '../../lib/invoiceIssue'
 import { can, useSession } from '../../lib/session/session'
@@ -78,6 +83,12 @@ type Receipt = {
   intake: IntakeDto
   file: File
   status: 'todo' | 'saved'
+  /**
+   * The server's answer to whether the saved bill is held (round 25, W-1), undefined when an older
+   * server did not say. Not inferred from what the save sent: an automatic hold against a
+   * same-supplier Peppol copy on another record follows a save that listed nothing.
+   */
+  held?: boolean
   form: BillForm
   vatNumber: string | null
   vatRate: VatRate
@@ -181,6 +192,8 @@ function ScanReceipts() {
   const session = useSession()
   const [params] = useSearchParams()
   const [receipts, setReceipts] = useState<Receipt[]>([])
+  /** The files of the last choice that did not become receipts, so none goes without a word. */
+  const [notAdded, setNotAdded] = useState<string[]>([])
   const [active, setActive] = useState(0)
 
   // Receipts stored earlier, named in the URL: fetched once with their files, then part of the pile.
@@ -216,8 +229,9 @@ function ScanReceipts() {
 
   const anyRead = receipts.some((item) => readingOf(item.intake) !== null)
 
-  const add = (uploaded: { intake: IntakeDto; file: File }[]) => {
+  const add = (uploaded: { intake: IntakeDto; file: File }[], problems: string[]) => {
     setReceipts((current) => [...current, ...uploaded.map(receiptOf)])
+    setNotAdded(problems)
   }
 
   const saved = receipts.filter((receipt) => receipt.status === 'saved')
@@ -280,11 +294,16 @@ function ScanReceipts() {
           source="SCANNED"
           multiple
           title={t('billIntake.scan.choose')}
-          hint={t('billIntake.scan.hint')}
+          hint={t('billIntake.scan.hint', { mb: INTAKE_LIVE_MAX_MB })}
           onUploaded={add}
         />
       ) : (
         <>
+          {notAdded.length > 0 ? (
+            <p role="alert" className="text-sm font-medium text-text-danger">
+              {notAdded.join(' ')}
+            </p>
+          ) : null}
           <div className="flex flex-wrap items-center justify-between gap-4 rounded-sm border border-primary-300 bg-primary-25 p-4">
             <div className="flex items-center gap-3">
               <span className="flex size-11 shrink-0 items-center justify-center rounded-sm bg-white">
@@ -448,37 +467,25 @@ function Thumbnail({
 function AddMore({
   onUploaded,
 }: {
-  onUploaded: (uploaded: { intake: IntakeDto; file: File }[]) => void
+  onUploaded: (uploaded: { intake: IntakeDto; file: File }[], problems: string[]) => void
 }) {
   const { t } = useTranslation()
   const [busy, setBusy] = useState(false)
-  const [refusal, setRefusal] = useState<string | null>(null)
+  /** Files the box itself turned away, in the same drop as the ones it passes on. */
+  const rejected = useRef<string[]>([])
   // Each photo is read while it uploads, which can take a while: the tile counts the seconds.
   const seconds = useElapsedSeconds(busy)
 
   const take = async (files: File[]) => {
+    const refused = rejected.current
+    rejected.current = []
     setBusy(true)
-    setRefusal(null)
-    const uploaded: { intake: IntakeDto; file: File }[] = []
-    try {
-      for (const file of files) uploaded.push({ intake: await uploadIntake(file, 'SCANNED'), file })
-    } catch (error) {
-      const coded =
-        error instanceof ApiError && error.code && Object.hasOwn(UPLOAD_REFUSALS, error.code)
-          ? UPLOAD_REFUSALS[error.code]
-          : undefined
-      const failure = describeApiFailure(error)
-      setRefusal(
-        coded
-          ? t(coded)
-          : uploadMayHaveArrived(error)
-            ? t(UPLOAD_MAY_HAVE_ARRIVED)
-            : t(failure.key, failure.values),
-      )
-    } finally {
-      setBusy(false)
-      if (uploaded.length > 0) onUploaded(uploaded)
-    }
+    const result = await uploadInTurn(files, 'SCANNED')
+    setBusy(false)
+    onUploaded(result.uploaded, [
+      ...refused,
+      ...result.problems.map((problem) => t(problem.key, problem.values)),
+    ])
   }
 
   return (
@@ -487,11 +494,22 @@ function AddMore({
       multiple
       maxBytes={INTAKE_MAX_BYTES}
       onFiles={(files) => void take(files)}
-      onReject={(reason) =>
-        setRefusal(
-          t(reason === 'size' ? 'billIntake.upload.tooLarge' : 'billIntake.upload.wrongType'),
+      onReject={(reason, file) => {
+        rejected.current.push(
+          t(
+            reason === 'size'
+              ? 'billIntake.upload.tooLargeNamed'
+              : 'billIntake.upload.wrongTypeNamed',
+            { name: file.name },
+          ),
         )
-      }
+        // Nothing else came with it: no upload follows to carry the words up.
+        queueMicrotask(() => {
+          if (rejected.current.length === 0) return
+          onUploaded([], rejected.current)
+          rejected.current = []
+        })
+      }}
       className="flex max-w-[116px] shrink-0 flex-col items-center justify-center gap-2 rounded-sm border-2 border-dashed border-border-default p-2 text-text-tertiary transition-colors hover:border-primary-300 hover:text-primary-700"
     >
       {() => (
@@ -500,11 +518,6 @@ function AddMore({
           <span className="text-xs font-medium">
             {busy ? t('billIntake.upload.readingShort', { seconds }) : t('scanReceipts.addMore')}
           </span>
-          {refusal ? (
-            <span role="alert" className="text-[11px] font-medium text-text-danger">
-              {refusal}
-            </span>
-          ) : null}
         </>
       )}
     </FileDropzone>
@@ -530,7 +543,7 @@ function ReceiptEditor({
   const url = useObjectUrl(receipt.file)
   const [errors, setErrors] = useState<BillProblems>({})
   const [notice, setNotice] = useState<string | null>(null)
-  const [duplicate, setDuplicate] = useState<PossibleDuplicateDto | null>(null)
+  const [duplicate, setDuplicate] = useState<DuplicateReview | null>(null)
   const [busy, setBusy] = useState(false)
   const [rotation, setRotation] = useState(0)
   const [zoomed, setZoomed] = useState(false)
@@ -569,7 +582,7 @@ function ReceiptEditor({
   const toCheck =
     Object.keys(billProblems(form, { needsNumber: false })).length + (receipt.category ? 0 : 1)
 
-  const save = async (notDuplicateOf: string | null) => {
+  const save = async (override: DuplicateOverride | null) => {
     if (inFlight.current || saved) return
     const problems = billProblems(form, { needsNumber: false })
     setErrors(problems)
@@ -581,12 +594,12 @@ function ReceiptEditor({
     setBusy(true)
     setNotice(null)
     try {
-      await confirmIntake(
+      const bill = await confirmIntake(
         receipt.intake.id,
         toConfirmation(form, {
           category: receipt.category || null,
           note: receipt.note,
-          notDuplicateOf,
+          ...overrideExtras(override),
           // 0% and Exempt are both a zero rate; the category is what tells them apart.
           taxCategoryCode: VAT_RATES.find((rate) => rate.id === receipt.vatRate)?.category ?? null,
           paidOnTheSpot:
@@ -600,11 +613,19 @@ function ReceiptEditor({
               : null,
         }),
       )
-      onSaved({ ...receipt, status: 'saved' })
+      onSaved({
+        ...receipt,
+        status: 'saved',
+        held: typeof bill.held === 'boolean' ? bill.held : undefined,
+      })
     } catch (failure) {
-      const same = possibleDuplicateOf(failure)
+      const same = reviewAfterRefusal(duplicate, failure)
+      const overridden = overrideRefused(duplicate, failure)
       if (same) setDuplicate(same)
-      else if (
+      else if (overridden) {
+        setDuplicate(overridden.review)
+        if (!overridden.review) setNotice(t(overridden.key))
+      } else if (
         failure instanceof ApiError &&
         failure.code &&
         Object.hasOwn(BILL_CONFIRM_REFUSALS, failure.code)
@@ -725,7 +746,17 @@ function ReceiptEditor({
         </section>
 
         <div className="flex min-w-0 flex-1 flex-col gap-4">
-          {saved ? <Notice body={t('billIntake.scan.saved')} /> : null}
+          {saved ? (
+            <Notice
+              body={t(
+                receipt.held === true
+                  ? 'billIntake.scan.savedHeld'
+                  : receipt.held === false
+                    ? 'billIntake.scan.saved'
+                    : 'billIntake.scan.savedStatusUnknown',
+              )}
+            />
+          ) : null}
           {notice ? (
             <Notice
               body={notice}
@@ -942,7 +973,7 @@ function ReceiptEditor({
                 {t('scanReceipts.whatItWasFor')}
               </h2>
               <div className="mt-4 flex flex-col gap-1.5">
-                <FieldLabel label={t('scanReceipts.category')} required />
+                <FieldLabel label={t('scanReceipts.category')} />
                 <Select
                   value={receipt.category}
                   onChange={(category) =>
@@ -1058,41 +1089,27 @@ function ReceiptEditor({
           </fieldset>
 
           {duplicate ? (
-            <section role="alert" className="rounded-md border border-[#d8c9a8] bg-[#faf5ea] p-5">
-              <h2 className="flex items-center gap-2 text-base font-semibold text-text-primary">
-                <img src={warnIcon} alt="" className="size-5" />
-                {t('billIntake.duplicate.title')}
-              </h2>
-              <p className="mt-2 text-sm font-medium leading-[1.5] text-text-secondary">
-                {withRial(
-                  t('billIntake.duplicate.body', {
-                    number: duplicate.supplierBillNumber,
-                    date: duplicate.issueDate ? formatDate(duplicate.issueDate, i18n.language) : '',
+            <DuplicateReviewPanel
+              review={duplicate}
+              onChange={setDuplicate}
+              onDifferent={(override) => void save(override)}
+              busy={busy}
+              sentence={(bill) =>
+                withRial(
+                  t(duplicateBodyKey(bill), {
+                    number: bill.supplierBillNumber,
+                    date: bill.issueDate ? formatDate(bill.issueDate, i18n.language) : '',
                     total:
-                      duplicate.total === null
+                      bill.total === null
                         ? ''
-                        : `${formatAmount(duplicate.total, duplicate.currencyCode ?? form.currency, i18n.language)} ${duplicate.currencyCode ?? form.currency}`,
-                    source: t(`billIntake.duplicate.source.${duplicate.source}`),
+                        : `${formatAmount(bill.total, bill.currencyCode ?? form.currency, i18n.language)} ${bill.currencyCode ?? form.currency}`,
+                    source: t(`billIntake.duplicate.source.${bill.source}`),
                   }),
-                )}
-              </p>
-              <div className="mt-4 flex flex-wrap gap-3">
-                <Link
-                  to={`/expenditure/bills/${duplicate.billId}`}
-                  className="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary hover:bg-primary-25"
-                >
-                  {t('billIntake.duplicate.open')}
-                </Link>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void save(duplicate.billId)}
-                  className="inline-flex h-[42px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white hover:bg-primary-800 disabled:opacity-60"
-                >
-                  {t('billIntake.duplicate.different')}
-                </button>
-              </div>
-            </section>
+                )
+              }
+              linkClassName="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary hover:bg-primary-25"
+              buttonClassName="inline-flex h-[42px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white hover:bg-primary-800 disabled:opacity-60"
+            />
           ) : null}
         </div>
       </div>

@@ -318,6 +318,9 @@ export const PRODUCT_VERSION_CONFLICT = 'PRODUCT_VERSION_CONFLICT'
 /** Someone else changed the branch settings first: the form offers to reload too. */
 export const PRODUCT_BRANCH_SETTINGS_VERSION_CONFLICT = 'PRODUCT_BRANCH_SETTINGS_VERSION_CONFLICT'
 
+/** Backend #844: the unit of an item whose stock has moved; the form says so on the unit field. */
+export const PRODUCT_STOCK_UNIT_LOCKED = 'PRODUCT_STOCK_UNIT_LOCKED'
+
 /**
  * The product routes' refusals (`InvoiceRestExceptionHandler`: 400, or 409 for the version,
  * duplicate and archived codes, 404 for a missing product), each with the field it belongs to.
@@ -350,6 +353,7 @@ export const PRODUCT_REFUSALS: Record<string, ProductProblem> = {
   PRODUCT_DEFAULT_DISCOUNT_INVALID: { field: 'discount', key: 'itemForm.refused.discountInvalid' },
   PRODUCT_UNIT_KIND_MISMATCH: { field: 'unit', key: 'itemForm.refused.unitKind' },
   PRODUCT_UNIT_NOT_TIME_BASED: { field: 'unit', key: 'itemForm.refused.unitTime' },
+  [PRODUCT_STOCK_UNIT_LOCKED]: { field: 'unit', key: 'itemForm.refused.unitLocked' },
   PRODUCT_SERVICE_TYPE_ON_GOODS: {
     field: 'serviceType',
     key: 'itemForm.refused.serviceTypeOnGoods',

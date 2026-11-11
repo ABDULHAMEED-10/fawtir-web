@@ -11,6 +11,7 @@ import { PersonPage } from './PersonPage'
 import { BranchRoster } from './BranchRoster'
 import { AddBranchPage } from './AddBranchPage'
 import { branchAccessOn } from '../../lib/identity/branchAccessSwitch'
+import { permissionWords } from '../../lib/permissionLabels'
 
 /** Branch access screens (Business Rules BA-1, BA-2, OW-1, OW-4, RL-1, RL-2, RL-3, LG-3). */
 
@@ -931,5 +932,254 @@ describe('Who works there', () => {
         'Someone you unticked works in no other branch. Give them another branch first.',
       ),
     ).toBeTruthy()
+  })
+})
+
+// NOT RUN (static only). Backend 37b2fedca (review FR2-1): a 0% limit a role collapse carried is
+// listed apart as read-only carriedLimits. Full replacement keeps it only while the save does not
+// name its code, so the form must never send it back as a grant (that would lift the 0% to no limit
+// at all). Owner Q14 B (WC-1(c), backend de914262a): unticking it sends clearCarried, never a denial.
+describe('A carried limit (FR2-1)', () => {
+  const CARRIED_VIEW = {
+    userId: 'p-clerk',
+    role: 'ACCOUNTANT',
+    roleCodes: ['ACCOUNTANT'],
+    grants: [{ code: 'invoice.approve', qualifier: null, value: null }],
+    denials: [],
+    effective: ['bill.read', 'invoice.approve', 'invoice.read', 'pos.sell'],
+    carriedLimits: [{ code: 'pos.sell', qualifier: 'MAX_PERCENT', value: 0 }],
+  }
+
+  beforeEach(() => {
+    answers['/api/v1/users/p-clerk/permissions'] = () => json(200, CARRIED_VIEW)
+    answers['PUT /api/v1/users/p-clerk/permissions'] = () => json(200, CARRIED_VIEW)
+    answers['/api/v1/permissions'] = () =>
+      json(
+        200,
+        ['invoice.read', 'invoice.approve', 'bill.read', 'bill.settle', 'pos.sell'].map((code) => ({
+          code,
+          module: 'X',
+          description: code,
+          assignable: true,
+        })),
+      )
+  })
+
+  const sell = () => {
+    const words = permissionWords('pos.sell', i18n.t, i18n)
+    return screen
+      .getAllByRole('checkbox')
+      .find(
+        (box) =>
+          box.closest('fieldset')?.querySelector('legend')?.textContent === words.group &&
+          box.closest('label')?.textContent?.startsWith(words.action),
+      ) as HTMLInputElement
+  }
+  const carriedLine = () => {
+    const words = permissionWords('pos.sell', i18n.t, i18n)
+    return i18n.t('branchAccess.person.carriedLimit', {
+      permission: `${words.group}: ${words.action}`,
+      percent: 0,
+    })
+  }
+
+  it('shows it read-only, and the till limit as the carried 0%', async () => {
+    renderAt('/settings/team/p-clerk')
+    expect(await screen.findByText(carriedLine())).toBeTruthy()
+    expect(sell().checked).toBe(true)
+    expect(document.body.textContent).toContain(
+      i18n.t('branchAccess.person.sellLimitCarried', { percent: 0 }),
+    )
+  })
+
+  it('never sends it back as a grant when another tick is saved', async () => {
+    renderAt('/settings/team/p-clerk')
+    await screen.findByText(carriedLine())
+    const settle = screen
+      .getAllByRole('checkbox')
+      .find((box) => box.closest('label')?.textContent?.includes('Settle')) as HTMLInputElement
+    fireEvent.click(settle)
+    fireEvent.click(screen.getByRole('button', { name: 'Save permissions' }))
+    await screen.findByText('Permissions saved. They apply from their next action.')
+    expect(sent('PUT', '/api/v1/users/p-clerk/permissions')).toEqual([
+      { grants: [{ code: 'invoice.approve' }, { code: 'bill.settle' }], denials: [] },
+    ])
+  })
+
+  // WC-1(c) replaces be0eb8bce's denial: the untick removes only the carried row.
+  it('sends clearCarried, never a denial, when the reader unticks it', async () => {
+    renderAt('/settings/team/p-clerk')
+    await screen.findByText(carriedLine())
+    fireEvent.click(sell())
+    fireEvent.click(screen.getByRole('button', { name: 'Save permissions' }))
+    await screen.findByText('Permissions saved. They apply from their next action.')
+    expect(sent('PUT', '/api/v1/users/p-clerk/permissions')).toEqual([
+      { grants: [{ code: 'invoice.approve' }], denials: [], clearCarried: ['pos.sell'] },
+    ])
+  })
+
+  // The case the old denial reached through the role's codes: bill.read is the Accountant's, and
+  // also carried. Unticking still removes only the carried row; the role keeps giving it.
+  it('sends clearCarried, never a denial, for a carried code their role also gives', async () => {
+    answers['/api/v1/users/p-clerk/permissions'] = () =>
+      json(200, {
+        ...CARRIED_VIEW,
+        carriedLimits: [...CARRIED_VIEW.carriedLimits, { code: 'bill.read', qualifier: 'MAX_PERCENT', value: 0 }],
+      })
+    renderAt('/settings/team/p-clerk')
+    await screen.findByText(carriedLine())
+    const billRead = screen
+      .getAllByRole('checkbox')
+      .find((box) => box.closest('label')?.textContent?.includes(i18n.t('branchAccess.person.carriedTicked')) && box !== sell()) as HTMLInputElement
+    fireEvent.click(billRead)
+    expect(billRead.closest('label')?.textContent).toContain(i18n.t('branchAccess.person.carriedUnticked'))
+    fireEvent.click(screen.getByRole('button', { name: 'Save permissions' }))
+    await screen.findByText('Permissions saved. They apply from their next action.')
+    expect(sent('PUT', '/api/v1/users/p-clerk/permissions')).toEqual([
+      { grants: [{ code: 'invoice.approve' }], denials: [], clearCarried: ['bill.read'] },
+    ])
+  })
+
+  it('replaces it only with a limit the reader types', async () => {
+    renderAt('/settings/team/p-clerk')
+    await screen.findByText(carriedLine())
+    const limit = document.querySelector('input[name="posSellLimit"]') as HTMLInputElement
+    fireEvent.change(limit, { target: { value: '5' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save permissions' }))
+    await screen.findByText('Permissions saved. They apply from their next action.')
+    expect(sent('PUT', '/api/v1/users/p-clerk/permissions')).toEqual([
+      {
+        grants: [
+          { code: 'invoice.approve' },
+          { code: 'pos.sell', qualifier: 'MAX_PERCENT', value: 5 },
+        ],
+        denials: [],
+      },
+    ])
+  })
+
+  // Owner Q14 B: the untick removes only the carried row, and a role that gives the code keeps
+  // giving it. The row says so before the save, not only after it.
+  it('says on the row that unticking removes only the carried permission', async () => {
+    renderAt('/settings/team/p-clerk')
+    await screen.findByText(carriedLine())
+    expect(sell().closest('label')?.textContent).toContain(
+      i18n.t('branchAccess.person.carriedTicked'),
+    )
+    fireEvent.click(sell())
+    expect(sell().closest('label')?.textContent).toContain(
+      i18n.t('branchAccess.person.carriedUnticked'),
+    )
+  })
+
+  // Without the role list the card counts what was not given to the person as theirs from a role,
+  // so a carried code is read as a role code there. Neither save may name it as a grant.
+  describe('when the role list has not loaded', () => {
+    beforeEach(() => {
+      answers['/api/v1/roles'] = () => json(500, { type: 'about:blank', status: 500 })
+    })
+
+    it('still keeps it out of the grants when another tick is saved', async () => {
+      renderAt('/settings/team/p-clerk')
+      await screen.findByText(carriedLine())
+      const settle = screen
+        .getAllByRole('checkbox')
+        .find((box) => box.closest('label')?.textContent?.includes('Settle')) as HTMLInputElement
+      fireEvent.click(settle)
+      fireEvent.click(screen.getByRole('button', { name: 'Save permissions' }))
+      await screen.findByText('Permissions saved. They apply from their next action.')
+      expect(sent('PUT', '/api/v1/users/p-clerk/permissions')).toEqual([
+        { grants: [{ code: 'invoice.approve' }, { code: 'bill.settle' }], denials: [] },
+      ])
+    })
+
+    // Read as a role code here, it would otherwise go out as a denial through the role's codes.
+    it('still sends it once, as clearCarried and not a denial, when the reader unticks it', async () => {
+      renderAt('/settings/team/p-clerk')
+      await screen.findByText(carriedLine())
+      fireEvent.click(sell())
+      fireEvent.click(screen.getByRole('button', { name: 'Save permissions' }))
+      await screen.findByText('Permissions saved. They apply from their next action.')
+      expect(sent('PUT', '/api/v1/users/p-clerk/permissions')).toEqual([
+        { grants: [{ code: 'invoice.approve' }], denials: [], clearCarried: ['pos.sell'] },
+      ])
+    })
+  })
+
+  // A7R-11 (owner Q12, backend 4f1ddc683): the carried 0% is not current until the company's
+  // notice takes effect, so it is labelled with when it applies.
+  describe('and the company notice of the discount limits', () => {
+    const withNotice = (discountLimitNotice: unknown) => {
+      answers['/api/v1/users/p-clerk/permissions'] = () => json(200, { ...CARRIED_VIEW, discountLimitNotice })
+    }
+    const appliesFrom = (date: string) => i18n.t('branchAccess.person.carriedAppliesFrom', { date })
+
+    it('labels it "applies from" the notice day while NOTIFIED at Muscat midnight', async () => {
+      withNotice({ status: 'NOTIFIED', effectiveAt: '2026-11-19T20:00:00Z' })
+      renderAt('/settings/team/p-clerk')
+      // 20:00Z is midnight of the 20th in Muscat: the business day, not the UTC one, and no time.
+      expect(await screen.findByText(`${carriedLine()} ${appliesFrom('20 Nov 2026')}`)).toBeTruthy()
+      expect(document.body.textContent).toContain(
+        `${i18n.t('branchAccess.person.sellLimitCarried', { percent: 0 })} ${appliesFrom('20 Nov 2026')}`,
+      )
+    })
+
+    // WC1R-3: not in force for part of that day, so the Muscat time is printed too.
+    it('adds the Muscat time when the notice takes effect other than at midnight', async () => {
+      withNotice({ status: 'NOTIFIED', effectiveAt: '2026-11-20T10:00:00Z' })
+      renderAt('/settings/team/p-clerk')
+      expect(await screen.findByText(`${carriedLine()} ${appliesFrom('20 Nov 2026, 14:00')}`)).toBeTruthy()
+    })
+
+    // WC1R-2: a status this screen does not know is never read as in force, even with a date.
+    it('says it is not in force yet for an unknown status', async () => {
+      withNotice({ status: 'SOMETHING_ELSE', effectiveAt: '2026-11-19T20:30:00Z' })
+      renderAt('/settings/team/p-clerk')
+      expect(
+        await screen.findByText(`${carriedLine()} ${i18n.t('branchAccess.person.carriedNotInForce')}`),
+      ).toBeTruthy()
+      expect(screen.queryByText(carriedLine())).toBeNull()
+      expect(document.body.textContent).not.toContain('Applies from')
+    })
+
+    it('says it is not in force yet while NOT_NOTIFIED, or NOTIFIED with no date', async () => {
+      for (const notice of [
+        { status: 'NOT_NOTIFIED', effectiveAt: null },
+        { status: 'NOTIFIED', effectiveAt: null },
+      ]) {
+        withNotice(notice)
+        const view = renderAt('/settings/team/p-clerk')
+        expect(
+          await screen.findByText(`${carriedLine()} ${i18n.t('branchAccess.person.carriedNotInForce')}`),
+        ).toBeTruthy()
+        view.unmount()
+      }
+    })
+
+    it('shows it plainly once IN_FORCE, with or without a date', async () => {
+      for (const effectiveAt of ['2026-11-01T00:00:00Z', null]) {
+        withNotice({ status: 'IN_FORCE', effectiveAt })
+        const view = renderAt('/settings/team/p-clerk')
+        expect(await screen.findByText(carriedLine())).toBeTruthy()
+        expect(document.body.textContent).not.toContain('Applies from')
+        expect(document.body.textContent).not.toContain(i18n.t('branchAccess.person.carriedNotInForce'))
+        view.unmount()
+      }
+    })
+
+    it('has the notice sentences in Arabic', () => {
+      for (const key of ['carriedAppliesFrom', 'carriedNotInForce', 'carriedTicked', 'carriedUnticked']) {
+        expect(i18n.exists(`branchAccess.person.${key}`, { lng: 'ar', fallbackLng: false }), key).toBe(true)
+      }
+    })
+  })
+
+  it('reads a server before 37b2fedca, which sends no carriedLimits, as before', async () => {
+    // Undefined is left out of the JSON body, so the answer carries no carriedLimits at all.
+    const older = { ...CARRIED_VIEW, carriedLimits: undefined }
+    answers['/api/v1/users/p-clerk/permissions'] = () => json(200, older)
+    renderAt('/settings/team/p-clerk')
+    await screen.findAllByText('Given to them')
+    expect(screen.queryByText(carriedLine())).toBeNull()
   })
 })

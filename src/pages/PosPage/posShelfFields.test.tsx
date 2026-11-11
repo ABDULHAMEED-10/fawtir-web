@@ -315,6 +315,46 @@ describe('the refund screen on backend #808 (P.31)', () => {
     expect(await screen.findByText('Accepted by the OTA')).toBeTruthy()
   })
 
+  it('names a walk-in in the screen language, not by the stored English placeholder', async () => {
+    await i18n.changeLanguage('ar')
+    answer = (url) =>
+      url.startsWith('/api/v1/pos/refund-lookup')
+        ? json({
+            ...LOOKUP,
+            customer: { kind: 'WALK_IN', customerId: 'c-0', name: 'Walk-in customer' },
+          })
+        : null
+    renderAt('/pos/refund?invoice=NZW-T01-INV-2026-000001')
+    await screen.findByText('Butter croissant')
+    expect(screen.queryByText(/Walk-in customer/)).toBeNull()
+    expect(screen.getByText(new RegExp(i18n.t('pos.refund.walkIn')))).toBeTruthy()
+    await i18n.changeLanguage('en')
+  })
+
+  it('says a sale is already refunded, with no form for 0.000', async () => {
+    answer = (url) =>
+      url.startsWith('/api/v1/pos/refund-lookup')
+        ? json({
+            ...LOOKUP,
+            lines: [{ ...LOOKUP.lines[0], quantityRefunded: 1 }],
+            credited: 1.05,
+            creditNoteNumbers: ['NZW-T01-CRN-2026-000001'],
+          })
+        : null
+    renderAt('/pos/refund?invoice=NZW-T01-INV-2026-000001')
+    // The number sits in its own <span dir="ltr">, and findByText matches only an element's own text nodes, so
+    // the whole line is read off the status element itself (PRV43-OFF M-4).
+    const status = await screen.findByText(
+      (_, element) =>
+        element?.getAttribute('role') === 'status' &&
+        element.textContent?.startsWith('NZW-T01-INV-2026-000001') === true,
+    )
+    expect(status.textContent).toBe(
+      'NZW-T01-INV-2026-000001: Every item on this sale has already been refunded. Credit notes: NZW-T01-CRN-2026-000001.',
+    )
+    expect(screen.queryByRole('button', { name: /Refund/ })).toBeNull()
+  })
+
   it('says nothing while it is not accepted, or when the lookup does not say', async () => {
     answer = (url) =>
       url.startsWith('/api/v1/pos/refund-lookup') ? json({ ...LOOKUP, filing: filing(null) }) : null

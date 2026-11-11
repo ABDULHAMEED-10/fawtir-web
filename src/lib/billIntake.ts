@@ -378,7 +378,10 @@ export function billProblems(
 export type ConfirmExtras = {
   category?: string | null
   paidOnTheSpot?: ConfirmIntakeDto['paidOnTheSpot']
-  notDuplicateOf?: string | null
+  notDuplicateOf?: null
+  /** Sent, with `overrideReason`, only when given: a server before the list refuses the field. */
+  notDuplicateOfIds?: string[]
+  overrideReason?: string
   /**
    * Defaults to a bill. A caller confirming a supplier's credit or debit note states it, because
    * the same intake takes all three and the type is what decides which way the money points.
@@ -432,7 +435,10 @@ export function toConfirmation(form: BillForm, extras: ConfirmExtras = {}): Conf
     purchaseOrderReference: null,
     category: extras.category ?? null,
     paidOnTheSpot: extras.paidOnTheSpot ?? null,
-    notDuplicateOf: extras.notDuplicateOf ?? null,
+    notDuplicateOf: null,
+    ...(extras.notDuplicateOfIds?.length
+      ? { notDuplicateOfIds: extras.notDuplicateOfIds, overrideReason: extras.overrideReason }
+      : {}),
     // TODO(backend): EXPENDITURE.md M.2. A receipt's category: 0% zero-rated and exempt apart.
     ...(extras.taxCategoryCode ? { taxCategoryCode: extras.taxCategoryCode } : {}),
     ...(extras.note?.trim() ? { note: extras.note.trim() } : {}),
@@ -511,6 +517,9 @@ export const BILL_CONFIRM_REFUSALS: Record<string, { field: BillField | null; ke
   // so all three screens read them.
   BILL_INTAKE_PETTY_CASH_NOT_CASH: { field: null, key: 'billIntake.refused.pettyCashNotCash' },
   BILL_NOTE_TOO_LONG: { field: null, key: 'billIntake.refused.noteTooLong' },
+  // A payment sent with a bill the server would hold as a possible duplicate (PRV43-WEBEXP L-5).
+  // Not the bill page's onHold wording: a duplicate hold is never released by hand.
+  BILL_PAYMENT_ON_HOLD: { field: null, key: 'billIntake.refused.paymentOnHold' },
 }
 
 /** Why an upload was refused, by the server's code. */

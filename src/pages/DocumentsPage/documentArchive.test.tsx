@@ -7,6 +7,7 @@ import { answerStanding, settle, standingRead } from '../../testing/subscription
 import type { ArchiveItemDto, ArchiveListDto } from '../../api/compliance/archive'
 import {
   TDD_STATUSES,
+  artefactFileName,
   artefactRows,
   counterpartyValue,
   directionOf,
@@ -739,4 +740,47 @@ describe('Share securely while the subscription is read-only (owner, 23 Oct 2026
       expect(share()).toBeNull()
     },
   )
+})
+
+describe('downloading a record (A-7b)', () => {
+  it('counts on its button only the files it saves, and keeps the name the server gives', async () => {
+    const saved: string[] = []
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      saved.push(this.download)
+    })
+    const served = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string) =>
+      // Backend #824 names each rendition in Content-Disposition, unsafe characters as "_".
+      url === '/api/v1/invoices/sub-1/tdd'
+        ? new Response('<TDD/>', {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/xml',
+              'Content-Disposition': 'inline; filename="INV_2026_000004-tdd.xml"',
+            },
+          })
+        : served(url),
+    )
+    renderArchive(`/compliance/documents/${ISSUED.invoice_uuid}`)
+    // Six held, of which the MLS replies open a page and the transport receipt has no address.
+    const button = await screen.findByRole('button', { name: 'All 4 as a zip' })
+    fireEvent.click(button)
+    await waitFor(() => expect(saved).toHaveLength(4))
+    expect(saved).toEqual([
+      'INV-2026-000004.xml',
+      'INV_2026_000004-tdd.xml',
+      'INV-2026-000004.pdf',
+      'INV-2026-000004-qr.png',
+    ])
+  })
+})
+
+describe('the name saved when the server names none (A-7b)', () => {
+  it('follows the server rule, unsafe characters as "_"', () => {
+    expect(artefactFileName('INV/2026 7', 'tdd')).toBe('INV_2026_7-tdd.xml')
+    expect(artefactFileName('INV-2026-000004', 'qr')).toBe('INV-2026-000004-qr.png')
+    expect(artefactFileName('INV-2026-000004', 'mls')).toBeNull()
+  })
 })

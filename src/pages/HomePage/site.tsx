@@ -1,6 +1,6 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { BrandLogo } from '../../components/BrandLogo'
 import { withRial } from '../../components/ui/Rial'
@@ -29,7 +29,67 @@ export const INK = 'text-[#151c2d]'
 export const SOFT = 'text-[#494d56]'
 
 /** The site's pages, as the nav names and links them. */
-export type SitePage = 'home' | 'pricing' | 'features' | 'contact'
+export type SitePage = 'home' | 'pricing' | 'features' | 'contact' | 'legal'
+
+/* -------------------------------------------------------------------- meta */
+
+function setMeta(attribute: 'name' | 'property', key: string, content: string) {
+  let tag = document.head.querySelector<HTMLMetaElement>(`meta[${attribute}="${key}"]`)
+  if (!tag) {
+    tag = document.createElement('meta')
+    tag.setAttribute(attribute, key)
+    document.head.appendChild(tag)
+  }
+  tag.content = content
+}
+
+/**
+ * A public page's title and description, in the reader's language, for search results and link
+ * previews. `index.html` carries the English defaults for crawlers that do not run the page.
+ */
+export function useSiteMeta(titleKey: string, descriptionKey: string) {
+  const { t, i18n } = useTranslation()
+  useEffect(() => {
+    const title = t(titleKey)
+    const description = t(descriptionKey)
+    document.title = title
+    setMeta('name', 'description', description)
+    setMeta('property', 'og:title', title)
+    setMeta('property', 'og:description', description)
+    setMeta('property', 'og:locale', i18n.language.startsWith('ar') ? 'ar_OM' : 'en_OM')
+  }, [t, i18n.language, titleKey, descriptionKey])
+}
+
+/**
+ * Every page reached from the public site, and every site page, opens at its top (owner, 4 Nov
+ * 2026): the router keeps the last page's scroll, so a link low on one page landed at the foot of
+ * the next. Moves inside the signed-in app are left alone, as is a hash naming an element on the
+ * page (such as /#qr-code).
+ */
+const SITE_PATHS = [
+  '/',
+  '/pricing',
+  '/features',
+  '/contact',
+  '/terms',
+  '/privacy',
+  '/refund-policy',
+]
+export function SiteScrollTop() {
+  const { pathname } = useLocation()
+  const last = useRef(pathname)
+  useEffect(() => {
+    const from = last.current
+    last.current = pathname
+    if (from === pathname) return
+    if (!SITE_PATHS.includes(from) && !SITE_PATHS.includes(pathname)) return
+    // On Features the hash only picks the tab, so that page always starts at its top.
+    const id = window.location.hash.slice(1)
+    if (id && pathname !== '/features' && document.getElementById(id)) return
+    window.scrollTo(0, 0)
+  }, [pathname])
+  return null
+}
 
 /* ------------------------------------------------------------------ pieces */
 
@@ -499,9 +559,10 @@ export function Footer() {
     { key: 'pricing', to: '/pricing' },
     { key: 'features', to: '/features' },
     { key: 'partners', href: mail.partners },
-    // TODO(backend): SITE.md 1.4. The privacy policy and terms have no pages yet.
-    { key: 'privacy' },
-    { key: 'terms' },
+    // The legal pages (owner, 4 Nov 2026; SITE.md 1.6 replaces 1.4).
+    { key: 'privacy', to: '/privacy' },
+    { key: 'terms', to: '/terms' },
+    { key: 'refund', to: '/refund-policy' },
   ]
   // An icon links only to a page the company contact setting names (CS-1); the rest stay drawn.
   const socials: { icon: string; label: string; href: string | null }[] = [
@@ -514,14 +575,17 @@ export function Footer() {
   return (
     <footer className="relative mt-[200px] overflow-hidden rounded-t-lg bg-[#fafafa] max-md:mt-20">
       {/* The wordmark is Latin, so the footer keeps its left-to-right layout in Arabic too. */}
-      <div className="relative mx-auto w-full max-w-[1920px] rtl:[direction:ltr] xl:h-[min(925px,48.18vw)]">
-        <img
-          src={footerLogo}
-          alt=""
-          aria-hidden="true"
-          className="pointer-events-none absolute bottom-[min(60px,3.125vw)] left-[min(117px,6.094vw)] h-auto w-[min(1720px,89.583vw)] max-w-none max-xl:bottom-[60px] max-xl:left-6 max-xl:w-[855px] max-md:w-[342px]"
-        />
-        <div className="relative ml-auto flex w-[min(950px,49.48vw)] flex-col gap-[min(100px,5.2vw)] pt-[min(100px,5.2vw)] rtl:[direction:rtl] max-xl:w-full max-xl:gap-16 max-xl:px-8 max-xl:pb-[460px] max-xl:pt-16 max-md:gap-12 max-md:px-4 max-md:pb-[250px] max-md:pt-12 xl:mr-[min(83px,4.323vw)]">
+      <div className="relative mx-auto flex w-full max-w-[1920px] items-start justify-between gap-12 px-[min(117px,6.094vw)] pb-16 rtl:[direction:ltr] max-xl:flex-col max-xl:px-8 max-md:px-4">
+        <div className="flex shrink-0 flex-col gap-4 pt-[min(100px,5.2vw)] max-xl:order-last max-xl:pt-0">
+          <img
+            src={footerLogo}
+            alt=""
+            aria-hidden="true"
+            className="pointer-events-none h-auto w-[280px] max-md:w-[180px]"
+          />
+          <p className={`text-sm ${SOFT}`}>{t('landing.footer.rights', { year })}</p>
+        </div>
+        <div className="relative flex w-[min(950px,49.48vw)] flex-col gap-[min(100px,5.2vw)] pt-[min(100px,5.2vw)] rtl:[direction:rtl] max-xl:w-full max-xl:gap-16 max-xl:pt-16 max-md:gap-12 max-md:pt-12">
           <form
             onSubmit={subscribe}
             className="flex items-center gap-[min(60px,3.125vw)] max-lg:flex-col max-lg:items-stretch max-lg:gap-6"
@@ -600,9 +664,6 @@ export function Footer() {
                 ),
               )}
             </div>
-            <p className={`landing-cap text-base leading-[normal] ${SOFT}`}>
-              {t('landing.footer.rights', { year })}
-            </p>
           </div>
         </div>
       </div>

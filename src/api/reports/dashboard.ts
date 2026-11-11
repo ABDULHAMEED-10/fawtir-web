@@ -18,6 +18,11 @@ export type ReceivableRowDto = {
   overdueCount: number
   openCount: number
   dueThisMonth: Amount
+  /**
+   * D-30(a), from 0c2d034d4: what over-credited or overpaid documents hold, at or below zero. Not
+   * in `outstanding`; the server sends no net, so the tile adds the two itself and says so.
+   */
+  unappliedCredit?: Amount
 }
 
 export type CashDto = {

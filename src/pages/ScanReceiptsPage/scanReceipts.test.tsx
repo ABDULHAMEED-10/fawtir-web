@@ -23,6 +23,12 @@ const MANAGER: Entitlements = {
   featureFlags: {},
 }
 const VIEWER: Entitlements = { ...MANAGER, username: 'viewer', permissions: ['invoice.read'] }
+/** The duplicate override is drawn only for invoice.approve (round 18), which MANAGER lacks. */
+const APPROVER: Entitlements = {
+  ...MANAGER,
+  username: 'approver',
+  permissions: [...MANAGER.permissions, 'invoice.approve'],
+}
 
 function receipt(id: string, overrides: Partial<IntakeDto> = {}): IntakeDto {
   return {
@@ -89,6 +95,10 @@ const calls = (method: string, prefix: string) =>
       ((init as RequestInit | undefined)?.method ?? 'GET') === method,
   )
 const bodyOf = (call: unknown[]) => JSON.parse((call[1] as RequestInit).body as string)
+
+/** A confirm answer from a server that says whether it holds the bill (round 25, W-1). */
+const savedBill = (held: boolean) =>
+  json(201, { id: 'b-new', supplierBillNumber: 'X', totalIncludingVat: 1, currencyCode: 'OMR', held })
 
 beforeEach(async () => {
   await i18n.changeLanguage('en')
@@ -162,6 +172,43 @@ async function pick(files: File[]) {
   })
 }
 
+describe('scan receipts: a file too big for the server', () => {
+  const file = (name: string) => new File(['x'], name, { type: 'application/pdf' })
+  const refuseBig = () => {
+    const before = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      ((init?.body as FormData | undefined)?.get?.('file') as File | undefined)?.name === 'big.pdf'
+        ? new Response(
+            JSON.stringify({
+              type: 'https://api.fawtir.om/problems/payload-too-large',
+              status: 413,
+            }),
+            { status: 413, headers: { 'Content-Type': 'application/problem+json' } },
+          )
+        : before(url, init),
+    )
+  }
+
+  it('adds the others and still says which file was not added', async () => {
+    refuseBig()
+    uploads = [receipt('r-1')]
+    renderAt('/expenditure/bills/scan')
+    await pick([file('big.pdf'), file('small.pdf')])
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toMatch(/big\.pdf is too large.*smaller photo or PDF/)
+  })
+
+  it('says it from Add more as well', async () => {
+    refuseBig()
+    uploads = [receipt('r-1')]
+    renderAt('/expenditure/bills/scan')
+    await pick([file('small.pdf')])
+    await screen.findByText(new RegExp(i18n.t('scanReceipts.addMore')))
+    await pick([file('big.pdf')])
+    expect((await screen.findByRole('alert')).textContent).toMatch(/big\.pdf is too large/)
+  })
+})
+
 describe('scan receipts: a receipt stored earlier', () => {
   it('brings the receipts named in the link back into the pile, with what was typed', async () => {
     stored = {
@@ -203,6 +250,16 @@ describe('scan receipts: a receipt stored earlier', () => {
     renderAt('/expenditure/bills/scan?intake=gone')
     expect(await screen.findByText('Not found')).toBeTruthy()
     expect(screen.queryByText(/Receipt 1 of/)).toBeNull()
+  })
+})
+
+describe('scan receipts: the category', () => {
+  it('is not marked required, since a receipt may be saved with it not set', async () => {
+    stored = { 'r-1': typed('r-1', 'Nizwa Hardware Store', 28.4) }
+    renderAt('/expenditure/bills/scan?intake=r-1')
+    await screen.findByText('Receipt 1 of 1')
+    const label = screen.getAllByText('Category')[0].parentElement!
+    expect(label.textContent).not.toContain('*')
   })
 })
 
@@ -296,11 +353,22 @@ describe('scan receipts: a possible duplicate', () => {
         currencyCode: 'OMR',
         source,
       },
+      duplicates: [
+        {
+          billId: 'b-on-file',
+          supplierBillNumber: 'R-4471',
+          issueDate: '2026-09-12',
+          total: 28.4,
+          currencyCode: 'OMR',
+          source,
+        },
+      ],
     })
 
   it('names the bill on file, and saves only when told it is a different bill', async () => {
+    who = APPROVER
     stored = { 'r-1': typed('r-1', 'Nizwa Hardware Store', 28.4) }
-    confirmAnswers = [duplicateOf('SCANNED')]
+    confirmAnswers = [duplicateOf('SCANNED'), savedBill(false)]
     renderAt('/expenditure/bills/scan?intake=r-1')
     await screen.findByText('Receipt 1 of 1')
     fireEvent.click(screen.getByRole('button', { name: 'Save and next' }))
@@ -313,12 +381,69 @@ describe('scan receipts: a possible duplicate', () => {
     )
     expect(bodyOf(calls('POST', '/api/v1/bills/intake/r-1/confirm')[0]).notDuplicateOf).toBeNull()
 
+    fireEvent.change(screen.getByRole('textbox', { name: 'Why is this a different bill?' }), {
+      target: { value: 'Two visits' },
+    })
     fireEvent.click(screen.getByRole('button', { name: /It's a different bill/ }))
     await waitFor(() => expect(calls('POST', '/api/v1/bills/intake/r-1/confirm')).toHaveLength(2))
-    expect(bodyOf(calls('POST', '/api/v1/bills/intake/r-1/confirm')[1]).notDuplicateOf).toBe(
-      'b-on-file',
-    )
+    expect(bodyOf(calls('POST', '/api/v1/bills/intake/r-1/confirm')[1])).toMatchObject({
+      notDuplicateOf: null,
+      notDuplicateOfIds: ['b-on-file'],
+      overrideReason: 'Two visits',
+    })
     expect(await screen.findByText('Saved as a bill.')).toBeTruthy()
+  })
+
+  it('round 20 L-2: a submitted save says it waits for an independent approver, never that it is approved or paid', async () => {
+    // MANAGER records and pays but lacks invoice.approve.
+    stored = { 'r-1': typed('r-1', 'Nizwa Hardware Store', 28.4) }
+    confirmAnswers = [
+      json(409, {
+        type: 'https://api.fawtir.om/problems/resource-conflict',
+        error: 'BILL_INTAKE_POSSIBLE_DUPLICATE',
+        heldForReviewIfListed: true,
+        duplicateOf: {
+          billId: 'b-on-file',
+          supplierBillNumber: 'R-4471',
+          issueDate: '2026-09-12',
+          total: 28.4,
+          currencyCode: 'OMR',
+          source: 'PEPPOL',
+        },
+        duplicates: [
+          {
+            billId: 'b-on-file',
+            supplierBillNumber: 'R-4471',
+            issueDate: '2026-09-12',
+            total: 28.4,
+            currencyCode: 'OMR',
+            source: 'PEPPOL',
+          },
+        ],
+      }),
+      savedBill(true),
+    ]
+    renderAt('/expenditure/bills/scan?intake=r-1')
+    await screen.findByText('Receipt 1 of 1')
+    fireEvent.click(screen.getByRole('button', { name: 'Save and next' }))
+    await screen.findByText('This may be a bill you already have')
+    expect(screen.queryByRole('button', { name: /It's a different bill/ })).toBeNull()
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Why is this a different bill?' }), {
+      target: { value: 'Two visits' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit it for review' }))
+    await waitFor(() => expect(calls('POST', '/api/v1/bills/intake/r-1/confirm')).toHaveLength(2))
+    expect(bodyOf(calls('POST', '/api/v1/bills/intake/r-1/confirm')[1])).toMatchObject({
+      notDuplicateOfIds: ['b-on-file'],
+      overrideReason: 'Two visits',
+    })
+    expect(
+      await screen.findByText(
+        'Saved as a bill and held as a possible duplicate. It is waiting for an authorized invoice approver, other than the person who recorded it, to decide. It has not been approved or paid.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText('Saved as a bill.')).toBeNull()
   })
 
   it.each([
@@ -334,6 +459,111 @@ describe('scan receipts: a possible duplicate', () => {
     await screen.findByText('This may be a bill you already have')
     expect(screen.getByText(words)).toBeTruthy()
     expect(screen.queryByText(/billIntake\.duplicate/)).toBeNull()
+  })
+})
+
+describe('scan receipts: round 25 W-1, the saved message follows the server', () => {
+  const SAVED_HELD =
+    'Saved as a bill and held as a possible duplicate. It is waiting for an authorized invoice approver, other than the person who recorded it, to decide. It has not been approved or paid.'
+  const UNKNOWN = 'The bill was saved. Open it to see whether it is waiting for a decision.'
+  const save = async () => {
+    renderAt('/expenditure/bills/scan?intake=r-1')
+    await screen.findByText('Receipt 1 of 1')
+    fireEvent.click(screen.getByRole('button', { name: 'Save and next' }))
+  }
+
+  it('an automatic hold, with nothing listed or refused, says held', async () => {
+    stored = { 'r-1': typed('r-1', 'Nizwa Hardware Store', 28.4) }
+    confirmAnswers = [savedBill(true)]
+    await save()
+
+    expect(await screen.findByText(SAVED_HELD)).toBeTruthy()
+    expect(screen.queryByText('Saved as a bill.')).toBeNull()
+    expect(screen.queryByText(UNKNOWN)).toBeNull()
+    expect(calls('POST', '/api/v1/bills/intake/r-1/confirm')).toHaveLength(1)
+    const sent = bodyOf(calls('POST', '/api/v1/bills/intake/r-1/confirm')[0])
+    expect(sent.notDuplicateOfIds ?? null).toBeNull()
+    expect(sent.notDuplicateOf).toBeNull()
+  })
+
+  it('a bill the server did not hold says "Saved as a bill." and nothing about a hold', async () => {
+    stored = { 'r-1': typed('r-1', 'Nizwa Hardware Store', 28.4) }
+    confirmAnswers = [savedBill(false)]
+    await save()
+
+    expect(await screen.findByText('Saved as a bill.')).toBeTruthy()
+    expect(screen.queryByText(SAVED_HELD)).toBeNull()
+    expect(screen.queryByText(UNKNOWN)).toBeNull()
+  })
+
+  it('an older server that does not say makes no claim either way', async () => {
+    stored = { 'r-1': typed('r-1', 'Nizwa Hardware Store', 28.4) }
+    confirmAnswers = [json(201, { id: 'b-new', supplierBillNumber: 'X', totalIncludingVat: 1, currencyCode: 'OMR' })]
+    await save()
+
+    expect(await screen.findByText(UNKNOWN)).toBeTruthy()
+    expect(screen.queryByText('Saved as a bill.')).toBeNull()
+    expect(screen.queryByText(SAVED_HELD)).toBeNull()
+  })
+
+  it.each([['a string', 'true'], ['null', null]])(
+    'a held value that is %s is not taken for an answer',
+    async (_label, held) => {
+      stored = { 'r-1': typed('r-1', 'Nizwa Hardware Store', 28.4) }
+      confirmAnswers = [
+        json(201, { id: 'b-new', supplierBillNumber: 'X', totalIncludingVat: 1, currencyCode: 'OMR', held }),
+      ]
+      await save()
+
+      expect(await screen.findByText(UNKNOWN)).toBeTruthy()
+      expect(screen.queryByText(SAVED_HELD)).toBeNull()
+      expect(screen.queryByText('Saved as a bill.')).toBeNull()
+    },
+  )
+
+  it('a submission for review on an older server is not called held from what was sent', async () => {
+    stored = { 'r-1': typed('r-1', 'Nizwa Hardware Store', 28.4) }
+    const match = {
+      billId: 'b-on-file',
+      supplierBillNumber: 'R-4471',
+      issueDate: '2026-09-12',
+      total: 28.4,
+      currencyCode: 'OMR',
+      source: 'PEPPOL',
+    }
+    confirmAnswers = [
+      json(409, {
+        type: 'https://api.fawtir.om/problems/resource-conflict',
+        error: 'BILL_INTAKE_POSSIBLE_DUPLICATE',
+        heldForReviewIfListed: true,
+        duplicateOf: match,
+        duplicates: [match],
+      }),
+      json(201, { id: 'b-new', supplierBillNumber: 'R-4471', totalIncludingVat: 28.4, currencyCode: 'OMR' }),
+    ]
+    await save()
+    await screen.findByText('This may be a bill you already have')
+    fireEvent.change(screen.getByRole('textbox', { name: 'Why is this a different bill?' }), {
+      target: { value: 'Two visits' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit it for review' }))
+
+    expect(await screen.findByText(UNKNOWN)).toBeTruthy()
+    expect(screen.queryByText(SAVED_HELD)).toBeNull()
+    expect(screen.queryByText('Saved as a bill.')).toBeNull()
+  })
+
+  it('a refusal shows the refusal and no saved message of any kind', async () => {
+    stored = { 'r-1': typed('r-1', 'Nizwa Hardware Store', 28.4) }
+    confirmAnswers = [
+      json(400, { type: 'https://api.fawtir.om/problems/expenditure-refused', error: 'BILL_INTAKE_ALREADY_CONFIRMED' }),
+    ]
+    await save()
+
+    expect(await screen.findByText('This file was already saved as a bill.')).toBeTruthy()
+    expect(screen.queryByText('Saved as a bill.')).toBeNull()
+    expect(screen.queryByText(SAVED_HELD)).toBeNull()
+    expect(screen.queryByText(UNKNOWN)).toBeNull()
   })
 })
 
