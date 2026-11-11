@@ -304,12 +304,12 @@ function BillsScreen() {
   // server narrows the read, so the twenty it answers are twenty of the kind asked for.
   const draftSource =
     showing.source === 'UPLOADED' || showing.source === 'SCANNED' ? showing.source : null
-  const showDrafts =
-    (tab === 'needsAttention' || tab === 'all') &&
-    pageNumber === 1 &&
+  const draftsInScope =
     query === '' &&
     (showing.source === null || draftSource !== null) &&
     (known?.needsAttention.draft ?? 0) > 0
+  const showDrafts =
+    (tab === 'needsAttention' || tab === 'all') && pageNumber === 1 && draftsInScope
   const intakesPath = showDrafts ? unconfirmedIntakesPath(0, 20, draftSource) : null
   const intakes = useApiRead<IntakePageDto>(intakesPath, () => loadIntakes(intakesPath!))
 
@@ -457,6 +457,13 @@ function BillsScreen() {
     draftSource === null
       ? unconfirmed
       : unconfirmed.filter((intake) => intake.source === draftSource)
+  // The summary's draft figure counts uploads and receipts together, so under "Uploaded" or
+  // "Scanned" only the drafts this page read, already narrowed to that kind, can be counted.
+  const draftCount = !draftsInScope
+    ? 0
+    : draftSource === null
+      ? totals.needsAttention.draft
+      : drafts.length
   // The whole ledger's counts with no filter on, and when the filtered read fails.
   const tabs =
     countsPath === null || counts.read.status === 'failed'
@@ -506,7 +513,7 @@ function BillsScreen() {
                       : 'bg-primary-25 text-text-quaternary',
                   ].join(' ')}
                 >
-                  {count(billTabCount(tabs, entry.id))}
+                  {count(billTabCount(tabs, entry.id, draftCount))}
                 </span>
                 {active ? (
                   <span className="absolute inset-x-0 -bottom-px h-0.5 bg-primary-800" />

@@ -21503,6 +21503,7 @@
     "stale": "Someone else saved this draft after you opened it. Reload to see their version before saving.",
     "reload": "Reload",
     "fixFirst": "Some fields need attention before the draft can be saved.",
+    "fixFirstToIssue": "Some fields need attention before the invoice can be issued.",
     "serverRefused": "The server did not accept the draft.",
     "problem": {
       "customer": "Choose a customer.",

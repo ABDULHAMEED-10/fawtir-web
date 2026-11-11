@@ -1911,6 +1911,60 @@ describe("the note's preview paper names the seller and the buyer", () => {
   }, 30_000)
 })
 
+describe('an issued note neither downloads nor prints until PDFs are rendered (RC5 E2E D-03)', () => {
+  it.each([
+    ['CREDIT_NOTE', 'credit-notes', 'CRN-5'],
+    ['DEBIT_NOTE', 'debit-notes', 'DBN-5'],
+  ] as const)('%s: Download and Print are disabled', async (type, path, number) => {
+    const issuedNote: InvoiceDetailDto = {
+      ...INVOICE,
+      id: NOTE_ID,
+      type,
+      correctionOfInvoiceId: INVOICE_ID,
+      invoiceNumber: number,
+      lines: [line(1, 'Green beans', 1, 10)],
+    }
+    override = (url) => {
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}`) return json(200, issuedNote)
+      if (url.startsWith(`/api/v1/authored-invoices/${NOTE_ID}/`))
+        return json(
+          200,
+          url.endsWith('/history')
+            ? { entries: [], truncated: false, limit: 200 }
+            : url.endsWith('/internal-note')
+              ? { internalNote: null }
+              : url.endsWith('/receivable')
+                ? RECEIVABLE
+                : [],
+        )
+      return undefined
+    }
+    const print = vi.fn()
+    vi.stubGlobal('print', print)
+    render(
+      <MemoryRouter initialEntries={[`/income/${path}/${NOTE_ID}`]}>
+        <Routes>
+          <Route path={`/income/${path}/:id`} element={<SalesNoteDetailPage kind={type} />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('heading', { name: number })).toBeTruthy()
+    const unavailable = i18n.t('invoiceDetails.pdf.unavailable')
+    const buttons = [
+      ...screen.getAllByRole('button', { name: 'Download' }),
+      screen.getByRole('button', { name: 'Print' }),
+    ]
+    // The header's labelled button and the preview toolbar's icon button.
+    expect(buttons).toHaveLength(3)
+    for (const button of buttons) {
+      expect((button as HTMLButtonElement).disabled).toBe(true)
+      expect(button.getAttribute('title')).toBe(unavailable)
+      fireEvent.click(button)
+    }
+    expect(print).not.toHaveBeenCalled()
+  }, 30_000)
+})
+
 describe('"Back on the shelf?" on a credit note (V473)', () => {
   /** p-1 (Green beans) keeps a count; p-2 (Roasting) does not. */
   const products = (url: string) => {

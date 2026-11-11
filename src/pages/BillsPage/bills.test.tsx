@@ -1738,6 +1738,36 @@ describe('draft rows under the source filter', () => {
     },
   )
 
+  // RC5 E2E D-05: the server's tab counts are bills only, and the badge read 0 above the drafts.
+  it('counts the draft rows in the Needs attention and All badges', async () => {
+    withDrafts()
+    summaryResponse = () =>
+      json(200, {
+        ...SUMMARY,
+        needsAttention: { ...SUMMARY.needsAttention, draft: 2 },
+        tabs: { ...SUMMARY.tabs, needsAttention: 0, all: 0 },
+      })
+    listResponses = [() => json(200, itemsPage([], 0))]
+    renderBills()
+    expect(await screen.findByText('Nizwa Hardware Store')).toBeTruthy()
+    expect(screen.getAllByText('Draft, confirm details')).toHaveLength(2)
+    expect(badge(/^Needs attention/).textContent).toBe('2')
+    expect(badge(/^All/).textContent).toBe('2')
+    // The other tabs list no drafts.
+    expect(badge(/^Paid/).textContent).toBe('17')
+  })
+
+  it('counts only the uploads it draws under "Uploaded"', async () => {
+    withDrafts()
+    countsResponse = () =>
+      json(200, { ...SUMMARY, tabs: { ...SUMMARY.tabs, needsAttention: 1, all: 1 } })
+    renderBills('/expenditure/bills?source=uploaded')
+    expect(await screen.findByText('Nizwa Hardware Store')).toBeTruthy()
+    await screen.findByText('Qalhat Marine Supplies')
+    await waitFor(() => expect(badge(/^Needs attention/).textContent).toBe('2'), SLOW)
+    expect(badge(/^All/).textContent).toBe('2')
+  })
+
   it('says nothing matches, not that the ledger is empty, when only drafts exist and the filter hides them', async () => {
     withDrafts()
     summaryResponse = () =>
