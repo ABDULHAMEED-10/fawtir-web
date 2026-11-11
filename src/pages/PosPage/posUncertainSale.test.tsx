@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
-import { SAMPLE_SALE } from '../../lib/posTestSale'
+import { LULL_ACTIVE_RULE, SAMPLE_SALE } from '../../lib/posTestSale'
 import { PosPaymentPage } from './PosPaymentPage'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import {
@@ -104,6 +104,9 @@ beforeEach(async () => {
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
       if (url === '/api/v1/me/entitlements') return json(CASHIER)
+      if (url.startsWith('/api/v1/price-rules/active')) {
+        return json({ branchId: 'b-1', version: 'v1', items: [LULL_ACTIVE_RULE] })
+      }
       if (url === '/api/v1/branches') {
         return json([{ id: 'b-1', code: 'NZW', name: 'Nizwa', type: 'BRANCH', city: 'Nizwa' }])
       }
@@ -159,7 +162,7 @@ const getByRialText = (text: string) => {
 async function sendIntoUnknown(status: number) {
   replies.push(() => new Response('', { status }))
   const view = renderPayment()
-  fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
+  fireEvent.click(await screen.findByRole('button', { name: /Take 5.817 in cash/ }))
   fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
   expect(await screen.findByText(i18n.t('pos.pay.uncertain.title'))).toBeTruthy()
   return view
@@ -230,7 +233,7 @@ describe('a sale the server cannot issue with a QR (STUCK-QR)', () => {
       json({ type: 'about:blank', status: 422, code: 'POS_SALE_QR_UNAVAILABLE_FOR_BUYER' }, 422),
     )
     renderPayment()
-    fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Take 5.817 in cash/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
     // RW6-5: the cash taken is handed back; "nothing was charged" is kept for when nothing was.
     expect(
@@ -514,10 +517,10 @@ describe('what a held sale keeps in clear (RBW2-2)', () => {
     expect(screen.queryByRole('button', { name: i18n.t('pos.pay.uncertain.retry') })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Finish the sale' })).toBeNull()
     // RBW3-1, RBW3-1b: the sale's total, day and time are shown in clear, to find it on Today.
-    getByRialText('This sale: OMR\u00A05.649, rung on 6 Nov 2026 at 01:30.')
+    getByRialText('This sale: OMR\u00A05.817, rung on 6 Nov 2026 at 01:30.')
     expect(screen.queryByText(/OMR\s+OMR/)).toBeNull()
     expect(JSON.parse(window.sessionStorage.getItem(HELD)!).summary).toMatchObject({
-      total: 5.649,
+      total: 5.817,
       currency: 'OMR',
       soldAt: JSON.parse(posts[0].body).soldAt,
     })
@@ -577,7 +580,7 @@ describe('a lock-only hold decided by the server (RESEND-AUTH)', () => {
     cleanup()
     act(() => setSaleLines(SAMPLE_SALE))
     renderPayment()
-    fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Take 5.817 in cash/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
     expect(await screen.findByText('done NZW-T01-INV-2026-000049')).toBeTruthy()
     expect(posts).toHaveLength(2)
@@ -968,11 +971,11 @@ describe('a held sale stays with its till (RBW2-4)', () => {
     expect(await screen.findByText(i18n.t('pos.pay.uncertain.otherTill', { till: 'Till A' }))).toBeTruthy()
     expect(screen.getByText(/^lines /).textContent).toBe('lines 0 discount 0')
     act(() => setSaleLines(SAMPLE_SALE))
-    expect(await screen.findByRole('button', { name: /Take 5.649 in cash/ })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: /Take 5.817 in cash/ })).toBeTruthy()
     expect(screen.queryByText(i18n.t('pos.pay.uncertain.title'))).toBeNull()
     expect(screen.getByText(i18n.t('pos.pay.uncertain.otherTill', { till: 'Till A' }))).toBeTruthy()
     // Till 1 sells its own basket; nothing of till A's is sent.
-    fireEvent.click(screen.getByRole('button', { name: /Take 5.649 in cash/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Take 5.817 in cash/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
     expect(await screen.findByText('done NZW-T01-INV-2026-000049')).toBeTruthy()
     expect(posts.map((post) => post.key)).not.toContain('pos-sale-key-till-a')

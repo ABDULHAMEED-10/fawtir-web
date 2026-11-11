@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import i18n from '../../i18n'
-import { SAMPLE_SALE } from '../../lib/posTestSale'
+import { LULL_ACTIVE_RULE, SAMPLE_SALE } from '../../lib/posTestSale'
+import { resetPriceRuleCache } from '../../lib/posPriceRules'
 import { PosSalePanel } from './PosSalePanel'
 import { PosPaymentPage } from './PosPaymentPage'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -93,12 +94,12 @@ describe('the sale panel', () => {
       </MemoryRouter>,
     )
     expect(screen.getByText('VAT 5%')).toBeTruthy()
-    expect(screen.getByText('5.649')).toBeTruthy()
+    expect(screen.getByText('5.817')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /Discount/ }))
     fireEvent.change(screen.getByLabelText('Discount'), { target: { value: '10' } })
     expect(screen.getByText('Discount on the sale')).toBeTruthy()
-    expect(screen.getByText('−0.538')).toBeTruthy()
-    expect(screen.getByText('5.084')).toBeTruthy()
+    expect(screen.getByText('−0.554')).toBeTruthy()
+    expect(screen.getByText('5.235')).toBeTruthy()
   })
 
   it('names the size and the add-ons the catalogue gave the line', () => {
@@ -125,6 +126,7 @@ describe('the sale panel', () => {
 describe('taking the payment (P.12)', () => {
   let calls: { url: string; init?: RequestInit }[]
   let saleReply: () => Response
+  let activeRules: unknown
   /** The till list the server answers; a test swaps it to give the till another zone. */
   let tillsReply: () => Response
 
@@ -132,6 +134,8 @@ describe('taking the payment (P.12)', () => {
     await i18n.changeLanguage('en')
     resetOpenSale(SAMPLE_SALE)
     resetPosQueue()
+    resetPriceRuleCache()
+    activeRules = { branchId: 'b-1', version: 'v1', items: [LULL_ACTIVE_RULE] }
     // The person signed in on this device: only the sales they queue go by themselves (round 5, P3b).
     noteQueueSender('u-1')
     resetSharedRequests()
@@ -161,6 +165,7 @@ describe('taking the payment (P.12)', () => {
         }
         if (url === '/api/v1/pos/tills/till-1') return json({ ...TILL, qrProfile: QR_PROFILE })
         if (url.startsWith('/api/v1/pos/tills')) return tillsReply()
+        if (url.startsWith('/api/v1/price-rules/active')) return json(activeRules)
         if (url === '/api/v1/pos/sales' && init?.method === 'POST') return saleReply()
         return new Response('', { status: 404 })
       }),
@@ -183,9 +188,9 @@ describe('taking the payment (P.12)', () => {
     setSaleDiscount({ type: 'PERCENTAGE', value: '10' })
     renderPayment()
     expect(await screen.findByText('Discount on the sale')).toBeTruthy()
-    expect(screen.getByText('−0.538')).toBeTruthy()
-    // The sale (5.084); no tip unless the customer asks for one.
-    expect(screen.getAllByText('5.084').length).toBeGreaterThan(0)
+    expect(screen.getByText('−0.554')).toBeTruthy()
+    // The sale (5.235); no tip unless the customer asks for one.
+    expect(screen.getAllByText('5.235').length).toBeGreaterThan(0)
   })
 
   // Owner decision XT2-ZONE-UNREADABLE (2026-11-05 item 4, Option A); Agent 10 test gap 1 on 346d0d06c.
@@ -200,7 +205,7 @@ describe('taking the payment (P.12)', () => {
     tillsReply = () => json([withZone(reads++ === 0 ? 'Not/AZone' : 'Asia/Muscat')])
     renderPayment()
     fireEvent.change(await screen.findByLabelText('Cash handed over'), { target: { value: '10' } })
-    fireEvent.click(screen.getByRole('button', { name: /Take 5.649 in cash/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Take 5.817 in cash/ }))
     const before = tillReads()
     fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
 
@@ -225,7 +230,7 @@ describe('taking the payment (P.12)', () => {
   it('sends the sale once, with its key, its catalogue lines and the cash handed over', async () => {
     renderPayment()
     fireEvent.change(await screen.findByLabelText('Cash handed over'), { target: { value: '10' } })
-    fireEvent.click(screen.getByRole('button', { name: /Take 5.649 in cash/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Take 5.817 in cash/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
     expect(await screen.findByText('done NZW-T01-INV-2026-000049')).toBeTruthy()
 
@@ -239,7 +244,7 @@ describe('taking the payment (P.12)', () => {
       queuedOffline: false,
       invoiceNumber: null,
       customer: { kind: 'WALK_IN' },
-      payments: [{ method: 'CASH', amount: 5.649, tendered: 10 }],
+      payments: [{ method: 'CASH', amount: 5.817, tendered: 10 }],
       tip: null,
       draft: { branchId: 'b-1', vatMode: 'EXCLUSIVE', details: { transactionType: 'SIMPLIFIED' } },
     })
@@ -255,7 +260,7 @@ describe('taking the payment (P.12)', () => {
       json([{ ...TILL, series: { CREDIT_NOTE: { series: 'NZW-T01-CRN', year: 2026, nextValue: 3 } } }])
     renderPayment()
     fireEvent.change(await screen.findByLabelText('Cash handed over'), { target: { value: '10' } })
-    fireEvent.click(screen.getByRole('button', { name: /Take 5.649 in cash/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Take 5.817 in cash/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
     expect(await screen.findByText('done NZW-T01-INV-2026-000049')).toBeTruthy()
 
@@ -275,7 +280,7 @@ describe('taking the payment (P.12)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
     await screen.findByText(/^done/)
     const body = JSON.parse(String(calls.find((c) => c.url === '/api/v1/pos/sales')?.init?.body))
-    expect(body.payments).toEqual([{ method: 'CARD', amount: 5.649, cardApprovalCode: '898498' }])
+    expect(body.payments).toEqual([{ method: 'CARD', amount: 5.817, cardApprovalCode: '898498' }])
   })
 
   it('at the document limit, says so without calling it monthly, and tells a cashier who can help', async () => {
@@ -346,7 +351,7 @@ describe('taking the payment (P.12)', () => {
         422,
       )
     renderPayment()
-    fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Take 5.817 in cash/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
     expect(await screen.findByRole('button', { name: 'Make it a full invoice' })).toBeTruthy()
 
@@ -393,7 +398,7 @@ describe('taking the payment (P.12)', () => {
       throw new TypeError('Failed to fetch')
     }
     renderPayment()
-    fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Take 5.817 in cash/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
     expect(await screen.findByText('done NZW-T01-INV-2026-000049')).toBeTruthy()
     await waitFor(() => {
@@ -405,12 +410,76 @@ describe('taking the payment (P.12)', () => {
     })
   })
 
+  const mismatch = (amount: number, ruleId: string) =>
+    json(
+      {
+        type: 'https://api.fawtir.om/problems/validation-failed',
+        status: 422,
+        code: 'POS_PRICE_RULE_MISMATCH',
+        line: 4,
+        expectedDiscount: {
+          type: 'PERCENTAGE',
+          value: (amount / 1.2) * 100,
+          amount,
+        },
+        ruleIds: [ruleId],
+      },
+      422,
+    )
+
+  it("sends each caught line's rule, and adopts the server's rule and sends once more", async () => {
+    let first = true
+    const filed = saleReply
+    saleReply = () => {
+      if (!first) return filed()
+      first = false
+      // The server gives the Cortado another rule at the same saving: the total is unchanged.
+      return mismatch(0.24, 'rule-lull-v2')
+    }
+    renderPayment()
+    fireEvent.click(await screen.findByRole('button', { name: /Take 5.817 in cash/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+    expect(await screen.findByText('done NZW-T01-INV-2026-000049')).toBeTruthy()
+
+    const sent = calls.filter((call) => call.url === '/api/v1/pos/sales')
+    expect(sent).toHaveLength(2)
+    const [before, after] = sent.map((call) => JSON.parse(String(call.init?.body)))
+    expect(before.lineRefs.map((ref: { priceRuleIds: string[] }) => ref.priceRuleIds)).toEqual([
+      ['rule-lull'],
+      [],
+      [],
+      ['rule-lull'],
+      [],
+    ])
+    expect(before.draft.lines[0].discount).toEqual({
+      type: 'PERCENTAGE',
+      value: 20,
+    })
+    expect(after.lineRefs[3].priceRuleIds).toEqual(['rule-lull-v2'])
+    // The rules are read again after the refusal.
+    expect(calls.filter((call) => call.url.startsWith('/api/v1/price-rules/active')).length).toBe(2)
+  })
+
+  it('stops with the new total when the server gives another amount, sending only once', async () => {
+    saleReply = () => mismatch(0.36, 'rule-lull')
+    renderPayment()
+    fireEvent.click(await screen.findByRole('button', { name: /Take 5.817 in cash/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
+    expect(
+      await screen.findByText(
+        'The price rules changed this sale. The new total is on the screen: check the payment and finish again.',
+      ),
+    ).toBeTruthy()
+    expect(calls.filter((call) => call.url === '/api/v1/pos/sales')).toHaveLength(1)
+  })
+
   async function sellOffline(detail: unknown) {
     const answer = (url: string) => (url === '/api/v1/pos/tills/till-1' ? json(detail) : json([TILL]))
     vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
       calls.push({ url, init })
       if (url === '/api/v1/me/entitlements') return json(CASHIER)
+      if (url.startsWith('/api/v1/price-rules/active')) return json(activeRules)
       if (url === '/api/v1/branches') {
         return json([{ id: 'b-1', code: 'NZW', name: 'Nizwa', type: 'BRANCH', city: 'Nizwa' }])
       }
@@ -419,7 +488,7 @@ describe('taking the payment (P.12)', () => {
       return new Response('', { status: 404 })
     })
     renderPayment()
-    fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Take 5.817 in cash/ }))
     await waitFor(() =>
       expect(calls.some((call) => call.url === '/api/v1/pos/tills/till-1')).toBe(true),
     )
@@ -474,6 +543,7 @@ describe('taking the payment (P.12)', () => {
       const url = String(input)
       calls.push({ url, init })
       if (url === '/api/v1/me/entitlements') return json(CASHIER)
+      if (url.startsWith('/api/v1/price-rules/active')) return json(activeRules)
       if (url === '/api/v1/branches') {
         return json([{ id: 'b-1', code: 'NZW', name: 'Nizwa', type: 'BRANCH', city: 'Nizwa' }])
       }
@@ -486,7 +556,7 @@ describe('taking the payment (P.12)', () => {
       return new Response('', { status: 404 })
     })
     renderPayment()
-    fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Take 5.817 in cash/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
     expect(await screen.findByText(i18n.t('pos.refusal.offlineQrUnavailableAfterSend'))).toBeTruthy()
     up = true
@@ -507,6 +577,7 @@ describe('taking the payment (P.12)', () => {
       const url = String(input)
       calls.push({ url, init })
       if (url === '/api/v1/me/entitlements') return json(CASHIER)
+      if (url.startsWith('/api/v1/price-rules/active')) return json(activeRules)
       if (url === '/api/v1/branches') {
         return json([{ id: 'b-1', code: 'NZW', name: 'Nizwa', type: 'BRANCH', city: 'Nizwa' }])
       }
@@ -521,7 +592,7 @@ describe('taking the payment (P.12)', () => {
       return new Response('', { status: 404 })
     })
     renderPayment()
-    fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Take 5.817 in cash/ }))
     await waitFor(() => expect(answerDetail).not.toBeNull())
     fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
     expect(screen.queryByText(/^done/)).toBeNull()

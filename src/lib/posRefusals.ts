@@ -124,6 +124,8 @@ const WORDED = new Set([
   'POS_REFUND_KEY_REUSED',
   'POS_REFUND_NOTHING_TO_PAY_BACK',
   'POS_SLIP_INVALID',
+  'POS_PRICE_RULE_MISMATCH',
+  'PRICE_RULE_STACKING_NOT_AVAILABLE',
   'DISCOUNT_ABOVE_LIMIT',
   'HS_CODE_REQUIRED',
   // Backend 8f04050ab (IBR-078-OM): an online full invoice with a line stating neither goods nor

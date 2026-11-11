@@ -57,7 +57,10 @@ export function posInvoiceRequest(reference: ReferenceDataDto | null, sale: PosS
   }
 }
 
-/** One per catalogue line: ITEM lines move stock, ADD_ON lines never do. */
+/**
+ * One per catalogue line: ITEM lines move stock, ADD_ON lines never do. A line a price rule
+ * caught names it (`priceRuleIds`, at most one); the server works it out again at `soldAt`.
+ */
 export function posLineRefs(lines: SaleLine[]): PosLineRef[] {
   return invoiceLinesFor(lines).map((line, index) => ({
     lineNumber: index + 1,
@@ -65,6 +68,7 @@ export function posLineRefs(lines: SaleLine[]): PosLineRef[] {
     productId: line.ref.productId,
     variantId: line.ref.variantId,
     addOnId: line.ref.addOnId,
+    priceRuleIds: line.ref.priceRuleId ? [line.ref.priceRuleId] : [],
   }))
 }
 

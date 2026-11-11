@@ -119,7 +119,7 @@ async function buyerForm() {
       </Routes>
     </MemoryRouter>,
   )
-  fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
+  fireEvent.click(await screen.findByRole('button', { name: /Take 5.817 in cash/ }))
   fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
   await screen.findByRole('button', { name: 'Make it a full invoice' })
   fireEvent.change(screen.getByLabelText("Buyer's name"), { target: { value: 'Hamed Al Rawahi' } })
@@ -388,7 +388,7 @@ describe('a named full tax sale is checked before payment (STUCKQR-1)', () => {
 
   it('leaves a walk-in sale under the limit as it was: no buyer asked, payment open', async () => {
     renderPayment()
-    expect((await screen.findByRole('button', { name: /Take 5.649 in cash/ }) as HTMLButtonElement).disabled).toBe(false)
+    expect((await screen.findByRole('button', { name: /Take 5.817 in cash/ }) as HTMLButtonElement).disabled).toBe(false)
     expect(screen.queryByLabelText("Buyer's name")).toBeNull()
     expect(screen.queryByText(i18n.t('pos.buyer.firstNeeded'))).toBeNull()
   })
@@ -409,7 +409,7 @@ describe('a QR refusal after a card was taken (STUCKQR-2)', () => {
       </MemoryRouter>,
     )
     fireEvent.click(await screen.findByRole('button', { name: /^Card/ }))
-    fireEvent.click(screen.getByRole('button', { name: /^Paid · 5\.649/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Paid · 5\.817/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
     const said = await screen.findByText(/Refund the card on the terminal/)
     expect(said.textContent).toBe(saidFor('pos.refusal.qrUnavailableTaken', 'pos.refusal.qrGiveBack.card'))
@@ -426,7 +426,7 @@ describe('a QR refusal after a card was taken (STUCKQR-2)', () => {
         </Routes>
       </MemoryRouter>,
     )
-    fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Take 5.817 in cash/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
     expect(
       await screen.findByText(saidFor('pos.refusal.qrUnavailableTaken', 'pos.refusal.qrGiveBack.cash')),
@@ -446,7 +446,7 @@ describe('a QR refusal after a card was taken (STUCKQR-2)', () => {
       </MemoryRouter>,
     )
     fireEvent.click(await screen.findByRole('button', { name: /^Bank transfer/ }))
-    fireEvent.click(screen.getByRole('button', { name: /^Paid · 5\.649/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Paid · 5\.817/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
     const said = await screen.findByText(/Return the bank transfer/)
     expect(said.textContent).toBe(saidFor('pos.refusal.qrUnavailableTaken', 'pos.refusal.qrGiveBack.transfer'))

@@ -4,6 +4,7 @@ import { TillMoneyInput } from './TillMoneyInput'
 import {
   holdUncertainSale,
   setFinishedSale,
+  setSaleLines,
   settleHeldKey,
   settleUncertainSale,
   startNewSale,
@@ -28,7 +29,19 @@ import {
   PencilIcon,
   ShieldIcon,
 } from './posIcons'
-import { VAT_RATE, omr, omrSigned, totalsFor, unitPrice, LULL, toBaisa, toRials } from '../../lib/pos'
+import {
+  VAT_RATE,
+  omr,
+  omrSigned,
+  discountRowNamesRules,
+  ruleNames,
+  totalsFor,
+  unitPrice,
+  toBaisa,
+  toRials,
+  type SaleLine,
+} from '../../lib/pos'
+import { adoptRuleMismatch, refreshActiveRules, useTillPriceRules } from '../../lib/posPriceRules'
 import {
   METHODS,
   TIP_CHOICES,
@@ -169,6 +182,8 @@ function Payment({ till }: { till: Ready }) {
   // The sale and its discount as the sale screen left them.
   const { lines, saleDiscount, company } = useOpenSale()
   const totals = totalsFor(lines, saleDiscount)
+  // The branch's price rules keep pricing the sale here too: a time rule can open or close.
+  useTillPriceRules(till.branchId, company?.id ?? null)
 
   // No tip is added until the customer asks for one.
   const [tipChoice, setTipChoice] = useState<TipChoice>('none')
@@ -272,9 +287,9 @@ function Payment({ till }: { till: Ready }) {
   /**
    * Sends the sale and shows its receipt, or says why not. An answer that leaves the outcome
    * unknown holds the sale exactly as sent (E-01): the screen then offers only the same sale again,
-   * under the same key, or today's sales, until an answer is definite.
+   * under the same key, or today's sales, until an answer is definite. Returns the refusal, if any.
    */
-  const send = async (held: NewHold) => {
+  const send = async (held: NewHold): Promise<unknown> => {
     const sending = held.send
     try {
       const qrProfile = await qrProfileNow()
@@ -304,6 +319,7 @@ function Payment({ till }: { till: Ready }) {
       attempt.current = null
       till.retry()
       navigate('/pos/done')
+      return null
     } catch (error) {
       setRefusal(error)
       if (saleOutcomeUncertain(error)) holdUncertainSale(held)
@@ -321,11 +337,15 @@ function Payment({ till }: { till: Ready }) {
       // by Finish; the next Finish is a new sale with a new key, and the sentence says to check the
       // terminal first.
       if (code === 'POS_SALE_KEY_ABANDONED') attempt.current = null
+      return error
     }
   }
 
-  const finish = async (named = false) => {
+  /** `adopted`: the lines priced as the server said, sent once more after its refusal. */
+  const finish = async (named = false, adopted?: SaleLine[]) => {
     if (busy || uncertain) return
+    const saleLines = adopted ?? lines
+    const saleTotals = adopted ? totalsFor(saleLines, saleDiscount) : totals
     setBusy(true)
     setRefusal(null)
     const { payments, tip: tipPart, slipPhotos } = paymentsRequest(taken, tip)
@@ -334,7 +354,7 @@ function Payment({ till }: { till: Ready }) {
       queuedOffline: false,
       invoiceNumber: null,
       ...posSaleBody(reference, {
-        lines,
+        lines: saleLines,
         saleDiscount,
         branchId: till.branchId,
         buyer: buyerOf(named),
@@ -347,7 +367,7 @@ function Payment({ till }: { till: Ready }) {
       attempt.current = { fingerprint, key: newPosKey('sale'), soldAt: new Date().toISOString() }
     }
     try {
-      await send({
+      const refused = await send({
         tenantId: till.tenantId ?? null,
         tillId: till.till.id,
         shiftId: till.till.openShift?.shiftId ?? null,
@@ -358,9 +378,9 @@ function Payment({ till }: { till: Ready }) {
           slipPhotos,
           // What the receipt prints, signed with a queued sale (V530 `printed`).
           printed: {
-            taxable: toRials(totals.beforeVat),
-            vat: toRials(totals.vat),
-            total: toRials(totals.sale),
+            taxable: toRials(saleTotals.beforeVat),
+            vat: toRials(saleTotals.vat),
+            total: toRials(saleTotals.sale),
           },
           // Kept on this device only, so only this person's session sends it by itself (P3b).
           maker: till.userId
@@ -370,8 +390,8 @@ function Payment({ till }: { till: Ready }) {
               }
             : null,
           receipt: {
-            lines,
-            totals,
+            lines: saleLines,
+            totals: saleTotals,
             tip,
             change,
             company,
@@ -391,6 +411,24 @@ function Payment({ till }: { till: Ready }) {
           },
         },
       })
+      // The server's rules priced a line otherwise (a stale cache): its figure goes on the line and
+      // the rules are read again. A definite refusal only, so nothing is recorded under the key.
+      // Sent once more by itself, as a new sale with a new key, only when the total is unchanged;
+      // otherwise the cashier sees the new total against what was taken (P.12).
+      const repriced =
+        refused && !adopted && refusesTheSale(refused)
+          ? adoptRuleMismatch(saleLines, refused, {
+              branchId: till.branchId,
+              customerId: company?.id ?? null,
+            })
+          : null
+      if (repriced) {
+        setSaleLines(repriced)
+        void refreshActiveRules(till.branchId)
+        if (totalsFor(repriced, saleDiscount).sale === totals.sale) {
+          await finish(named, repriced)
+        }
+      }
     } finally {
       setBusy(false)
     }
@@ -970,8 +1008,8 @@ function Payment({ till }: { till: Ready }) {
             {totals.discount > 0 ? (
               <Row
                 label={
-                  lines.some((line) => line.rulePercent)
-                    ? t('pos.totals.lull', { percent: LULL.percent })
+                  discountRowNamesRules(lines)
+                    ? t('pos.totals.rule', { names: ruleNames(lines) })
                     : t('pos.totals.lineDiscounts')
                 }
                 value={omrSigned(-totals.discount)}

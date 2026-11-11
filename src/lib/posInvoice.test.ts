@@ -8,13 +8,15 @@ import { choicesOf } from './posShelf'
 import type { ProductDto } from '../api/catalog/products'
 
 describe('the till sale as invoice lines (owner, 21 Oct 2026)', () => {
-  it("keeps the design's figures: 6.500 of items, 1.120 off drinks, 0.269 VAT, 5.649 to pay", () => {
+  // A price rule prices the item line only, never its add-ons (server, PR #796): the design's
+  // 1.120 off took 20% off the add-ons too, so the rule takes 0.960 off here.
+  it('works the figures out: 6.500 of items, 0.960 off drinks, 0.277 VAT, 5.817 to pay', () => {
     expect(totalsFor(SAMPLE_SALE)).toMatchObject({
       items: 6500,
-      discount: 1120,
+      discount: 960,
       saleDiscount: 0,
-      vat: 269,
-      sale: 5649,
+      vat: 277,
+      sale: 5817,
       vatRates: [5],
     })
   })
@@ -25,8 +27,8 @@ describe('the till sale as invoice lines (owner, 21 Oct 2026)', () => {
       lines.map((l) => [l.description, l.quantity, l.unitPrice, l.discountValue, l.taxCode]),
     ).toEqual([
       ['Flat White · Large', '2', '1.800', '20', 'S5'],
-      ['Flat White: + extra shot', '2', '0.300', '20', 'S5'],
-      ['Flat White: + oat milk', '2', '0.100', '20', 'S5'],
+      ['Flat White: + extra shot', '2', '0.300', '0', 'S5'],
+      ['Flat White: + oat milk', '2', '0.100', '0', 'S5'],
       ['Cortado', '1', '1.200', '20', 'S5'],
       ['Date & walnut slice', '1', '0.900', '0', 'S5'],
     ])
@@ -35,10 +37,10 @@ describe('the till sale as invoice lines (owner, 21 Oct 2026)', () => {
 
   it('takes a discount on the whole sale after the rule, before VAT', () => {
     const totals = totalsFor(SAMPLE_SALE, { type: 'PERCENTAGE', value: '10' })
-    expect(totals.saleDiscount).toBe(538)
-    expect(totals.beforeVat).toBe(4842)
-    expect(totals.vat).toBe(242)
-    expect(totals.sale).toBe(5084)
+    expect(totals.saleDiscount).toBe(554)
+    expect(totals.beforeVat).toBe(4986)
+    expect(totals.vat).toBe(249)
+    expect(totals.sale).toBe(5235)
   })
 
   it("files a walk-in as a simplified invoice through the composer's own request", () => {
@@ -82,13 +84,21 @@ describe('the till sale as invoice lines (owner, 21 Oct 2026)', () => {
 })
 
 describe('POST /v1/pos/sales (P.12)', () => {
-  it('names every catalogue line: items with their size, priced add-ons with their add-on', () => {
+  it('names every catalogue line, and the price rule on each item line it caught', () => {
+    const ref = (
+      lineNumber: number,
+      role: 'ITEM' | 'ADD_ON',
+      productId: string,
+      variantId: string | null,
+      addOnId: string | null,
+      priceRuleIds: string[],
+    ) => ({ lineNumber, role, productId, variantId, addOnId, priceRuleIds })
     expect(posLineRefs(SAMPLE_SALE)).toEqual([
-      { lineNumber: 1, role: 'ITEM', productId: 'p-flat', variantId: 'v-large', addOnId: null },
-      { lineNumber: 2, role: 'ADD_ON', productId: 'p-flat', variantId: null, addOnId: 'a-shot' },
-      { lineNumber: 3, role: 'ADD_ON', productId: 'p-flat', variantId: null, addOnId: 'a-oat' },
-      { lineNumber: 4, role: 'ITEM', productId: 'p-cortado', variantId: null, addOnId: null },
-      { lineNumber: 5, role: 'ITEM', productId: 'p-slice', variantId: null, addOnId: null },
+      ref(1, 'ITEM', 'p-flat', 'v-large', null, ['rule-lull']),
+      ref(2, 'ADD_ON', 'p-flat', null, 'a-shot', []),
+      ref(3, 'ADD_ON', 'p-flat', null, 'a-oat', []),
+      ref(4, 'ITEM', 'p-cortado', null, null, ['rule-lull']),
+      ref(5, 'ITEM', 'p-slice', null, null, []),
     ])
   })
 

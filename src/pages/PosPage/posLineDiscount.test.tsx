@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { useState } from 'react'
 import i18n from '../../i18n'
 import { PosSalePanel } from './PosSalePanel'
-import { invoiceLinesFor, totalsFor, type SaleLine } from '../../lib/pos'
+import { invoiceLinesFor, ruleApplies, ruleNames, ruleSaving, totalsFor, type SaleLine } from '../../lib/pos'
 import { discountBreach } from '../../lib/posDiscountLimit'
 import { onlyGivenAway, refundRequest } from '../../lib/posRefund'
 import { posRefusalKey, refusalValues } from '../../lib/posRefusals'
@@ -40,6 +40,13 @@ const line = (patch: Partial<SaleLine> = {}): SaleLine =>
   }) as SaleLine
 
 const NONE = { type: 'PERCENTAGE' as const, value: '' }
+const RULE = {
+  id: 'rule-1',
+  name: 'Lull',
+  discountType: 'PERCENTAGE' as const,
+  discountValue: '20',
+  saving: 400,
+}
 
 function Panel({ start }: { start: SaleLine[] }) {
   const [lines, setLines] = useState(start)
@@ -52,12 +59,19 @@ function Panel({ start }: { start: SaleLine[] }) {
 
 describe('a typed line discount', () => {
   it('replaces the rule and the catalogue discount; blank brings them back', () => {
-    const ruled = line({ rulePercent: 20, lineDiscount: { type: 'PERCENTAGE', value: '5' } })
-    expect(invoiceLinesFor([ruled])[0].discountValue).toBe('5')
-    expect(
-      invoiceLinesFor([{ ...ruled, lineDiscount: { type: 'PERCENTAGE', value: '' } }])[0]
-        .discountValue,
-    ).toBe('20')
+    const ruled = line({ priceRule: RULE, lineDiscount: { type: 'PERCENTAGE', value: '5' } })
+    const [typedLine] = invoiceLinesFor([ruled])
+    expect(typedLine.discountValue).toBe('5')
+    // The server reads a discount naming no rule as typed, so the rule's id must not go with it.
+    expect((typedLine.ref as { priceRuleId?: string | null }).priceRuleId).toBeNull()
+    expect(ruleApplies(ruled)).toBe(false)
+    expect(ruleNames([ruled])).toBe('')
+    expect(ruleSaving([ruled])).toBe(0)
+    const blank = { ...ruled, lineDiscount: { type: 'PERCENTAGE' as const, value: '' } }
+    const [ruleLine] = invoiceLinesFor([blank])
+    expect(ruleLine.discountValue).toBe('20')
+    expect((ruleLine.ref as { priceRuleId?: string | null }).priceRuleId).toBe('rule-1')
+    expect(ruleSaving([blank])).toBe(400)
   })
 
   it('a percentage runs through the add-ons; an amount comes off the item once', () => {
@@ -115,7 +129,7 @@ describe('the limit, as the server judges it', () => {
   })
 
   it("does not count a rule's or the catalogue's discount", () => {
-    expect(discountBreach([line({ rulePercent: 20 })], NONE, 10)).toBeNull()
+    expect(discountBreach([line({ priceRule: RULE })], NONE, 10)).toBeNull()
     expect(discountBreach([line({ discountValue: '15' })], NONE, 10)).toBeNull()
   })
 

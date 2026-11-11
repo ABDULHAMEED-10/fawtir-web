@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { setSaleLines, useOpenSale, useUncertainSale } from '../../lib/posSale'
+import { useTillPriceRules } from '../../lib/posPriceRules'
 import { Trans, useTranslation } from 'react-i18next'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
@@ -227,6 +228,8 @@ function Shelf({
   const [startSize, setStartSize] = useState<SizeChoice | null>(null)
   // The open sale is shared with the payment and receipt screens (src/lib/posSale.ts).
   const { lines, company } = useOpenSale()
+  // The branch's price rules, applied to the lines as they go on (row P.26).
+  useTillPriceRules(branchId, company?.id ?? null)
 
   const path = productListPath({
     branchId,

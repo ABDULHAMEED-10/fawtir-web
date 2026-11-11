@@ -19,6 +19,9 @@ import { taxCategoryOf } from './productLine'
 export type CustomerKind = 'business' | 'consumer' | 'government'
 export type ItemType = 'goods' | 'service'
 
+/** A size or option a line's product sells: its price in baisa, before VAT, in the branch. */
+export type LineSize = { id: string; code: string; label: string; price: number }
+
 export type DraftLine = {
   /** Local key only; the server numbers lines 1..n in their order. */
   id: string
@@ -48,6 +51,11 @@ export type DraftLine = {
   quantity: string
   unit: string
   /**
+   * The bundle this line is one part of, when the bundle's parts differ in VAT
+   * (`GET /v1/bundles/{id}/invoice-lines`): sent back so the bundles report counts the line.
+   */
+  bundleId?: string | null
+  /**
    * The unit a counted product (`keepCount`) keeps its stock in, set when that product filled the
    * line. While set the unit is fixed to it: a line in another unit moves no stock and the issue
    * warns `STOCK_UNIT_MISMATCH` (Abdul, 28 Oct 2026). Client only, never sent; a typed line and an
@@ -56,6 +64,28 @@ export type DraftLine = {
   countedUnit?: string
   discountType: DiscountType
   discountValue: string
+  /**
+   * The price rule the line's discount comes from (`POST /v1/price-rules/evaluate` suggested it),
+   * sent as `priceRuleIds` (at most one). Absent on a typed discount: the server never adds one.
+   */
+  priceRuleId?: string | null
+  /** The rule's name, for the note under the line. Client only. */
+  priceRuleName?: string
+  /** The person removed the suggestion or typed their own discount: none is suggested again. */
+  priceRuleOff?: boolean
+  /** The product's own discount, which the line goes back to when a rule is removed. Client only. */
+  productDiscount?: { type: DiscountType; value: string }
+  /**
+   * The person typed this discount: theirs, so it stays when the line's item changes and no rule
+   * replaces it. A rule's or the product's own discount goes with the item. Client only.
+   */
+  typedDiscount?: boolean
+  /** The size or option the line sells (its `productCode` names it to the server). Client only. */
+  variantId?: string | null
+  /** The product's sizes on sale: undefined until read, empty for one without. Client only. */
+  sizes?: LineSize[]
+  /** Just picked from the catalogue: a size is chosen once the sizes are read. Client only. */
+  pickSize?: boolean
 }
 
 export type DraftForm = {
@@ -408,6 +438,7 @@ export function toDraftRequest(
           exclVat ? line.unitPrice : toExclusivePrice(line.unitPrice || '0', tax.rate),
         ),
         discount: { type: line.discountType, value: number(line.discountValue) },
+        ...(line.priceRuleId ? { priceRuleIds: [line.priceRuleId] } : {}),
         taxCategory: {
           code: tax.code,
           en16931Category: tax.en16931Category,
@@ -523,6 +554,7 @@ export function fromDraftResponse(
           : {}),
         discountType: line.discountType,
         discountValue: String(Number(line.discountValue)),
+        ...(line.priceRuleIds?.length ? { priceRuleId: line.priceRuleIds[0] } : {}),
       }
     }),
   }

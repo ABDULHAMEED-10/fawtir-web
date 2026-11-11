@@ -297,6 +297,8 @@ function toResponse(id, version, state, draft, extra = {}) {
       unitPrice: line.unitPrice,
       discountType: line.discount.type,
       discountValue: line.discount.value,
+      // Price rules (PR #796): the rule the line's discount came from; empty for a typed one.
+      priceRuleIds: line.priceRuleIds ?? [],
       taxCategoryCode: line.taxCategory.code,
       en16931Category: line.taxCategory.en16931Category,
       taxRate: line.taxCategory.rate,

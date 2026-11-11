@@ -166,7 +166,7 @@ async function overTheLimit() {
         )
       : null
   renderAt('/pos/payment')
-  fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
+  fireEvent.click(await screen.findByRole('button', { name: /Take 5.817 in cash/ }))
   fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
   await screen.findByRole('button', { name: 'Make it a full invoice' })
   fireEvent.change(screen.getByLabelText("Buyer's name"), { target: { value: 'Saif Al Busaidi' } })
@@ -233,7 +233,7 @@ describe('a company the till cannot invoice yet (F-1)', () => {
           )
         : null
     renderAt('/pos/payment')
-    fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Take 5.817 in cash/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
     const alert = await screen.findByText(/cannot get a full invoice yet/)
     expect(alert.textContent).toContain('the invoice address (country, city, and street)')
@@ -436,13 +436,13 @@ describe('the till offline across screens (F-4) and back online (F-5)', () => {
   it('keeps its branch and till when a screen opens offline, and sells twice in a row', async () => {
     // Online once: the branch and the till are read and kept on this device.
     const first = renderAt('/pos/payment')
-    await screen.findByRole('button', { name: /Take 5.649 in cash/ })
+    await screen.findByRole('button', { name: /Take 5.817 in cash/ })
     first.unmount()
 
     offline = true
     resetSharedRequests()
     const second = renderAt('/pos/payment')
-    fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Take 5.817 in cash/ }))
     expect(screen.queryByText(i18n.t('pos.till.noBranch'))).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
     expect(await screen.findByText('done queued NZW-T01-INV-2026-000049')).toBeTruthy()
@@ -451,7 +451,7 @@ describe('the till offline across screens (F-4) and back online (F-5)', () => {
     resetOpenSale(SAMPLE_SALE)
     resetSharedRequests()
     renderAt('/pos/payment')
-    fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Take 5.817 in cash/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
     expect(await screen.findByText('done queued NZW-T01-INV-2026-000050')).toBeTruthy()
     const queued = JSON.parse(window.localStorage.getItem('fawtir.pos.queue') ?? '[]')
@@ -463,12 +463,12 @@ describe('the till offline across screens (F-4) and back online (F-5)', () => {
 
   it('sends the queued sale first, then makes the next one an ordinary online sale', async () => {
     const first = renderAt('/pos/payment')
-    await screen.findByRole('button', { name: /Take 5.649 in cash/ })
+    await screen.findByRole('button', { name: /Take 5.817 in cash/ })
     first.unmount()
     offline = true
     resetSharedRequests()
     const second = renderAt('/pos/payment')
-    fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Take 5.817 in cash/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
     await screen.findByText('done queued NZW-T01-INV-2026-000049')
     second.unmount()
@@ -482,7 +482,7 @@ describe('the till offline across screens (F-4) and back online (F-5)', () => {
     resetOpenSale(SAMPLE_SALE)
     resetSharedRequests()
     renderAt('/pos/payment')
-    fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Take 5.817 in cash/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
     expect(await screen.findByText('done sent NZW-T01-INV-2026-000050')).toBeTruthy()
     const sent = sales().filter((call) => call.init?.method === 'POST' && !call.offline)
@@ -498,7 +498,7 @@ describe('a typed line discount offline', () => {
     )
     const amount = omr(totalsFor(lines, NO_SALE_DISCOUNT).sale)
     const online = renderAt('/pos/payment')
-    await screen.findByRole('button', { name: /Take 5.649 in cash/ })
+    await screen.findByRole('button', { name: /Take 5.817 in cash/ })
     online.unmount()
     offline = true
     resetOpenSale(lines)
@@ -520,7 +520,7 @@ describe('a typed line discount offline', () => {
     resetOpenSale(SAMPLE_SALE)
     resetSharedRequests()
     renderAt('/pos/payment')
-    fireEvent.click(await screen.findByRole('button', { name: /Take 5.649 in cash/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Take 5.817 in cash/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Finish the sale' }))
     await screen.findByText(/done sent/)
     const queued = bodyOf(
@@ -528,6 +528,43 @@ describe('a typed line discount offline', () => {
     ) as { queuedOffline: boolean; draft: { lines: { discount: unknown }[] } }
     expect(queued.queuedOffline).toBe(true)
     expect(queued.draft.lines[0].discount).toMatchObject({ type: 'PERCENTAGE', value: 100 })
+  })
+})
+
+describe('the discount row with a typed line beside a rule line', () => {
+  const mixed = SAMPLE_SALE.map((line, index) =>
+    index === 0 ? { ...line, lineDiscount: { type: 'PERCENTAGE' as const, value: '5' } } : line,
+  )
+
+  it('names the rule when only rules took the money', async () => {
+    renderAt('/pos/payment')
+    expect(await screen.findByText('Price rules · Afternoon lull')).toBeTruthy()
+  })
+
+  it('on the payment screen says item discounts, not the rule', async () => {
+    resetOpenSale(mixed)
+    renderAt('/pos/payment')
+    expect(await screen.findByText('Item discounts')).toBeTruthy()
+    expect(screen.queryByText('Price rules · Afternoon lull')).toBeNull()
+  })
+
+  it('on the receipt says item discounts, not the rule', async () => {
+    const totals = totalsFor(mixed, NO_SALE_DISCOUNT)
+    setFinishedSale({
+      lines: mixed,
+      totals,
+      tip: 0,
+      change: 0,
+      company: null,
+      buyer: null,
+      payments: [{ method: 'card', amount: totals.sale }],
+      sale: sold('NZW-T01-INV-2026-000007') as never,
+      queuedNumber: null,
+      finishedAt: '2026-10-29T11:35:22Z',
+    })
+    renderAt('/pos/receipt')
+    expect(await screen.findByText('Item discounts')).toBeTruthy()
+    expect(screen.queryByText('Afternoon lull')).toBeNull()
   })
 })
 

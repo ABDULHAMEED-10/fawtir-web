@@ -4442,7 +4442,9 @@
       "vatAt": "VAT {{rate}}%",
       "vatMixed": "VAT",
       "saleDiscount": "Discount on the sale",
-      "lineDiscounts": "Item discounts"
+      "lineDiscounts": "Item discounts",
+      "rule": "Price rules · {{names}}",
+      "ruleShort": "{{names}}"
     },
     "pay": {
       "toPay": "To pay",
@@ -5305,6 +5307,8 @@
       "CUSTOMER_NOT_INVOICE_ELIGIBLE": "This company cannot get a full invoice yet: {{missing}} is missing.",
       "customerIncomplete": "This company's record is missing something a full invoice needs.",
       "completeCompany": "Complete it on the company screen",
+      "POS_PRICE_RULE_MISMATCH": "The price rules changed this sale. The new total is on the screen: check the payment and finish again.",
+      "PRICE_RULE_STACKING_NOT_AVAILABLE": "Only one price rule can apply to a line.",
       "DISCOUNT_ABOVE_LIMIT": "This discount takes {{requestedPercent}}% off and your limit is {{limitPercent}}%. Lower it, or ask a manager.",
       "POS_REFUND_CASH_EXCEEDS_DRAWER": "The drawer should hold only {{cashInDrawer}}, and this refund gives back {{cashRequested}} in cash. Give the rest back by card or transfer, or pay cash into the drawer first.",
       "POS_REFUND_LINE_CREDIT_UNCLEAR": "Line {{line}} already has a credit note that does not say whether goods came back, so it cannot be refunded at the till. Refund it from the invoice. Nothing was refunded.",
@@ -5351,6 +5355,7 @@
       "ZR_FOOD_NOT_LISTED": "Line {{line}} is zero-rated as food, but its HS code is not on Oman's zero-rated food list. Check its VAT category or HS code.",
       "ZR_MEDICAL_CHARGED_STANDARD": "Line {{line}} is on Oman's zero-rated medicines or medical equipment list but was charged 5% VAT. Check whether it should be zero-rated.",
       "ZR_MEDICAL_NOT_LISTED": "Line {{line}} is zero-rated as medical, but its HS code is not on Oman's zero-rated medicines or medical equipment lists. Check its VAT category or HS code.",
+      "POS_PRICE_RULE_STALE_ACCEPTED": "Line {{line}} was sold offline with a discount the price rules no longer give; it stands.",
       "POS_DISCOUNT_ABOVE_LIMIT_ACCEPTED": "Sold offline with a discount above the cashier's limit. It is filed and recorded for the manager.",
       "POS_PRINTED_NUMBER_DIFFERS": "A customer's receipt says {{printed}}, but that sale is filed as {{filed}}. Use {{filed}} to find it.",
       "POS_GOODS_OR_SERVICE_FROM_PRODUCT": "Line {{line}} did not say whether it is goods or a service, so it was filed as its item is marked in the catalogue.",
@@ -5368,6 +5373,9 @@
       "late_one": "{{count}} sale made offline arrived after its shift closed. Sales filed past a restriction: {{restricted}}.",
       "late_other": "{{count}} sales made offline arrived after their shift closed. Sales filed past a restriction: {{restricted}}."
     },
+    "ruleApplied": "{{names}} took OMR {{amount}} off.",
+    "ruleStaleAccepted": "Sale {{number}} was sent from the queue with the discount it was printed with, although the price rules now give another (line {{lines}}).",
+    "ruleStaleDismiss": "Close this note",
     "scan": {
       "unknown": "No item with barcode <code>{{code}}</code>"
     },
@@ -13789,11 +13797,12 @@
       "rules": "Rules",
       "rulesNote": "{{running}} running · {{off}} switched off",
       "givenAway": "Given away",
-      "givenAwayNote": "Last 90 days · {{share}}% of what you sold",
+      "givenAwayNote": "{{share}}% of what you sold in the period",
       "broughtIn": "Brought in",
       "broughtInNote": "On sales that used a rule · {{count}} of them",
       "runningNow": "Running right now",
-      "runningNowNote": "It's {{time}} on a {{day}}"
+      "runningNowNote": "It's {{time}} on a {{day}}",
+      "givenAwayNoSales": "No sales in the period yet"
     },
     "family": {
       "volume": "Buying more of something",
@@ -13825,30 +13834,158 @@
       "perInvoice": "{{group}} · per invoice",
       "allBrewedWeekdays": "All brewed drinks · weekdays only",
       "flatWhiteOrCappuccino": "Flat White or Cappuccino with a pastry",
-      "twelveOffEverything": "12% off everything · {{customers}} customers · off since {{date}}"
+      "twelveOffEverything": "12% off everything · {{customers}} customers · off since {{date}}",
+      "everything": "Everything in the catalogue",
+      "items": "Items: {{count}}",
+      "everyBranch": "every branch",
+      "branches": "Branches: {{count}}",
+      "invoicesOnly": "invoices only"
     },
     "who": {
       "anyoneBuyingThatMany": "<b>Anyone</b> buying that many on one invoice. Counts <b>across the whole group</b>, so four bags of House Blend and six of Yirgacheffe reach the 10 break together.",
       "cheaperAppliesToExtras": "<b>Anyone.</b> The cheaper price applies only to the extra batches, not back to the first, as the machine is already hot, so each one after that costs you less.",
       "twentyOffBrewed": "<b>20% off</b> every brewed drink. Not on beans, not on bundles, and it doesn't stack with the Morning deal.",
       "thePairFor": "The pair for <b>OMR {{price}}</b> instead of {{instead}}. This one is set up as a bundle, so it also shows on the till as a single button.",
-      "namedCustomers": "{{count}} named customers, agreed in their terms."
+      "namedCustomers": "{{count}} named customers, agreed in their terms.",
+      "customers": "Named customers: {{count}}",
+      "tags": "customers tagged {{tags}}"
     },
     "twoToFive": "Two to five, Sunday to Thursday",
     "sixToTen": "Six to ten, every day",
-    "switchedOffNote": "Switched off in July while terms were renegotiated. <b>{{open}} of the {{total}} have open quotations</b> that were priced with this rule still running, and those quotes stand.",
+    "switchedOffNote": "Switched off. Nothing gets this price until it is switched on again. Quotations priced while it ran still stand.",
     "seeTheQuotes": "See the quotes",
     "addARule": "Add a rule",
     "menu": {
       "thisRule": "This rule",
       "changeTheBreaks": "Change the breaks",
-      "copyIt": "Copy it for another group",
+      "copyIt": "Copy it as a new rule",
       "theSalesThatUsedIt": "The {{count}} sales that used it",
       "exportWhatItGaveAway": "Export what it gave away",
       "tryThingsOut": "Try things out",
       "pauseIt": "Pause it until a date",
       "whatIf": "What if it had never run",
-      "deleteIt": "Delete the rule"
+      "deleteIt": "Delete the rule",
+      "changeIt": "Change the rule",
+      "archiveIt": "Archive the rule"
+    },
+    "archived": "Archived",
+    "pausedUntil": "Paused until {{date}}",
+    "pausedNote": "Paused. It comes back on by itself on {{date}} at midnight, Muscat time.",
+    "comingLater": "Coming later",
+    "cancel": "Cancel",
+    "empty": "No price rules here yet.",
+    "howItCounts": "How it counts",
+    "tierRange": "{{from}} – {{to}}",
+    "tierOrMore": "{{from}} or more",
+    "window": "{{days}} · {{from}} to {{to}}",
+    "fromTo": "{{from}} to {{to}}",
+    "counted": {
+      "across": "Counted across everything it covers, on one invoice.",
+      "perItem": "Counted per item on its own, on one invoice.",
+      "whole": "The whole quantity gets the price of the break it reaches.",
+      "extrasOnly": "Each unit gets the price of its own break; the cheaper price applies to the extras only."
+    },
+    "offer": {
+      "percentOff": "{{percent}}% off each item it covers",
+      "priceEach": "OMR {{price}} each for the items it covers"
+    },
+    "filter": {
+      "kind": "Kind",
+      "allKinds": "Every kind",
+      "state": "Showing",
+      "all": "On and off",
+      "on": "On today",
+      "off": "Switched off or paused",
+      "archived": "Archived",
+      "period": "Figures over",
+      "lastDays": "The last {{count}} days"
+    },
+    "done": {
+      "on": "{{name}} is switched on.",
+      "off": "{{name}} is switched off.",
+      "paused": "{{name}} is paused until {{date}}.",
+      "archived": "{{name}} is archived. It stays on the invoices that used it."
+    },
+    "pause": {
+      "title": "Pause {{name}}",
+      "subtitle": "It stops now and comes back on by itself at midnight, Muscat time, on the day you choose.",
+      "until": "Back on",
+      "confirm": "Pause it"
+    },
+    "archive": {
+      "title": "Archive {{name}}?",
+      "subtitle": "There is no delete: a rule that priced invoices stays with them.",
+      "body": "It is switched off for good and can never be changed again. It stays on the invoices and in the reports that used it, and its name is free for a new rule.",
+      "confirm": "Archive it"
+    },
+    "belowCost": {
+      "title": "This sells below what it cost you",
+      "subtitle": "These items would be sold for less than their average cost. You can keep the rule off, or go live anyway.",
+      "line": "{{price}} against a cost of {{cost}}, {{loss}} lost on each",
+      "anItem": "An item",
+      "keepOff": "Keep it off",
+      "goLiveAnyway": "Go live anyway"
+    },
+    "report": {
+      "open": "Report",
+      "export": "Export",
+      "title": "What the price rules did",
+      "subtitle": "Issued invoices less credit notes, {{from}} to {{to}}",
+      "byRule": "Rule by rule",
+      "none": "No rule was used in this period.",
+      "total": "Total",
+      "period": "In the last {{count}} days",
+      "runningNowNote": "On right now, Muscat time",
+      "col": {
+        "rule": "Rule",
+        "state": "State",
+        "used": "Invoices",
+        "givenAway": "Given away",
+        "broughtIn": "Brought in"
+      }
+    },
+    "sales": {
+      "crumb": "Sales that used it",
+      "title": "Sales that used {{name}}",
+      "count": "Invoice lines: {{count}}",
+      "none": "No invoice used this rule in this period.",
+      "pages": "Pages",
+      "previous": "Previous page",
+      "next": "Next page",
+      "col": {
+        "invoice": "Invoice",
+        "date": "Issued",
+        "line": "Line",
+        "taxable": "Taxable"
+      }
+    },
+    "kindName": {
+      "VOLUME": "Buying more of something",
+      "TIME": "Cheaper at certain times",
+      "CUSTOMER": "For particular customers"
+    },
+    "refusal": {
+      "nameRequired": "Give the rule a name.",
+      "kindInvalid": "Choose what kind of rule it is.",
+      "targetsInvalid": "Say what the rule covers: everything on its own, or up to 200 groups, kinds, items or sizes.",
+      "tiersInvalid": "The breaks must start at 1 and each start one after the last one ends; only the last can be open-ended.",
+      "windowsInvalid": "Each time window needs at least one day and a start and end time.",
+      "customersInvalid": "Name at least one customer or tag.",
+      "offerInvalid": "Give a percentage off, or a price each.",
+      "datesInvalid": "The end date cannot be before the start date.",
+      "invalid": "Part of the rule does not belong to this kind of rule.",
+      "targetNotFound": "Something the rule covers is no longer in the catalogue.",
+      "customerNotFound": "A customer the rule names no longer exists.",
+      "branchNotFound": "A branch the rule names no longer exists.",
+      "nameDuplicate": "Another rule already has that name.",
+      "archived": "This rule is archived and cannot be changed.",
+      "notFound": "This rule no longer exists.",
+      "versionConflict": "Someone changed this rule while you were working on it. Reload it and try again.",
+      "keyReused": "This rule was already saved differently. Reload the rules and try again.",
+      "pauseInvalid": "Choose a day after today to bring it back on.",
+      "comingLater": "That option is coming later and cannot be saved yet.",
+      "periodInvalid": "Choose a shorter period.",
+      "notApplicable": "A price rule on a line no longer applies to it."
     }
   },
   "newRule": {
@@ -13858,7 +13995,9 @@
       "kind": "What kind of rule",
       "name": "Name it and say what it covers",
       "breaks": "The breaks",
-      "when": "When it runs, and how it behaves"
+      "when": "When it runs, and how it behaves",
+      "when3": "When it runs, and what comes off",
+      "who": "Who gets it, and what comes off"
     },
     "kind": {
       "volume": "Buying more of it",
@@ -13891,7 +14030,9 @@
       "from": "From",
       "upTo": "Up to",
       "priceEach": "Price each",
-      "keep": "What you keep"
+      "keep": "What you keep",
+      "how": "How",
+      "value": "Price or %"
     },
     "noLimit": "no limit",
     "margin": "{{percent}}% margin",
@@ -13899,7 +14040,7 @@
     "addABreak": "Add a break",
     "removeBreak": "Remove this break",
     "extrasOnly": "Cheaper price applies to the extras only",
-    "extrasOnlyNote": "On means the first {{count}} stay at {{price}} and only the {{next}}th onwards drop. Off gives the whole order the lower price.",
+    "extrasOnlyNote": "On means the first {{count}} stay at the first break and only the {{next}}th onwards drop. Off gives the whole order the price of the break it reaches.",
     "starts": "Starts",
     "ends": "Ends",
     "endsHint": "leave empty to run until you stop it",
@@ -13920,14 +14061,15 @@
     "theyPay": "They pay",
     "readyToSwitchOn": "Ready to switch on?",
     "check": {
-      "named": "Named and pointed at {{count}} items",
+      "named": "Named and pointed at {{count}} things",
       "unnamed": "Give it a name and something to cover",
       "breaksInOrder": "Breaks run in order with no gaps",
       "breaksOverlap": "Two breaks overlap",
-      "belowCost": "One break sells below cost",
-      "aboveCost": "Every break keeps a margin",
+      "belowCost": "Items sold below cost: {{count}}",
+      "aboveCost": "Nothing sells below what it cost",
       "noEndDate": "No end date, runs until you stop it",
-      "hasEndDate": "Ends {{date}}"
+      "hasEndDate": "Ends {{date}}",
+      "costOnSave": "Checked against what the items cost when you save"
     },
     "clashes": "Rules it might clash with",
     "noOverlap": "no overlap",
@@ -13939,7 +14081,78 @@
     "saveWithoutSwitchingOn": "Save without switching on",
     "switchItOn": "Switch it on",
     "switchedOn": "Switched on",
-    "filtersWord": "filters"
+    "filtersWord": "filters",
+    "editTitle": "Change the price rule",
+    "editCrumb": "Change the rule",
+    "copyName": "{{name}} (copy)",
+    "mode": {
+      "percent": "A percentage off",
+      "price": "A price each"
+    },
+    "target": {
+      "what": "What it covers",
+      "everything": "Everything",
+      "allNote": "Every item in the catalogue. A bundle is covered only when it is named on its own.",
+      "choose": "Choose",
+      "none": "Nothing found",
+      "noSizes": "This item has no sizes on sale",
+      "type": {
+        "ALL": "Everything",
+        "GROUP": "Group",
+        "KIND": "Kind",
+        "PRODUCT": "Item",
+        "VARIANT": "Size"
+      },
+      "pick": {
+        "ALL": "Everything in the catalogue",
+        "GROUP": "A group",
+        "KIND": "A kind inside a group",
+        "PRODUCT": "An item",
+        "VARIANT": "One size of an item"
+      }
+    },
+    "add": "Add",
+    "days": "Days",
+    "fromTime": "From",
+    "toTime": "Until",
+    "addWindow": "Add another time",
+    "removeWindow": "Remove this time",
+    "passesMidnight": "Runs past midnight into the next day.",
+    "muscatTime": "Times are Muscat time. A sale made offline counts when it was rung up.",
+    "customers": "Customers",
+    "addCustomer": "Add a customer",
+    "removeCustomer": "Remove this customer",
+    "tags": "Customer tags",
+    "tagsHint": "Every customer with one of these tags gets it. Press Enter to add a tag.",
+    "removeTag": "Remove this tag",
+    "offer": "What comes off",
+    "percentOff": "Percentage off",
+    "priceEach": "Price each, before VAT",
+    "priority": "Priority",
+    "priorityHint": "When two rules save the same, the lower number wins.",
+    "branches": "Where it applies",
+    "everyBranch": "Every branch",
+    "atEach": "at",
+    "normalPrice": "Normal price each",
+    "noClashes": "No other rule covers the same items.",
+    "clashesNote": "Where two rules cover a line, the one that saves the customer most applies.",
+    "acknowledged": "Going live below cost was accepted on {{date}}.",
+    "savedBelowCost": "Saved off. Items below cost: {{count}}",
+    "savedBelowCostNote": "Switching it on asks you to accept this first.",
+    "fixFirst": "Fix what the check list says first.",
+    "footerNew": "A new rule is saved off until you switch it on.",
+    "footerSavedOff": "Saved, and switched off.",
+    "footerOn": "On: a change applies as soon as it is saved.",
+    "saveChanges": "Save the changes",
+    "problem": {
+      "name": "Give the rule a name.",
+      "targets": "Add something for it to cover.",
+      "tiers": "Make the breaks run in order from 1, with no gaps.",
+      "windows": "Choose at least one day for each time.",
+      "customers": "Add a customer or a tag.",
+      "offer": "Say what comes off.",
+      "dates": "The end date is before the start date."
+    }
   },
   "uploadMenu": {
     "breadcrumb": "Upload A Menu",
@@ -21489,6 +21702,7 @@
     "saveAndUse": "Save and use"
   },
   "invoiceDraft": {
+    "size": {"label": "Size", "choose": "Choose a size"},
     "editTitle": "Edit draft",
     "meta": {
       "new": "New draft · not saved yet",
@@ -21577,7 +21791,15 @@
     "lineNoPrice": "This item has no price yet",
     "businessActivityCodeOnly": "Business activity: {{code}}",
     "exemptionReasonChoose": "Choose why no VAT is charged",
-    "exemptionReasonType": "Type why no VAT is charged"
+    "exemptionReasonType": "Type why no VAT is charged",
+    "priceRule": {
+      "applied": "Price rule: {{name}}",
+      "aRule": "a price rule",
+      "remove": "Remove",
+      "notApplicable": "This price rule does not apply to this line now. Remove it or change the line.",
+      "givesLess": "This price rule takes off at most {{amount}} rials on this line now.",
+      "refused": "A price rule on a line no longer applies. The line says which."
+    }
   },
   "invoiceIssue": {
     "action": "Issue invoice",
