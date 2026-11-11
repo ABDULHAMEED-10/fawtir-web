@@ -17,6 +17,7 @@ import {
   PosSaleOutcomeUnknown,
   PosStorageUnavailable,
   PosTenantZoneUnavailable,
+  refusalVerdict,
   refusesTheSale,
   resetPosQueue,
   retryQueuedSale,
@@ -2083,5 +2084,32 @@ describe('P-OFF: a till read while offline numbering is stopped (no series.INVOI
     const [sent] = salePosts('pos-sale-key-poff-06')
     expect(JSON.parse(String(sent.init?.body))).toMatchObject({ queuedOffline: false, invoiceNumber: null })
     expect(queuedFor('till-1')).toEqual([])
+  })
+})
+
+// Review PRV-qq-RC5-BE-PR865 C-1: a malformed-request 400 is refused before the key is read.
+describe('refusesTheSale and a malformed request (PR865 C-1)', () => {
+  const malformed = 'malformed-request'
+
+  it.each([
+    ['coded, as backend #865 sends it', new ApiError({ status: 400, problemType: malformed, code: 'MALFORMED_REQUEST' })],
+    ['uncoded, as before backend #865', new ApiError({ status: 400, problemType: malformed })],
+    ['coded under another type', new ApiError({ status: 400, problemType: null, code: 'MALFORMED_REQUEST' })],
+    ['typed, under another code', new ApiError({ status: 400, problemType: malformed, code: 'SOME_FUTURE_CODE' })],
+  ])('%s: does not release the hold', (_how, error) => {
+    expect(refusesTheSale(error)).toBe(false)
+  })
+
+  it.each([
+    [400, 'POS_PAYMENTS_DO_NOT_MATCH_TOTAL'],
+    [409, 'POS_TILL_NOT_OPEN'],
+    [422, 'SIMPLIFIED_INVOICE_LIMIT'],
+  ])('a coded %i business refusal still releases it', (status, code) => {
+    expect(refusesTheSale(new ApiError({ status, problemType: code.toLowerCase().replace(/_/g, '-'), code }))).toBe(true)
+  })
+
+  it('leaves the queue verdict for a malformed request as unknown, so it is tried again and never given up', () => {
+    const error = new ApiError({ status: 400, problemType: malformed, code: 'MALFORMED_REQUEST' })
+    expect(refusalVerdict(error)).toBe('unknown')
   })
 })

@@ -790,10 +790,23 @@ export function refusesTheSale(error: unknown): boolean {
   if (!(error instanceof ApiError) || serverCode(error) === null) return false
   // RBW3-2: these two say a sale is recorded under the key, not that it was refused.
   if (KEY_HOLDS_A_SALE.has(serverCode(error)!)) return false
+  if (refusedBeforeTheKeyWasRead(error)) return false
   return error.status >= 400 && error.status < 500 && ![401, 403, 408, 429].includes(error.status)
 }
 
 const KEY_HOLDS_A_SALE = new Set(['POS_TILL_NOT_FOUND', 'POS_SALE_KEY_REUSED'])
+
+/**
+ * Review PRV-qq-RC5-BE-PR865 C-1: a malformed-request 400 is raised while the body is parsed,
+ * before the server reads the key, so it says only that this request recorded nothing, not that
+ * the earlier uncertain send did. With fail-on-unknown-properties on, a node on another version (a
+ * rolling deploy, a rollback) refuses the identical resend this way, and releasing the hold would
+ * let an edited sale go under a new key: a second sale, a second card charge. Backend #865 codes it
+ * MALFORMED_REQUEST; the type is matched too, for a body that carries it under another code.
+ */
+function refusedBeforeTheKeyWasRead(error: ApiError): boolean {
+  return error.code === 'MALFORMED_REQUEST' || error.problemType === 'malformed-request'
+}
 
 /** A walk-in or named consumer: the buyers whose receipt carries a QR (B2C). */
 function takesReceiptQr(body: PosSaleRequest): boolean {

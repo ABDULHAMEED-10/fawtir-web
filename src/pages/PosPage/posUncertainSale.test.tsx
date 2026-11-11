@@ -898,6 +898,51 @@ describe('the RESEND-AUTH wording', () => {
   })
 })
 
+// Review PRV-qq-RC5-BE-PR865 C-1: a malformed-request 400 is refused before the key is read, so a
+// node on another version refusing the identical resend says nothing about the first send.
+describe('a retry refused as malformed, before the key was read (PR865 C-1)', () => {
+  const MALFORMED = 'https://api.fawtir.om/problems/malformed-request'
+
+  it.each([
+    ['coded, as backend #865 sends it', { type: MALFORMED, status: 400, code: 'MALFORMED_REQUEST' }],
+    ['uncoded, as before backend #865', { type: MALFORMED, status: 400 }],
+    ['coded under another type', { type: 'about:blank', status: 400, code: 'MALFORMED_REQUEST' }],
+  ])('%s: keeps the sale held under its key and body', async (_how, problem) => {
+    await sendIntoUnknown(503)
+    replies.push(() => json(problem, 400))
+    fireEvent.click(retry())
+    await vi.waitFor(() => expect(posts).toHaveLength(2))
+    expect(posts[1].key).toBe(posts[0].key)
+    expect(posts[1].body).toBe(posts[0].body)
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(screen.getByText(i18n.t('pos.pay.uncertain.title'))).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Finish the sale' })).toBeNull()
+    render(<HeldProbe />)
+    act(() => setSaleLines([]))
+    expect(screen.getByText(/^held /).textContent).toBe(`held ${posts[0].key} lines ${SAMPLE_SALE.length}`)
+    expect(heldNames()).toEqual([HELD])
+  })
+
+  it('a coded 400 business refusal of the same key still settles it', async () => {
+    await sendIntoUnknown(503)
+    replies.push(() =>
+      json(
+        {
+          type: 'https://api.fawtir.om/problems/pos-payments-do-not-match-total',
+          status: 400,
+          code: 'POS_PAYMENTS_DO_NOT_MATCH_TOTAL',
+        },
+        400,
+      ),
+    )
+    fireEvent.click(retry())
+    expect(await screen.findByRole('button', { name: 'Finish the sale' })).toBeTruthy()
+    expect(screen.queryByText(i18n.t('pos.pay.uncertain.title'))).toBeNull()
+    act(() => setSaleLines([]))
+    expect(screen.getByText(/^lines /).textContent).toContain('lines 0')
+  })
+})
+
 // RBW2-3: only a coded 4xx refuses the sale itself; a coded 5xx, a 408 or a 429 says nothing about
 // the first send, and a 401 or 403 refuses the session (E01R-3).
 describe('a retry refused for the session, not the sale (E01R-3, RBW2-3)', () => {
