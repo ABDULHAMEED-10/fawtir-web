@@ -668,7 +668,14 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
               </>
             ) : (
               <>
-                <button type="button" onClick={preview.print} className={GHOST_BUTTON}>
+                {/* As on the invoice page: no PDF is rendered for a document yet, and the drawn
+                    sheet carries no QR, so a note neither downloads nor prints (RC5 E2E D-03). */}
+                <button
+                  type="button"
+                  disabled
+                  title={t('invoiceDetails.pdf.unavailable')}
+                  className={GHOST_BUTTON}
+                >
                   <img src={downloadIcon} alt="" className="size-5" />
                   {t('salesNote.detail.download')}
                 </button>
@@ -1540,15 +1547,19 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
               <div className="flex items-center gap-2.5">
                 <button
                   type="button"
+                  disabled
+                  title={t('invoiceDetails.pdf.unavailable')}
                   aria-label={t('salesNote.detail.download')}
-                  onClick={preview.print}
+                  className="disabled:opacity-40"
                 >
                   <img src={downloadIcon} alt="" className="size-6" />
                 </button>
                 <button
                   type="button"
+                  disabled
+                  title={t('invoiceDetails.pdf.unavailable')}
                   aria-label={t('salesNote.detail.print')}
-                  onClick={preview.print}
+                  className="disabled:opacity-40"
                 >
                   <img src={printIcon} alt="" className="size-6" />
                 </button>

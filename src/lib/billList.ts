@@ -455,8 +455,14 @@ export function isBillTab(value: string | null): value is BillTabId {
   return BILL_TABS.some((tab) => tab.id === value)
 }
 
-export function billTabCount(tabs: BillSummaryDto['tabs'], tab: BillTabId): number {
-  return tabs[tab] ?? 0
+/**
+ * The server counts the tabs over bills only (BillWorkflowService.tabs), while Needs attention and
+ * All also draw the unconfirmed uploads. `drafts` adds those back, so each badge counts the rows its
+ * tab lists; before it, Needs attention read 0 above four draft rows (RC5 E2E D-05).
+ */
+export function billTabCount(tabs: BillSummaryDto['tabs'], tab: BillTabId, drafts = 0): number {
+  const bills = tabs[tab] ?? 0
+  return tab === 'needsAttention' || tab === 'all' ? bills + drafts : bills
 }
 
 export type BillSortKey =
