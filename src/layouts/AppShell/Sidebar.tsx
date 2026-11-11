@@ -305,14 +305,16 @@ type SidebarProps = {
 /**
  * The badge beside TDD & OTA: documents that still need someone to act, from the activity
  * ledger's own summary (`attention`) over the same window the page asks for, so it matches the
- * page it opens (the summary refuses a call with no window). Asked only for a signed-in reader;
- * nothing to act on, a refusal or a failure all draw no badge.
+ * page it opens (the summary refuses a call with no window). Asked only for a signed-in reader
+ * holding `invoice.read`, which the summary requires (ComplianceActivityController): a cashier
+ * earned a 403 here on every page (RC5 E2E D-07). Nothing to act on, a refusal or a failure all
+ * draw no badge.
  * TODO(backend): a lighter count than the whole summary, REPORTS.md row 2.5.
  */
-function useAttentionCount(signedIn: boolean): number | undefined {
+function useAttentionCount(mayRead: boolean): number | undefined {
   const range = defaultReportRange()
   const path = activitySummaryPath(range.from, range.to)
-  const read = useApiRead<ActivitySummaryDto>(signedIn ? path : null, () =>
+  const read = useApiRead<ActivitySummaryDto>(mayRead ? path : null, () =>
     loadActivitySummary(path),
   ).read
   return read.status === 'ready' && read.data.attention > 0 ? read.data.attention : undefined
@@ -325,7 +327,7 @@ export function Sidebar({ open = false, onClose = () => {} }: SidebarProps) {
   const panelRef = useRef<HTMLElement>(null)
   const session = useSession()
   const plan = usePlanAccess().access
-  const attention = useAttentionCount(session !== null)
+  const attention = useAttentionCount(session !== null && can(session, 'invoice.read'))
   useDrawer(open, onClose, panelRef)
 
   return (

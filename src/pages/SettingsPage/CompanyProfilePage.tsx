@@ -5,9 +5,15 @@ import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { DisconnectFromFawtirSection } from './DisconnectFromFawtirSection'
 import { Combobox, Input, Select, withRial, type SelectOption } from '../../components/ui'
 import { useApiRead } from '../../hooks/useApiRead'
-import { useSession } from '../../lib/session/session'
+import { useEntitlements } from '../../hooks/useEntitlements'
+import { hasPermission } from '../../lib/identity/entitlements'
+import { REQUIRE_SESSION, useSession } from '../../lib/session/session'
 import { formatInstantDay, initialsOf } from '../../lib/format'
-import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
+import {
+  ApiReadFailure,
+  LoadingNotice,
+  PermissionDeniedNotice,
+} from '../../components/feedback/ApiNotice'
 import {
   INDUSTRIAL_CLASSIFICATION_PATH,
   readIndustrialClassification,
@@ -238,18 +244,34 @@ export function CompanyProfilePage() {
   const reference = useReferenceData()
   const [form, setForm] = useState(INITIAL)
   const [saved, setSaved] = useState(false)
+  // Every read below takes `admin.settings.manage` (CompanyProfileController,
+  // CompanySpecialZoneLicenceController), so a Viewer or Cashier earned six 403s opening the page
+  // (RC5 E2E D-07). This page renders its shell itself, outside the shell's session context, so the
+  // permission is read from the shared entitlements answer, as StockPage does; nothing is asked
+  // until that answer says the reader may.
+  const access = useEntitlements()
+  const mayManage = access.entitlements
+    ? hasPermission(access.entitlements, 'admin.settings.manage')
+    : access.ready && !REQUIRE_SESSION
+  const ifManage = (path: string) => (mayManage ? path : null)
   // `null` = not set yet, `undefined` = not known (loading, or the read failed, in which case no
   // warning is shown).
-  const activityRead = useApiRead(INDUSTRIAL_CLASSIFICATION_PATH, readIndustrialClassification).read
-  const brandingRead = useApiRead(BRANDING_PATH, loadBranding).read
-  const defaultsRead = useApiRead(INVOICE_DEFAULTS_PATH, loadInvoiceDefaults).read
+  const activityRead = useApiRead(
+    ifManage(INDUSTRIAL_CLASSIFICATION_PATH),
+    readIndustrialClassification,
+  ).read
+  const brandingRead = useApiRead(ifManage(BRANDING_PATH), loadBranding).read
+  const defaultsRead = useApiRead(ifManage(INVOICE_DEFAULTS_PATH), loadInvoiceDefaults).read
   const { read: profileRead, retry: retryProfile } = useApiRead(
-    COMPANY_PROFILE_PATH,
+    ifManage(COMPANY_PROFILE_PATH),
     loadCompanyProfile,
   )
   const [storedActivity, setStoredActivity] = useState<string | null | undefined>(undefined)
-  // Read with `admin.settings.manage`; a reader without it (or an older server) gets no field.
-  const businessTypeRead = useApiRead(COMPANY_BUSINESS_TYPE_PATH, readCompanyBusinessType).read
+  // An older server without the route gets no field.
+  const businessTypeRead = useApiRead(
+    ifManage(COMPANY_BUSINESS_TYPE_PATH),
+    readCompanyBusinessType,
+  ).read
   const signupTypes = useSignupBusinessTypes().read
   const [storedBusinessType, setStoredBusinessType] = useState<CompanyBusinessTypeDto | undefined>(
     undefined,
@@ -258,7 +280,7 @@ export function CompanyProfilePage() {
     'notAvailable' | 'failed' | null
   >(null)
   // An older server has no such route: `undefined` stays, and there is no field.
-  const licenceRead = useApiRead(SPECIAL_ZONE_LICENCE_PATH, readSpecialZoneLicence).read
+  const licenceRead = useApiRead(ifManage(SPECIAL_ZONE_LICENCE_PATH), readSpecialZoneLicence).read
   const [storedLicence, setStoredLicence] = useState<string | null | undefined>(undefined)
   const [licenceRefused, setLicenceRefused] = useState(false)
   const [storedProfile, setStoredProfile] = useState<CompanyProfileDto | undefined>(undefined)
@@ -469,6 +491,15 @@ export function CompanyProfilePage() {
     return { net, vat, total: Math.round((net + vat) * 1000) / 1000 }
   }, [])
 
+  // The same notice the 403 drew, without asking for it.
+  if (access.ready && !mayManage) {
+    return (
+      <SettingsShell group="company">
+        <SettingsHeader title={t('companyProfile.title')} subtitle={t('companyProfile.subtitle')} />
+        <PermissionDeniedNotice />
+      </SettingsShell>
+    )
+  }
   // The form edits what the server holds; before that is known there is nothing honest to show.
   if (profileRead.status === 'loading') {
     return (
