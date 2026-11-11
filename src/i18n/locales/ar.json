@@ -4613,6 +4613,10 @@
     "walkIn": "زبون مباشر",
     "onTheCompany": "على الشركة",
     "walkInNote": "إيصال برمز QR. اضغط «على الشركة» إن أرادوا فاتورة، تُدخل رقمهم الضريبي وتذهب عبر Peppol بدلًا من ذلك.",
+    "bundle": {
+      "parts": "تُسجَّل في أسطر منفصلة، لكل منها ضريبته: {{parts}}",
+      "offline": "لا يمكن بيع {{name}} دون اتصال: لم يقرأ هذا الجهاز بعد كيف تظهر في الفاتورة. اتصل بالإنترنت وحاول مرة أخرى."
+    },
     "oneSizeOnly": "مقاس واحد",
     "oneMore": "واحد إضافي من {{name}}",
     "oneFewer": "واحد أقل من {{name}}",
@@ -5528,6 +5532,7 @@
       "POS_PRODUCT_NOT_SELLABLE": "صنف في السطر {{line}} لم يعد معروضًا للبيع في هذا الفرع.",
       "POS_VARIANT_NOT_SELLABLE": "حجم في السطر {{line}} لم يعد معروضًا للبيع.",
       "POS_PRICE_NOT_CATALOGUE": "تغيّر السعر في السطر {{line}} وأصبح {{expectedPrice}}. احذفه وأضفه من جديد.",
+      "POS_BUNDLE_SPLIT_REQUIRED": "في هذه البيعة حزمة تختلف ضريبة أجزائها، فلا يمكن وضعها في سطر واحد. احذفها من البيعة وأضفها من جديد، وسيضع الجهاز كل جزء في سطره.",
       "POS_TILL_RETIRED": "هذا الصندوق موقوف ولا يبيع شيئًا.",
       "POS_TILL_NOT_FOUND": "هذا الصندوق ليس في هذا الفرع.",
       "POS_TILL_NUMBER_GAP": "تنقص عملية بيع أُجريت دون اتصال قبل هذه. كان الصندوق يتوقع الرقم {{expectedNumber}}.",
@@ -14158,7 +14163,9 @@
       "share": "حصته من المشروبات",
       "shareNote": "لا شيء يقاربه",
       "average": "متوسط البيعة",
-      "averageNote": "أحجام أكبر وإضافات"
+      "averageNote": "أحجام أكبر وإضافات",
+      "shareOfGroup": "حصته من {{group}}",
+      "shareNoGroup": "حصته من مجموعته"
     },
     "soldEachMonth": "المبيع شهريًا",
     "byHourOfDay": "حسب ساعة اليوم",
@@ -14167,8 +14174,8 @@
     "expand": "اعرضه أكبر",
     "bestMonth": "كان {{month}} أفضل شهر حتى الآن: <b>{{count}} مبيعة</b>",
     "peakHour": "قرابة خُمس {{name}} في اليوم: <b>{{hour}} هي الذروة</b>",
-    "sizeNote": "<b>{{size}} يمثل {{percent}}٪</b> من كل ما بيع، وكوب السفري بالكاد يتحرك",
-    "addOnNote": "واحد من كل {{n}} يطلب جرعة إضافية · <b>{{amount}} ر.ع.</b> من {{name}} وحدها",
+    "sizeNote": "<b>{{size}} يمثل {{percent}}٪</b> من كل ما بيع",
+    "addOnNote": "واحد من كل {{n}} يطلب {{taken}} · <b><amount>{{amount}}</amount></b> من {{name}} وحدها",
     "whereItGoes": "أين يذهب",
     "overTheCounter": "على الكاونتر",
     "onAnInvoice": "على فاتورة",
@@ -14178,7 +14185,24 @@
     "neverRefunded": "لم يُرد قط",
     "returns": "{{count}} مرتجعات",
     "whatsChanged": "ما الذي تغيّر",
-    "seeAllChanges": "اعرض كل التغييرات"
+    "seeAllChanges": "اعرض كل التغييرات",
+    "notYet": "غير متاح بعد",
+    "soldEach": {
+      "month": "المبيع شهريًا",
+      "week": "المبيع أسبوعيًا",
+      "day": "المبيع يوميًا"
+    },
+    "best": {
+      "month": "كان {{when}} أفضل شهر: <b>{{count}} مبيعة</b>",
+      "week": "كان أسبوع {{when}} الأفضل: <b>{{count}} مبيعة</b>",
+      "day": "كان {{when}} أفضل يوم: <b>{{count}} مبيعة</b>"
+    },
+    "nothingSold": "لم يُبع شيء في هذه الفترة",
+    "asItself": "كما هو",
+    "addOnNoteNoShare": "<b><amount>{{amount}}</amount></b> من {{name}} وحدها",
+    "noAddOns": "لم تُطلب إضافات في هذه الفترة",
+    "givenBack": "المُرتجع",
+    "loadingChanges": "جارٍ تحميل التغييرات..."
   },
   "itemUsed": {
     "meta": "{{group}} › {{kind}} · {{code}} · كل مستند ظهر فيه هذا الصنف",
@@ -14190,7 +14214,9 @@
       "onQuotations": "على عروض الأسعار",
       "onQuotationsNote": "ما زالت مفتوحة · {{count}} بالسعر القديم",
       "insideBundles": "داخل الحزم",
-      "insideBundlesNote": "{{name}} · بيع {{count}} مرة"
+      "insideBundlesNote": "{{name}} · بيع {{count}} مرة",
+      "draftsIncluded": "تشمل المسودات، دون المستندات الملغاة",
+      "oldPriceNotYet": "بالسعر القديم: غير متاح بعد"
     },
     "tab": {
       "all": "الكل",
@@ -14242,7 +14268,37 @@
     "ofABundle": "من حزمة بـ{{price}}",
     "average": "بمتوسط {{price}}",
     "showing": "تُعرض {{shown}} من {{total}} مستندًا",
-    "empty": "لا شيء يطابق ذلك."
+    "empty": "لا شيء يطابق ذلك.",
+    "kindOf": {
+      "INVOICE": "فاتورة",
+      "TILL_SALE": "كاشير",
+      "CREDIT_NOTE": "إشعار دائن",
+      "DEBIT_NOTE": "إشعار مدين",
+      "QUOTATION": "عرض سعر",
+      "ORDER_FORM": "نموذج طلب",
+      "DELIVERY_NOTE": "إشعار تسليم",
+      "PERIODIC": "فاتورة دورية"
+    },
+    "state": {
+      "DRAFT": "مسودة",
+      "ISSUED": "صادرة",
+      "CANCELLED": "ملغاة",
+      "PAID": "مدفوعة",
+      "SENT": "مُرسلة",
+      "ACCEPTED": "مقبولة",
+      "DECLINED": "مرفوضة",
+      "EXPIRED": "منتهية",
+      "ACTIVE": "نشطة",
+      "PAUSED": "متوقفة مؤقتًا",
+      "ENDED": "منتهية",
+      "DELIVERED": "مُسلّمة",
+      "CONVERTED": "محوّلة"
+    },
+    "noNumber": "بلا رقم بعد",
+    "today": "اليوم",
+    "bundlesNotYet": "الحزم التي تضم هذا الصنف لا تُدرج هنا بعد.",
+    "none": "هذا الصنف ليس على أي مستند بعد.",
+    "latestSummed": "آخر {{count}} مجموعة هنا"
   },
   "itemChanges": {
     "meta": "كل تغيير منذ إنشائه، ومن أجراه وماذا فعل · {{code}}",
@@ -14275,7 +14331,17 @@
     "partOfAChange": "جزء من تغيير مسّ <b>{{count}} صنفًا</b>. التراجع عن هذا يترك الـ{{others}} الأخرى كما هي.",
     "soldTimesInMonths": "بيع <b>{{count}} مرة</b> خلال {{months}} أشهر، وهو أقل الأحجام الثلاثة رواجًا.",
     "showing": "تُعرض {{shown}} من {{total}} تغييرًا",
-    "empty": "لا شيء يطابق ذلك."
+    "empty": "لا شيء يطابق ذلك.",
+    "none": "لا تغييرات مسجّلة بعد.",
+    "searchChanges": "ابحث بالحقل أو القيمة أو الشخص...",
+    "recordedFromNow": "تُسجَّل التغييرات من هذا الإصدار فصاعدًا، فلا تظهر التعديلات الأقدم.",
+    "showingLoaded_zero": "تُعرض {{count}} تغييرات",
+    "showingLoaded_one": "يُعرض تغيير واحد",
+    "showingLoaded_two": "يُعرض تغييران",
+    "showingLoaded_few": "تُعرض {{count}} تغييرات",
+    "showingLoaded_many": "يُعرض {{count}} تغييرًا",
+    "showingLoaded_other": "يُعرض {{count}} تغيير",
+    "showMore": "اعرض المزيد"
   },
   "bundles": {
     "title": "الحزم",
@@ -14290,7 +14356,8 @@
       "givenAwayNote": "ما تكلّفك الحزم مقابل الأجزاء",
       "cantBeMade": "لا يمكن تجهيزها",
       "cantBeMadeNote": "نفد جزء منها · وما زالت تظهر على الكاشير",
-      "allFine": "كل الحزم يمكن تجهيزها"
+      "allFine": "كل الحزم يمكن تجهيزها",
+      "broughtInNoteNoShare": "آخر ٩٠ يومًا · الحصة من كل المبيعات غير متاحة بعد"
     },
     "tab": {
       "all": "الكل",
@@ -14339,10 +14406,18 @@
     "parts_few": "{{count}} أجزاء",
     "parts_many": "{{count}} جزءًا",
     "savesNothing": "لا توفير",
-    "costsMore": "أغلى من الأجزاء بـ{{amount}}"
+    "costsMore": "أغلى من الأجزاء بـ{{amount}}",
+    "none": "لا حزم بعد.",
+    "ranOutNoDay": "نفد {{name}}",
+    "unavailable": {
+      "ARCHIVED": "{{name}} خارج البيع",
+      "NOT_SOLD_IN_BRANCH": "{{name}} لا يُباع هنا",
+      "SWITCHED_OFF": "{{name}} موقوف هنا",
+      "VARIANT_REMOVED": "{{name}} لم يعد معروضًا"
+    }
   },
   "bundle": {
-    "savesTheCustomer": "يوفّر للعميل {{amount}} ر.ع.",
+    "savesTheCustomer": "يوفّر للعميل <amount>{{amount}}</amount>",
     "subtitle": "عدة أشياء تبيعها أصلًا، تُجمع وتُسعّر كوحدة واحدة. بيعت <b>{{count}} مرة</b> خلال آخر ٩٠ يومًا · {{code}}",
     "subtitleNew": "عدة أشياء تبيعها أصلًا، تُجمع وتُسعّر كوحدة واحدة.",
     "step": {
@@ -14384,7 +14459,8 @@
       "takeFromStock": "اخصم الأجزاء من المخزون عند البيع",
       "takeFromStockNote": "بيع حزمة واحدة يخصم {{summary}}",
       "staffCanSwap": "اسمح للموظفين بتبديل جزء على الكاشير",
-      "staffCanSwapNote": "إيقافه يثبّت الحزمة. وتفعيله يتيح تبديل الحبوب بنوع آخر بالسعر نفسه."
+      "staffCanSwapNote": "إيقافه يثبّت الحزمة. وتفعيله يتيح تبديل الحبوب بنوع آخر بالسعر نفسه.",
+      "staffCanSwapNotYet": "غير متاح بعد. الحزمة ثابتة: يبيع الكاشير الأجزاء المحددة هنا."
     },
     "onTheInvoice": "على الفاتورة",
     "howItWillRead": "كيف ستُقرأ",
@@ -14401,12 +14477,41 @@
     "givenAwayInDiscount": "الممنوح كخصم",
     "soldThisWay": "{{name}} بيعت بهذه الطريقة",
     "ofTotal": "{{count}} من {{total}}",
-    "footer": "{{parts}} أجزاء · {{price}} ر.ع. شامل الضريبة · يمكن تجهيز {{canMake}} مما لديك",
-    "footerUnlimited": "{{parts}} أجزاء · {{price}} ر.ع. شامل الضريبة · لا شيء فيها يُحسب",
+    "footer": "{{parts}} أجزاء · <amount>{{price}}</amount> قبل الضريبة · يمكن تجهيز {{canMake}} مما لديك",
+    "footerUnlimited": "{{parts}} أجزاء · <amount>{{price}}</amount> قبل الضريبة · لا شيء فيها يُحسب",
     "cancel": "إلغاء",
     "saveAndSwitchOff": "احفظ وأوقفها الآن",
     "save": "حفظ",
-    "saved": "حُفظ"
+    "saved": "حُفظ",
+    "needsMore": "أعطِ الحزمة اسمًا ورمز صنف وجزأين على الأقل.",
+    "sizeOf": "حجم {{name}}",
+    "vatMixed": "الضريبة",
+    "asSaved": "كما حُفظت آخر مرة. احفظ لترى تغييراتك هنا.",
+    "splitBecause": {
+      "VAT_TREATMENTS_DIFFER": "أجزاؤها بضرائب مختلفة، فلكل جزء سطره.",
+      "CLASSIFICATIONS_DIFFER": "أجزاؤها مصنّفة بشكل مختلف، فلكل جزء سطره."
+    },
+    "refusal": {
+      "BUNDLE_PARTS_TOO_FEW": "تحتاج الحزمة إلى جزأين على الأقل.",
+      "BUNDLE_PARTS_TOO_MANY": "لا تتسع الحزمة لأكثر من 50 جزءًا.",
+      "BUNDLE_PART_INVALID": "أحد الأجزاء غير صحيح. تحقق من كميته وحجمه.",
+      "BUNDLE_PART_DUPLICATE": "هذا الصنف موجود في الحزمة بالفعل.",
+      "BUNDLE_PART_NOT_FOUND": "أحد الأجزاء لم يعد في الكتالوج.",
+      "BUNDLE_PART_ARCHIVED": "أحد الأجزاء خارج البيع. احذفه أو أعده إلى البيع.",
+      "BUNDLE_PART_NO_PRICE": "{{name}} بلا سعر، فسيظهر في الفاتورة بـ 0.000. حدّد له سعرًا ثم احفظ الحزمة.",
+      "BUNDLE_PART_IS_BUNDLE": "لا يمكن أن تضم الحزمة حزمة أخرى.",
+      "BUNDLE_PART_VARIANT_REQUIRED": "اختر الحجم أو الخيار لكل جزء يُباع بهذه الطريقة.",
+      "BUNDLE_PART_VARIANT_NOT_ON_PRODUCT": "الحجم المختار لا يخص صنفه.",
+      "BUNDLE_PART_QUANTITY_INVALID": "يحتاج كل جزء إلى كمية أكبر من صفر، بثلاث خانات عشرية على الأكثر.",
+      "BUNDLE_PARTS_VAT_REASON_CONFLICT": "جزآن بنسبة الضريبة نفسها لكن بسببين مختلفين. ستُرفض الفاتورة.",
+      "PRODUCT_CODE_DUPLICATE": "صنف آخر يستخدم هذا الرمز.",
+      "PRODUCT_BARCODE_DUPLICATE": "صنف آخر يستخدم هذا الباركود.",
+      "PRODUCT_VERSION_CONFLICT": "غيّر شخص آخر هذه الحزمة. أعد تحميلها وحاول مجددًا.",
+      "PRODUCT_ARCHIVED": "هذه الحزمة موقوفة. أعدها لتغييرها.",
+      "BUNDLE_NOT_FOUND": "هذه الحزمة لم تعد موجودة."
+    },
+    "footerStockLater": "الأجزاء: {{parts}} · <amount>{{price}}</amount> قبل الضريبة · يظهر ما يمكن تجهيزه بعد الحفظ",
+    "stockLater": "يظهر بعد الحفظ"
   },
   "stock": {
     "title": "المخزون",
@@ -22836,6 +22941,8 @@
     "saveAndUse": "حفظ واستخدام"
   },
   "invoiceDraft": {
+    "bundlePart": "هذا السطر جزء من حزمة تختلف ضريبة أجزائها، فلكل جزء سطره.",
+    "bundleSplitRequired": "في هذه الفاتورة حزمة تختلف ضريبة أجزائها، فلا يمكن وضعها في سطر واحد. احذف ذلك السطر واختر الحزمة من جديد من الكتالوج، وسيكون لكل جزء سطره.",
     "editTitle": "تعديل المسودة",
     "meta": {
       "new": "مسودة جديدة · لم تُحفظ بعد",
@@ -26783,13 +26890,15 @@
       "onThisPage": "محسوبة من هذه الصفحة من القائمة"
     },
     "tab": {
-      "all": "الكل",
+      "all": "الحالية",
       "goods": "المنتجات",
       "services": "الخدمات",
       "attention": "تحتاج إلى انتباه",
       "notStandard": "ليست بالنسبة الأساسية",
       "archived": "موقوف",
-      "switchedOff": "متوقفة في الفرع"
+      "switchedOff": "متوقفة في الفرع",
+      "onSale": "معروض",
+      "neverSold": "لم يُبع قط"
     },
     "sort": {
       "name": "الاسم",
@@ -26798,6 +26907,12 @@
       "priceHigh": "السعر، من الأعلى إلى الأقل"
     },
     "showingOf": "يُعرض {{shown}} من {{total}} منتج",
+    "showingOnPage_zero": "لا يُعرض شيء في هذه الصفحة",
+    "showingOnPage_one": "يُعرض منتج واحد في هذه الصفحة",
+    "showingOnPage_two": "يُعرض منتجان في هذه الصفحة",
+    "showingOnPage_few": "تُعرض {{count}} منتجات في هذه الصفحة",
+    "showingOnPage_many": "يُعرض {{count}} منتجًا في هذه الصفحة",
+    "showingOnPage_other": "يُعرض {{count}} منتج في هذه الصفحة",
     "noneInTab": "لا شيء في هذه الصفحة يناسب هذا التبويب.",
     "notOnSaleHere": "غير معروض للبيع في هذا الفرع"
   },
@@ -28435,6 +28550,52 @@
     "suggest": "رمز النظام المنسق هذا موجود في قائمة {{list}} ذات النسبة الصفرية في عُمان بتاريخ {{date}}. تُقترح النسبة الصفرية ({{reason}}). يمكنك اختيار فئة أخرى.",
     "useSuggestion": "استخدم النسبة الصفرية",
     "flagged": "أشار إليه فحص النسبة الصفرية"
+  },
+  "itemHistory": {
+    "yes": "نعم",
+    "no": "لا",
+    "offSale": "خارج البيع",
+    "action": {
+      "ProductCreated": "أُنشئ الصنف",
+      "ProductUpdated": "عُدّل الصنف",
+      "ProductArchived": "أُخرج من البيع",
+      "ProductReactivated": "أُعيد إلى البيع",
+      "ProductVariantsChanged": "تغيّرت الأحجام أو الخيارات أو الإضافات",
+      "ProductBranchSettingsChanged": "تغيّرت الفروع",
+      "other": "تغيّر"
+    },
+    "field": {
+      "code": "رمز الصنف",
+      "name": "الاسم",
+      "nameAr": "الاسم بالعربية",
+      "description": "الوصف",
+      "defaultUnitCode": "الوحدة",
+      "defaultUnitPrice": "السعر الأساسي",
+      "defaultTaxCategory": "الفئة الضريبية",
+      "defaultTaxRate": "نسبة الضريبة",
+      "defaultTaxReasonCode": "رمز السبب",
+      "defaultTaxReasonText": "السبب",
+      "goodsOrService": "سلعة أم خدمة",
+      "hsCode": "رمز النظام المنسق",
+      "serviceTypeCode": "نوع الخدمة",
+      "isicCode": "رمز النشاط",
+      "barcode": "الباركود",
+      "kindId": "النوع",
+      "itemKind": "نوع الشيء",
+      "priceEntryIncludesVat": "السعر شامل الضريبة",
+      "staffCanChangePrice": "يمكن للموظفين تغيير السعر",
+      "keepCount": "تتبّع الكمية",
+      "defaultDiscount": "الخصم",
+      "active": "معروض",
+      "size": "الحجم",
+      "option": "الخيار",
+      "variant": "التركيبة",
+      "addOn": "الإضافة",
+      "availability": "أين يُباع",
+      "chosenBranch": "يُباع في الفرع",
+      "branchPrice": "سعر الفرع",
+      "onSale": "معروض في الفرع"
+    }
   },
   "invoiceForm": {
     "unitLock": {

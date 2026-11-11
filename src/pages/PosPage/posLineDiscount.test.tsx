@@ -152,6 +152,28 @@ describe('the control in the sale panel', () => {
     expect(screen.getByText('−0.200')).toBeTruthy()
   })
 
+  it('is not offered on a split bundle, which files its parts; a one-line bundle keeps it', () => {
+    const part = {
+      productId: 'p2',
+      variantId: null,
+      productCode: 'P2',
+      description: 'Bun: Beans',
+      unit: 'EA',
+      quantity: 1,
+      price: 1000,
+      itemType: 'goods',
+      taxCode: 'S',
+      vatRate: '5',
+      discountType: 'PERCENTAGE',
+      discountValue: '0',
+    } as NonNullable<SaleLine['bundleParts']>[number]
+    const { unmount } = render(<Panel start={[line({ bundleParts: [part, part] })]} />)
+    expect(screen.queryByRole('button', { name: 'Set a line discount for Bun' })).toBeNull()
+    unmount()
+    render(<Panel start={[line({ bundleParts: null })]} />)
+    expect(screen.getByRole('button', { name: 'Set a line discount for Bun' })).toBeTruthy()
+  })
+
   it('offers the giveaway to someone without a limit', () => {
     limits = undefined
     render(<Panel start={[line()]} />)

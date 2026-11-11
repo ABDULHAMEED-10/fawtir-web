@@ -4372,6 +4372,10 @@
     "walkIn": "Walk-in",
     "onTheCompany": "On the company",
     "walkInNote": "A receipt with a QR code. Tap On the company if they want it invoiced. You would enter their VAT number and it goes over Peppol instead.",
+    "bundle": {
+      "parts": "Filed as separate lines, each at its own VAT: {{parts}}",
+      "offline": "{{name}} can't be sold while offline: this till hasn't read how it goes on the invoice yet. Connect and try again."
+    },
     "oneSizeOnly": "One size",
     "oneMore": "One more {{name}}",
     "oneFewer": "One fewer {{name}}",
@@ -5200,6 +5204,7 @@
       "POS_PRODUCT_NOT_SELLABLE": "An item on line {{line}} is not on sale in this branch any more.",
       "POS_VARIANT_NOT_SELLABLE": "A size on line {{line}} is not on sale any more.",
       "POS_PRICE_NOT_CATALOGUE": "The price on line {{line}} has changed: it is now {{expectedPrice}}. Take it off and add it again.",
+      "POS_BUNDLE_SPLIT_REQUIRED": "A bundle on this sale has parts with different VAT, so it can't go on one line. Take it off the sale and add it again: the till will put each part on its own line.",
       "POS_TILL_RETIRED": "This till is retired and sells nothing.",
       "POS_TILL_NOT_FOUND": "This till is not in this branch.",
       "POS_TILL_NUMBER_GAP": "A sale made offline is missing before this one. The till expected number {{expectedNumber}}.",
@@ -13276,7 +13281,9 @@
       "share": "Share of all drinks",
       "shareNote": "nothing else is close",
       "average": "Average sale",
-      "averageNote": "bigger sizes and add-ons"
+      "averageNote": "bigger sizes and add-ons",
+      "shareOfGroup": "Share of {{group}}",
+      "shareNoGroup": "Share of its group"
     },
     "soldEachMonth": "Sold each month",
     "byHourOfDay": "By hour of day",
@@ -13285,8 +13292,8 @@
     "expand": "Open it larger",
     "bestMonth": "{{month}} was the best month yet: <b>{{count}} sold</b>",
     "peakHour": "Nearly a fifth of the day's {{name}}: <b>{{hour}} is the peak</b>",
-    "sizeNote": "<b>{{size}} is {{percent}}%</b> of everything sold; the takeaway cup barely moves",
-    "addOnNote": "One in {{n}} gets an extra shot · <b>OMR {{amount}}</b> from {{name}} alone",
+    "sizeNote": "<b>{{size}} is {{percent}}%</b> of everything sold",
+    "addOnNote": "One in {{n}} takes {{taken}} · <b><amount>{{amount}}</amount></b> from {{name}} alone",
     "whereItGoes": "Where it goes",
     "overTheCounter": "Over the counter",
     "onAnInvoice": "On an invoice",
@@ -13296,7 +13303,24 @@
     "neverRefunded": "Never refunded",
     "returns": "{{count}} returns",
     "whatsChanged": "What's changed",
-    "seeAllChanges": "See all changes"
+    "seeAllChanges": "See all changes",
+    "notYet": "Not available yet",
+    "soldEach": {
+      "month": "Sold each month",
+      "week": "Sold each week",
+      "day": "Sold each day"
+    },
+    "best": {
+      "month": "{{when}} was the best month: <b>{{count}} sold</b>",
+      "week": "The week of {{when}} was the best: <b>{{count}} sold</b>",
+      "day": "{{when}} was the best day: <b>{{count}} sold</b>"
+    },
+    "nothingSold": "Nothing sold in this period",
+    "asItself": "As it is",
+    "addOnNoteNoShare": "<b><amount>{{amount}}</amount></b> from {{name}} alone",
+    "noAddOns": "No add-ons taken in this period",
+    "givenBack": "Given back",
+    "loadingChanges": "Loading the changes..."
   },
   "itemUsed": {
     "meta": "{{group}} › {{kind}} · {{code}} · every document this item appears on",
@@ -13308,7 +13332,9 @@
       "onQuotations": "On quotations",
       "onQuotationsNote": "Still open · {{count}} at the old price",
       "insideBundles": "Inside bundles",
-      "insideBundlesNote": "{{name}} · sold {{count}} times"
+      "insideBundlesNote": "{{name}} · sold {{count}} times",
+      "draftsIncluded": "Drafts included, discarded ones left out",
+      "oldPriceNotYet": "At the old price: not available yet"
     },
     "tab": {
       "all": "All",
@@ -13360,7 +13386,39 @@
     "ofABundle": "of a {{price}} bundle",
     "average": "{{price}} average",
     "showing": "Showing {{shown}} of {{total}} documents",
-    "empty": "Nothing matches that."
+    "empty": "Nothing matches that.",
+    "kindOf": {
+      "INVOICE": "Invoice",
+      "TILL_SALE": "Till",
+      "CREDIT_NOTE": "Credit note",
+      "DEBIT_NOTE": "Debit note",
+      "QUOTATION": "Quotation",
+      "ORDER_FORM": "Order form",
+      "DELIVERY_NOTE": "Delivery note",
+      "PERIODIC": "Periodic invoice"
+    },
+    "state": {
+      "DRAFT": "Draft",
+      "ISSUED": "Issued",
+      "CANCELLED": "Cancelled",
+      "PAID": "Paid",
+      "SENT": "Sent",
+      "ACCEPTED": "Accepted",
+      "DECLINED": "Declined",
+      "EXPIRED": "Expired",
+      "ACTIVE": "Active",
+      "PAUSED": "Paused",
+      "ENDED": "Ended",
+      "DELIVERED": "Delivered",
+      "CONVERTED": "Converted"
+    },
+    "noNumber": "No number yet",
+    "today": "Today",
+    "daysAgo_one": "{{count}} day ago",
+    "weeksAgo_one": "{{count}} week ago",
+    "bundlesNotYet": "Bundles holding this item are not listed here yet.",
+    "none": "This item is not on any document yet.",
+    "latestSummed": "The latest {{count}} summed here"
   },
   "itemChanges": {
     "meta": "Every change since it was created, who made it and what it did · {{code}}",
@@ -13393,7 +13451,13 @@
     "partOfAChange": "Part of a change that touched <b>{{count}} items</b>. Undoing this one leaves the other {{others}} alone.",
     "soldTimesInMonths": "Sold <b>{{count}} times</b> in {{months}} months, the least popular of the three sizes.",
     "showing": "Showing {{shown}} of {{total}} changes",
-    "empty": "Nothing matches that."
+    "empty": "Nothing matches that.",
+    "none": "No changes recorded yet.",
+    "searchChanges": "Search by field, value or person...",
+    "recordedFromNow": "Changes are recorded from this release on, so earlier edits are not listed.",
+    "showingLoaded_one": "Showing {{count}} change",
+    "showingLoaded_other": "Showing {{count}} changes",
+    "showMore": "Show more"
   },
   "bundles": {
     "title": "Bundles",
@@ -13408,7 +13472,8 @@
       "givenAwayNote": "What bundles cost you against the parts",
       "cantBeMade": "Can't be made",
       "cantBeMadeNote": "A part has run out · still showing at the till",
-      "allFine": "Every bundle can be made"
+      "allFine": "Every bundle can be made",
+      "broughtInNoteNoShare": "Last 90 days · share of all sales not available yet"
     },
     "tab": {
       "all": "All",
@@ -13453,10 +13518,18 @@
       "saving": "Biggest saving"
     },
     "savesNothing": "saves nothing",
-    "costsMore": "costs {{amount}} more than the parts"
+    "costsMore": "costs {{amount}} more than the parts",
+    "none": "No bundles yet.",
+    "ranOutNoDay": "No {{name}} left",
+    "unavailable": {
+      "ARCHIVED": "{{name}} is off sale",
+      "NOT_SOLD_IN_BRANCH": "{{name}} is not sold here",
+      "SWITCHED_OFF": "{{name}} is switched off here",
+      "VARIANT_REMOVED": "{{name}} is no longer on sale"
+    }
   },
   "bundle": {
-    "savesTheCustomer": "Saves the customer OMR {{amount}}",
+    "savesTheCustomer": "Saves the customer <amount>{{amount}}</amount>",
     "subtitle": "Several things you already sell, put together and priced as one. Sold <b>{{count}} times</b> in the last 90 days · {{code}}",
     "subtitleNew": "Several things you already sell, put together and priced as one.",
     "step": {
@@ -13498,7 +13571,8 @@
       "takeFromStock": "Take the parts out of stock when sold",
       "takeFromStockNote": "Selling one bundle removes {{summary}}",
       "staffCanSwap": "Let staff swap a part at the till",
-      "staffCanSwapNote": "Off means the bundle is fixed. On lets them change the beans for another kind at the same price."
+      "staffCanSwapNote": "Off means the bundle is fixed. On lets them change the beans for another kind at the same price.",
+      "staffCanSwapNotYet": "Not available yet. The bundle is fixed: the till sells the parts set here."
     },
     "onTheInvoice": "On the invoice",
     "howItWillRead": "How it will read",
@@ -13515,12 +13589,41 @@
     "givenAwayInDiscount": "Given away in discount",
     "soldThisWay": "{{name}} sold this way",
     "ofTotal": "{{count}} of {{total}}",
-    "footer": "{{parts}} parts · OMR {{price}} including VAT · {{canMake}} can be made from what you hold",
-    "footerUnlimited": "{{parts}} parts · OMR {{price}} including VAT · nothing in it is counted",
+    "footer": "{{parts}} parts · <amount>{{price}}</amount> before VAT · {{canMake}} can be made from what you hold",
+    "footerUnlimited": "{{parts}} parts · <amount>{{price}}</amount> before VAT · nothing in it is counted",
     "cancel": "Cancel",
     "saveAndSwitchOff": "Save & switch off for now",
     "save": "Save",
-    "saved": "Saved"
+    "saved": "Saved",
+    "needsMore": "Give the bundle a name, an item code and at least two parts.",
+    "sizeOf": "Size of {{name}}",
+    "vatMixed": "VAT",
+    "asSaved": "As last saved. Save to see your changes here.",
+    "splitBecause": {
+      "VAT_TREATMENTS_DIFFER": "Its parts carry different VAT, so each part is its own line.",
+      "CLASSIFICATIONS_DIFFER": "Its parts are classified differently, so each part is its own line."
+    },
+    "refusal": {
+      "BUNDLE_PARTS_TOO_FEW": "A bundle needs at least two parts.",
+      "BUNDLE_PARTS_TOO_MANY": "A bundle can hold at most 50 parts.",
+      "BUNDLE_PART_INVALID": "One of the parts is not right. Check its quantity and size.",
+      "BUNDLE_PART_DUPLICATE": "That item is already in the bundle.",
+      "BUNDLE_PART_NOT_FOUND": "One of the parts is no longer in the catalogue.",
+      "BUNDLE_PART_ARCHIVED": "One of the parts is off sale. Remove it or put it back on sale.",
+      "BUNDLE_PART_NO_PRICE": "{{name}} has no price, so it would go on the invoice at 0.000. Give it a price, then save the bundle.",
+      "BUNDLE_PART_IS_BUNDLE": "A bundle cannot hold another bundle.",
+      "BUNDLE_PART_VARIANT_REQUIRED": "Choose the size or option of each part sold that way.",
+      "BUNDLE_PART_VARIANT_NOT_ON_PRODUCT": "A chosen size does not belong to its item.",
+      "BUNDLE_PART_QUANTITY_INVALID": "Each part needs a quantity above zero, with three decimals at most.",
+      "BUNDLE_PARTS_VAT_REASON_CONFLICT": "Two parts have the same VAT rate but different reasons. An invoice would be refused.",
+      "PRODUCT_CODE_DUPLICATE": "Another item already uses this code.",
+      "PRODUCT_BARCODE_DUPLICATE": "Another item already uses this barcode.",
+      "PRODUCT_VERSION_CONFLICT": "Someone else changed this bundle. Reload it and try again.",
+      "PRODUCT_ARCHIVED": "This bundle is switched off. Bring it back to change it.",
+      "BUNDLE_NOT_FOUND": "This bundle no longer exists."
+    },
+    "footerStockLater": "{{parts}} parts · <amount>{{price}}</amount> before VAT · what you can make shows once saved",
+    "stockLater": "Shows once saved"
   },
   "stock": {
     "title": "Stock",
@@ -21489,6 +21592,8 @@
     "saveAndUse": "Save and use"
   },
   "invoiceDraft": {
+    "bundlePart": "This line is one part of a bundle whose parts have different VAT, so each has its own line.",
+    "bundleSplitRequired": "A bundle on this invoice has parts with different VAT, so it can't go on one line. Delete that line and pick the bundle again from the catalogue: each part gets its own line.",
     "editTitle": "Edit draft",
     "meta": {
       "new": "New draft · not saved yet",
@@ -25283,13 +25388,15 @@
       "onThisPage": "Counted on this page of the list"
     },
     "tab": {
-      "all": "All",
+      "all": "Current",
       "goods": "Products",
       "services": "Services",
       "attention": "Wanting attention",
       "notStandard": "Not at the standard rate",
       "archived": "Off sale",
-      "switchedOff": "Switched off"
+      "switchedOff": "Switched off",
+      "onSale": "On sale",
+      "neverSold": "Never sold"
     },
     "sort": {
       "name": "Name",
@@ -25298,6 +25405,8 @@
       "priceHigh": "Price, high to low"
     },
     "showingOf": "Showing {{shown}} of {{total}} products",
+    "showingOnPage_one": "Showing {{count}} on this page",
+    "showingOnPage_other": "Showing {{count}} on this page",
     "noneInTab": "Nothing on this page fits this tab.",
     "notOnSaleHere": "Not on sale in this branch"
   },
@@ -26833,6 +26942,52 @@
     "suggest": "This HS code is on Oman's zero-rated {{list}} list on {{date}}. Zero-rated is suggested ({{reason}}). You can still choose another category.",
     "useSuggestion": "Use zero-rated",
     "flagged": "Flagged by the zero-rating check"
+  },
+  "itemHistory": {
+    "yes": "Yes",
+    "no": "No",
+    "offSale": "Off sale",
+    "action": {
+      "ProductCreated": "Item created",
+      "ProductUpdated": "Item changed",
+      "ProductArchived": "Taken off sale",
+      "ProductReactivated": "Put back on sale",
+      "ProductVariantsChanged": "Sizes, options or add-ons changed",
+      "ProductBranchSettingsChanged": "Branches changed",
+      "other": "Changed"
+    },
+    "field": {
+      "code": "Item code",
+      "name": "Name",
+      "nameAr": "Arabic name",
+      "description": "Description",
+      "defaultUnitCode": "Unit",
+      "defaultUnitPrice": "Base price",
+      "defaultTaxCategory": "Tax category",
+      "defaultTaxRate": "VAT rate",
+      "defaultTaxReasonCode": "Reason code",
+      "defaultTaxReasonText": "Reason",
+      "goodsOrService": "Goods or service",
+      "hsCode": "HS code",
+      "serviceTypeCode": "Service type",
+      "isicCode": "Activity code",
+      "barcode": "Barcode",
+      "kindId": "Kind",
+      "itemKind": "What kind of thing",
+      "priceEntryIncludesVat": "Price includes VAT",
+      "staffCanChangePrice": "Staff can change the price",
+      "keepCount": "Keep count",
+      "defaultDiscount": "Discount",
+      "active": "On sale",
+      "size": "Size",
+      "option": "Option",
+      "variant": "Combination",
+      "addOn": "Add-on",
+      "availability": "Where it is sold",
+      "chosenBranch": "Sold at the branch",
+      "branchPrice": "Branch price",
+      "onSale": "On sale at the branch"
+    }
   },
   "invoiceForm": {
     "unitLock": {

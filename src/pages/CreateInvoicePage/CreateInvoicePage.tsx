@@ -35,6 +35,11 @@ import {
 } from '../../api/customers/customers'
 import { productSearchPath, searchProducts, type ProductDto } from '../../api/catalog/products'
 import {
+  bundleInvoiceLinesPath,
+  getBundleInvoiceLines,
+  type BundleInvoiceLinesDto,
+} from '../../api/catalog/bundles'
+import {
   BRANCHES_PATH,
   createDraft,
   createSelfBilledDraft,
@@ -85,7 +90,7 @@ import {
   type ItemType,
 } from '../../lib/invoiceDraft'
 import { blankCustomerForm, customerProblems, toCustomerRequest } from '../../lib/customerForm'
-import { lineFromProduct, lineHasNoPrice, taxCategoryOf } from '../../lib/productLine'
+import { lineFromBundleLine, lineFromProduct, lineHasNoPrice, taxCategoryOf } from '../../lib/productLine'
 import { isStockLineWarning, unitLockHint } from '../../lib/stockLineWarnings'
 import type { InvoiceLineWarningDto } from '../../api/invoices/detail'
 import { useWorkingBranch } from '../../components/branch/useWorkingBranch'
@@ -129,7 +134,6 @@ import arrowIcon from '../../assets/create-invoice/arrow.svg'
 import qrBadgeIcon from '../../assets/create-invoice/qr-badge.svg'
 import receiptQrIcon from '../../assets/create-invoice/receipt-qr.svg'
 import deleteLineIcon from '../../assets/create-invoice/delete.svg'
-
 
 /**
  * Quotations, order forms and delivery notes have no server yet (their routes say so), and the rows
@@ -904,6 +908,55 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
       ...(itemType === 'goods' ? { serviceType: undefined } : { hsCode: undefined }),
     })
   }
+  /**
+   * A bundle on an invoice (`GET /v1/bundles/{id}/invoice-lines`): whether it is one line or one
+   * line per part is the server's answer, at the branch's prices. Parts that differ in VAT replace
+   * the line, each with its own VAT and `bundleId` (one line would be refused at issue,
+   * `BUNDLE_SPLIT_REQUIRED`). Quantity 1: the person sets the quantities on the lines.
+   */
+  const pickFromCatalogue = async (line: DraftLine, product: ProductDto) => {
+    if (product.itemKind !== 'BUNDLE') {
+      fillFromProduct(line, product)
+      return
+    }
+    let answer: BundleInvoiceLinesDto
+    try {
+      answer = await getBundleInvoiceLines(
+        bundleInvoiceLinesPath(product.id, { branchId: form.branchId, quantity: 1 }),
+      )
+    } catch (error) {
+      setNotice({ tone: 'error', body: failureText(t, error) })
+      return
+    }
+    if (!answer.split) {
+      fillFromProduct(line, product)
+      return
+    }
+    const categories = reference?.taxCategories ?? []
+    const parts: DraftLine[] = answer.lines.map((part) => {
+      const fields = lineFromBundleLine(categories, part)
+      return {
+        ...blankDraftLine(categories, defaultTax),
+        ...fields,
+        taxCode: fields.taxCode,
+        exemptionReason: fields.exemptionReason ?? '',
+        quantity: String(Number(part.quantity)),
+        unitPrice: exclVat
+          ? fields.unitPrice
+          : formatAmount(
+              (parseAmount(fields.unitPrice) * (parseAmount('100') + parseAmount(fields.vatRate))) /
+                parseAmount('100'),
+              3,
+            ).replace(/,/g, ''),
+        // A consumer's invoice carries no classification; the request leaves it out.
+      }
+    })
+    setForm((current) => ({
+      ...current,
+      lines: current.lines.flatMap((entry) => (entry.id === line.id ? parts : [entry])),
+    }))
+    setDirty(true)
+  }
   const fillFromProduct = (line: DraftLine, product: ProductDto) => {
     const patch = lineFromProduct(reference?.taxCategories ?? [], product, exclVat)
     // Only what the product says: a product naming neither leaves the choice to the reader.
@@ -1484,7 +1537,9 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
           {usage ? (
             <div className="flex min-w-[190px] flex-col gap-1">
               <p className="text-sm font-medium leading-none text-text-primary">
-                <span className="text-base font-semibold">{usage.used.toLocaleString(language)}</span>{' '}
+                <span className="text-base font-semibold">
+                  {usage.used.toLocaleString(language)}
+                </span>{' '}
                 <span className="text-xs text-text-quaternary">
                   {t('createInvoice.header.usage', {
                     allowance: usage.allowance.toLocaleString(language),
@@ -2007,7 +2062,9 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
                           className={[INPUT, 'min-w-0 flex-1'].join(' ')}
                         />
                         <span className="w-8 shrink-0">
-                          <CataloguePick onPick={(product) => fillFromProduct(row, product)} />
+                          <CataloguePick
+                            onPick={(product) => void pickFromCatalogue(row, product)}
+                          />
                         </span>
                       </div>
                       <ItemTypeToggle
@@ -2099,6 +2156,11 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
                     {row.countedUnit !== undefined ? (
                       <p className="ps-1 text-xs font-medium text-text-tertiary">
                         {unitLockHint(t, row.countedUnit, language)}
+                      </p>
+                    ) : null}
+                    {row.bundleId ? (
+                      <p className="ps-1 text-xs font-medium text-text-quaternary">
+                        {t('invoiceDraft.bundlePart')}
                       </p>
                     ) : null}
                     {/* The reason a zero-rated or exempt line carries no VAT: its own row, wide enough

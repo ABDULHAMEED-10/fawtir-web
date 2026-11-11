@@ -27,8 +27,10 @@ import { useCanManageProducts } from './ItemFormPage'
 import { demoModulesEnabled } from '../../lib/demoModules'
 import { OMAN_VAT_CATEGORIES } from '../../lib/invoiceDraft'
 import {
+  BRANCH_ONLY_TABS,
   CATALOG_SORTS,
   CATALOG_TABS,
+  SERVER_TABS,
   SERVER_SORT,
   catalogRows,
   catalogSortOf,
@@ -76,6 +78,15 @@ const SEARCH_DELAY_MS = 250
  * the server; the sort is the server's (`sort`, `direction`); the Archived tab reads
  * `status=ARCHIVED` and offers Put back on sale (P.14, P.15).
  */
+/** The tabs whose number is the server's; the others count the page of products in view. */
+const FROM_SERVER: ReadonlySet<CatalogTab> = new Set([
+  'all',
+  'onSale',
+  'neverSold',
+  'switchedOff',
+  'archived',
+])
+
 export function CatalogPage() {
   const { t, i18n } = useTranslation()
   const [query, setQuery] = useState('')
@@ -86,9 +97,10 @@ export function CatalogPage() {
   const [params] = useSearchParams()
   const [tab, setTabState] = useState<CatalogTab>(() => catalogTabOf(params.get('tab')))
   const archivedTab = tab === 'archived'
-  // Moving in or out of Archived reads another list, so it starts from its first page.
+  // Moving in or out of Archived, or a tab the server filters, reads another list, so it starts
+  // from its first page.
   const setTab = (next: CatalogTab) => {
-    if ((next === 'archived') !== archivedTab) setPage(0)
+    if ((next === 'archived') !== archivedTab || SERVER_TABS[next] || SERVER_TABS[tab]) setPage(0)
     setTabState(next)
   }
   const [sort, setSort] = useState<CatalogSort>(() => catalogSortOf(params.get('sort')))
@@ -115,6 +127,8 @@ export function CatalogPage() {
   // branches have answered, so the list is not asked twice; without branches, the whole company.
   const branchRead = useWorkingBranch()
   const branchId = branchRead.branch?.id ?? null
+  // On sale, Never sold and Switched off are the server's filters (guide §6), with a branch only.
+  const serverFilter = branchId && !archivedTab ? SERVER_TABS[tab] : undefined
   const path = productListPath({
     q: search,
     branchId,
@@ -122,13 +136,51 @@ export function CatalogPage() {
     // so a manager can open it and switch it back on. The till and the item pickers do not ask.
     includeUnavailable: true,
     size: CATALOG_PAGE_SIZE,
-    page: archivedTab ? 0 : page,
+    page: archivedTab || serverFilter ? 0 : page,
     ...order,
   })
   const active = useApiRead<Page<ProductDto>>(
     branchRead.read.status === 'loading' ? null : path,
     () => searchProducts(path),
   )
+  const filteredPath = serverFilter
+    ? productListPath({
+        q: search,
+        branchId,
+        includeUnavailable: true,
+        ...serverFilter,
+        size: CATALOG_PAGE_SIZE,
+        page,
+        ...order,
+      })
+    : null
+  const filtered = useApiRead<Page<ProductDto>>(filteredPath, () => searchProducts(filteredPath!))
+  // The On sale and Never sold counts: one row each, `totalElements` counts them all.
+  const onSaleCountPath = branchId
+    ? productListPath({ q: search, branchId, availability: 'ON_SALE', size: 1 })
+    : null
+  const onSaleCount = useApiRead<Page<ProductDto>>(onSaleCountPath, () =>
+    searchProducts(onSaleCountPath!),
+  )
+  const switchedOffCountPath = branchId
+    ? productListPath({ q: search, branchId, availability: 'SWITCHED_OFF', size: 1 })
+    : null
+  const switchedOffCount = useApiRead<Page<ProductDto>>(switchedOffCountPath, () =>
+    searchProducts(switchedOffCountPath!),
+  )
+  const neverSoldCountPath = branchId
+    ? productListPath({
+        q: search,
+        branchId,
+        ...SERVER_TABS.neverSold,
+        size: 1,
+      })
+    : null
+  const neverSoldCount = useApiRead<Page<ProductDto>>(neverSoldCountPath, () =>
+    searchProducts(neverSoldCountPath!),
+  )
+  const serverCount = (read: typeof onSaleCount) =>
+    read.read.status === 'ready' ? (read.read.data.total ?? read.read.data.items.length) : 0
   const archivedPath = productListPath({
     q: search,
     status: 'ARCHIVED',
@@ -148,7 +200,7 @@ export function CatalogPage() {
     archivedCount.read.status === 'ready'
       ? (archivedCount.read.data.total ?? archivedCount.read.data.items.length)
       : 0
-  const products = archivedTab ? archived : active
+  const products = archivedTab ? archived : serverFilter ? filtered : active
   const loaded = products.read.status === 'ready' ? products.read.data : null
   const activeItems = useMemo(
     () => (active.read.status === 'ready' ? active.read.data.items : []),
@@ -183,24 +235,53 @@ export function CatalogPage() {
     () => catalogRows(items, tab, sort, i18n.language, flagged),
     [items, tab, sort, i18n.language, flagged],
   )
-  // The tabs other than Archived count the page of products: Switched off those greyed in the
-  // working branch, the others only what is on sale there.
+  // The cards count only what is on sale in the working branch, from the unfiltered list, so they
+  // stay the same whichever tab is open.
+  const activeLoaded = active.read.status === 'ready' ? active.read.data : null
+  const activeTotal = activeLoaded ? (activeLoaded.total ?? activeItems.length) : null
+  const kpiPaged = activeLoaded ? pageCountOf(activeLoaded) > 1 : false
+  const onSale = activeItems.filter(onSaleHere)
+  const switchedOff = activeItems.length - onSale.length
+  // What is on sale here, over every page: the server's count with a working branch. Without one,
+  // or until it answers, the list's total less the greyed rows on the page in view.
+  const onSaleTotal =
+    onSaleCount.read.status === 'ready'
+      ? serverCount(onSaleCount)
+      : Math.max(0, (activeTotal ?? 0) - switchedOff)
+  // Everything, On sale, Never sold, Switched off and Archived are counted by the server, each
+  // read once however often the tab changes. Goods, Services and the like have no server filter,
+  // so they count the page of products, only what is on sale there.
   const tabCount = (id: CatalogTab) =>
     id === 'archived'
       ? archivedTotal
-      : activeItems.filter((product) => matchesCatalogTab(product, id, flagged)).length +
-        (id === 'attention' ? flaggedElsewhere.length : 0)
-  // The cards count only what is on sale in the working branch.
-  const onSale = items.filter(onSaleHere)
-  const switchedOff = items.length - onSale.length
+      : id === 'all'
+        ? onSaleTotal
+        : id === 'onSale'
+          ? serverCount(onSaleCount)
+          : id === 'neverSold'
+            ? serverCount(neverSoldCount)
+            : id === 'switchedOff' && switchedOffCount.read.status === 'ready'
+              ? serverCount(switchedOffCount)
+              : activeItems.filter((product) => matchesCatalogTab(product, id, flagged)).length +
+                (id === 'attention' ? flaggedElsewhere.length : 0)
+  // What the page alone counts is only a floor once there are more pages: "19+", not "19".
+  const tabBadge = (id: CatalogTab) =>
+    kpiPaged && !FROM_SERVER.has(id) ? `${tabCount(id)}+` : tabCount(id)
+  // The footer's "of": what the open tab counts, so Current 85 never sits beside "of 87". The list
+  // behind Current also holds greyed items, which the tab leaves out. Goods, Services and the like
+  // narrow one page, so with more pages there is no total to give.
+  const listedTotal = tab === 'all' ? onSaleTotal : FROM_SERVER.has(tab) || !paged ? total : null
   const services = onSale.filter((product) => kindOf(product) === 'service').length
   const attention =
     onSale.filter((product) => needsAttention(product, flagged)).length +
     (archivedTab ? 0 : flaggedElsewhere.length)
   const notStandard = onSale.filter((product) => product.defaultTaxCategory !== 'S').length
   // Switched off appears only while something is, or while it is the open tab.
+  // On sale and Never sold need a working branch: the server filters them only with one.
   const tabs = CATALOG_TABS.filter(
-    (entry) => entry.id !== 'switchedOff' || tab === 'switchedOff' || tabCount(entry.id) > 0,
+    (entry) =>
+      (entry.id !== 'switchedOff' || tab === 'switchedOff' || tabCount(entry.id) > 0) &&
+      (!BRANCH_ONLY_TABS.has(entry.id) || branchId !== null),
   )
 
   /** Puts an archived item back on sale (P.14), then reads both lists again. */
@@ -211,6 +292,10 @@ export function CatalogPage() {
       archived.retry()
       archivedCount.retry()
       active.retry()
+      if (filteredPath) filtered.retry()
+      if (onSaleCountPath) onSaleCount.retry()
+      if (switchedOffCountPath) switchedOffCount.retry()
+      if (neverSoldCountPath) neverSoldCount.retry()
     } catch (error) {
       const refusal = productRefusal(error)
       if (refusal) {
@@ -299,17 +384,16 @@ export function CatalogPage() {
         </p>
       ) : null}
 
-      {products.read.status === 'ready' && !search && !archivedTab ? (
+      {activeLoaded && !search && !archivedTab ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Kpi
             icon={kpiItemsIcon}
             label={t('catalogReal.kpi.things')}
-            // The server's total less the greyed rows; exact on one page (INCOME.md P.1).
-            value={String(Math.max(0, (total ?? 0) - switchedOff))}
+            value={String(onSaleTotal)}
             // TODO(backend): the list counts only what is on the page it returns, so across
             // several pages the split of goods and services is this page's (INCOME.md P.1).
             note={
-              paged
+              kpiPaged
                 ? t('catalogReal.kpi.thingsPagedNote', {
                     goods: onSale.length - services,
                     services,
@@ -324,13 +408,13 @@ export function CatalogPage() {
             icon={kpiGroupsIcon}
             label={t('catalogReal.kpi.services')}
             value={String(services)}
-            note={paged ? t('catalogReal.kpi.onThisPage') : t('catalogReal.kpi.servicesNote')}
+            note={kpiPaged ? t('catalogReal.kpi.onThisPage') : t('catalogReal.kpi.servicesNote')}
           />
           <Kpi
             icon={kpiEarningIcon}
             label={t('catalogReal.kpi.notStandard')}
             value={String(notStandard)}
-            note={paged ? t('catalogReal.kpi.onThisPage') : t('catalogReal.kpi.notStandardNote')}
+            note={kpiPaged ? t('catalogReal.kpi.onThisPage') : t('catalogReal.kpi.notStandardNote')}
           />
           <Kpi
             icon={kpiAttentionIcon}
@@ -339,7 +423,7 @@ export function CatalogPage() {
             label={t('catalogReal.kpi.attention')}
             value={String(attention)}
             note={
-              paged
+              kpiPaged
                 ? t('catalogReal.kpi.onThisPage')
                 : attention > 0
                   ? t('catalogReal.kpi.attentionNote')
@@ -357,7 +441,7 @@ export function CatalogPage() {
           {t('catalogReal.products')}
         </h2>
         {(loaded && items.length > 0) || archivedTab || archivedTotal > 0 ? (
-          <TabStrip tabs={tabs} value={tab} onChange={setTab} count={tabCount} />
+          <TabStrip tabs={tabs} value={tab} onChange={setTab} count={tabBadge} />
         ) : null}
 
         <div className="flex flex-wrap items-center justify-between gap-3 p-5">
@@ -380,7 +464,7 @@ export function CatalogPage() {
               options={tabs.map((entry) => ({
                 value: entry.id,
                 label: t(entry.labelKey),
-                count: tabCount(entry.id),
+                count: tabBadge(entry.id),
               }))}
               onChange={setTab}
             />
@@ -593,9 +677,11 @@ export function CatalogPage() {
             ) : null}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-surface-background px-5 py-4">
               <p className="text-sm font-medium text-text-quaternary">
-                {total !== null && total > rows.length
-                  ? t('catalogReal.showingOf', { shown: rows.length, total })
-                  : t('catalogReal.showingAll', { count: rows.length })}
+                {listedTotal === null
+                  ? t('catalogReal.showingOnPage', { count: rows.length })
+                  : listedTotal > rows.length
+                    ? t('catalogReal.showingOf', { shown: rows.length, total: listedTotal })
+                    : t('catalogReal.showingAll', { count: rows.length })}
               </p>
               {paged ? (
                 <Pager

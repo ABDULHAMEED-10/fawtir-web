@@ -182,9 +182,9 @@ export const SEED_ROUTES = [
 
   // Sub-screens reached by a tab or an action rather than a plain link, so the crawl cannot find
   // them. The ids are real records from the sample data.
-  '/catalog/flat-white/sells',
-  '/catalog/flat-white/used',
-  '/catalog/flat-white/changes',
+  '/catalog/p-flat/sells',
+  '/catalog/p-flat/used',
+  '/catalog/p-flat/changes',
   '/compliance/activity/INV-2041/resubmit',
   '/income/periodic/monthly-coffee-supply/edit',
   '/suppliers/muscat-roastery/edit',

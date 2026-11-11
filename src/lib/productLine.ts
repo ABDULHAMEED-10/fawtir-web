@@ -1,6 +1,7 @@
 import type { NewProduct, ProductDto } from '../api/catalog/products'
 import type { TaxCategoryDto } from '../api/reference/referenceData'
-import type { ItemType } from './invoiceDraft'
+import type { BundleInvoiceLineDto } from '../api/catalog/bundles'
+import { itemTypeOfUnit, type ItemType } from './invoiceDraft'
 import { offeredUnitCode } from './unitCodes'
 import { formatAmount, parseAmount, type DiscountType } from './invoiceMath'
 
@@ -92,6 +93,38 @@ export function lineFromProduct(
     vatRate,
     taxCode: tax?.code ?? null,
     ...productExtras(product),
+  }
+}
+
+/**
+ * A line of `GET /v1/bundles/{id}/invoice-lines` in the invoice line's own terms: the part's own
+ * VAT, reason and classification, and its share of the bundle's price, exclusive of VAT. The
+ * server's `taxCategory.code` is the category, so the rate tells the tax option apart.
+ */
+export function lineFromBundleLine(categories: TaxCategoryDto[], line: BundleInvoiceLineDto) {
+  const category = line.taxCategory.en16931Category ?? line.taxCategory.code
+  const tax = taxCategoryOf(categories, category, line.taxCategory.rate)
+  const kind = line.classification?.goodsOrService
+  const unit = offeredUnitCode(line.unitCode)
+  const itemType: ItemType =
+    kind === 'S' ? 'service' : kind === 'G' ? 'goods' : itemTypeOfUnit(unit)
+  return {
+    productId: line.productId,
+    productCode: line.productCode,
+    description: line.description,
+    unit,
+    itemType,
+    hsCode: itemType === 'goods' ? (line.classification?.hsCode ?? undefined) : undefined,
+    serviceType:
+      itemType === 'service' ? (line.classification?.serviceTypeCode ?? undefined) : undefined,
+    vatRate: tax?.rate ?? String(line.taxCategory.rate ?? 0),
+    taxCode: tax?.code ?? null,
+    exemptionReasonCode: line.taxCategory.exemptionReasonCode ?? undefined,
+    exemptionReason: line.taxCategory.exemptionReason ?? undefined,
+    discountType: (line.discount?.type ?? 'PERCENTAGE') as DiscountType,
+    discountValue: String(line.discount?.value ?? 0),
+    unitPrice: formatAmount(parseAmount(String(line.unitPrice)), 3).replace(/,/g, ''),
+    bundleId: line.bundleId,
   }
 }
 

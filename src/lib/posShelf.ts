@@ -1,7 +1,8 @@
 import type { ProductDto, ProductStockState } from '../api/catalog/products'
 import type { CatalogGroupDto } from '../api/catalog/groups'
 import type { TaxCategoryDto } from '../api/reference/referenceData'
-import { lineFromProduct } from './productLine'
+import type { BundleInvoiceLinesDto } from '../api/catalog/bundles'
+import { lineFromBundleLine, lineFromProduct } from './productLine'
 import { toBaisa, type SaleAddOn, type SaleLine } from './pos'
 import type { DiscountType } from './invoiceMath'
 
@@ -310,6 +311,43 @@ export function saleLineFor(
     exemptionReason: patch.exemptionReason,
     discountType: (patch.discountType ?? 'PERCENTAGE') as DiscountType,
     discountValue: patch.discountValue ?? '0',
+  }
+}
+
+/**
+ * A split bundle's sale line (`GET /v1/bundles/{id}/invoice-lines` with quantity 1). It stays one
+ * row on the screens, at what its parts come to, and files one invoice line per part.
+ */
+export function bundleSaleLine(
+  categories: TaxCategoryDto[],
+  item: PosItem,
+  answer: BundleInvoiceLinesDto,
+): SaleLine {
+  const bundleParts = answer.lines.map((line) => {
+    const fields = lineFromBundleLine(categories, line)
+    return {
+      productId: line.productId,
+      variantId: line.variantId,
+      productCode: line.productCode,
+      description: line.description,
+      unit: fields.unit,
+      quantity: Number(line.quantity),
+      price: toBaisa(line.unitPrice),
+      itemType: fields.itemType,
+      hsCode: fields.hsCode,
+      serviceType: fields.serviceType,
+      taxCode: fields.taxCode ?? line.taxCategory.code,
+      vatRate: fields.vatRate,
+      exemptionReasonCode: fields.exemptionReasonCode,
+      exemptionReason: fields.exemptionReason,
+      discountType: fields.discountType,
+      discountValue: fields.discountValue,
+    }
+  })
+  return {
+    ...saleLineFor(categories, item, null, []),
+    bundleParts,
+    price: bundleParts.reduce((sum, part) => sum + Math.round(part.price * part.quantity), 0),
   }
 }
 

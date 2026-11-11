@@ -34,6 +34,10 @@ export function describeApiFailure(error: unknown): FormMessage & { reference: s
       const values = refusalMessageValues(error)
       return values ? { key: refusal, values, reference } : { key: refusal, reference }
     }
+    // A bundle on one line whose parts differ in VAT: picking it again splits it.
+    if (error.code === 'BUNDLE_SPLIT_REQUIRED') {
+      return { key: 'invoiceDraft.bundleSplitRequired', reference }
+    }
     // A line's no-VAT reason: answered 400 by code, which would otherwise read "check the form".
     const taxReason = taxReasonRefusalKey(error)
     if (taxReason !== null) return { key: taxReason, reference }

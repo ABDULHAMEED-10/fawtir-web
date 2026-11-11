@@ -12,6 +12,7 @@ import {
   lullApplies,
   omr,
   omrSigned,
+  saleLineDetail,
   tillTime,
   totalsFor,
   typedDiscount,
@@ -165,6 +166,7 @@ export function PosSalePanel({
       <ul className="flex flex-col px-5 pt-4">
         {lines.map((line) => {
           const addOns = line.addOns
+          const detail = saleLineDetail(line, t)
           return (
             <li key={line.id} className="flex items-start gap-3 py-3">
               <div className="flex shrink-0 items-center gap-1 rounded-sm border border-border-subtle">
@@ -190,30 +192,35 @@ export function PosSalePanel({
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-base font-medium leading-[1.2] text-text-primary">{line.name}</p>
-                <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">
-                  {line.variant ? line.variant.label : t('pos.oneSizeOnly')}
-                  {addOns.length ? (
-                    <span className="text-primary-700">
-                      {' · '}
-                      {addOns.map((a) => `+ ${a.label}`).join(', ')}
-                    </span>
-                  ) : null}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setDiscountLine(discountLine === line.id ? null : line.id)}
-                  aria-expanded={discountLine === line.id}
-                  aria-label={t('pos.lineDiscount.open', { name: line.name })}
-                  className="mt-1 text-xs font-semibold text-primary-700"
-                >
-                  {typedDiscount(line)
-                    ? typedDiscount(line)?.type === 'PERCENTAGE'
-                      ? t('pos.lineDiscount.setPercent', { value: typedDiscount(line)?.value })
-                      : t('pos.lineDiscount.setAmount', {
-                          value: omr(Math.round(Number(typedDiscount(line)?.value) * 1000)),
-                        })
-                    : t('pos.lineDiscount.add')}
-                </button>
+                {detail || addOns.length ? (
+                  <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">
+                    {detail}
+                    {addOns.length ? (
+                      <span className="text-primary-700">
+                        {detail ? ' · ' : ''}
+                        {addOns.map((a) => `+ ${a.label}`).join(', ')}
+                      </span>
+                    ) : null}
+                  </p>
+                ) : null}
+                {/* A split bundle files its parts at their shares: this would change nothing. */}
+                {line.bundleParts?.length ? null : (
+                  <button
+                    type="button"
+                    onClick={() => setDiscountLine(discountLine === line.id ? null : line.id)}
+                    aria-expanded={discountLine === line.id}
+                    aria-label={t('pos.lineDiscount.open', { name: line.name })}
+                    className="mt-1 text-xs font-semibold text-primary-700"
+                  >
+                    {typedDiscount(line)
+                      ? typedDiscount(line)?.type === 'PERCENTAGE'
+                        ? t('pos.lineDiscount.setPercent', { value: typedDiscount(line)?.value })
+                        : t('pos.lineDiscount.setAmount', {
+                            value: omr(Math.round(Number(typedDiscount(line)?.value) * 1000)),
+                          })
+                      : t('pos.lineDiscount.add')}
+                  </button>
+                )}
                 {discountLine === line.id ? (
                   <div className="mt-2">
                     <DiscountField

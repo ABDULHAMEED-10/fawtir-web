@@ -241,7 +241,7 @@ export function TabStrip<T extends string>({
   tabs: readonly { id: T; labelKey: string }[]
   value: T
   onChange: (id: T) => void
-  count: (id: T) => number
+  count: (id: T) => number | string
 }) {
   const { t } = useTranslation()
   return (

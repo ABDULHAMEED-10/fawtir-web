@@ -12,6 +12,7 @@
  */
 
 import { calculateInvoice, projectInvoice, type DiscountType } from './invoiceMath'
+import type { TFunction } from 'i18next'
 import type { DraftLine, ItemType } from './invoiceDraft'
 
 /** A thousandth of a rial. All money below is an integer number of these. */
@@ -57,6 +58,12 @@ export type SaleLine = {
   discountType: DiscountType
   discountValue: string
   /**
+   * A bundle whose parts differ in VAT: what one bundle files, one invoice line per part
+   * (`GET /v1/bundles/{id}/invoice-lines`, VAT Executive Regulations Art. 12). `price` is then
+   * what the parts come to, and the bundle is one row on the till's screens.
+   */
+  bundleParts?: SaleBundlePart[] | null
+  /**
    * The price rule that caught the line, as a percentage off. TODO(backend): price rules at the
    * till are not served yet (the rules API is not merged); nothing sets it, so the rule's note
    * stays drawn and silent (INCOME.md row P.26).
@@ -75,6 +82,29 @@ export function typedDiscount(line: SaleLine): { type: DiscountType; value: stri
   return line.lineDiscount && Number(line.lineDiscount.value) > 0 ? line.lineDiscount : null
 }
 
+/** One part of a split bundle, as one bundle files it: scaled by the sale line's quantity. */
+export type SaleBundlePart = {
+  productId: string
+  variantId: string | null
+  productCode: string
+  /** The invoice line's text, as the server gives it ("Bundle: Part"). */
+  description: string
+  unit: string
+  /** How many of the part are in one bundle. */
+  quantity: number
+  /** Its share of the bundle's price, per unit of the part, in baisa. */
+  price: number
+  itemType: ItemType
+  hsCode?: string
+  serviceType?: string
+  taxCode: string
+  vatRate: string
+  exemptionReasonCode?: string
+  exemptionReason?: string
+  discountType: DiscountType
+  discountValue: string
+}
+
 /** What one of these costs, once the size and the add-ons are counted. */
 export function unitPrice(line: SaleLine): number {
   return line.price + line.addOns.reduce((sum, addOn) => sum + addOn.price, 0)
@@ -82,6 +112,29 @@ export function unitPrice(line: SaleLine): number {
 
 export function lineTotal(line: SaleLine): number {
   return unitPrice(line) * line.qty
+}
+
+/**
+ * The small print under a row, before its add-ons: a split bundle's parts, or the size and option
+ * chosen. A line with no sizes has none of that: saying "One size" only adds words.
+ */
+export function saleLineDetail(line: SaleLine, t: TFunction): string | null {
+  const parts = bundlePartNames(line)
+  if (parts) return t('pos.bundle.parts', { parts })
+  return line.variant ? line.variant.label : null
+}
+
+/** What a split bundle is made of, for the small print under its row: "Beans, Cups". */
+export function bundlePartNames(line: SaleLine): string | null {
+  if (!line.bundleParts?.length) return null
+  const prefix = `${line.name}: `
+  return line.bundleParts
+    .map((part) =>
+      part.description.startsWith(prefix)
+        ? part.description.slice(prefix.length)
+        : part.description,
+    )
+    .join(', ')
 }
 
 /** "Large · Oat milk" under the name, or nothing for a one-size item. */
@@ -144,6 +197,41 @@ export type PosInvoiceLine = Omit<DraftLine, 'id'> & {
 const rial = (baisa: number) => (baisa / BAISA).toFixed(3)
 
 /**
+ * A split bundle's lines: each part on its own, at its share of the bundle's price, with its own
+ * VAT and `bundleId`. Each is an ITEM line for the part, so the server lowers that part's stock.
+ * No price rule ever names one (the bundle's price is what is sold).
+ */
+function bundlePartLines(line: SaleLine, parts: SaleBundlePart[]): PosInvoiceLine[] {
+  return parts.map((part, index) => ({
+    saleLineId: line.id,
+    id: `${line.id}-part-${index + 1}`,
+    bundleId: line.productId,
+    productId: part.productId,
+    productCode: part.productCode,
+    description: part.description,
+    itemType: part.itemType,
+    hsCode: part.hsCode,
+    serviceType: part.serviceType,
+    unit: part.unit,
+    vatRate: part.vatRate,
+    taxCode: part.taxCode,
+    exemptionReason: part.exemptionReason ?? '',
+    exemptionReasonCode: part.exemptionReasonCode,
+    quantity: String(Math.round(part.quantity * line.qty * BAISA) / BAISA),
+    discountType: part.discountType,
+    discountValue: part.discountValue,
+    unitPrice: rial(part.price),
+    ref: {
+      role: 'ITEM',
+      productId: part.productId,
+      variantId: part.variantId,
+      addOnId: null,
+      priceRuleId: null,
+    } as PosInvoiceLine['ref'],
+  }))
+}
+
+/**
  * The sale as invoice lines (owner, 21 Oct 2026). The item and its size are one line ("Flat
  * White · Large"); every add-on with a price is a line of its own, with the item's VAT category
  * and classification; a free add-on is named on the item's line. A price rule is each caught
@@ -151,6 +239,7 @@ const rial = (baisa: number) => (baisa / BAISA).toFixed(3)
  */
 export function invoiceLinesFor(lines: SaleLine[]): PosInvoiceLine[] {
   return lines.flatMap((line) => {
+    if (line.bundleParts?.length) return bundlePartLines(line, line.bundleParts)
     const free = line.addOns.filter((a) => a.price === 0)
     const typed = typedDiscount(line)
     const ruled = !typed && lullApplies(line)

@@ -703,6 +703,9 @@ const replace = (next) => {
   return next
 }
 
+/** Never on an issued invoice (the Never sold tab); everything else has sold. */
+const NEVER_SOLD = new Set(['p-green', 'p-export', 'p-train'])
+
 const SORTS = {
   NAME: (a, b) => a.name.localeCompare(b.name),
   CODE: (a, b) => a.code.localeCompare(b.code),
@@ -739,13 +742,22 @@ export default [
       const size = Number(query.get('size') ?? 50)
       // Backend #808 / #815: words the server does not know are left out; stock needs a branch.
       const include = (query.get('include') ?? '').split(',').map((word) => word.trim())
+      // The list's server-side tabs (guide §6), with a branch only.
+      const availability = branchId ? query.get('availability') : null
+      const sales = branchId ? query.get('sales') : null
       const found = PRODUCTS.filter(
         (p) =>
           // With a branch: active products sold and on sale there, whatever the status; with
           // includeUnavailable, every active product.
           (branchId
-            ? p.active && (includeUnavailable || priceIn(p, branchId) !== null)
+            ? p.active &&
+              (availability === 'ON_SALE'
+                ? priceIn(p, branchId) !== null
+                : availability === 'SWITCHED_OFF'
+                  ? priceIn(p, branchId) === null
+                  : includeUnavailable || priceIn(p, branchId) !== null)
             : status === 'ALL' || (status === 'ACTIVE') === p.active) &&
+          (!sales || (sales === 'NEVER_SOLD') === NEVER_SOLD.has(p.id)) &&
           // V509: a product's own barcode or one of its sizes'.
           (!barcode ||
             p.barcode === barcode ||

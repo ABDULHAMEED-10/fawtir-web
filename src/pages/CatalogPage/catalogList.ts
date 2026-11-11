@@ -24,16 +24,20 @@ export const needsAttention = (product: ProductDto, flagged?: ReadonlySet<string
  *
  * Items taken off sale have their own tab, read from the server (`status=ARCHIVED`, P.15).
  * "Switched off" holds the active items switched off or not sold in the working branch
- * (`availableHere: false`); every other tab counts only what is on sale there.
- * TODO(backend): the frame's "On sale" and "Never sold" tabs need per-item sales figures (P.17),
- * so they are not drawn.
+ * (`availableHere: false`); every other tab counts only what is on sale there. The frame's
+ * "On sale" and "Never sold" tabs, and Switched off once opened, are the server's own filters
+ * (`availability`, `sales`, guide §6), which work with a working branch only.
  */
 export const CATALOG_TABS = [
   { id: 'all', labelKey: 'catalogReal.tab.all' },
+  // On sale in the working branch, counted by the server (`availability=ON_SALE`).
+  { id: 'onSale', labelKey: 'catalogReal.tab.onSale' },
   { id: 'goods', labelKey: 'catalogReal.tab.goods' },
   { id: 'services', labelKey: 'catalogReal.tab.services' },
   { id: 'attention', labelKey: 'catalogReal.tab.attention' },
   { id: 'notStandard', labelKey: 'catalogReal.tab.notStandard' },
+  // Never on an issued invoice of the working branch (`sales=NEVER_SOLD`; a till sale is one).
+  { id: 'neverSold', labelKey: 'catalogReal.tab.neverSold' },
   // Switched off or not sold in the working branch: greyed, still opens to switch it back on.
   { id: 'switchedOff', labelKey: 'catalogReal.tab.switchedOff' },
   // Off sale: read on its own with `status=ARCHIVED` (INCOME.md P.15), counted by the server.
@@ -41,6 +45,20 @@ export const CATALOG_TABS = [
 ] as const
 
 export type CatalogTab = (typeof CATALOG_TABS)[number]['id']
+
+/** The tabs the server filters, with the working branch; the page asks for them by these. */
+export const SERVER_TABS: Partial<
+  Record<CatalogTab, Pick<ProductListQuery, 'availability' | 'sales'>>
+> = {
+  onSale: { availability: 'ON_SALE' },
+  // Never sold is of what is on sale here, so it can never be more than All (a greyed item, not
+  // sold in this branch, is under Switched off).
+  neverSold: { availability: 'ON_SALE', sales: 'NEVER_SOLD' },
+  switchedOff: { availability: 'SWITCHED_OFF' },
+}
+
+/** Tabs that need a working branch: the server filters them only with one. */
+export const BRANCH_ONLY_TABS: ReadonlySet<CatalogTab> = new Set(['onSale', 'neverSold'])
 
 /** The tab a link asks for; anything else is All. */
 export const catalogTabOf = (raw: string | null): CatalogTab =>
@@ -56,6 +74,8 @@ export function matchesCatalogTab(
 ): boolean {
   if (tab === 'archived') return !product.active
   if (tab === 'switchedOff') return !onSaleHere(product)
+  // The server already narrowed the list to the items never sold in the branch.
+  if (tab === 'neverSold') return true
   if (!onSaleHere(product)) return false
   switch (tab) {
     case 'goods':

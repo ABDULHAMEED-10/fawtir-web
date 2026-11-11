@@ -11,7 +11,16 @@ import { AppShell } from '../../layouts/AppShell'
 import { Rial, withRial } from '../../components/ui'
 import { CheckIcon, EnvelopeIcon, InfoIcon, PhoneIcon, PrinterIcon, QrIcon } from './posIcons'
 import { PosTillGate } from './PosTillGate'
-import { LULL, omr, omrSigned, receiptStamp, tillTime, toBaisa, unitPrice } from '../../lib/pos'
+import {
+  bundlePartNames,
+  LULL,
+  omr,
+  omrSigned,
+  receiptStamp,
+  tillTime,
+  toBaisa,
+  unitPrice,
+} from '../../lib/pos'
 import { FILING_STEPS, RECEIPT_WAYS } from '../../lib/posPayment'
 import { loadPosSale, type PosSaleDto } from '../../api/pos/pos'
 import { useApiRead } from '../../hooks'
@@ -487,7 +496,13 @@ function Done({ done, till }: { done: FinishedSale; till: Ready }) {
                 {lines.map((line) => (
                   <ReceiptRow
                     key={line.id}
-                    label={`${line.qty} × ${line.name}${line.variant ? ` (${line.variant.label})` : ''}`}
+                    label={`${line.qty} × ${line.name}${
+                      bundlePartNames(line)
+                        ? ` (${bundlePartNames(line)})`
+                        : line.variant
+                          ? ` (${line.variant.label})`
+                          : ''
+                    }`}
                     value={omr(unitPrice(line) * line.qty)}
                   />
                 ))}
