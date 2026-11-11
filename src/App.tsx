@@ -340,7 +340,8 @@ function App() {
           <Route path="/stock" element={<StockPage />} />
           <Route path="/stock/:id" element={<StockDetailPage />} />
           <Route path="/catalog" element={<CatalogPage />} />
-          <Route path="/catalog/upload" element={<DemoModule module="catalog"><UploadMenuPage /></DemoModule>} />
+          {/* Wired to the menu-scan API (backend #787); the page checks product.manage itself. */}
+          <Route path="/catalog/upload" element={<UploadMenuPage />} />
           {/* Reads the template and writes groups, kinds and products: no sample ribbon (B-1). */}
           <Route path="/catalog/build" element={<BuildCatalogPage />} />
           <Route path="/catalog/new" element={<ItemFormPage mode="new" />} />

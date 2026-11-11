@@ -253,20 +253,18 @@ export function CatalogPage() {
       title={t('catalogReal.title')}
       subtitle={t('catalogReal.subtitle')}
       actions={
-        // The list and the item form are on the server; menu upload has none yet, so it opens its
-        // prototype (under the sample-data ribbon) while prototypes are on.
-        demoModulesEnabled() || canManage ? (
+        // The list, the item form and menu upload (/v1/catalog/menu-scans) are on the server and
+        // all write products, so each follows product.manage.
+        canManage ? (
           <>
-            {demoModulesEnabled() ? (
-              <Link
-                to="/catalog/upload"
-                className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-              >
-                <img src={uploadIcon} alt="" className="size-[18px]" />
-                {t('catalog.uploadAMenu')}
-              </Link>
-            ) : null}
-            {canManage && hasTemplate ? (
+            <Link
+              to="/catalog/upload"
+              className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+            >
+              <img src={uploadIcon} alt="" className="size-[18px]" />
+              {t('catalog.uploadAMenu')}
+            </Link>
+            {hasTemplate ? (
               <Link
                 to="/catalog/build"
                 className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
@@ -275,15 +273,13 @@ export function CatalogPage() {
                 {t('catalog.buildFromTemplate')}
               </Link>
             ) : null}
-            {canManage ? (
-              <Link
-                to="/catalog/new"
-                className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-              >
-                <img src={plusIcon} alt="" className="size-4" />
-                {t('catalog.newItem')}
-              </Link>
-            ) : null}
+            <Link
+              to="/catalog/new"
+              className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+            >
+              <img src={plusIcon} alt="" className="size-4" />
+              {t('catalog.newItem')}
+            </Link>
           </>
         ) : undefined
       }

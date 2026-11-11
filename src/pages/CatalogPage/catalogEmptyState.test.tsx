@@ -38,7 +38,8 @@ describe('the empty catalogue names the company’s own business type (L-7)', ()
             username: 'owner',
             tenantId: 't-1',
             roles: [],
-            permissions: [],
+            // The upload route is offered only with product.manage.
+            permissions: ['product.manage'],
             scopes: [],
             featureFlags: {},
           })
