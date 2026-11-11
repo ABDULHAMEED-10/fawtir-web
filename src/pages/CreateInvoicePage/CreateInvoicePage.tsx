@@ -1344,7 +1344,9 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     const missing = problemsBeforeIssue(form)
     if (missing.length > 0) {
       setProblems([...problemsBeforeSave(reference?.taxCategories ?? [], form), ...missing])
-      setNotice({ tone: 'error', body: t('invoiceDraft.fixFirst') })
+      // These checks bind only at issue, so the draft may well be saved already: the save
+      // wording read as if it were not (RC5 E2E D-06).
+      setNotice({ tone: 'error', body: t('invoiceDraft.fixFirstToIssue') })
       return
     }
     // Files still held (a failed upload leaves them) go up first, even when nothing else changed.

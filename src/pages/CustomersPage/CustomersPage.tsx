@@ -1,3 +1,5 @@
+import { UnappliedCredit } from '../../components/invoice/UnappliedCredit'
+import { creditHeld, serverFigure } from '../../lib/unappliedCredit'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -446,6 +448,10 @@ function CustomerKpiCards({ totals }: { totals: CustomerSummaryDto }) {
   const language = i18n.language
   const count = (value: number) => formatCount(value, language)
   const money = (value: number) => formatAmount(value, totals.currencyCode, language)
+  // D-30(a): the directory's credit and the server's net, under the receivables figure, which
+  // stays what is owed. A server without the fields leaves the card as it was.
+  const credit = creditHeld(totals.receivables.unappliedCredit)
+  const holders = serverFigure(totals.receivables.customersWithCredit)
   const cards = [
     {
       id: 'receivables',
@@ -457,6 +463,15 @@ function CustomerKpiCards({ totals }: { totals: CustomerSummaryDto }) {
         count: totals.receivables.customersOwing,
         customers: count(totals.receivables.customersOwing),
       }),
+      credit:
+        credit === null ? null : (
+          <UnappliedCredit
+            credit={credit}
+            net={serverFigure(totals.receivables.netOutstanding)}
+            currency={totals.currencyCode}
+            customers={holders === null ? null : count(holders)}
+          />
+        ),
     },
     {
       id: 'overdue',
@@ -516,6 +531,7 @@ function CustomerKpiCards({ totals }: { totals: CustomerSummaryDto }) {
             ) : null}
           </div>
           <p className="text-sm font-medium leading-[1.2] text-text-tertiary">{kpi.meta}</p>
+          {'credit' in kpi ? kpi.credit : null}
         </article>
       ))}
     </div>
@@ -807,6 +823,9 @@ function CustomerRowCells({
                 {view.invoices > 0 ? t('customersPage.note.settled') : ''}
               </span>
             )}
+            {view.credit !== null ? (
+              <UnappliedCredit credit={view.credit} net={view.net} currency={currency} className="mt-1 text-xs" />
+            ) : null}
           </td>
         </>
       )}

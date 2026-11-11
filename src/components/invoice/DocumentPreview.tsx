@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react'
-import QRCode from 'qrcode'
 import { Rial, withRial } from '../ui'
+import { useServerQr } from './useServerQr'
 
 /**
  * The printable face of a tax document, rendered from data rather than shipped as an image.
@@ -52,11 +51,12 @@ export type PreviewDocument = {
   /** Foot lines: amount paid, balance, bank details, Peppol id. */
   footer?: { label: string; value: string }[]
   /**
-   * Payload the QR encodes. Oman requires a TLV-encoded, signature-bearing string that only
-   * the clearance response can produce, so the server sends it down with the cleared document;
-   * until then this is a readable stand-in and the QR is a true QR of that stand-in.
+   * A QR payload the server supplied, drawn as it is. Never built on the device: the QR is the
+   * backend's (owner policy, B2C only), and the "number|date|total" stand-in this sheet used to
+   * encode looked like a tax QR on every printed note without being one (CMP37-2b). Absent, the
+   * sheet prints no QR.
    */
-  qrPayload: string
+  qrPayload?: string | null
 }
 
 const COLUMNS = ['description', 'price', 'qty', 'vat', 'total'] as const
@@ -86,22 +86,7 @@ export function DocumentPreview({
   zoom?: number
   className?: string
 }) {
-  const [qr, setQr] = useState<string>()
-
-  useEffect(() => {
-    let cancelled = false
-    QRCode.toDataURL(doc.qrPayload, { margin: 0, width: 240, errorCorrectionLevel: 'M' })
-      .then((url) => {
-        if (!cancelled) setQr(url)
-      })
-      .catch(() => {
-        // A missing QR must not blank the document; the rest of the sheet still prints.
-        if (!cancelled) setQr(undefined)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [doc.qrPayload])
+  const qr = useServerQr(doc.qrPayload)
 
   const columnLabel: Record<(typeof COLUMNS)[number], string> = {
     description: labels.description,
@@ -330,12 +315,12 @@ export function DocumentPreview({
               style={{ width: 78 * zoom, height: 78 * zoom }}
               className="shrink-0"
             />
-          ) : (
+          ) : doc.qrPayload ? (
             <span
               style={{ width: 78 * zoom, height: 78 * zoom }}
               className="shrink-0 rounded-sm bg-[#f3f3f3]"
             />
-          )}
+          ) : null}
         </div>
 
         {/* Foot */}

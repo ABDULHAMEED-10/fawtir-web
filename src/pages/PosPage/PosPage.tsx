@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { setSaleLines, useOpenSale } from '../../lib/posSale'
+import { setSaleLines, useOpenSale, useUncertainSale } from '../../lib/posSale'
 import { Trans, useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
 import { PosArt } from './PosArt'
 import { PosSalePanel } from './PosSalePanel'
+import { PosPhoneSaleBar } from './PosPhoneSaleBar'
 import { CashierPicker } from './CashierPicker'
 import { PosTillGate } from './PosTillGate'
 import { PosChooser } from './PosChooser'
@@ -44,7 +45,7 @@ import { getCatalogGroups, type CatalogGroupsDto } from '../../api/catalog/group
 import type { Page } from '../../api'
 import { NetworkError } from '../../api'
 import type { BundleInvoiceLinesDto } from '../../api/catalog/bundles'
-import { posRefusalKey } from '../../lib/posRefusals'
+import { refusalSentence } from '../../lib/posRefusals'
 import { keepBundleLines, tillBundleLines } from '../../lib/posBundle'
 import { loadOrRecall } from '../../lib/posOffline'
 import { captureScans, findOnShelf, lookupBarcode, type ScanHit } from '../../lib/posScan'
@@ -190,6 +191,7 @@ export function PosPage() {
       <PosTillGate showQueue>
         {(till) => (
           <Shelf
+            tillId={till.till.id}
             branchId={till.branchId}
             canSell={till.can.sell}
             tillCtl={<CashierPicker till={till.till} mine={till.mine} />}
@@ -201,10 +203,12 @@ export function PosPage() {
 }
 
 function Shelf({
+  tillId,
   branchId,
   canSell,
   tillCtl,
 }: {
+  tillId: string
   branchId: string
   canSell: boolean
   tillCtl: ReactNode
@@ -400,9 +404,19 @@ function Shelf({
   const scanRef = useRef(scan)
   scanRef.current = scan
   useEffect(() => captureScans((code) => void scanRef.current(code)), [])
+  // A sale whose outcome is unknown cannot be changed (E-01): its screen offers only the same sale
+  // again or today's sales.
+  const uncertain = useUncertainSale(tillId)
+  if (uncertain) return <Navigate to="/pos/payment" replace />
 
   return (
-    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+    <div
+      className={[
+        'mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10',
+        // Room under the sale panel for the phone's bar, so it covers nothing.
+        lines.length > 0 ? 'max-md:pb-24' : '',
+      ].join(' ')}
+    >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1 basis-[320px]">
           <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
@@ -516,7 +530,7 @@ function Shelf({
               role="alert"
               className="rounded-sm bg-danger-100 px-4 py-3 text-sm font-medium text-danger-700"
             >
-              {t(posRefusalKey(error))}
+              {refusalSentence(t, error)}
             </p>
           ) : null}
 
@@ -577,6 +591,8 @@ function Shelf({
           company={company ?? undefined}
         />
       </div>
+
+      <PosPhoneSaleBar lines={lines} onTakePayment={() => navigate('/pos/payment')} />
 
       {choosing && choicesFor(choosing.id) ? (
         <PosChooser

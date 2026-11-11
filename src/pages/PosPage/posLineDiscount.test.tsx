@@ -248,9 +248,8 @@ describe('returning a given-away line', () => {
       note: '',
       returning: [{ lineNumber: 2, qty: 1 }],
       backOnShelf: true,
-      method: 'CASH',
-      amount: 0,
       noMoney: true,
+      moneyBack: [{ method: 'CASH', amount: 0 }],
     })
     expect(body.moneyBack).toEqual([])
     expect(body.lines).toEqual([{ lineNumber: 2, quantity: 1, backOnShelf: true }])

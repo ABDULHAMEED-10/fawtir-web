@@ -70,7 +70,10 @@ export function SignupForm() {
     inFlight.current = controller
     setSubmitting(true)
     try {
-      const response = await submitSignup(buildSignupRequest(values, i18n.language), controller.signal)
+      const response = await submitSignup(
+        buildSignupRequest(values, i18n.language),
+        controller.signal,
+      )
       navigate('/verify-code', { state: toVerificationState(response) })
     } catch (error) {
       if (controller.signal.aborted) return
@@ -230,18 +233,32 @@ export function SignupForm() {
             </span>
             <span>
               {t('signup.agreePrefix')}{' '}
-              <button type="button" className="font-semibold text-primary-700">
+              <Link
+                to="/terms"
+                target="_blank"
+                rel="noopener"
+                className="font-semibold text-primary-700 hover:underline"
+              >
                 {t('signup.terms')}
-              </button>{' '}
+              </Link>{' '}
               {t('signup.and')}{' '}
-              <button type="button" className="font-semibold text-primary-700">
+              <Link
+                to="/privacy"
+                target="_blank"
+                rel="noopener"
+                className="font-semibold text-primary-700 hover:underline"
+              >
                 {t('signup.privacy')}
-              </button>
+              </Link>
               .
             </span>
           </label>
           {errors.consent ? (
-            <p id={consentErrorId} className="mt-1 text-xs font-medium text-text-danger" role="alert">
+            <p
+              id={consentErrorId}
+              className="mt-1 text-xs font-medium text-text-danger"
+              role="alert"
+            >
               {t(errors.consent)}
             </p>
           ) : null}

@@ -1,5 +1,5 @@
 import { apiDownload, apiRequest, type ApiDownload } from '../client'
-import type { DiscountDto } from './drafts'
+import type { DiscountDto, DraftPreview } from './drafts'
 import type {
   InvoiceListApproval,
   InvoicePaymentDto as InvoiceListPaymentDto,
@@ -47,6 +47,19 @@ export type InvoiceLineDto = {
    * Null when the line names no product or it is not found; absent from an older server.
    */
   keepCount?: boolean | null
+  /**
+   * Backend #834 (V510, DA-1 Option B): on a credit or debit note's line, the corrected invoice's
+   * line it credits or debits; null when unlinked and on every line of an invoice. Absent from a
+   * server before #834, which is how the note composer tells whether it may send the link
+   * (`readsLineLinks`).
+   */
+  originalLineNumber?: number | null
+  /**
+   * RC5 D-01: the line's amounts at the currency's scale, from the projection the totals come
+   * from, so the lines sum to them exactly, in the preview's line shape (`taxableAmount` is the
+   * IBT-131 the Peppol document states). Absent from an older server; null with no totals.
+   */
+  amounts?: DraftPreview['lines'][number] | null
 }
 
 export type InvoiceTotalsDto = {
@@ -59,9 +72,25 @@ export type InvoiceTotalsDto = {
   totalAmount: number
   payableRoundingAmount: number
   outputScale: number
+  /**
+   * One row per VAT category and rate, from the projection the other totals come from (A-8b,
+   * backend #824). Absent from a server before it.
+   */
+  taxSubtotals?: InvoiceTaxSubtotalDto[]
 }
 
-/** `InvoiceResponse`. `customerName` and `payment` are list-row fields and are null here. */
+/** `InvoicePreviewResponse.TaxSubtotal`, the shape the preview and the totals share. */
+export type InvoiceTaxSubtotalDto = {
+  taxCategoryCode: string
+  en16931Category: string
+  rate: number
+  exemptionReason: string | null
+  exemptionReasonCode: string | null
+  taxableAmount: number
+  vatAmount: number
+}
+
+/** `InvoiceResponse`, as `GET /authored-invoices/{id}` answers it. */
 export type InvoiceDetailDto = {
   id: string
   type: InvoiceTypeDto
@@ -127,9 +156,8 @@ export type InvoiceDetailDto = {
   seller?: InvoiceSellerDto | null
   buyer?: InvoiceBuyerDto | null
   /**
-   * The list-row fields `InvoiceResponse` also carries. The single read leaves them null today
-   * (backend C-5); a page that needs them reads them from the list. Optional because a server
-   * older than the field does not send it.
+   * The list-row fields, read by the single read as the list reads them since backend #824 (C-5).
+   * A server before it sends them null, so each is only a fallback beside the page's own reads.
    */
   customerName?: string | null
   payment?: InvoiceListPaymentDto | null
@@ -138,8 +166,10 @@ export type InvoiceDetailDto = {
   /**
    * Line warnings on the authoring routes, never blocking; `[]` when none. The issue answer also
    * lists the lines that cite a counted product and moved no stock (`STOCK_UNIT_MISMATCH`,
-   * `STOCK_VARIANT_UNKNOWN`, `STOCK_QUANTITY_NOT_WHOLE`, `STOCK_QUANTITY_INVALID`). Absent from
-   * older servers and on the plain read.
+   * `STOCK_VARIANT_UNKNOWN`, `STOCK_QUANTITY_NOT_WHOLE`, `STOCK_QUANTITY_INVALID`), and
+   * `STOCK_BELOW_ZERO` for a line that moved stock below zero (batch 39 STK-Q4B). The single read
+   * returns the stock warnings recorded at issue (V518) for credit notes, and from STK-Q4B for
+   * invoices too; an invoice issued before V518 reads none. Absent from older servers.
    */
   warnings?: InvoiceLineWarningDto[] | null
   /** As on the list rows: `TILL` when a till sale or refund issued it. Absent from older servers. */
@@ -203,6 +233,8 @@ export type InvoiceReceivableDto = {
   paidAmount: number
   creditedAmount: number
   outstandingAmount: number | null
+  /** D-30(a), from 0c2d034d4: what lies below the floor of `outstandingAmount`, at or below zero. */
+  unappliedCredit?: number
   currency: string
   paymentState: 'UNPAID' | 'PARTIALLY_PAID' | 'PAID' | 'NOT_APPLICABLE'
   overdue: boolean
@@ -455,6 +487,26 @@ export type InvoiceSendResultDto = {
   dispatch: InvoiceDispatchDto
 }
 
+/**
+ * `GET /authored-invoices/{id}/receipt-qr` (QR E-3). READY carries the payload to draw, read by the
+ * server as frozen at the receipt's first print, else as filed, else built from the issued invoice.
+ * PENDING: owed or maybe owed, not derivable yet. NOT_APPLICABLE: a business or government buyer, or
+ * any doubt. NOT_AN_ISSUED_SALE: not issued, a correction, or not an ordinary invoice.
+ */
+export type InvoiceReceiptQrDto = {
+  status: 'READY' | 'PENDING' | 'NOT_APPLICABLE' | 'NOT_AN_ISSUED_SALE'
+  /** Tenant data: never logged. */
+  payload?: string | null
+}
+
+export function receiptQrPath(invoiceId: string): string {
+  return `${path(invoiceId)}/receipt-qr`
+}
+
+export function loadReceiptQr(invoiceId: string): Promise<InvoiceReceiptQrDto> {
+  return apiRequest<InvoiceReceiptQrDto>(receiptQrPath(invoiceId))
+}
+
 export function loadDispatch(invoiceId: string): Promise<InvoiceDispatchDto> {
   return apiRequest<InvoiceDispatchDto>(`${path(invoiceId)}/dispatch`)
 }
@@ -479,6 +531,27 @@ export function releaseBuyerEmail(invoiceId: string): Promise<InvoiceDispatchDto
   return apiRequest<InvoiceDispatchDto>(`${path(invoiceId)}/buyer-email/release`, { method: 'POST' })
 }
 
+export type HeldHsCodeAmendmentDto = {
+  invoice: InvoiceDetailDto
+  /** RELEASED: queued to be sent again. STILL_OWED: it was not held, and is still waiting to be sent. */
+  dispatch: 'RELEASED' | 'STILL_OWED'
+}
+
+/**
+ * Adds the missing HS codes to an issued invoice held at dispatch for them, and releases it under the
+ * same number (`POST /authored-invoices/{id}/held-hs-codes`, owner v2 A1 and K5). Lines are named
+ * by number; the version guards against a change made since the page was read.
+ */
+export function amendHeldHsCodes(
+  invoiceId: string,
+  body: { expectedVersion: number; lines: { lineNumber: number; hsCode: string }[]; reason: string },
+): Promise<HeldHsCodeAmendmentDto> {
+  return apiRequest<HeldHsCodeAmendmentDto>(`${path(invoiceId)}/held-hs-codes`, {
+    method: 'POST',
+    body,
+  })
+}
+
 /** 16–128 characters of `[A-Za-z0-9._:-]`, as the API requires. */
 export function newSendKey(): string {
   return `send-${crypto.randomUUID()}`
@@ -487,4 +560,17 @@ export function newSendKey(): string {
 /** 16–128 characters of `[A-Za-z0-9._:-]`, as the API requires. */
 export function newPaymentKey(): string {
   return `payment-${crypto.randomUUID()}`
+}
+
+/** The `deliveryBlocker` codes InvoiceResponse documents at backend a17fad205. */
+const DELIVERY_BLOCKERS = new Set(['CANONICAL_HANDOFF_NOT_ENABLED', 'DISPATCH_NOT_ACTIVE'])
+
+/**
+ * The text key suffix for a document's `deliveryBlocker`, or null when it has none. An unknown code
+ * maps to `other` so that a code the backend adds later still says sending is held here rather
+ * than vanishing (IMPL2-D1, W2-D1).
+ */
+export function deliveryBlockerKey(blocker: string | null | undefined): string | null {
+  if (!blocker) return null
+  return DELIVERY_BLOCKERS.has(blocker) ? blocker : 'other'
 }

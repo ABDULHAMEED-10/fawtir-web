@@ -671,9 +671,9 @@ describe('issuing from the composer', () => {
     )
     expect(card.getByText(i18n.t('readiness.item.COMPANY_VERIFIED'))).toBeTruthy()
     expect(card.getByText(i18n.t('readiness.awaitingFawtir'))).toBeTruthy()
-    expect(card.getByRole('link', { name: i18n.t('readiness.fix') }).getAttribute('href')).toBe(
-      '/settings/branches/new',
-    )
+    expect(
+      card.getByRole('link', { name: i18n.t('readiness.action.ACTIVE_BRANCH') }).getAttribute('href'),
+    ).toBe('/settings/branches/new')
     expect(card.queryByText(i18n.t('readiness.item.CONTACT_PHONE'))).toBeNull()
     expect(
       (screen.getByRole('button', { name: 'Create invoice' }) as HTMLButtonElement).disabled,
@@ -772,6 +772,14 @@ describe('issuing from the composer', () => {
     expect(
       await screen.findByText('Line 1: Choose an HS code for this goods line (IBR-079-OM).'),
     ).toBeTruthy()
+    // The draft is saved; it is the issue that waits (RC5 E2E D-06).
+    expect(
+      screen.getByText('Some fields need attention before the invoice can be issued.'),
+    ).toBeTruthy()
+    expect(screen.queryByText(i18n.t('invoiceDraft.fixFirst'))).toBeNull()
+    expect(i18n.getFixedT('ar')('invoiceDraft.fixFirstToIssue')).toBe(
+      'بعض الحقول تحتاج إلى مراجعة قبل إصدار الفاتورة.',
+    )
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(calls('PUT', '/api/v1/invoice-drafts/d-1')).toHaveLength(0)
     expect(issueCalls()).toHaveLength(0)
@@ -797,7 +805,7 @@ describe('issuing from the composer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create invoice' }))
     expect(await screen.findByRole('dialog', { name: 'Issue this invoice?' })).toBeTruthy()
     // Everything is put right: the earlier notice does not stay behind the dialog.
-    expect(screen.queryByText(i18n.t('invoiceDraft.fixFirst'))).toBeNull()
+    expect(screen.queryByText(i18n.t('invoiceDraft.fixFirstToIssue'))).toBeNull()
     const body = bodyOf(calls('PUT', '/api/v1/invoice-drafts/d-1')[0])
     expect('hsCode' in body.draft.lines[0]).toBe(false)
   })

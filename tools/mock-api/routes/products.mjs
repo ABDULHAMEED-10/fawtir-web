@@ -859,6 +859,14 @@ export default [
         return problem(409, 'PRODUCT_VERSION_CONFLICT')
       }
       if (!found.active) return problem(409, 'PRODUCT_ARCHIVED')
+      // Backend #844, with every counted sample item taken to have moved.
+      if (
+        found.keepCount &&
+        body?.defaultUnitCode &&
+        body.defaultUnitCode !== found.defaultUnitCode
+      ) {
+        return problem(409, 'PRODUCT_STOCK_UNIT_LOCKED')
+      }
       const saved = save(found, body ?? {})
       if (saved.refused) return saved.refused
       return savedView(replace({ ...saved.product, version: found.version + 1 }))

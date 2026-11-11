@@ -39,6 +39,13 @@ export type PurchaseOrderLineDto = {
   variantId?: string | null
   /** How many of the product's own unit one ordered unit holds; 1 when there is no conversion. */
   stockUnitsPerOrderUnit?: number
+  /**
+   * Backend #844 (V519, DEC-30-08): the product's stock unit when the line was written. Null on a
+   * free-text line and on a line written before V519. Absent from a server before #844, which
+   * refuses an unknown `statedUnit` (fail-on-unknown-properties), so the receipt form reads the
+   * key's presence to tell whether it may send one (`readsStockUnits`).
+   */
+  productStockUnit?: string | null
 }
 
 export type PurchaseOrderDto = {
@@ -113,10 +120,22 @@ export type GoodsReceiptDto = {
   lines: GoodsReceiptLineDto[]
 }
 
+export type GoodsReceiptLineRequest = {
+  purchaseOrderLineId: string
+  quantityReceived: number
+  /**
+   * Backend #844: the stock unit the person receiving the goods says they counted in, at most 20
+   * characters. Read only on a product line written before V519; for a counted product the server
+   * refuses such a line without it (409 GOODS_RECEIPT_STOCK_UNIT_REQUIRED) and refuses a unit other
+   * than the product's (409 PRODUCT_STOCK_UNIT_MISMATCH), each for the whole receipt.
+   */
+  statedUnit?: string
+}
+
 export type GoodsReceiptRequest = {
   receivedOn: string | null
   note: string | null
-  lines: { purchaseOrderLineId: string; quantityReceived: number }[]
+  lines: GoodsReceiptLineRequest[]
 }
 
 export function purchaseOrderPath(id: string) {

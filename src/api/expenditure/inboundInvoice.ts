@@ -1,4 +1,5 @@
 import { apiRequest } from '..'
+import type { MlsTransportState, TddSubmissionStatus } from './bills'
 
 /**
  * One received Peppol document as its delivery record stands (`InboundInvoiceController`
@@ -24,9 +25,14 @@ export type InboundInvoiceDto = {
   mlsCode: 'AP' | 'AB' | 'RE' | null
   /** When the MLS was queued, not when it left. Not read: `mlsDeliveredAt` says that. */
   mlsEmittedAt: string | null
-  /** PENDING, SENDING, RETRY_SCHEDULED, DELIVERED, DEAD_LETTERED…; null when none was queued. */
-  mlsTransportState: string | null
+  /**
+   * Null when none was queued. Typed by the server since batch 39 (same wire strings); `string`
+   * stays so a state added later still reads as "unknown" rather than failing the type.
+   */
+  mlsTransportState: MlsTransportState | (string & {}) | null
   mlsDeliveredAt: string | null
+  /** Batch 39 EXP: the newest leg of the TDD we filed with C5; absent from a server before it. */
+  tddStatus?: TddSubmissionStatus | null
 }
 
 export function inboundInvoicePath(deliveryId: string): string {

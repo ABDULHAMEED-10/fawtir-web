@@ -6,6 +6,7 @@ import { useEntitlements } from '../../hooks/useEntitlements'
 import { discountBreach, type DiscountBreach } from '../../lib/posDiscountLimit'
 import { Rial } from '../../components/ui'
 import { PosFootNote } from './PosFootNote'
+import { POS_SALE_PANEL_ID } from './PosPhoneSaleBar'
 import {
   LULL,
   lullApplies,
@@ -68,7 +69,10 @@ export function PosSalePanel({
     )
 
   return (
-    <aside className="flex w-full flex-col rounded-md bg-surface-card xl:w-[392px] xl:shrink-0">
+    <aside
+      id={POS_SALE_PANEL_ID}
+      className="flex w-full scroll-mt-4 flex-col rounded-md bg-surface-card xl:w-[392px] xl:shrink-0"
+    >
       <div className="flex items-start justify-between gap-3 border-b border-border-subtle px-5 py-4">
         <div className="min-w-0">
           <h2 className="text-base font-medium leading-[1.2] text-text-primary">

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { DateField, withRial } from '../../components/ui'
+import { DateField, Modal, withRial } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { selectAllOnFocus } from '../../components/invoice'
 import {
@@ -22,12 +22,14 @@ import {
 } from '../../components/debit/NoteParts'
 import { useNoteBill, useNoteOwnBill } from '../../components/debit/noteBill'
 import { useApiRead } from '../../hooks'
-import type { Page } from '../../api'
+import { ApiError, type Page } from '../../api'
 import {
   applyCreditNote,
   creditNotePath,
   loadCreditNote,
   loadCreditNoteSettlements,
+  newCreditNoteRefundKey,
+  releaseCreditNote,
   refundCreditNote,
   type CreditNoteRowDto,
   type CreditNoteSettlementDto,
@@ -59,10 +61,13 @@ import {
   creditEffect,
   vatEffect,
   type NoteFormat,
+  standingCredits,
+  type StandingCredit,
 } from '../../lib/supplierCreditNotes'
 import { billStateKey, linkedBillDetailKey } from '../../lib/supplierDebitNotes'
 import { describeApiFailure } from '../../lib/apiFailure'
-import { lineVatOf } from '../../lib/billDetail'
+import { isPeriodClosedRefusal, PERIOD_CLOSED_CHOSEN_DATE_KEY } from '../../lib/expenditureRefusals'
+import { creditNoteRejected, lineVatOf } from '../../lib/billDetail'
 import { muscatToday } from '../../lib/invoiceIssue'
 import { formatAmount, formatDate, formatInstant, formatInstantDay } from '../../lib/format'
 import { saveDownload } from '../../lib/supplierRecord'
@@ -152,6 +157,9 @@ function CreditNoteDetail() {
   const [failure, setFailure] = useState<string | null>(null)
   const [kept, setKept] = useState(false)
   const [mode, setMode] = useState<'idle' | 'apply' | 'refund'>('idle')
+  const [releasing, setReleasing] = useState<StandingCredit | null>(null)
+  const [releaseReason, setReleaseReason] = useState('')
+  const [releaseBusy, setReleaseBusy] = useState(false)
 
   const currency = row?.currencyCode ?? 'OMR'
   const money = (value: number) => formatAmount(value, currency, language)
@@ -170,13 +178,49 @@ function CreditNoteDetail() {
     settlements.retry()
   }
 
-  const onFailure = (error: unknown) => {
+  // `chosenDate`: the refund form, where the person enters the date, so another date is a way past
+  // a closed period. No other action on this page posts supplier cash.
+  const onFailure = (error: unknown, chosenDate = false) => {
     setNotice(null)
-    const message = describeApiFailure(error)
+    const described = describeApiFailure(error)
+    const message =
+      chosenDate && isPeriodClosedRefusal(error)
+        ? { ...described, key: PERIOD_CLOSED_CHOSEN_DATE_KEY }
+        : described
     const body = t(message.key, message.values)
     setFailure(
       message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body,
     )
+  }
+
+  const closeRelease = () => {
+    setReleasing(null)
+    setReleaseReason('')
+  }
+
+  const release = async () => {
+    if (!releasing || releaseReason.trim() === '') return
+    setReleaseBusy(true)
+    try {
+      await releaseCreditNote(id, releasing.billId, releaseReason.trim())
+      closeRelease()
+      afterAction('supplierCreditNoteDetail.release.done')
+    } catch (error) {
+      closeRelease()
+      // No such route, not a named refusal: a server without backend #827 cannot release yet.
+      if (
+        error instanceof ApiError &&
+        error.code === null &&
+        (error.status === 404 || error.status === 405)
+      ) {
+        setNotice(null)
+        setFailure(t('supplierCreditNoteDetail.release.unavailable'))
+      } else {
+        onFailure(error)
+      }
+    } finally {
+      setReleaseBusy(false)
+    }
   }
 
   // The note's own bill read names its file; until it answers, the row's delivery or upload.
@@ -219,6 +263,17 @@ function CreditNoteDetail() {
   // UNAPPLIED, and it is neither unused nor offerable against the bill it already reduced.
   const state = item.status
   const usedOnBill = row.credits.applied
+  const rows = settlements.read.status === 'ready' ? settlements.read.data : []
+  // A held copy credits nothing, so it has nothing to release. Read only once the rows have
+  // answered: with none, a note reads as credit by its link alone.
+  const standing =
+    settlements.read.status === 'ready' && canSettle && !item.heldAsDuplicate
+      ? standingCredits(row, rows, against.bill?.documentTypeCode ?? null)
+      : []
+  // Released from its bill, the note no longer reduces that bill and may not go back on it.
+  const releasedFromBill =
+    bill !== null &&
+    rows.some((settlement) => settlement.kind === 'RELEASED' && settlement.billId === bill.id)
   const effect = creditEffect(
     {
       credited: row.creditedAmount ?? 0,
@@ -226,7 +281,7 @@ function CreditNoteDetail() {
       remaining,
       appliedHere: usedOnBill,
     },
-    bill,
+    releasedFromBill ? null : bill,
   )
   const vat = vatEffect(bill?.vatAmount ?? null, row.vatAmount, bill?.inputVat?.counted)
   const reason = reasonLabelKey(row.reasonCode, row.reasonDetail ?? null)
@@ -254,7 +309,22 @@ function CreditNoteDetail() {
     state !== 'PARTLY_USED'
   // The credit is taken off a bill still to be paid: "You'll pay less" until it is paid (C7).
   const targetUnpaid = bill !== null && bill.outstandingAmount > 0
-  const bannerTitle = closesRefused
+  // A rejected bill is owed nothing and reads outstanding 0 since backend #824 (OBS-1): neither
+  // "you'll pay less" nor "already paid" is true of it.
+  const targetRejected = bill !== null && bill.workflowState === 'REJECTED'
+  // R8: a rejected note is refused at every apply (409 CREDIT_NOTE_REJECTED), and since E11 every
+  // refund too (409 CREDIT_NOTE_REFUND_REJECTED, client decision 2026-11-08), so neither "Set
+  // against" nor "Ask for a refund" is offered (N23). Read from the note's own bill record under the R5 contract, and from
+  // the note row's `approval`, which is loaded first, so "Set against" is never drawn while the
+  // record is still on its way (E2E 2026-11-08, E-11).
+  const noteRejected = creditNoteRejected(own) || item.rejected
+  // With credit left, the banner said "of credit to use" and advised setting it against a bill,
+  // which the server refuses (QA re-run SC-3, SC-4). It says what the chip and the decision card
+  // say instead; a spent note keeps the words of where its credit went.
+  const rejectedWithCredit = noteRejected && state !== 'APPLIED' && state !== 'REFUNDED'
+  const bannerTitle = rejectedWithCredit
+    ? t('supplierCreditNotes.state.rejected')
+    : closesRefused
     ? t('supplierCreditNotes.detail.closesRefusedTitle', { number: billNumber ?? '' })
     : state === 'REFUNDED'
       ? t('supplierCreditNotes.detail.refundedTitle', { amount: money(row.balance.refunded) })
@@ -262,10 +332,12 @@ function CreditNoteDetail() {
         ? targetUnpaid
           ? t('supplierCreditNotes.detail.youllPayLess', { amount: money(row.balance.applied) })
           : t('supplierCreditNotes.detail.paidLessTitle', { amount: money(row.balance.applied) })
-        : bill && state !== 'PARTLY_USED'
+        : bill && !releasedFromBill && state !== 'PARTLY_USED' && !targetRejected
           ? t('supplierCreditNotes.detail.youllPayLess', { amount: money(remaining) })
           : t('supplierCreditNotes.detail.creditToUse', { amount: money(remaining) })
-  const bannerBody = closesRefused
+  const bannerBody = rejectedWithCredit
+    ? t('supplierCreditNotes.refused.rejected')
+    : closesRefused
     ? t('supplierCreditNotes.detail.closesRefusedBody')
     : state === 'REFUNDED'
       ? t('supplierCreditNotes.detail.refundedBody')
@@ -275,8 +347,10 @@ function CreditNoteDetail() {
           ? t('supplierCreditNotes.detail.partlyUsedBody')
           : state === 'WAITING_FOR_BILL'
             ? t('supplierCreditNotes.detail.waitingBody')
-            : bill
-              ? bill.outstandingAmount > 0
+            : bill && !releasedFromBill
+              ? targetRejected
+                ? t('supplierCreditNotes.detail.billRejectedNote')
+                : bill.outstandingAmount > 0
                 ? // Not applied yet (an applied credit is APPLIED or PARTLY_USED above): "comes
                   // straight off what you owe" claimed a deduction the activity said was waiting
                   // (B-11, local E2E 2026-10-29).
@@ -354,6 +428,17 @@ function CreditNoteDetail() {
             <StatusChip className={CHIP[chip.tone]} label={t(chip.labelKey)} />
             <KindBadge sign={'−'} label={t(`supplierNotes.kind.credit.${item.source}`)} />
           </div>
+          {item.waitingForDecisionOn ? (
+            <Link
+              to={`/expenditure/bills/${item.waitingForDecisionOn}`}
+              data-testid="credit-note-waiting-duplicate"
+              className="mt-2 inline-block text-sm font-semibold leading-[1.4] text-pending-700 hover:underline"
+            >
+              {billNumber
+                ? t('supplierCreditNotes.waitingDuplicate.onBill', { number: billNumber })
+                : t('supplierCreditNotes.waitingDuplicate.onItsBill')}
+            </Link>
+          ) : null}
           <p className="mt-2 text-sm font-medium leading-[1.4] text-text-tertiary">
             {t('supplierCreditNotes.detail.from')}{' '}
             <span className="font-semibold text-text-secondary">
@@ -399,7 +484,7 @@ function CreditNoteDetail() {
               {t('supplierCreditNotes.detail.download')}
             </button>
           ) : null}
-          {settleable ? (
+          {settleable && !noteRejected ? (
             <button
               type="button"
               onClick={() => setMode('apply')}
@@ -603,11 +688,7 @@ function CreditNoteDetail() {
               <ActivityTrail
                 tone="credit"
                 label={t('supplierCreditNotes.detail.activityTitle')}
-                entries={creditActivity(
-                  row,
-                  settlements.read.status === 'ready' ? settlements.read.data : [],
-                  fmt,
-                )}
+                entries={creditActivity(row, rows, fmt)}
               />
             )}
           </NoteCard>
@@ -682,7 +763,9 @@ function CreditNoteDetail() {
                     ? t('supplierCreditNoteDetail.nothingLeft')
                     : !canSettle
                       ? t('appAccess.missingPermission')
-                      : billNumber && !usedOnBill
+                      : noteRejected
+                        ? t('supplierCreditNotes.refused.rejected')
+                        : billNumber && !usedOnBill && !releasedFromBill
                         ? billOnHold
                           ? t('supplierCreditNotes.detail.billOnHold', { bill: billNumber })
                           : t('supplierCreditNotes.detail.decisionNote', { bill: billNumber })
@@ -708,7 +791,7 @@ function CreditNoteDetail() {
                   supplierName={item.supplier}
                   knownBill={
                     // The bill this note already reduced would refuse it a second time.
-                    bill && !usedOnBill
+                    bill && !usedOnBill && !releasedFromBill
                       ? { id: bill.id, label: bill.supplierBillNumber ?? billNumber ?? '' }
                       : null
                   }
@@ -723,18 +806,24 @@ function CreditNoteDetail() {
                   remaining={remaining}
                   onDone={afterAction}
                   onFailure={onFailure}
+                  onKeySpent={() => {
+                    note.retry()
+                    settlements.retry()
+                  }}
                   onCancel={() => setMode('idle')}
                 />
               ) : (
                 <>
-                  <button
-                    type="button"
-                    onClick={() => setMode('apply')}
-                    className="mt-4 inline-flex h-[48px] w-full items-center justify-center gap-2 rounded-sm bg-primary-700 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-                  >
-                    <img src={setIcon} alt="" className="size-5" />
-                    {t(setAgainstKey)}
-                  </button>
+                  {noteRejected ? null : (
+                    <button
+                      type="button"
+                      onClick={() => setMode('apply')}
+                      className="mt-4 inline-flex h-[48px] w-full items-center justify-center gap-2 rounded-sm bg-primary-700 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+                    >
+                      <img src={setIcon} alt="" className="size-5" />
+                      {t(setAgainstKey)}
+                    </button>
+                  )}
                   <div className="mt-2.5 flex gap-2.5">
                     <button
                       type="button"
@@ -743,16 +832,49 @@ function CreditNoteDetail() {
                     >
                       {t('supplierCreditNotes.detail.keepAsCredit')}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setMode('refund')}
-                      className="inline-flex h-[42px] flex-1 items-center justify-center rounded-sm border border-border-subtle bg-white px-2 text-sm font-medium text-text-secondary transition-colors hover:border-primary-300"
-                    >
-                      {t('supplierCreditNotes.detail.askRefund')}
-                    </button>
+                    {noteRejected ? null : (
+                      <button
+                        type="button"
+                        onClick={() => setMode('refund')}
+                        className="inline-flex h-[42px] flex-1 items-center justify-center rounded-sm border border-border-subtle bg-white px-2 text-sm font-medium text-text-secondary transition-colors hover:border-primary-300"
+                      >
+                        {t('supplierCreditNotes.detail.askRefund')}
+                      </button>
+                    )}
                   </div>
                 </>
               )
+            ) : null}
+
+            {standing.length > 0 ? (
+              <div className="mt-4 border-t border-primary-100 pt-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.5px] text-text-quaternary">
+                  {t('supplierCreditNoteDetail.release.heading')}
+                </p>
+                <ul className="mt-2 flex flex-col gap-2">
+                  {standing.map((credit) => (
+                    <li key={credit.billId} className="flex items-center justify-between gap-2">
+                      <span className="min-w-0 text-sm font-medium text-text-secondary">
+                        <Link
+                          to={`/expenditure/bills/${credit.billId}`}
+                          className="underline decoration-transparent underline-offset-2 transition-colors hover:decoration-current"
+                        >
+                          {credit.billNumber ?? t('supplierCreditNoteDetail.release.thatBill')}
+                        </Link>
+                        {' · '}
+                        <SignedAmount sign="" value={money(credit.amount)} />
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setReleasing(credit)}
+                        className="inline-flex h-[34px] shrink-0 items-center justify-center rounded-sm border border-border-subtle bg-white px-3 text-sm font-medium text-text-secondary transition-colors hover:border-primary-300"
+                      >
+                        {t('supplierCreditNoteDetail.release.action')}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ) : null}
           </section>
 
@@ -840,6 +962,63 @@ function CreditNoteDetail() {
           </NoteCard>
         </aside>
       </div>
+
+      <Modal
+        open={releasing !== null}
+        onClose={closeRelease}
+        title={t('supplierCreditNoteDetail.release.title', {
+          bill: releasing?.billNumber ?? t('supplierCreditNoteDetail.release.thatBill'),
+        })}
+        footer={
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={closeRelease}
+              className="inline-flex h-[46px] items-center justify-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              type="button"
+              // A13: the server refuses a release with no reason, or only spaces, for every caller;
+              // the button waits for one rather than send a request that cannot succeed.
+              disabled={releaseBusy || releaseReason.trim() === ''}
+              onClick={() => void release()}
+              className="inline-flex h-[46px] items-center justify-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-60"
+            >
+              {t('supplierCreditNoteDetail.release.confirm')}
+            </button>
+          </div>
+        }
+      >
+        {/* R8 (Agent 10 W1 on the #360 port): the body promises the credit back "to use on another
+            bill or to refund". A rejected note's credit is never usable, and it is never refunded
+            (E11, client decision 2026-11-08), so the sentence is left out for one until the owner gives text for
+            that case; the title still names the act. */}
+        {noteRejected ? null : (
+          <p className="text-sm font-medium leading-[1.5] text-text-secondary">
+            {withRial(
+              t('supplierCreditNoteDetail.release.body', {
+                amount: releasing ? money(releasing.amount) : '',
+              }),
+            )}
+          </p>
+        )}
+        <label className="mt-4 block">
+          <span className="text-sm font-semibold text-text-secondary">
+            {t('supplierCreditNoteDetail.release.reason')}
+          </span>
+          <textarea
+            value={releaseReason}
+            onChange={(event) => setReleaseReason(event.target.value)}
+            required
+            aria-required="true"
+            maxLength={1000}
+            rows={3}
+            className="mt-1.5 w-full rounded-sm border border-border-subtle p-3 text-sm text-text-primary outline-none focus:border-primary-500"
+          />
+        </label>
+      </Modal>
     </div>
   )
 }
@@ -1064,13 +1243,15 @@ function RefundForm({
   remaining,
   onDone,
   onFailure,
+  onKeySpent,
   onCancel,
 }: {
   noteId: string
   currency: string
   remaining: number
   onDone: (key: string) => void
-  onFailure: (error: unknown) => void
+  onFailure: (error: unknown, chosenDate?: boolean) => void
+  onKeySpent: () => void
   onCancel: () => void
 }) {
   const { t, i18n } = useTranslation()
@@ -1079,6 +1260,10 @@ function RefundForm({
   const [amount, setAmount] = useState('')
   const [paidOn, setPaidOn] = useState('')
   const [reference, setReference] = useState('')
+  // One key per refund the person means to record, as RecordPaymentModal keys a payment: a second
+  // click, or a retry after a timeout or a lost answer, is the same refund and the server records
+  // it once. The form closes after a success, so the next refund opens with a fresh key.
+  const [refundKey, setRefundKey] = useState(newCreditNoteRefundKey)
 
   const parsed = (value: string) => {
     const number = Number(value)
@@ -1089,10 +1274,17 @@ function RefundForm({
   const refund = async () => {
     setBusy(true)
     try {
-      await refundCreditNote(noteId, parsed(amount)!, paidOn, reference.trim() || null)
+      await refundCreditNote(noteId, refundKey, parsed(amount)!, paidOn, reference.trim() || null)
       onDone('supplierCreditNoteDetail.refundedDone')
     } catch (error) {
-      onFailure(error)
+      // The form was changed after an attempt whose answer never arrived, so that attempt may be
+      // recorded. The old key cannot carry the new figures; the next press is a new refund, and
+      // the page reads the note again so the person can see whether the first one went through.
+      if (error instanceof ApiError && error.code === 'CREDIT_NOTE_REFUND_IDEMPOTENCY_KEY_REUSED') {
+        setRefundKey(newCreditNoteRefundKey())
+        onKeySpent()
+      }
+      onFailure(error, true)
     } finally {
       setBusy(false)
     }

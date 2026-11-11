@@ -344,6 +344,27 @@ describe('the item form on /v1/products', () => {
     expect(await screen.findByText(i18n.t('itemForm.refused.barcodeTaken'))).toBeTruthy()
   })
 
+  it('says on the unit field why a moved item keeps its unit, until another is picked (backend #844)', async () => {
+    onWrite = () => json({ status: 409, code: 'PRODUCT_STOCK_UNIT_LOCKED' }, 409)
+    await openItem()
+    await screen.findByLabelText(/^Name/)
+    const line = i18n.t('itemForm.refused.unitLocked')
+    expect(line).toContain('count this item to zero and create a new item')
+    const pickUnit = async (code: string) => {
+      fireEvent.click(screen.getByRole('button', { name: i18n.t('item.soldAs') }))
+      fireEvent.click(
+        await screen.findByRole('option', { name: i18n.t(`createInvoice.units.${code}`) }),
+      )
+    }
+    await pickUnit('LTR')
+    fireEvent.click(screen.getAllByRole('button', { name: i18n.t('item.save') })[0])
+    const alert = await screen.findByText(line)
+    expect(alert.closest('label')?.textContent).toContain(i18n.t('item.soldAs'))
+    expect(screen.getAllByText(line)).toHaveLength(1)
+    await pickUnit('KGM')
+    await waitFor(() => expect(screen.queryByText(line)).toBeNull())
+  })
+
   it('puts an archived item back on sale with the version it read (P.14)', async () => {
     stored = { ...DATES, active: false, archivedAt: '2026-10-21T09:00:00Z', version: 5 }
     onWrite = () => json({ ...stored, active: true, archivedAt: null, version: 6 })

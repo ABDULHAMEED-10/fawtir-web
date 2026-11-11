@@ -364,13 +364,19 @@ export function heldArtefacts(
     }))
 }
 
-/** "INV-2038.xml", "INV-2038-TDD.xml": the name a person would give each file. */
-export function artefactFileName(number: string, id: ArtefactId): string | null {
+/**
+ * The name saved when the server names none. A server with backend #824 names each rendition in
+ * Content-Disposition by one rule (A-7b), and that name wins (saveDownload). These follow the
+ * same rule, unsafe characters as "_", so a numbered document saves alike from either server; an
+ * unnumbered one differs, as the server names it by a submission id this page never reads.
+ */
+export function artefactFileName(rawNumber: string, id: ArtefactId): string | null {
+  const number = rawNumber.replace(/[^A-Za-z0-9._-]/g, '_')
   switch (id) {
     case 'xml':
       return `${number}.xml`
     case 'tdd':
-      return `${number}-TDD.xml`
+      return `${number}-tdd.xml`
     case 'pdf':
       return `${number}.pdf`
     case 'qr':

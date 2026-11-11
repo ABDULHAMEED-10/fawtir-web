@@ -1,5 +1,6 @@
 import type { PosTodayDto, PosTodaySaleRow, PosTodayTab } from '../api/pos/pos'
 import { omr, toBaisa } from './pos'
+import { unprovenSender } from './posAttribution'
 
 /**
  * The day so far (Figma 143:20498), from `GET /v1/pos/sales` and `GET /v1/pos/today`.
@@ -35,6 +36,18 @@ export type ShiftGroup = {
   total: number
 }
 
+/**
+ * The cashier a row proves, for the shift's header. A LEGACY row's `cashier` is its sender and a
+ * PENDING_REVIEW row has none proven, so neither may name the shift: the header would present an
+ * unverified person as the shift's cashier above a row that says they are not (WSR-9, owner M-6
+ * point 4). Without an attribution, an online row's cashier is the one it always was, while a
+ * queued one's is its sender, read as LEGACY (`unprovenSender`, OFF43).
+ */
+function provenCashier(row: PosTodaySaleRow): string {
+  if (row.attribution === 'PENDING_REVIEW' || unprovenSender(row)) return ''
+  return row.cashier?.name ?? ''
+}
+
 /** Consecutive sales of one shift, in the order the server sent them (newest first). */
 export function groupByShift(rows: PosTodaySaleRow[]): ShiftGroup[] {
   const groups: ShiftGroup[] = []
@@ -42,11 +55,12 @@ export function groupByShift(rows: PosTodaySaleRow[]): ShiftGroup[] {
     const last = groups[groups.length - 1]
     if (last && last.shiftId === row.shiftId) {
       last.sales.push(row)
+      if (!last.cashier) last.cashier = provenCashier(row)
       last.total += toBaisa(row.total)
     } else {
       groups.push({
         shiftId: row.shiftId,
-        cashier: row.cashier.name ?? '',
+        cashier: provenCashier(row),
         tillNumber: row.tillNumber,
         sales: [row],
         total: toBaisa(row.total),
@@ -122,6 +136,20 @@ export function saleState(sale: PosTodaySaleRow): TodaySaleState {
     return 'waiting'
   }
   return sale.displayState
+}
+
+/**
+ * The badge's words. Batch 39 FIN-1 answers `failed` also for a company invoice the buyer's Peppol
+ * access point refused or could not be reached on: that invoice was issued and sent, so "Not filed"
+ * would be false. Only the pair `failed` + UNDELIVERABLE reads "Not delivered"; a server that sends
+ * no `peppolDelivery` keeps today's words.
+ */
+export function saleStateText(sale: PosTodaySaleRow): { key: string; hintKey?: string } {
+  const state = saleState(sale)
+  if (state === 'failed' && sale.filing?.peppolDelivery === 'UNDELIVERABLE') {
+    return { key: 'pos.today.state.notDelivered', hintKey: 'pos.today.state.notDeliveredHint' }
+  }
+  return { key: `pos.today.state.${state}` }
 }
 
 /** A second line under the amount: credited, a tip, change given, or who it was billed to. */

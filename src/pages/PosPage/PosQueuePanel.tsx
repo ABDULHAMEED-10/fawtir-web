@@ -1,18 +1,21 @@
 import { useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { Rial } from '../../components/ui'
 import { useApiRead } from '../../hooks'
 import { omr, tillTime, toBaisa } from '../../lib/pos'
 import {
   correctQueuedSale,
   markQueuedSaleSetAside,
+  opensNumbers,
   retryQueuedSale,
   useQueuedSales,
   type QueuedSale,
 } from '../../lib/posQueue'
-import { posRefusalKey, queueRefusalKey } from '../../lib/posRefusals'
+import { isTooLarge, queueRefusalKey, refusalSentence } from '../../lib/posRefusals'
 import type { TillState } from '../../lib/posTill'
 import { posOpenNumbersPath, setAsideOpenNumber, type PosOpenNumberDto } from '../../api/pos/pos'
+import type { DraftLineRequest } from '../../api/invoices/drafts'
 
 type Ready = Extract<TillState, { status: 'ready' }>
 
@@ -36,20 +39,25 @@ const PAYMENTS_CAN_BE_CORRECTED = new Set([
  * A sale made offline has a number on a receipt the customer holds, so one the server has not taken
  * is never left silent (E2E 30 Oct 2026, H-1; Abdul, 31 Oct 2026). Whoever manages tills
  * (`pos.till.manage`) sees the reason and resolves it: correct and send again on the printed number,
- * try again, or set it aside on the server so the queue moves on. Setting aside closes nothing: the
- * number stays listed until it is filed. Anyone else on the till is told to ask a manager. Set aside
- * and the server's list need `openNumbers`; on a server without it later sales must wait for
- * the number, and the panel says so. Sales only waiting for the connection are one quiet line.
+ * or try again. Anyone else on the till is told to ask a manager. Later sales wait for the number,
+ * and the panel says so: set aside and the server's open-number list are off in this build whatever
+ * the till says (`opensNumbers`, Q-27), so their UI below is unreachable. Sales only waiting for the
+ * connection are one quiet line.
  */
 export function PosQueuePanel({ till }: { till: Ready }) {
   const { t } = useTranslation()
   const entries = useQueuedSales(till.till.id)
-  const canSkip = till.till.openNumbers === true
+  const canSkip = opensNumbers()
   const open = useApiRead<PosOpenNumberDto[]>(canSkip ? posOpenNumbersPath(till.branchId) : null)
   const online = useSyncExternalStore(onlineChanges, () => navigator.onLine)
   const onServer = open.read.status === 'ready' ? open.read.data : []
   const problems = entries.filter((entry) => entry.refusal)
-  const waiting = entries.length - problems.length
+  // Someone else's, or queued before makers were kept: this session never sends them by itself
+  // (owner round 5, P3b), so they are listed with Send for instead of counted as going on their own.
+  const others = entries.filter(
+    (entry) => !entry.refusal && !(till.userId && entry.madeBy?.userId === till.userId),
+  )
+  const waiting = entries.length - problems.length - others.length
   const here = new Set(problems.map((entry) => entry.number))
   const elsewhere = onServer.filter((row) => !here.has(row.invoiceNumber))
   const count = problems.length + elsewhere.length
@@ -71,6 +79,7 @@ export function PosQueuePanel({ till }: { till: Ready }) {
                     key={entry.key}
                     entry={entry}
                     tillId={till.till.id}
+                    sender={till.userId}
                     canSkip={canSkip}
                     onServer={onServer.find((row) => row.invoiceNumber === entry.number)}
                     refresh={open.retry}
@@ -102,7 +111,57 @@ export function PosQueuePanel({ till }: { till: Ready }) {
           )}
         </p>
       ) : null}
+      {others.length > 0 && (till.can.sell || till.can.manage) ? (
+        <section className="rounded-md bg-surface-card px-5 py-3">
+          <p className="text-xs font-medium text-text-tertiary">
+            {t('pos.queue.others', { count: others.length })}
+          </p>
+          <ul className="mt-2 flex flex-col gap-2">
+            {others.map((entry) => (
+              <OtherMaker key={entry.key} entry={entry} tillId={till.till.id} sender={till.userId} />
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
+  )
+}
+
+/** "Send for {cashier}": never a cashier claim, only who pressed it sending another person's sale. */
+function sendForLabel(t: TFunction, entry: QueuedSale) {
+  return entry.madeBy
+    ? t('pos.queue.sendFor', { cashier: entry.madeBy.name ?? '' })
+    : t('pos.queue.sendForUnknown')
+}
+
+function OtherMaker({
+  entry,
+  tillId,
+  sender,
+}: {
+  entry: QueuedSale
+  tillId: string
+  sender: string | null
+}) {
+  const { t, i18n } = useTranslation()
+  const locale = i18n.language.startsWith('ar') ? 'ar' : 'en-GB'
+  const [busy, setBusy] = useState(false)
+  const send = async () => {
+    setBusy(true)
+    try {
+      await retryQueuedSale(tillId, entry.key, sender)
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <li className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm font-semibold text-text-primary">
+      <span dir="ltr">{entry.number}</span>
+      <span className="font-medium text-text-tertiary">{tillTime(entry.body.soldAt, locale)}</span>
+      <button type="button" disabled={busy} onClick={() => void send()} className={QUIET_BUTTON}>
+        {sendForLabel(t, entry)}
+      </button>
+    </li>
   )
 }
 
@@ -153,7 +212,7 @@ function SetAsideForm({
         />
       </label>
       {error ? (
-        <p className="mt-1 text-xs font-medium text-danger-700">{t(posRefusalKey(error))}</p>
+        <p className="mt-1 text-xs font-medium text-danger-700">{refusalSentence(t, error)}</p>
       ) : null}
       <div className="mt-2 flex flex-wrap gap-2">
         <button
@@ -184,12 +243,14 @@ function SetAsideNote({ reason }: { reason: string | null }) {
 function Problem({
   entry,
   tillId,
+  sender,
   canSkip,
   onServer,
   refresh,
 }: {
   entry: QueuedSale
   tillId: string
+  sender: string | null
   canSkip: boolean
   onServer?: PosOpenNumberDto
   refresh: () => void
@@ -204,7 +265,7 @@ function Problem({
   const retry = async () => {
     setBusy(true)
     try {
-      await retryQueuedSale(tillId, entry.key)
+      await retryQueuedSale(tillId, entry.key, sender)
       refresh()
     } finally {
       setBusy(false)
@@ -222,6 +283,7 @@ function Problem({
             ? { ...payment, amount: value, tendered: Math.max(value, payment.tendered ?? value) }
             : { ...payment, amount: value }
         }),
+        sender,
       )
       setMode('none')
       refresh()
@@ -230,6 +292,15 @@ function Problem({
     }
   }
   const validAmounts = amounts.every((value) => Number.isFinite(Number(value)) && Number(value) > 0)
+  // Held before issue for a goods line with no HS code: not issued, so the item's code is what
+  // lets it through, not a correction of the payments.
+  const pendingValidation = entry.refusal === 'POS_QUEUED_SALE_HS_CODE_REQUIRED'
+  // Held the same way for a line that states neither goods nor services (backend 8f04050ab). The
+  // lines this device kept cannot be changed here; only where the item can cure it does the hint
+  // send someone to the item.
+  const undeclared = entry.refusal === 'POS_QUEUED_SALE_GOODS_OR_SERVICE_REQUIRED'
+  const heldLines = pendingValidation || undeclared ? entry.refusalValues?.lines : undefined
+  const itemCures = undeclared && curedByItem(entry, heldLines)
 
   return (
     <li className="rounded-sm bg-surface-card px-4 py-3 text-text-primary">
@@ -244,13 +315,37 @@ function Problem({
         </span>
       </p>
       <p className="mt-1 text-sm font-medium text-danger-700">
-        {t(queueRefusalKey(entry.refusal, entry.refusalType ?? null), entry.refusalValues ?? {})}
+        {t(
+          queueRefusalKey(entry.refusal, entry.refusalType ?? null, entry.refusalValues ?? {}),
+          entry.refusalValues ?? {},
+        )}
+        {heldLines
+          ? ` ${t(undeclared ? 'pos.queue.goodsOrServiceLines' : 'pos.queue.hsCodeLines', { lines: heldLines })}`
+          : null}
       </p>
       <p className="mt-1 text-xs font-medium text-text-tertiary">
-        {entry.final ? t('pos.queue.finalHint') : t('pos.queue.heldHint')}
+        {entry.buyerRemoved
+          ? t('pos.queue.buyerRemovedHint')
+          : entry.final && isTooLarge(entry.refusal, entry.refusalType ?? null)
+            ? t('pos.queue.tooLargeHint')
+            : entry.final
+            ? t('pos.queue.finalHint')
+            : undeclared
+              ? t(itemCures ? 'pos.queue.goodsOrServiceItemHint' : 'pos.queue.goodsOrServiceHint')
+              : pendingValidation
+              ? t('pos.queue.hsCodeHint')
+              : sender && entry.madeBy?.userId === sender
+                ? t('pos.queue.heldHint')
+                : t('pos.queue.sendForHint')}
       </p>
-      {entry.setAside || onServer?.setAsideAt ? (
-        <SetAsideNote reason={onServer?.setAsideReason ?? null} />
+      {/* Only the server's own record names a reason. An earlier build's local flag, or the marker
+          Try again leaves, is this device's word alone and says so (Q-27 NF7R; A8-G6). */}
+      {onServer?.setAsideAt ? (
+        <SetAsideNote reason={onServer.setAsideReason} />
+      ) : entry.setAside || entry.setAsideSeen ? (
+        <p className="mt-1 text-xs font-medium text-pending-700">
+          {t('pos.queue.setAsideSeenNote')}
+        </p>
       ) : null}
       {mode === 'correct' ? (
         <div className="mt-3 flex flex-col gap-2">
@@ -296,10 +391,14 @@ function Problem({
         />
       ) : (
         <div className="mt-3 flex flex-wrap gap-2">
-          <button type="button" disabled={busy} onClick={() => void retry()} className={BUTTON}>
-            {t('pos.queue.retry')}
-          </button>
-          {entry.refusal && PAYMENTS_CAN_BE_CORRECTED.has(entry.refusal) ? (
+          {entry.buyerRemoved ? null : (
+            <button type="button" disabled={busy} onClick={() => void retry()} className={BUTTON}>
+              {sender && entry.madeBy?.userId === sender
+                ? t('pos.queue.retry')
+                : sendForLabel(t, entry)}
+            </button>
+          )}
+          {!entry.buyerRemoved && entry.refusal && PAYMENTS_CAN_BE_CORRECTED.has(entry.refusal) ? (
             <button type="button" onClick={() => setMode('correct')} className={QUIET_BUTTON}>
               {t('pos.queue.correct')}
             </button>
@@ -313,6 +412,28 @@ function Problem({
       )}
     </li>
   )
+}
+
+/**
+ * Whether every held line can be cured by classifying its catalogue item (backend dbcd51ae9,
+ * HS-B-TILL-STALL): on a queued sale's resend, a line that cites a product and states no
+ * classification of its own (no goods/services, HS code or service type) takes the active item's
+ * stored flag. A typed line with no product, or one that states anything itself, never does, and
+ * nor does a line the answer names that this device cannot find: those keep the old hint. Whether
+ * the item is active, flagged and consistent with its kind only the server knows, so the hint says
+ * what to do, not that it will clear.
+ */
+function curedByItem(entry: QueuedSale, held: string | undefined): boolean {
+  if (!held) return false
+  const numbers = held.split(',').map((part) => Number(part.trim()))
+  if (numbers.some((number) => !Number.isInteger(number))) return false
+  const lines = (entry.body.draft as { lines?: DraftLineRequest[] }).lines ?? []
+  return numbers.every((number) => {
+    const line = lines.find((candidate) => candidate.lineNumber === number)
+    if (!line?.productId) return false
+    const own = line.classification
+    return !own || (own.goodsOrService == null && own.hsCode == null && own.serviceTypeCode == null)
+  })
 }
 
 /** On the server's list and not in this device's queue: another device holds the sale. */
@@ -329,7 +450,9 @@ function Elsewhere({ row, refresh }: { row: PosOpenNumberDto; refresh: () => voi
       </p>
       {row.refusalCode ? (
         <p className="mt-1 text-sm font-medium text-danger-700">
-          {t(queueRefusalKey(row.refusalCode, null))}
+          {/* The other till's row carries a code and no figures: a sentence that names one
+              falls back to its figure-free form (review WB3-3). */}
+          {t(queueRefusalKey(row.refusalCode, null, {}), {})}
         </p>
       ) : null}
       {row.setAsideAt ? <SetAsideNote reason={row.setAsideReason} /> : null}
