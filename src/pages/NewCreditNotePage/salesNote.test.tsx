@@ -470,8 +470,19 @@ describe('the note rules', () => {
   })
 
   it('names the refund when a credit is more than is still owed', () => {
-    expect(creditEffect(36.7, 10)).toEqual({ after: 26.7, refund: 0 })
-    expect(creditEffect(0, 42)).toEqual({ after: 0, refund: 42 })
+    expect(creditEffect(36.7, 10)).toEqual({ after: 26.7, applied: 10, refund: 0, exceeds: false })
+    expect(creditEffect(0, 42)).toEqual({ after: 0, applied: 0, refund: 42, exceeds: false })
+    expect(creditEffect(10, 42, 42)).toEqual({ after: 0, applied: 10, refund: 32, exceeds: false })
+  })
+
+  it('promises no refund for a credit above what is left to credit (RC5 D-04)', () => {
+    // 192.254 owed, 292.254 creditable, 420.000 asked: the E2E run's figures, refused at issue.
+    expect(creditEffect(192.254, 420, 292.254)).toEqual({
+      after: 192.254,
+      applied: 0,
+      refund: 0,
+      exceeds: true,
+    })
   })
 })
 
@@ -513,6 +524,22 @@ describe('a credit note', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Issue credit note' }))
     expect(await screen.findByText(/Line 1: not all of it went back on the shelf/)).toBeTruthy()
   })
+
+  it('says a credit above what is left to credit will be refused instead of promising a refund (RC5 D-04)', async () => {
+    // Paid 23.500 and credited 50.000 of 73.500: 23.500 is left to credit, and the full credit of
+    // 73.500 is more than that, which the server refuses with CREDIT_NOTE_EXCEEDS_CORRECTABLE_AMOUNT.
+    receivable = { ...RECEIVABLE, paidAmount: 23.5, creditedAmount: 50, outstandingAmount: 0 }
+    renderAt(`/income/credit-notes/new?invoice=${INVOICE_ID}`)
+    await screen.findByText('Green beans')
+    const status = screen
+      .getByText('Refund due to customer')
+      .closest('[role="status"]') as HTMLElement
+    expect(within(status).queryByText('73.500')).toBeNull()
+    expect(within(status).queryByText(/the difference is refundable/)).toBeNull()
+    expect(
+      within(status).getByText('This credit is more than is left to credit on the invoice.'),
+    ).toBeTruthy()
+  }, 30_000)
 
   it('credits chosen lines of a paid invoice, shows the refund due, and issues from the page with no due date', async () => {
     renderAt(`/income/credit-notes/new?invoice=${INVOICE_ID}`)

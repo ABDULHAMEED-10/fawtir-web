@@ -913,19 +913,29 @@ export function toNoteRequest(
 }
 
 /**
- * Where a credit note leaves the invoice (decision 2): what it will still owe, and — when the note
- * credits more than is still owed, because the invoice was paid — the refund the customer is due,
- * which Fawtir does not record yet.
+ * Where a credit note leaves the invoice (decision 2): what it will still owe, what the note settles,
+ * and — when the note credits more than is still owed, because the invoice was paid — the refund the
+ * customer is due, which Fawtir does not record yet.
+ *
+ * A note above `creditable` settles and refunds nothing: the server refuses it at issue with
+ * CREDIT_NOTE_EXCEEDS_CORRECTABLE_AMOUNT (backend `Invoice.issueCredit` against
+ * `IssuedRemainders.amount`), so offering its overflow as a refund promised what the server then
+ * took back (RC5 E2E D-04). The server stays the check; this only stops the promise.
  */
 export function creditEffect(
   outstanding: number,
   credit: number,
-): { after: number; refund: number } {
+  creditable: number | null = null,
+): { after: number; applied: number; refund: number; exceeds: boolean } {
   const owedMinor = Math.round(outstanding * 1000)
   const creditMinor = Math.round(credit * 1000)
+  if (creditable !== null && creditMinor > Math.round(creditable * 1000))
+    return { after: owedMinor / 1000, applied: 0, refund: 0, exceeds: true }
   return {
     after: Math.max(owedMinor - creditMinor, 0) / 1000,
+    applied: Math.min(owedMinor, creditMinor) / 1000,
     refund: Math.max(creditMinor - owedMinor, 0) / 1000,
+    exceeds: false,
   }
 }
 
