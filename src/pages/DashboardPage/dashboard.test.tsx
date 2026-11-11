@@ -7,6 +7,7 @@ import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitl
 import { forgetSubscriptionStanding } from '../../lib/subscriptionReadOnly'
 import { DashboardPage } from './DashboardPage'
 import { DashboardHeader } from './KpiSection'
+import { CASHIER_ROLE, VIEWER_ROLE } from '../../testing/roles'
 
 const ADMIN: Entitlements = {
   userId: 'u-1',
@@ -106,6 +107,7 @@ function json(status: number, body?: unknown) {
 
 type Answers = Partial<Record<keyof typeof URL, () => Response>>
 let fetchMock: ReturnType<typeof vi.fn>
+let who: Entitlements
 
 function answer(answers: Answers = {}) {
   const all: Required<Answers> = {
@@ -117,7 +119,7 @@ function answer(answers: Answers = {}) {
     ...answers,
   }
   fetchMock.mockImplementation(async (url: string) => {
-    if (url === '/api/v1/me/entitlements') return json(200, ADMIN)
+    if (url === '/api/v1/me/entitlements') return json(200, who)
     const key = (Object.keys(URL) as (keyof typeof URL)[]).find((k) => URL[k] === url)
     // The shell's own reads (branches, notifications…) are not under test here.
     return key ? all[key]() : json(404, { type: 'about:blank' })
@@ -139,6 +141,7 @@ beforeEach(async () => {
   await i18n.changeLanguage('en')
   forgetEntitlements()
   forgetSubscriptionStanding()
+  who = ADMIN
   resetSharedRequests()
   fetchMock = vi.fn()
   vi.stubGlobal('fetch', fetchMock)
@@ -480,5 +483,42 @@ describe('Dashboard header date', () => {
     await i18n.changeLanguage('ar')
     render(<DashboardHeader now={now} />)
     expect(screen.getByText(/أكتوبر/)).toBeTruthy()
+  })
+})
+
+describe('RC5 D-07: a restricted role asks only for what it may read', () => {
+  const asked = (prefix: string) =>
+    fetchMock.mock.calls.some(([url]) => String(url).startsWith(prefix))
+
+  it('a cashier asks for none of the dashboard, bills, readiness or compliance reads', async () => {
+    who = CASHIER_ROLE
+    // As the server answers a cashier: the cards read the same "Not available yet" either way, so
+    // only the requests tell a refused read from one never made.
+    const forbidden = () =>
+      json(403, { type: 'https://api.fawtir.om/problems/insufficient-permission' })
+    answer({ dashboard: forbidden, bills: forbidden, readiness: forbidden })
+    renderPage()
+
+    await waitFor(() =>
+      expect(screen.getAllByText(t('dashboard.notAvailableYet')).length).toBeGreaterThanOrEqual(7),
+    )
+    expect(asked(URL.dashboard)).toBe(false)
+    expect(asked(URL.bills)).toBe(false)
+    expect(asked(URL.readiness)).toBe(false)
+    expect(asked('/api/v1/compliance/activity/summary')).toBe(false)
+    expect(document.body.textContent).not.toMatch(/\d+\.\d{3}/)
+  })
+
+  it('a viewer still asks for and sees every read the role holds', async () => {
+    who = VIEWER_ROLE
+    answer()
+    renderPage()
+
+    await screen.findByText('RT-0007')
+    expect(card(t('dashboard.kpi.payables')).getByText('64.500')).toBeTruthy()
+    await waitFor(() => expect(asked(URL.readiness)).toBe(true))
+    expect(asked('/api/v1/compliance/activity/summary')).toBe(true)
+    // `tenant.plan.read` is not the viewer's, as before (B-14).
+    expect(asked(URL.plan)).toBe(false)
   })
 })

@@ -1,5 +1,5 @@
 import { AppShell } from '../../layouts/AppShell'
-import { useApiRead } from '../../hooks/useApiRead'
+import { useApiRead, type ApiRead } from '../../hooks/useApiRead'
 import { DASHBOARD_PATH, type DashboardDto } from '../../api/reports/dashboard'
 import { BILL_SUMMARY_PATH, loadBillSummary, type BillSummaryDto } from '../../api/expenditure/bills'
 import { PLAN_OVERVIEW_PATH, loadPlanOverview, type PlanOverviewDto } from '../../api/settings/plan'
@@ -10,7 +10,10 @@ import { RevenueChart } from './RevenueChart'
 import { RecentInvoices } from './RecentInvoices'
 import { ComplianceHealth, InvoiceQuota, VatPosition } from './SidePanels'
 import { tileOf, viewOf } from './dashboardData'
-import { useMayRequest } from '../../lib/session/session'
+import { mayRequest, useMayRequest, useSession } from '../../lib/session/session'
+
+/** A read the reader may not make, drawn as the refusal it would have earned: "Not available yet". */
+const NOT_PERMITTED: ApiRead<never> = { status: 'failed', error: null }
 
 /**
  * The dashboard, from three reads: `GET /v1/dashboard` for every tile it carries, `/bills/summary`
@@ -27,8 +30,21 @@ export function DashboardPage() {
 }
 
 function DashboardBody() {
-  const dashboard = useApiRead<DashboardDto>(DASHBOARD_PATH).read
-  const bills = useApiRead<BillSummaryDto>(BILL_SUMMARY_PATH, loadBillSummary).read
+  const session = useSession()
+  // Each read is asked only of a reader the server admits: `/dashboard` takes `reports.read` or
+  // `reports.sales.read` (DashboardController) and `/bills/summary` takes `invoice.read`. A cashier
+  // holds none of them and earned a 403 on each (RC5 E2E D-07); the cards then say "Not available
+  // yet", as they did on the refusal.
+  const mayReadDashboard =
+    mayRequest(session, 'reports.read') || mayRequest(session, 'reports.sales.read')
+  const mayReadBills = mayRequest(session, 'invoice.read')
+  const dashboardRead = useApiRead<DashboardDto>(mayReadDashboard ? DASHBOARD_PATH : null).read
+  const dashboard = mayReadDashboard ? dashboardRead : NOT_PERMITTED
+  const billsRead = useApiRead<BillSummaryDto>(
+    mayReadBills ? BILL_SUMMARY_PATH : null,
+    loadBillSummary,
+  ).read
+  const bills = mayReadBills ? billsRead : NOT_PERMITTED
   // `tenant.plan.read` only (B-14): without it the card says "Not available yet", as it did on
   // the refusal the read used to earn.
   const mayReadPlan = useMayRequest('tenant.plan.read')

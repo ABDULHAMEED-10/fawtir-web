@@ -10,6 +10,7 @@ import { CreateInvoicePage } from './CreateInvoicePage'
 import { muscatToday, plusDays } from '../../lib/invoiceIssue'
 import { resetSharedRequests } from '../../api/inflight'
 import { forgetSubscriptionStanding } from '../../lib/subscriptionReadOnly'
+import { VIEWER_ROLE } from '../../testing/roles'
 
 const WRITER: Entitlements = {
   userId: 'u-1',
@@ -399,6 +400,8 @@ describe('a new invoice draft', () => {
   })
 
   it("shows the company's stored business activity, or warns that none is set", async () => {
+    // The server reads the activity only with `admin.settings.manage` (CompanyProfileController).
+    who = { ...WRITER, permissions: [...WRITER.permissions, 'admin.settings.manage'] }
     renderAt('/invoices/new')
     expect(await screen.findByText('Business activity: 561001 · Restaurants')).toBeTruthy()
 
@@ -408,6 +411,19 @@ describe('a new invoice draft', () => {
     expect(await screen.findByText(/Business activity not set/)).toBeTruthy()
     expect(screen.queryByText(/Business activity: /)).toBeNull()
   })
+
+  for (const [name, role] of [
+    ['viewer', VIEWER_ROLE],
+    ['writer without settings', WRITER],
+  ] as const) {
+    it(`never asks for the business activity for a ${name}, which the server refuses (RC5 D-07)`, async () => {
+      who = role
+      renderAt('/invoices/new')
+      await screen.findByRole('button', { name: /Consumer/ })
+      expect(calls('GET', '/api/v1/company-profile/industrial-classification')).toEqual([])
+      expect(screen.queryByText(/Business activity/)).toBeNull()
+    })
+  }
 
   it('shows no invoice number before issue', async () => {
     renderAt('/invoices/new')

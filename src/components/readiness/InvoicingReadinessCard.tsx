@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApiRead } from '../../hooks/useApiRead'
-import { useCan } from '../../lib/session/session'
+import { useCan, useMayRequest } from '../../lib/session/session'
 import {
   INVOICING_READINESS_PATH,
   type InvoicingReadinessDto,
@@ -52,7 +52,10 @@ export function InvoicingReadinessCard({
   const { t } = useTranslation()
   const composer = context === 'composer'
   const copy = composer ? 'readiness.composer' : 'readiness'
-  const read = useApiRead<InvoicingReadinessDto>(INVOICING_READINESS_PATH).read
+  // `invoice.read` only (InvoicingReadinessController): a cashier opening the dashboard earned a
+  // 403 here (RC5 E2E D-07). Without the permission the card draws nothing, as it did on the 403.
+  const mayRead = useMayRequest('invoice.read')
+  const read = useApiRead<InvoicingReadinessDto>(mayRead ? INVOICING_READINESS_PATH : null).read
   if (read.status !== 'ready' || read.data.ready) return null
   const items = read.data.items
   const open = items.filter((item) => item.status !== 'DONE')

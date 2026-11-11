@@ -94,7 +94,7 @@ import { describeApiFailure } from '../../lib/apiFailure'
 import { missingCustomerFields } from '../../lib/customerEligibility'
 import { formatAmount as formatMoney } from '../../lib/format'
 import { usePlanUsage } from '../../hooks/usePlanUsage'
-import { can, useSession } from '../../lib/session/session'
+import { can, mayRequest, useSession } from '../../lib/session/session'
 import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 import {
   calculateInvoice,
@@ -1031,8 +1031,13 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
 
   const editable = canSave && (!meta || meta.state === 'DRAFT')
   const consumer = form.customerType === 'consumer'
-  // The company's business activity, which the backend stamps on every line at issue.
-  const activity = useApiRead(INDUSTRIAL_CLASSIFICATION_PATH, readIndustrialClassification).read
+  // The company's business activity, which the backend stamps on every line at issue. The server
+  // reads it only with `admin.settings.manage` (CompanyProfileController), so anyone else earned a
+  // 403 opening the form (RC5 E2E D-07) and is not asked; the line is not drawn, as on the 403.
+  const activity = useApiRead(
+    mayRequest(session, 'admin.settings.manage') ? INDUSTRIAL_CLASSIFICATION_PATH : null,
+    readIndustrialClassification,
+  ).read
   const activityEntry =
     activity.status === 'ready'
       ? findCode(ISIC_ACTIVITIES, activity.data.code ?? undefined)

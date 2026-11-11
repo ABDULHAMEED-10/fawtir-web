@@ -7,6 +7,7 @@ import { ReferenceDataContext } from '../../lib/reference/referenceData'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import { resetSharedRequests } from '../../api'
 import { CompanyProfilePage } from './CompanyProfilePage'
+import { CASHIER_ROLE, VIEWER_ROLE } from '../../testing/roles'
 
 const ADMIN: Entitlements = {
   userId: 'u-1',
@@ -63,16 +64,18 @@ type Answer = () => Response | Promise<Response>
 let answers: Partial<Record<keyof typeof PATH, Answer>>
 let brandingPut: Answer
 let fetchMock: ReturnType<typeof vi.fn>
+let who: Entitlements
 
 beforeEach(async () => {
   await i18n.changeLanguage('en')
   forgetEntitlements()
   resetSharedRequests()
+  who = ADMIN
   answers = {}
   brandingPut = () => json(200, { logo: null, brandColour: '#112233', receiptMonochrome: false })
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
-    if (url === '/api/v1/me/entitlements') return json(200, ADMIN)
+    if (url === '/api/v1/me/entitlements') return json(200, who)
     if (url === '/api/v1/reference-data') return json(200, SEEDED_REFERENCE)
     if (url === PATH.branding && method === 'PUT') return brandingPut()
     if (method !== 'GET') throw new Error(`unexpected ${method} ${url}`)
@@ -237,4 +240,35 @@ describe('Settings › Company profile: only what the server holds', () => {
     expect(t('companyProfile.noChangesYet')).not.toBe(i18n.getFixedT('en')('companyProfile.noChangesYet'))
     expect(document.body.textContent).not.toContain('Al Bahja')
   })
+})
+
+describe('RC5 D-07: a reader without admin.settings.manage', () => {
+  for (const [name, role] of [
+    ['viewer', VIEWER_ROLE],
+    ['cashier', CASHIER_ROLE],
+  ] as const) {
+    it(`says a ${name} has no access, and asks for none of the profile's reads`, async () => {
+      who = role
+      // As the server answers them; the notice is the same, only the requests differ.
+      const forbidden = () =>
+        json(403, { type: 'https://api.fawtir.om/problems/insufficient-permission', detail: 'x' })
+      answers = {
+        profile: forbidden,
+        changes: forbidden,
+        branding: forbidden,
+        defaults: forbidden,
+        activity: forbidden,
+      }
+      renderPage()
+
+      expect(await screen.findByText(t('appAccess.missingPermission'))).toBeTruthy()
+      expect(screen.queryByLabelText(t('companyProfile.registeredName'))).toBeNull()
+      await waitFor(() =>
+        expect(fetchMock.mock.calls.some(([url]) => url === '/api/v1/me/entitlements')).toBe(true),
+      )
+      expect(
+        fetchMock.mock.calls.filter(([url]) => String(url).startsWith('/api/v1/company-profile')),
+      ).toEqual([])
+    })
+  }
 })
