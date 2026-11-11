@@ -103,7 +103,9 @@ describe('an online sale whose outcome is unknown (E-01)', () => {
     const refused = await submitSale(unnumbered, BODY, 'pos-sale-key-e01-c', [], PRINTED).catch((error) => error)
     expect(refused).toBeInstanceOf(PosSaleOutcomeUnknown)
     expect(saleOutcomeUncertain(refused)).toBe(true)
-    expect(posRefusalKey(refused)).toBe('pos.refusal.outcomeUnknown')
+    // Since 8d8de46b an uncoded gateway fault names the server as the reason it got no answer:
+    // still an unknown outcome, never the "could not reach Fawtir" wording.
+    expect(posRefusalKey(refused)).toBe('pos.refusal.outcomeUnknownServer')
   })
 
   it('a request that times out is kept under the same key', async () => {

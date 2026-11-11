@@ -143,6 +143,19 @@ const retry = () => screen.getByRole('button', { name: i18n.t('pos.pay.uncertain
 const checkServer = () =>
   screen.getByRole('button', { name: i18n.t('pos.pay.uncertain.checkServer') }) as HTMLButtonElement
 
+// withRial (components/ui/Rial.tsx) draws the rial sign where the copy said "OMR": the letters
+// survive only in the sign's visually hidden span, and a no-break space ties the sign to its
+// figure. The sentence therefore spans several elements and a plain getByText cannot see it, so
+// it is matched on the innermost element's whole text, and the drawn sign is checked as well.
+const getByRialText = (text: string) => {
+  const element = screen.getByText(
+    (_, node) =>
+      node?.textContent === text && !Array.from(node.children).some((child) => child.textContent === text),
+  )
+  expect(element.querySelectorAll('svg[aria-hidden="true"]')).toHaveLength(1)
+  return element
+}
+
 async function sendIntoUnknown(status: number) {
   replies.push(() => new Response('', { status }))
   const view = renderPayment()
@@ -501,7 +514,7 @@ describe('what a held sale keeps in clear (RBW2-2)', () => {
     expect(screen.queryByRole('button', { name: i18n.t('pos.pay.uncertain.retry') })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Finish the sale' })).toBeNull()
     // RBW3-1, RBW3-1b: the sale's total, day and time are shown in clear, to find it on Today.
-    expect(screen.getByText('This sale: OMR 5.649, rung on 6 Nov 2026 at 01:30.')).toBeTruthy()
+    getByRialText('This sale: OMR\u00A05.649, rung on 6 Nov 2026 at 01:30.')
     expect(screen.queryByText(/OMR\s+OMR/)).toBeNull()
     expect(JSON.parse(window.sessionStorage.getItem(HELD)!).summary).toMatchObject({
       total: 5.649,
@@ -539,11 +552,9 @@ describe('a lock-only hold decided by the server (RESEND-AUTH)', () => {
     lookupReplies.push(() => json(RECORDED))
     fireEvent.click(checkServer())
     expect(await screen.findByText(i18n.t('pos.pay.uncertain.recordedTitle'))).toBeTruthy()
-    expect(
-      screen.getByText(
-        i18n.t('pos.pay.uncertain.recorded', { invoice: 'NZW-T01-INV-2026-000049', amount: 'OMR 5.649' }),
-      ),
-    ).toBeTruthy()
+    getByRialText(
+      i18n.t('pos.pay.uncertain.recorded', { invoice: 'NZW-T01-INV-2026-000049', amount: 'OMR\u00A05.649' }),
+    )
     // RA-3: the till and key of the hold's own lock entry, by POST.
     expect(lookups).toEqual([{ url: `/api/v1/pos/tills/till-1/sales/by-key/${key}`, method: 'POST' }])
     expect(heldNames()).toEqual([])
@@ -728,11 +739,9 @@ describe('a held key the queue decides (RW6-1)', () => {
   it('filed by the queue (201): released and shown as recorded', async () => {
     await queuedHold(FILED)
     expect(await screen.findByText(i18n.t('pos.pay.uncertain.recordedTitle'))).toBeTruthy()
-    expect(
-      screen.getByText(
-        i18n.t('pos.pay.uncertain.recorded', { invoice: 'NZW-T01-INV-2026-000049', amount: 'OMR 5.649' }),
-      ),
-    ).toBeTruthy()
+    getByRialText(
+      i18n.t('pos.pay.uncertain.recorded', { invoice: 'NZW-T01-INV-2026-000049', amount: 'OMR\u00A05.649' }),
+    )
     expect(heldNames()).toEqual([])
     expect(lookups).toEqual([])
   })
