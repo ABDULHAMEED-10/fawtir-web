@@ -426,9 +426,10 @@ function TenantsTable({ rows }: { rows: CompanySummary[] }) {
             // Review only once the sign-up is submitted: a company still signing up has nothing to
             // review yet (its row says Onboarding), the same rule as its pill and Needs attention.
             const decision = awaitingReview(tenant) || tenant.verificationStatus === 'REJECTED'
-            // The participant ID is decided on the same Verification page, but the list does not
-            // say whether it still waits (TODO(backend): CONSOLE.md row 1.13), so an approved
-            // company keeps a way to it in the menu, and no read is made per row.
+            // The company submits its own Peppol participant ID; the team registers it in the SMP
+            // and approves it on the same Verification page. The list does not say whether one
+            // still waits (TODO(backend): CONSOLE.md row 1.13), so an approved company keeps a way
+            // to it in the menu, and no read is made per row.
             const participant = tenant.verificationStatus === 'VERIFIED'
             const tenure = tenant.submittedAt ? tenureOf(tenant.submittedAt) : null
             const onboarding = tenant.tenantStatus === 'PENDING'
