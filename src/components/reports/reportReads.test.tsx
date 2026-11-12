@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { resetSharedRequests } from '../../api'
@@ -96,5 +96,25 @@ describe('IE3-04: the reports a reader may not read are neither offered nor aske
     await waitFor(() => expect(asked('/api/v1/reports/volume').length).toBeGreaterThan(0))
     expect(screen.queryByRole('link', { name: 'Cash flow' })).toBeNull()
     expect(screen.queryByRole('link', { name: 'VAT & Tax' })).toBeNull()
+  })
+})
+
+describe('review W-03: the Export button only for a reader the export admits', () => {
+  const exportButton = () => screen.queryByRole('button', { name: 'Export as PDF' })
+
+  it('draws no Export button for a cashier, whom /reports/volume.csv would refuse', async () => {
+    who = CASHIER_ROLE
+    renderAt('/reports/income')
+    expect(await screen.findByText('No access')).toBeTruthy()
+    expect(exportButton()).toBeNull()
+  })
+
+  it('offers a sales-only reader the income files, which take reports.sales.read too', async () => {
+    who = SALES_ONLY
+    renderAt('/reports/income')
+    await screen.findByRole('link', { name: 'Lists' })
+    fireEvent.click(exportButton()!)
+    expect(await screen.findByRole('menuitem', { name: /CSV/ })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: /Excel/ })).toBeTruthy()
   })
 })

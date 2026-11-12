@@ -495,6 +495,21 @@ describe('the note rules', () => {
     expect(creditableOf(null, 73.5, 0)).toBe(0)
     expect(creditEffect(0, 10, creditableOf(null, 73.5, 0)).exceeds).toBe(true)
   })
+
+  it('reads a cap below zero as nothing left to credit (review W-02)', () => {
+    // Credited past the cap before it was enforced: the server can answer below zero.
+    expect(creditableOf(-1, 73.5, 0)).toBe(0)
+    expect(creditableOf(-0.001, 73.5, 80)).toBe(0)
+    expect(creditEffect(0, 10, creditableOf(-1, 73.5, 0))).toEqual({
+      after: 0,
+      applied: 0,
+      refund: 0,
+      exceeds: true,
+    })
+    // A cap of exactly zero and the server's null both stay 0.
+    expect(creditableOf(0, 73.5, 0)).toBe(0)
+    expect(creditableOf(null, 73.5, 0)).toBe(0)
+  })
 })
 
 describe('a credit note', () => {

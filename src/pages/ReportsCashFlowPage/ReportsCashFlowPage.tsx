@@ -97,7 +97,7 @@ export function ReportsCashFlowPage() {
       denied={reads.denied}
       titleKey="reports.cashFlow.title"
       subtitleKey="reports.cashFlow.subtitle"
-      downloads={[
+      downloads={reads.may ? [
         {
           format: 'xlsx',
           path: reportExportPath('cash-flow', 'xlsx', range),
@@ -108,7 +108,7 @@ export function ReportsCashFlowPage() {
           path: reportExportPath('cash-flow', 'csv', range),
           name: 'cash-flow-report',
         },
-      ]}
+      ] : []}
     >
       {report.read.status === 'loading' ? <LoadingNotice /> : null}
       {report.read.status === 'failed' ? (

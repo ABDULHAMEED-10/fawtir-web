@@ -13,11 +13,12 @@ import { REQUIRE_SESSION } from '../../lib/session/session'
  *
  * `ifRead` hands a path back only when the read may go out (`useApiRead` asks nothing for `null`);
  * `denied` is true once the answer says it may not, for `ReportShell` to draw the notice the 403
- * drew.
+ * drew. `may` is true only once the answer says it may, for an export offered on the same codes.
  */
 export function useReportReads(anyOf: readonly string[]): {
   ifRead: (path: string | null) => string | null
   denied: boolean
+  may: boolean
 } {
   const { entitlements, ready } = useEntitlements()
   const may = entitlements
@@ -26,5 +27,6 @@ export function useReportReads(anyOf: readonly string[]): {
   return {
     ifRead: (path) => (may ? path : null),
     denied: ready && !may,
+    may,
   }
 }

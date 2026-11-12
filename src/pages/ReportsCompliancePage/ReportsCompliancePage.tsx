@@ -81,6 +81,9 @@ export function ReportsCompliancePage() {
   const language = i18n.language
   const [period] = useReportPeriod()
   const reads = useReportReads(REPORT_READS.compliance)
+  // The ledger export is `/reports/ota`, which takes `reports.read`, not the ledger's `invoice.read`
+  // (review W-03): offered on its own code, so neither reader is refused nor wrongly denied.
+  const exportReads = useReportReads(REPORT_READS.complianceExport)
   const today = useMemo(() => new Date(), [])
   const { current, previous } = periodWindows(period, today)
   const months = trailingMonths(today)
@@ -121,7 +124,7 @@ export function ReportsCompliancePage() {
       subtitleKey="reports.compliance.subtitle"
       // The export is of the LEDGER, one row per document, for the same window: a file of the
       // counts above would prove nothing about any single document.
-      downloads={[
+      downloads={exportReads.may ? [
         {
           format: 'xlsx',
           path: ledgerExportPath({ from: current.from, to: current.to }, 'xlsx'),
@@ -132,7 +135,7 @@ export function ReportsCompliancePage() {
           path: ledgerExportPath({ from: current.from, to: current.to }, 'csv'),
           name: 'fawtir-compliance-ledger',
         },
-      ]}
+      ] : []}
     >
       {summaries.read.status === 'loading' ? <LoadingNotice /> : null}
       {summaries.read.status === 'failed' ? (

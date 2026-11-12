@@ -945,6 +945,9 @@ export function creditEffect(
  * cap: it counts issued debit notes, which total less credited does not, so that difference warned
  * "exceeds" on a note the server then took.
  *
+ * - a number: that cap, floored at 0. An invoice credited past its cap before the cap was enforced
+ *   can answer below zero, and "Left to credit" must not print a negative (review W-02); nothing
+ *   is creditable either way;
  * - absent (an older server): total less credited, as before, since nothing better is known;
  * - `null` (the server raises no credit note against this document): 0, so no credit is offered as
  *   a refund the server would refuse at issue. Falling back to total less credited would promise
@@ -958,7 +961,7 @@ export function creditableOf(
   credited: number,
 ): number | null {
   if (serverCap === null) return 0
-  if (serverCap !== undefined) return serverCap
+  if (serverCap !== undefined) return Math.max(0, serverCap)
   return documentTotal === null
     ? null
     : Math.max(0, Math.round((documentTotal - credited) * 1000) / 1000)

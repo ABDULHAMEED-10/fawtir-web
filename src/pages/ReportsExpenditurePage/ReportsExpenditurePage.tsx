@@ -110,7 +110,7 @@ export function ReportsExpenditurePage() {
       denied={reads.denied}
       titleKey="reports.expenditure.title"
       subtitleKey="reports.expenditure.subtitle"
-      downloads={[
+      downloads={reads.may ? [
         {
           format: 'xlsx',
           path: reportExportPath('expenditure', 'xlsx', range, 'NONE'),
@@ -121,7 +121,7 @@ export function ReportsExpenditurePage() {
           path: reportExportPath('expenditure', 'csv', range, 'NONE'),
           name: 'expenditure-report',
         },
-      ]}
+      ] : []}
     >
       {report.read.status === 'loading' ? <LoadingNotice /> : null}
       {report.read.status === 'failed' ? (

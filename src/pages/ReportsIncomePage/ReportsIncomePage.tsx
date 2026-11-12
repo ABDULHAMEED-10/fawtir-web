@@ -102,7 +102,7 @@ export function ReportsIncomePage() {
       denied={reads.denied}
       titleKey="reports.income.title"
       subtitleKey="reports.income.subtitle"
-      downloads={[
+      downloads={reads.may ? [
         {
           format: 'xlsx',
           path: reportExportPath('volume', 'xlsx', range, 'NONE'),
@@ -113,7 +113,7 @@ export function ReportsIncomePage() {
           path: reportExportPath('volume', 'csv', range, 'NONE'),
           name: 'income-report',
         },
-      ]}
+      ] : []}
     >
       {report.read.status === 'loading' || types.read.status === 'loading' ? (
         <LoadingNotice />

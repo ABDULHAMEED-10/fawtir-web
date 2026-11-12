@@ -32,6 +32,7 @@ import en from '../../i18n/locales/en.json'
 import ar from '../../i18n/locales/ar.json'
 import { DocumentsPage } from './DocumentsPage'
 import { DocumentDetailPage } from '../DocumentDetailPage/DocumentDetailPage'
+import { CASHIER_ROLE } from '../../testing/roles'
 
 const READER: Entitlements = {
   userId: 'u-1',
@@ -519,6 +520,24 @@ describe('The compliance archive, wired to the API', () => {
     )
     // An empty archive is the one case the page can count itself.
     expect(screen.getAllByText('0').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('asks nothing of the archive for a deep link without invoice.read (review W-04)', async () => {
+    who = CASHIER_ROLE
+    renderArchive()
+    expect(await screen.findByText('No access')).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 1, name: 'Documents' })).toBeTruthy()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    const asked = fetchMock.mock.calls.map(([url]) => String(url))
+    expect(asked.filter((url) => url.startsWith('/api/v1/compliance/documents'))).toEqual([])
+  })
+
+  it('still reads the archive for a holder of invoice.read (review W-04)', async () => {
+    renderArchive()
+    expect(await screen.findByText('INV-2026-000004')).toBeTruthy()
+    const asked = fetchMock.mock.calls.map(([url]) => String(url))
+    expect(asked.some((url) => url.startsWith('/api/v1/compliance/documents?'))).toBe(true)
+    expect(screen.queryByText('No access')).toBeNull()
   })
 
   it('reads in Arabic', async () => {

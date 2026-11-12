@@ -152,44 +152,51 @@ export function ReportShell({
               </ul>
             </Popover>
 
-            <button
-              ref={exportRef}
-              type="button"
-              disabled={busy !== null}
-              aria-haspopup={downloads.length > 0 ? 'menu' : undefined}
-              aria-expanded={downloads.length > 0 ? exportOpen : undefined}
-              onClick={() => (downloads.length > 0 ? setExportOpen((open) => !open) : print())}
-              className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-[#d0d2d5] bg-white px-5 text-[15px] font-medium text-[#494d56] transition-colors hover:bg-primary-25 disabled:opacity-60"
-            >
-              <img src={exportIcon} alt="" className="size-[17px]" />
-              {busy ? t('common.saving') : t('reports.exportPdf')}
-            </button>
-            <Popover
-              anchorRef={exportRef}
-              open={exportOpen}
-              onClose={() => setExportOpen(false)}
-              width={220}
-              align="end"
-            >
-              <ul role="menu" className="py-1.5">
-                <li>
-                  <MenuItem
-                    label={t('reports.export.pdf')}
-                    hint={t('reports.export.pdfHint')}
-                    onClick={print}
-                  />
-                </li>
-                {downloads.map((item) => (
-                  <li key={item.format}>
-                    <MenuItem
-                      label={t(`reports.export.${item.format}`)}
-                      hint={t('reports.export.fileHint')}
-                      onClick={() => void download(item)}
-                    />
-                  </li>
-                ))}
-              </ul>
-            </Popover>
+            {/* Each page passes only the file exports the reader may download (`REPORT_READS`), so
+                a denied page with none left has nothing to export but a print of "No access", and
+                the button that sent a refused download is not drawn (review W-03). */}
+            {denied && downloads.length === 0 ? null : (
+              <>
+                <button
+                  ref={exportRef}
+                  type="button"
+                  disabled={busy !== null}
+                  aria-haspopup={downloads.length > 0 ? 'menu' : undefined}
+                  aria-expanded={downloads.length > 0 ? exportOpen : undefined}
+                  onClick={() => (downloads.length > 0 ? setExportOpen((open) => !open) : print())}
+                  className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-[#d0d2d5] bg-white px-5 text-[15px] font-medium text-[#494d56] transition-colors hover:bg-primary-25 disabled:opacity-60"
+                >
+                  <img src={exportIcon} alt="" className="size-[17px]" />
+                  {busy ? t('common.saving') : t('reports.exportPdf')}
+                </button>
+                <Popover
+                  anchorRef={exportRef}
+                  open={exportOpen}
+                  onClose={() => setExportOpen(false)}
+                  width={220}
+                  align="end"
+                >
+                  <ul role="menu" className="py-1.5">
+                    <li>
+                      <MenuItem
+                        label={t('reports.export.pdf')}
+                        hint={t('reports.export.pdfHint')}
+                        onClick={print}
+                      />
+                    </li>
+                    {downloads.map((item) => (
+                      <li key={item.format}>
+                        <MenuItem
+                          label={t(`reports.export.${item.format}`)}
+                          hint={t('reports.export.fileHint')}
+                          onClick={() => void download(item)}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </Popover>
+              </>
+            )}
           </div>
         </div>
 

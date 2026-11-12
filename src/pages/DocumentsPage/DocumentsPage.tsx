@@ -3,8 +3,14 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { DateField, Pager, RialText, Select, SortMenu, TableCheckbox } from '../../components/ui'
-import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
+import {
+  ApiReadFailure,
+  LoadingNotice,
+  Notice,
+  PermissionDeniedNotice,
+} from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
+import { useEntitlements } from '../../hooks/useEntitlements'
 import {
   archiveListPath,
   downloadArtefact,
@@ -15,7 +21,7 @@ import {
   type ArchiveSummary,
 } from '../../api/compliance/archive'
 import { describeApiFailure, isNotFound } from '../../lib/apiFailure'
-import { can, useSession } from '../../lib/session/session'
+import { can, mayRequest, useSession } from '../../lib/session/session'
 import { formatAmount, formatCount, formatDate, formatInstantDay } from '../../lib/format'
 import { saveDownload } from '../../lib/supplierRecord'
 import {
@@ -175,7 +181,13 @@ export function DocumentsPage() {
     { ...filters, direction: directionOf(tab) || filters.direction },
     page,
   )
-  const list = useApiRead<ArchiveListDto>(path, () => loadArchiveList(path))
+  // The archive takes `invoice.read` (ComplianceDocumentsController), which a Cashier lacks: a deep
+  // link earned a 403 (IE3-04, review W-04). This page renders its shell itself, outside the shell's
+  // session context, so the permission is read from the shared entitlements answer, as
+  // CompanyProfilePage does; nothing is asked until that answer says the reader may.
+  const access = useEntitlements()
+  const mayRead = mayRequest(access.entitlements, 'invoice.read')
+  const list = useApiRead<ArchiveListDto>(mayRead ? path : null, () => loadArchiveList(path))
 
   /** The figures and counts stay on screen while the next page loads. */
   const lastReady = useRef<ArchiveListDto | null>(null)
@@ -270,6 +282,20 @@ export function DocumentsPage() {
       : data
         ? data.page + 1 + (data.has_more ? 1 : 0)
         : 1
+
+  // The same notice the 403 drew, without asking for it.
+  if (access.ready && !mayRead) {
+    return (
+      <AppShell>
+        <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-5 pb-10">
+          <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
+            {t('documents.title')}
+          </h1>
+          <PermissionDeniedNotice />
+        </div>
+      </AppShell>
+    )
+  }
 
   return (
     <AppShell>

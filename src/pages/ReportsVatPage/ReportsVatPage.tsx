@@ -126,10 +126,10 @@ export function ReportsVatPage() {
       denied={reads.denied}
       titleKey="reports.vat.title"
       subtitleKey="reports.vat.subtitle"
-      downloads={[
+      downloads={reads.may ? [
         { format: 'xlsx', path: reportExportPath('vat', 'xlsx', range), name: 'vat-report' },
         { format: 'csv', path: reportExportPath('vat', 'csv', range), name: 'vat-report' },
-      ]}
+      ] : []}
     >
       {/* Owner v2 §D (VAT-LABEL, K22), verbatim: this page recalculates; it never stands for the
           return filed with the Tax Authority (Package 6 is out of the release). Shown in every state. */}

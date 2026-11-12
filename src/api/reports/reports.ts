@@ -31,6 +31,11 @@ export const REPORT_LISTS_PATH = `${REPORTS_PATH}/lists`
  * which takes `invoice.read`. A page reading more than one route lists only what all of them admit.
  * The navigation hides the entry, and the page asks nothing, without one (IE3-04): a Cashier holds
  * none and earned a 403 on every read of every report.
+ *
+ * The file exports (review W-03): `/volume`, `/expenditure`, `/cash-flow` and `/vat` `.csv`/`.xlsx`
+ * take exactly their report's codes, so those pages offer them on the page's own read. The
+ * compliance page exports `/reports/ota.csv`/`.xlsx`, which take `reports.read`, not the ledger's
+ * `invoice.read`, so it is offered on `complianceExport`.
  */
 export const REPORT_READS = {
   income: ['reports.read', 'reports.sales.read'],
@@ -38,6 +43,7 @@ export const REPORT_READS = {
   cashFlow: ['reports.read'],
   vat: ['reports.read'],
   compliance: ['invoice.read'],
+  complianceExport: ['reports.read'],
   lists: ['reports.read', 'reports.sales.read'],
 } as const satisfies Record<string, readonly string[]>
 
