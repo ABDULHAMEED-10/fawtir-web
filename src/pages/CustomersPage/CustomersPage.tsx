@@ -15,7 +15,12 @@ import {
   withRial,
   type ActionMenuItem,
 } from '../../components/ui'
-import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
+import {
+  ApiReadFailure,
+  LoadingNotice,
+  Notice,
+  PermissionDeniedNotice,
+} from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import { pageCountOf, type Page } from '../../api'
 import {
@@ -49,7 +54,7 @@ import {
 import type { CustomerKind, PeppolState, ReceivableState, CustomerTabId } from '../../lib/customers'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatCount } from '../../lib/format'
-import { can, useSession } from '../../lib/session/session'
+import { can, mayRequest, useSession } from '../../lib/session/session'
 import receivablesIcon from '../../assets/customers/kpi-receivables.svg'
 import overdueIcon from '../../assets/customers/kpi-overdue.svg'
 import customersIcon from '../../assets/customers/kpi-customers.svg'
@@ -179,7 +184,14 @@ function CustomersScreen() {
   }, [typed])
 
   const type = CUSTOMER_TABS.find((entry) => entry.id === tab)?.type ?? null
-  const summary = useApiRead<CustomerSummaryDto>(CUSTOMER_SUMMARY_PATH, loadCustomerSummary)
+  // Every read here takes `customer.read` (CustomerController, CustomerOverviewController), which a
+  // Viewer lacks: a deep link earned a 403 on each (IE3-04). Without it nothing is asked and the
+  // page draws the notice the refusal drew.
+  const mayRead = mayRequest(session, 'customer.read')
+  const summary = useApiRead<CustomerSummaryDto>(
+    mayRead ? CUSTOMER_SUMMARY_PATH : null,
+    loadCustomerSummary,
+  )
   const listPath = customerListPath({
     type,
     search: query,
@@ -187,7 +199,9 @@ function CustomersScreen() {
     page: pageNumber - 1,
     size,
   })
-  const list = useApiRead<Page<CustomerDto>>(listPath, () => loadCustomerPage(listPath))
+  const list = useApiRead<Page<CustomerDto>>(mayRead ? listPath : null, () =>
+    loadCustomerPage(listPath),
+  )
 
   // What the customers on this page owe, asked once the page is known: one grouped read per page.
   const ids =
@@ -268,7 +282,9 @@ function CustomersScreen() {
     return (
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
         {header(null)}
-        {summary.read.status === 'loading' ? (
+        {!mayRead ? (
+          <PermissionDeniedNotice />
+        ) : summary.read.status === 'loading' ? (
           <LoadingNotice />
         ) : (
           <ApiReadFailure error={summary.read.error} retry={summary.retry} />

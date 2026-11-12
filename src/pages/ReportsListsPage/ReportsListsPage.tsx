@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ReportShell, useReportPeriod } from '../../components/reports'
+import { ReportShell, useReportPeriod, useReportReads } from '../../components/reports'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import {
   REPORT_LISTS_PATH,
+  REPORT_READS,
   catalogueHref,
   downloadReport,
   loadListsCatalogue,
@@ -153,10 +154,18 @@ type Card = {
  */
 export function ReportsListsPage() {
   const { t } = useTranslation()
-  const catalogue = useApiRead<ListsCatalogueDto>(REPORT_LISTS_PATH, loadListsCatalogue)
+  const reads = useReportReads(REPORT_READS.lists)
+  const catalogue = useApiRead<ListsCatalogueDto>(
+    reads.ifRead(REPORT_LISTS_PATH),
+    loadListsCatalogue,
+  )
 
   return (
-    <ReportShell titleKey="reports.lists.title" subtitleKey="reports.lists.subtitle">
+    <ReportShell
+      denied={reads.denied}
+      titleKey="reports.lists.title"
+      subtitleKey="reports.lists.subtitle"
+    >
       {catalogue.read.status === 'loading' ? <LoadingNotice /> : null}
       {catalogue.read.status === 'failed' ? (
         <ApiReadFailure error={catalogue.read.error} retry={catalogue.retry} />

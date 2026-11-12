@@ -23,6 +23,24 @@ import { withQuery } from '../query'
 export const REPORTS_PATH = '/v1/reports'
 export const REPORT_LISTS_PATH = `${REPORTS_PATH}/lists`
 
+/**
+ * The permissions each report page's reads take, any one of which admits the reader, as the
+ * controllers' `@RequiresPermission` (match ANY) state them: `/reports/volume` and `/reports/lists`
+ * take `reports.read` or `reports.sales.read`; `/reports/expenditure`, `/cash-flow` and `/vat` take
+ * `reports.read`. The compliance report reads the activity ledger (`ComplianceActivityController`),
+ * which takes `invoice.read`. A page reading more than one route lists only what all of them admit.
+ * The navigation hides the entry, and the page asks nothing, without one (IE3-04): a Cashier holds
+ * none and earned a 403 on every read of every report.
+ */
+export const REPORT_READS = {
+  income: ['reports.read', 'reports.sales.read'],
+  expenditure: ['reports.read'],
+  cashFlow: ['reports.read'],
+  vat: ['reports.read'],
+  compliance: ['invoice.read'],
+  lists: ['reports.read', 'reports.sales.read'],
+} as const satisfies Record<string, readonly string[]>
+
 export type ReportGranularity = 'MONTH' | 'QUARTER' | 'YEAR'
 export type VolumeGroupBy = 'NONE' | 'TYPE' | 'CUSTOMER' | 'BRANCH'
 /**

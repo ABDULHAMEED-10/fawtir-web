@@ -13,6 +13,7 @@ import {
   StackedBars,
   StackedPercentRows,
   useReportPeriod,
+  useReportReads,
 } from '../../components/reports'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { useApiRead, type ApiRead } from '../../hooks'
@@ -23,6 +24,7 @@ import {
   type ExpenditureGroupBy,
   type ExpenditureReportDto,
   type ReportRange,
+  REPORT_READS,
 } from '../../api/reports/reports'
 import {
   MONTH_IDS,
@@ -67,6 +69,7 @@ export function ReportsExpenditurePage() {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const [period] = useReportPeriod()
+  const reads = useReportReads(REPORT_READS.expenditure)
   const today = useMemo(() => new Date(), [])
   const windows = periodWindows(period, today)
   const history = historyWindow(today)
@@ -74,17 +77,17 @@ export function ReportsExpenditurePage() {
   const quarters = lastQuarters(today, 3)
 
   const historyPath = expenditurePath({ ...history, granularity: 'MONTH' }, 'NONE')
-  const report = useApiRead<ExpenditureReportDto>(historyPath, () =>
+  const report = useApiRead<ExpenditureReportDto>(reads.ifRead(historyPath), () =>
     loadExpenditureReport(historyPath),
   )
   const grouped = (groupBy: ExpenditureGroupBy, range: ReportRange = span) =>
     expenditurePath(range, groupBy)
   const supplierPath = grouped('SUPPLIER')
-  const suppliers = useApiRead<ExpenditureReportDto>(supplierPath, () =>
+  const suppliers = useApiRead<ExpenditureReportDto>(reads.ifRead(supplierPath), () =>
     loadExpenditureReport(supplierPath),
   )
   const categoryPath = grouped('CATEGORY')
-  const categories = useApiRead<ExpenditureReportDto>(categoryPath, () =>
+  const categories = useApiRead<ExpenditureReportDto>(reads.ifRead(categoryPath), () =>
     loadExpenditureReport(categoryPath),
   )
   const sourcePath = grouped('SOURCE', {
@@ -92,7 +95,7 @@ export function ReportsExpenditurePage() {
     to: windows.current.to,
     granularity: 'QUARTER',
   })
-  const sources = useApiRead<ExpenditureReportDto>(sourcePath, () =>
+  const sources = useApiRead<ExpenditureReportDto>(reads.ifRead(sourcePath), () =>
     loadExpenditureReport(sourcePath),
   )
 
@@ -104,6 +107,7 @@ export function ReportsExpenditurePage() {
 
   return (
     <ReportShell
+      denied={reads.denied}
       titleKey="reports.expenditure.title"
       subtitleKey="reports.expenditure.subtitle"
       downloads={[

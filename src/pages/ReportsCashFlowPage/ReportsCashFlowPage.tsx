@@ -14,6 +14,7 @@ import {
   ReportShell,
   SERIES,
   useReportPeriod,
+  useReportReads,
 } from '../../components/reports'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { useApiRead, type ApiRead } from '../../hooks'
@@ -26,6 +27,7 @@ import {
   reportExportPath,
   type CashFlowReportDto,
   type ExpenditureReportDto,
+  REPORT_READS,
 } from '../../api/reports/reports'
 import {
   expenditureShown,
@@ -67,19 +69,20 @@ export function ReportsCashFlowPage() {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const [period] = useReportPeriod()
+  const reads = useReportReads(REPORT_READS.cashFlow)
   const today = useMemo(() => new Date(), [])
   const windows = periodWindows(period, today)
   const history = historyWindow(today)
 
   const path = cashFlowPath({ ...history, granularity: 'MONTH' })
-  const report = useApiRead<CashFlowReportDto>(path, () => loadCashFlowReport(path))
+  const report = useApiRead<CashFlowReportDto>(reads.ifRead(path), () => loadCashFlowReport(path))
   // TODO(backend): payments by category (REPORTS.md rows 1.11 and 1.29). Billed by category,
   // VAT included, stands in for "Where it went".
   const categoryPath = expenditurePath(
     { from: windows.current.from, to: windows.current.to, granularity: 'YEAR' },
     'CATEGORY',
   )
-  const categories = useApiRead<ExpenditureReportDto>(categoryPath, () =>
+  const categories = useApiRead<ExpenditureReportDto>(reads.ifRead(categoryPath), () =>
     loadExpenditureReport(categoryPath),
   )
 
@@ -91,6 +94,7 @@ export function ReportsCashFlowPage() {
 
   return (
     <ReportShell
+      denied={reads.denied}
       titleKey="reports.cashFlow.title"
       subtitleKey="reports.cashFlow.subtitle"
       downloads={[

@@ -14,6 +14,7 @@ import {
   SERIES,
   StackedBars,
   useReportPeriod,
+  useReportReads,
 } from '../../components/reports'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
@@ -22,6 +23,7 @@ import {
   reportExportPath,
   volumePath,
   type VolumeReportDto,
+  REPORT_READS,
 } from '../../api/reports/reports'
 import {
   MONTH_IDS,
@@ -61,15 +63,22 @@ export function ReportsIncomePage() {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const [period] = useReportPeriod()
+  const reads = useReportReads(REPORT_READS.income)
   const today = useMemo(() => new Date(), [])
   const windows = periodWindows(period, today)
   const history = historyWindow(today)
 
   const historyPath = volumePath({ ...history, granularity: 'MONTH' }, 'NONE')
-  const report = useApiRead<VolumeReportDto>(historyPath, () => loadVolumeReport(historyPath))
+  const report = useApiRead<VolumeReportDto>(
+    reads.ifRead(historyPath),
+    () => loadVolumeReport(historyPath),
+  )
   // The same history by document type, so sales can be told from the rest (REPORTS.md row 1.22).
   const typesPath = volumePath({ ...history, granularity: 'MONTH' }, 'TYPE')
-  const types = useApiRead<VolumeReportDto>(typesPath, () => loadVolumeReport(typesPath))
+  const types = useApiRead<VolumeReportDto>(
+    reads.ifRead(typesPath),
+    () => loadVolumeReport(typesPath),
+  )
 
   // YEAR buckets: the card ranks customers over the whole window, so finer buckets would only
   // be added back together here. TODO(backend): REPORTS.md row 1.22, the customer grouping still
@@ -78,7 +87,7 @@ export function ReportsIncomePage() {
     { from: windows.current.from, to: windows.current.to, granularity: 'YEAR' },
     'CUSTOMER',
   )
-  const customers = useApiRead<VolumeReportDto>(customersPath, () =>
+  const customers = useApiRead<VolumeReportDto>(reads.ifRead(customersPath), () =>
     loadVolumeReport(customersPath),
   )
 
@@ -90,6 +99,7 @@ export function ReportsIncomePage() {
 
   return (
     <ReportShell
+      denied={reads.denied}
       titleKey="reports.income.title"
       subtitleKey="reports.income.subtitle"
       downloads={[

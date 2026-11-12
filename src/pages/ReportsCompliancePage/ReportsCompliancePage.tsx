@@ -12,7 +12,9 @@ import {
   SERIES,
   StackedPercentRows,
   useReportPeriod,
+  useReportReads,
 } from '../../components/reports'
+import { REPORT_READS } from '../../api/reports/reports'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { useApiRead, type ApiRead } from '../../hooks'
 import {
@@ -78,6 +80,7 @@ export function ReportsCompliancePage() {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const [period] = useReportPeriod()
+  const reads = useReportReads(REPORT_READS.compliance)
   const today = useMemo(() => new Date(), [])
   const { current, previous } = periodWindows(period, today)
   const months = trailingMonths(today)
@@ -92,7 +95,7 @@ export function ReportsCompliancePage() {
   const windowPath = activitySummaryPath(current.from, current.to)
   const beforePath = activitySummaryPath(previous.from, previous.to)
   const summaries = useApiRead<Summaries>(
-    `compliance-report|${windowPath}|${beforePath}|${monthPaths.join('|')}`,
+    reads.ifRead(`compliance-report|${windowPath}|${beforePath}|${monthPaths.join('|')}`),
     async () => {
       const [span, before, ...monthly] = await Promise.all(
         [windowPath, beforePath, ...monthPaths].map((path) => loadActivitySummary(path)),
@@ -106,10 +109,14 @@ export function ReportsCompliancePage() {
     0,
     REASON_SAMPLE,
   )
-  const rejected = useApiRead<ActivityListDto>(rejectedPath, () => loadActivityList(rejectedPath))
+  const rejected = useApiRead<ActivityListDto>(
+    reads.ifRead(rejectedPath),
+    () => loadActivityList(rejectedPath),
+  )
 
   return (
     <ReportShell
+      denied={reads.denied}
       titleKey="reports.compliance.title"
       subtitleKey="reports.compliance.subtitle"
       // The export is of the LEDGER, one row per document, for the same window: a file of the

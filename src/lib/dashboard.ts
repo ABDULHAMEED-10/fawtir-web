@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react'
 import type { Feature } from './plans'
+import { REPORT_READS } from '../api/reports/reports'
 import {
   NavCatalogIcon,
   NavStockIcon,
@@ -21,6 +22,11 @@ export type NavChild = {
   to: string
   /** The permission the destination's first read needs; the entry is hidden from anyone without it. */
   requires?: string
+  /**
+   * As `requires`, for a destination whose reads admit any one of several permissions (a
+   * controller's `@RequiresPermission` with more than one code): the entry shows with one of them.
+   */
+  requiresAny?: readonly string[]
   /**
    * The plan feature the destination is part of. Unlike `requires`, a plan that lacks it does
    * not hide the entry: it shows greyed with a lock and leads to the upgrade nudge.
@@ -273,25 +279,45 @@ export const DASHBOARD_NAV: NavGroup[] = [
         labelKey: 'dashboard.nav.reports',
         Icon: NavReportsIcon,
         to: '/reports/income',
+        // Each report hides from a reader its reads would refuse (IE3-04): a Cashier holds none of
+        // them, so the whole group goes, as a group with every child hidden does.
         children: [
-          { id: 'income', labelKey: 'dashboard.nav.reportChildren.income', to: '/reports/income' },
+          {
+            id: 'income',
+            labelKey: 'dashboard.nav.reportChildren.income',
+            to: '/reports/income',
+            requiresAny: REPORT_READS.income,
+          },
           {
             id: 'expenditure',
             labelKey: 'dashboard.nav.reportChildren.expenditure',
             to: '/reports/expenditure',
+            requiresAny: REPORT_READS.expenditure,
           },
           {
             id: 'cashFlow',
             labelKey: 'dashboard.nav.reportChildren.cashFlow',
             to: '/reports/cash-flow',
+            requiresAny: REPORT_READS.cashFlow,
           },
-          { id: 'vat', labelKey: 'dashboard.nav.reportChildren.vat', to: '/reports/vat-tax' },
+          {
+            id: 'vat',
+            labelKey: 'dashboard.nav.reportChildren.vat',
+            to: '/reports/vat-tax',
+            requiresAny: REPORT_READS.vat,
+          },
           {
             id: 'compliance',
             labelKey: 'dashboard.nav.reportChildren.compliance',
             to: '/reports/compliance',
+            requiresAny: REPORT_READS.compliance,
           },
-          { id: 'lists', labelKey: 'dashboard.nav.reportChildren.lists', to: '/reports/lists' },
+          {
+            id: 'lists',
+            labelKey: 'dashboard.nav.reportChildren.lists',
+            to: '/reports/lists',
+            requiresAny: REPORT_READS.lists,
+          },
         ],
       },
     ],
@@ -305,12 +331,16 @@ export const DASHBOARD_NAV: NavGroup[] = [
         labelKey: 'dashboard.nav.tddOta',
         Icon: NavTddIcon,
         to: '/compliance/activity',
+        // The ledger and the archive both take `invoice.read` (ComplianceActivityController,
+        // ComplianceDocumentsController), which a Cashier lacks (IE3-04).
+        requires: 'invoice.read',
       },
       {
         id: 'documents',
         labelKey: 'dashboard.nav.documents',
         Icon: NavDocumentsIcon,
         to: '/compliance/documents',
+        requires: 'invoice.read',
       },
     ],
   },

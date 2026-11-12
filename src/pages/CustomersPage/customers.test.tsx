@@ -11,6 +11,7 @@ import type {
 } from '../../api/customers/customers'
 import { toCustomerListItem, toReceivableView } from '../../lib/customerList'
 import { CustomersPage } from './CustomersPage'
+import { VIEWER_ROLE } from '../../testing/roles'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
 const SUMMARY_URL = '/api/v1/customers/summary'
@@ -572,5 +573,25 @@ describe('Unapplied credit on the customers page (D-30(a))', () => {
     renderCustomers()
     expect(await screen.findByText('845.125')).toBeTruthy()
     expect(screen.queryByTestId('unapplied-credit')).toBeNull()
+  })
+})
+
+describe('IE3-04: a reader without customer.read', () => {
+  it('asks for no customer read on a deep link and draws the notice the refusal drew', async () => {
+    who = VIEWER_ROLE
+    renderCustomers()
+    expect(await screen.findByText('No access')).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 1, name: 'Customers' })).toBeTruthy()
+    // Let anything the page would start on arriving go out before counting.
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(calls('/api/v1/customers')).toEqual([])
+  })
+
+  it('still reads the list for a reader who holds it', async () => {
+    who = READ_ONLY
+    renderCustomers()
+    expect(await screen.findByText('Sohar Port Logistics')).toBeTruthy()
+    expect(calls(SUMMARY_URL)).toHaveLength(1)
+    expect(screen.queryByText('No access')).toBeNull()
   })
 })

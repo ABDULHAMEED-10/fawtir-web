@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { Modal, Popover } from '../ui'
+import { PermissionDeniedNotice } from '../feedback/ApiNotice'
 import { downloadReport } from '../../api/reports/reports'
 import { saveDownload } from '../../lib/supplierRecord'
 import { REPORT_PERIODS } from '../../lib/reportPeriod'
@@ -42,11 +43,17 @@ export function ReportShell({
   titleKey,
   subtitleKey,
   downloads = [],
+  denied = false,
   children,
 }: {
   titleKey: string
   subtitleKey: string
   downloads?: ReportDownload[]
+  /**
+   * The reader holds none of the permissions the page's reads take (`useReportReads`): the notice
+   * the 403 drew stands in for the page, which asked nothing.
+   */
+  denied?: boolean
   children: ReactNode
 }) {
   const { t } = useTranslation()
@@ -200,7 +207,7 @@ export function ReportShell({
           </p>
         ) : null}
 
-        {children}
+        {denied ? <PermissionDeniedNotice /> : children}
       </div>
     </AppShell>
   )

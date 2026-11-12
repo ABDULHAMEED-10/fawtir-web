@@ -940,6 +940,31 @@ export function creditEffect(
 }
 
 /**
+ * What a credit note may still credit on the invoice, for `creditEffect` and the "Left to credit"
+ * figure (IE3-02). `serverCap` is the receivable's `creditableAmount`, the server's own issue-time
+ * cap: it counts issued debit notes, which total less credited does not, so that difference warned
+ * "exceeds" on a note the server then took.
+ *
+ * - absent (an older server): total less credited, as before, since nothing better is known;
+ * - `null` (the server raises no credit note against this document): 0, so no credit is offered as
+ *   a refund the server would refuse at issue. Falling back to total less credited would promise
+ *   exactly that, and no cap at all would promise the whole note.
+ *
+ * The server stays the check either way; this only decides what the page says before it asks.
+ */
+export function creditableOf(
+  serverCap: number | null | undefined,
+  documentTotal: number | null,
+  credited: number,
+): number | null {
+  if (serverCap === null) return 0
+  if (serverCap !== undefined) return serverCap
+  return documentTotal === null
+    ? null
+    : Math.max(0, Math.round((documentTotal - credited) * 1000) / 1000)
+}
+
+/**
  * A customer's Peppol participant id as the note detail prints it ("0248:OM1100447102"), from the
  * `{scheme, value}` the customer record answers, or from a plain string. A value that already
  * starts with its scheme ("0248:OM…") is not prefixed a second time.
