@@ -1102,6 +1102,51 @@ describe('Record a bill (Figma 163:27781)', () => {
     expect(calls('POST', '/api/v1/bills/intake/')).toHaveLength(0)
   })
 
+  // IE3-03 (owner, 2026-11-12): the "Send it straight for approval" switch was never sent, so the
+  // server's approval policy always decided. The switch is gone; the bodies carry exactly the
+  // fields they carried with it on the page (c2bd8276), with and without a file.
+  const BILL_FIELDS = [
+    'billNumber',
+    'category',
+    'currency',
+    'documentTypeCode',
+    'dueDate',
+    'goodsReceiptId',
+    'issueDate',
+    'lines',
+    'notDuplicateOf',
+    'paidOnTheSpot',
+    'purchaseOrderId',
+    'purchaseOrderReference',
+    'supplierId',
+    'supplierName',
+    'total',
+    'vat',
+  ]
+
+  it('offers no "straight for approval" switch and sends the same fields without one (IE3-03)', async () => {
+    await typeBill()
+    expect(screen.queryByText('Send it straight for approval')).toBeNull()
+    expect(screen.queryByRole('switch', { name: 'Send it straight for approval' })).toBeNull()
+    send()
+
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    const posted = calls('POST', '/api/v1/bills').filter(([url]) => url === '/api/v1/bills')
+    expect(posted).toHaveLength(1)
+    const body = JSON.parse(String(posted[0][1]?.body))
+    expect(Object.keys(body).sort()).toEqual(BILL_FIELDS)
+  })
+
+  it('confirms an uploaded bill with the same fields, and no approval choice of its own (IE3-03)', async () => {
+    await typeBill()
+    attach('bill.pdf')
+    send()
+
+    await waitFor(() => expect(confirmed('intake-1')).toHaveLength(1))
+    const body = JSON.parse(String(confirmed('intake-1')[0][1]?.body))
+    expect(Object.keys(body).sort()).toEqual(BILL_FIELDS)
+  })
+
   const noFilePosts = () =>
     calls('POST', '/api/v1/bills').filter(([url]) => url === '/api/v1/bills')
   const keyOf = (call: unknown[]) =>
