@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { Modal, Popover } from '../ui'
+import { PermissionDeniedNotice } from '../feedback/ApiNotice'
 import { downloadReport } from '../../api/reports/reports'
 import { saveDownload } from '../../lib/supplierRecord'
 import { REPORT_PERIODS } from '../../lib/reportPeriod'
@@ -42,11 +43,17 @@ export function ReportShell({
   titleKey,
   subtitleKey,
   downloads = [],
+  denied = false,
   children,
 }: {
   titleKey: string
   subtitleKey: string
   downloads?: ReportDownload[]
+  /**
+   * The reader holds none of the permissions the page's reads take (`useReportReads`): the notice
+   * the 403 drew stands in for the page, which asked nothing.
+   */
+  denied?: boolean
   children: ReactNode
 }) {
   const { t } = useTranslation()
@@ -145,44 +152,51 @@ export function ReportShell({
               </ul>
             </Popover>
 
-            <button
-              ref={exportRef}
-              type="button"
-              disabled={busy !== null}
-              aria-haspopup={downloads.length > 0 ? 'menu' : undefined}
-              aria-expanded={downloads.length > 0 ? exportOpen : undefined}
-              onClick={() => (downloads.length > 0 ? setExportOpen((open) => !open) : print())}
-              className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-[#d0d2d5] bg-white px-5 text-[15px] font-medium text-[#494d56] transition-colors hover:bg-primary-25 disabled:opacity-60"
-            >
-              <img src={exportIcon} alt="" className="size-[17px]" />
-              {busy ? t('common.saving') : t('reports.exportPdf')}
-            </button>
-            <Popover
-              anchorRef={exportRef}
-              open={exportOpen}
-              onClose={() => setExportOpen(false)}
-              width={220}
-              align="end"
-            >
-              <ul role="menu" className="py-1.5">
-                <li>
-                  <MenuItem
-                    label={t('reports.export.pdf')}
-                    hint={t('reports.export.pdfHint')}
-                    onClick={print}
-                  />
-                </li>
-                {downloads.map((item) => (
-                  <li key={item.format}>
-                    <MenuItem
-                      label={t(`reports.export.${item.format}`)}
-                      hint={t('reports.export.fileHint')}
-                      onClick={() => void download(item)}
-                    />
-                  </li>
-                ))}
-              </ul>
-            </Popover>
+            {/* Each page passes only the file exports the reader may download (`REPORT_READS`), so
+                a denied page with none left has nothing to export but a print of "No access", and
+                the button that sent a refused download is not drawn (review W-03). */}
+            {denied && downloads.length === 0 ? null : (
+              <>
+                <button
+                  ref={exportRef}
+                  type="button"
+                  disabled={busy !== null}
+                  aria-haspopup={downloads.length > 0 ? 'menu' : undefined}
+                  aria-expanded={downloads.length > 0 ? exportOpen : undefined}
+                  onClick={() => (downloads.length > 0 ? setExportOpen((open) => !open) : print())}
+                  className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-[#d0d2d5] bg-white px-5 text-[15px] font-medium text-[#494d56] transition-colors hover:bg-primary-25 disabled:opacity-60"
+                >
+                  <img src={exportIcon} alt="" className="size-[17px]" />
+                  {busy ? t('common.saving') : t('reports.exportPdf')}
+                </button>
+                <Popover
+                  anchorRef={exportRef}
+                  open={exportOpen}
+                  onClose={() => setExportOpen(false)}
+                  width={220}
+                  align="end"
+                >
+                  <ul role="menu" className="py-1.5">
+                    <li>
+                      <MenuItem
+                        label={t('reports.export.pdf')}
+                        hint={t('reports.export.pdfHint')}
+                        onClick={print}
+                      />
+                    </li>
+                    {downloads.map((item) => (
+                      <li key={item.format}>
+                        <MenuItem
+                          label={t(`reports.export.${item.format}`)}
+                          hint={t('reports.export.fileHint')}
+                          onClick={() => void download(item)}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </Popover>
+              </>
+            )}
           </div>
         </div>
 
@@ -200,7 +214,7 @@ export function ReportShell({
           </p>
         ) : null}
 
-        {children}
+        {denied ? <PermissionDeniedNotice /> : children}
       </div>
     </AppShell>
   )

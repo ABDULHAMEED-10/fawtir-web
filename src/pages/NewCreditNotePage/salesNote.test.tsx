@@ -11,6 +11,7 @@ import {
   addedLine,
   asksBackOnShelf,
   creditEffect,
+  creditableOf,
   debitPaymentOf,
   fromInvoice,
   fromNoteDraft,
@@ -484,6 +485,31 @@ describe('the note rules', () => {
       exceeds: true,
     })
   })
+
+  it("takes the server's creditable figure, falling back only where an older server sends none (IE3-02)", () => {
+    // 73.500 invoiced, 50.000 credited, a 30.000 debit note issued: the server's cap is 53.500.
+    expect(creditableOf(53.5, 73.5, 50)).toBe(53.5)
+    expect(creditableOf(undefined, 73.5, 50)).toBe(23.5)
+    expect(creditableOf(undefined, null, 0)).toBeNull()
+    // No credit note can be raised: nothing is creditable, so no credit is offered as a refund.
+    expect(creditableOf(null, 73.5, 0)).toBe(0)
+    expect(creditEffect(0, 10, creditableOf(null, 73.5, 0)).exceeds).toBe(true)
+  })
+
+  it('reads a cap below zero as nothing left to credit (review W-02)', () => {
+    // Credited past the cap before it was enforced: the server can answer below zero.
+    expect(creditableOf(-1, 73.5, 0)).toBe(0)
+    expect(creditableOf(-0.001, 73.5, 80)).toBe(0)
+    expect(creditEffect(0, 10, creditableOf(-1, 73.5, 0))).toEqual({
+      after: 0,
+      applied: 0,
+      refund: 0,
+      exceeds: true,
+    })
+    // A cap of exactly zero and the server's null both stay 0.
+    expect(creditableOf(0, 73.5, 0)).toBe(0)
+    expect(creditableOf(null, 73.5, 0)).toBe(0)
+  })
 })
 
 describe('a credit note', () => {
@@ -539,6 +565,28 @@ describe('a credit note', () => {
     expect(
       within(status).getByText('This credit is more than is left to credit on the invoice.'),
     ).toBeTruthy()
+  }, 30_000)
+
+  it("takes an issued debit note into what is left to credit, from the server's cap (IE3-02)", async () => {
+    // Paid 23.500, credited 50.000 of 73.500, and a 50.000 debit note issued since: total less
+    // credited says 23.500, but the server's cap is 73.500, so the full credit is not refused.
+    receivable = {
+      ...RECEIVABLE,
+      paidAmount: 23.5,
+      creditedAmount: 50,
+      outstandingAmount: 0,
+      creditableAmount: 73.5,
+    }
+    renderAt(`/income/credit-notes/new?invoice=${INVOICE_ID}`)
+    await screen.findByText('Green beans')
+    const status = screen
+      .getByText('Refund due to customer')
+      .closest('[role="status"]') as HTMLElement
+    expect(
+      within(status).queryByText('This credit is more than is left to credit on the invoice.'),
+    ).toBeNull()
+    expect(within(status).getByText('73.500')).toBeTruthy()
+    expect(within(status).getByText(/the difference is refundable/)).toBeTruthy()
   }, 30_000)
 
   it('credits chosen lines of a paid invoice, shows the refund due, and issues from the page with no due date', async () => {

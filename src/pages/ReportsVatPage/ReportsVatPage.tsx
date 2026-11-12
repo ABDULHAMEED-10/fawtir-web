@@ -14,6 +14,7 @@ import {
   SERIES,
   StackedPercentRows,
   useReportPeriod,
+  useReportReads,
 } from '../../components/reports'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { useApiRead, type ApiRead } from '../../hooks'
@@ -28,6 +29,7 @@ import {
   type ExpenditureReportDto,
   type VatReportDto,
   type VolumeReportDto,
+  REPORT_READS,
 } from '../../api/reports/reports'
 import { categoryAmounts, currenciesIn, reportCurrency, vatMonths } from '../../lib/vatReport'
 import { selfBilledVat } from '../../lib/volumeReport'
@@ -78,30 +80,40 @@ export function ReportsVatPage() {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const [period] = useReportPeriod()
+  const reads = useReportReads(REPORT_READS.vat)
   const today = useMemo(() => new Date(), [])
   const windows = periodWindows(period, today)
   const history = historyWindow(today)
   const quarters = lastQuarters(today, 4)
 
   const monthlyPath = vatPath({ ...history, granularity: 'MONTH' })
-  const monthly = useApiRead<VatReportDto>(monthlyPath, () => loadVatReport(monthlyPath))
+  const monthly = useApiRead<VatReportDto>(
+    reads.ifRead(monthlyPath),
+    () => loadVatReport(monthlyPath),
+  )
   const quarterlyPath = vatPath({
     from: monthStart(quarters[0].months[0]),
     to: windows.current.to,
     granularity: 'QUARTER',
   })
-  const quarterly = useApiRead<VatReportDto>(quarterlyPath, () => loadVatReport(quarterlyPath))
+  const quarterly = useApiRead<VatReportDto>(
+    reads.ifRead(quarterlyPath),
+    () => loadVatReport(quarterlyPath),
+  )
   const supplierPath = expenditurePath(
     { from: windows.current.from, to: windows.current.to, granularity: 'YEAR' },
     'SUPPLIER',
   )
-  const suppliers = useApiRead<ExpenditureReportDto>(supplierPath, () =>
+  const suppliers = useApiRead<ExpenditureReportDto>(reads.ifRead(supplierPath), () =>
     loadExpenditureReport(supplierPath),
   )
   // Issued documents by type: the VAT on the tenant's own self-billed documents is input VAT, so
   // it is taken out of output (REPORTS.md row 1.26).
   const typesPath = volumePath({ ...history, granularity: 'MONTH' }, 'TYPE')
-  const types = useApiRead<VolumeReportDto>(typesPath, () => loadVolumeReport(typesPath))
+  const types = useApiRead<VolumeReportDto>(
+    reads.ifRead(typesPath),
+    () => loadVolumeReport(typesPath),
+  )
 
   const range = {
     from: windows.current.from,
@@ -111,12 +123,13 @@ export function ReportsVatPage() {
 
   return (
     <ReportShell
+      denied={reads.denied}
       titleKey="reports.vat.title"
       subtitleKey="reports.vat.subtitle"
-      downloads={[
+      downloads={reads.may ? [
         { format: 'xlsx', path: reportExportPath('vat', 'xlsx', range), name: 'vat-report' },
         { format: 'csv', path: reportExportPath('vat', 'csv', range), name: 'vat-report' },
-      ]}
+      ] : []}
     >
       {/* Owner v2 §D (VAT-LABEL, K22), verbatim: this page recalculates; it never stands for the
           return filed with the Tax Authority (Package 6 is out of the release). Shown in every state. */}

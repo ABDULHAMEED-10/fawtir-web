@@ -32,6 +32,7 @@ import { ActivityPage } from './ActivityPage'
 import { ActivityEventPage } from './ActivityEventPage'
 import { TddResubmitPage } from './TddResubmitPage'
 import { ReportsCompliancePage } from '../ReportsCompliancePage'
+import { CASHIER_ROLE } from '../../testing/roles'
 import { answerStanding as answerStandingOn, settle } from '../../testing/subscriptionStanding'
 
 const UUID_A = 'a0000000-0000-0000-0000-000000000001'
@@ -1906,4 +1907,69 @@ describe('resubmitting to the Tax Authority while the subscription is read-only 
       expect(resubmitted).toEqual([])
     },
   )
+})
+
+describe('reads and exports only a reader may make (review W-03, W-04)', () => {
+  const wait = () => new Promise((resolve) => setTimeout(resolve, 50))
+  const exportButton = () => screen.queryByRole('button', { name: 'Export as PDF' })
+
+  it('a deep link to the ledger without invoice.read asks nothing and says no access', async () => {
+    who = CASHIER_ROLE
+    renderLedger()
+    expect(await screen.findByText('No access')).toBeTruthy()
+    await wait()
+    expect(calls('/compliance/activity')).toEqual([])
+  })
+
+  it('reports.read alone does not open the ledger, which takes invoice.read (review R2-04)', async () => {
+    who = { ...READER, permissions: ['reports.read'] }
+    renderLedger()
+    expect(await screen.findByText('No access')).toBeTruthy()
+    await wait()
+    expect(calls('/compliance/activity')).toEqual([])
+  })
+
+  it('a holder of invoice.read still reads the ledger and its summary', async () => {
+    renderLedger()
+    await waitFor(() => expect(calls('/compliance/activity/summary').length).toBeGreaterThan(0))
+    expect(calls('/compliance/activity?').length).toBeGreaterThan(0)
+    expect(screen.queryByText('No access')).toBeNull()
+  })
+
+  it('offers the compliance export files to a holder of reports.read', async () => {
+    who = READER
+    renderCompliance()
+    await screen.findByText('3m 24s')
+    fireEvent.click(exportButton()!)
+    expect(await screen.findByRole('menuitem', { name: /CSV/ })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: /Excel/ })).toBeTruthy()
+  })
+
+  it('keeps Print but offers no file a reader without reports.read would be refused', async () => {
+    // /reports/ota.csv and .xlsx take reports.read, not the ledger's invoice.read.
+    who = { ...READER, permissions: ['invoice.read'] }
+    renderCompliance()
+    await screen.findByText('3m 24s')
+    await wait()
+    expect(exportButton()).toBeTruthy()
+    expect(exportButton()!.getAttribute('aria-haspopup')).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: /CSV/ })).toBeNull()
+  })
+
+  it('still offers the export to a reports.read holder the ledger itself refuses', async () => {
+    who = { ...READER, permissions: ['reports.read'] }
+    renderCompliance()
+    expect(await screen.findByText('No access')).toBeTruthy()
+    expect(calls('/compliance/activity')).toEqual([])
+    fireEvent.click(exportButton()!)
+    expect(await screen.findByRole('menuitem', { name: /CSV/ })).toBeTruthy()
+  })
+
+  it('draws no Export button for a reader who may neither read nor export the report', async () => {
+    who = CASHIER_ROLE
+    renderCompliance()
+    expect(await screen.findByText('No access')).toBeTruthy()
+    await wait()
+    expect(exportButton()).toBeNull()
+  })
 })

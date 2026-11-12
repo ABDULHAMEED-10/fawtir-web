@@ -58,6 +58,7 @@ import {
   addedLine,
   asksBackOnShelf,
   creditEffect,
+  creditableOf,
   fromInvoice,
   fromNoteDraft,
   noteProblems,
@@ -553,10 +554,14 @@ function NoteEditor({
   const outstanding = receivable?.outstandingAmount ?? null
   const documentTotal = receivable?.documentTotal ?? invoice.totals?.totalAmount ?? null
   const credited = receivable?.creditedAmount ?? 0
-  const creditable =
-    documentTotal === null
-      ? null
-      : Math.max(0, Math.round((documentTotal - credited) * 1000) / 1000)
+  // A self-billed note's figures come from its payable (above), and the receivable is
+  // NOT_APPLICABLE on a self-billed document, so its cap is not read there: the payable's total
+  // less credited stays the figure.
+  const creditable = creditableOf(
+    selfBilled ? undefined : loadedReceivable?.creditableAmount,
+    documentTotal,
+    credited,
+  )
   const effect = outstanding !== null ? creditEffect(outstanding, total, creditable) : null
   const lines = visibleLines(form)
   // "Back on the shelf?" (V473): asked only on an ordinary credit note, for the lines whose

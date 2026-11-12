@@ -32,6 +32,7 @@ import en from '../../i18n/locales/en.json'
 import ar from '../../i18n/locales/ar.json'
 import { DocumentsPage } from './DocumentsPage'
 import { DocumentDetailPage } from '../DocumentDetailPage/DocumentDetailPage'
+import { CASHIER_ROLE } from '../../testing/roles'
 
 const READER: Entitlements = {
   userId: 'u-1',
@@ -519,6 +520,72 @@ describe('The compliance archive, wired to the API', () => {
     )
     // An empty archive is the one case the page can count itself.
     expect(screen.getAllByText('0').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('asks nothing of the archive for a deep link without invoice.read (review W-04)', async () => {
+    who = CASHIER_ROLE
+    renderArchive()
+    expect(await screen.findByText('No access')).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 1, name: 'Documents' })).toBeTruthy()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    const asked = fetchMock.mock.calls.map(([url]) => String(url))
+    expect(asked.filter((url) => url.startsWith('/api/v1/compliance/documents'))).toEqual([])
+  })
+
+  it('still reads the archive for a holder of invoice.read (review W-04)', async () => {
+    renderArchive()
+    expect(await screen.findByText('INV-2026-000004')).toBeTruthy()
+    const asked = fetchMock.mock.calls.map(([url]) => String(url))
+    expect(asked.some((url) => url.startsWith('/api/v1/compliance/documents?'))).toBe(true)
+    expect(screen.queryByText('No access')).toBeNull()
+  })
+
+  /** The first `failures` session answers are a 503; the rest are answered as before. */
+  function failSession(failures: number) {
+    const answer = fetchMock.getMockImplementation() as (url: string) => Promise<Response>
+    let failed = 0
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === '/api/v1/me/entitlements' && failed < failures) {
+        failed += 1
+        return json(503, { type: 'https://api.fawtir.om/problems/internal-error' })
+      }
+      return answer(url)
+    })
+  }
+  const archiveReads = () => calls('/api/v1/compliance/documents')
+
+  it('reads the archive once the shell recovers its session (review R2-01)', async () => {
+    // One failed session answer must not latch the page on "No access": the gate follows the
+    // shell's session, so its "Try again" is what lets the reader in.
+    failSession(1)
+    renderArchive()
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }))
+    expect(await screen.findByText('INV-2026-000004')).toBeTruthy()
+    expect(calls('/api/v1/compliance/documents?').length).toBeGreaterThan(0)
+    expect(screen.queryByText('No access')).toBeNull()
+  })
+
+  it('stays on the notice when the recovered session lacks invoice.read (review R2-01)', async () => {
+    who = CASHIER_ROLE
+    failSession(1)
+    renderArchive()
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }))
+    expect(await screen.findByText('No access')).toBeTruthy()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(archiveReads()).toEqual([])
+  })
+
+  it('asks nothing of the archive through repeated session failures (review R2-01)', async () => {
+    failSession(Number.POSITIVE_INFINITY)
+    renderArchive()
+    expect(await screen.findByRole('button', { name: 'Try again' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }))
+    expect(await screen.findByRole('button', { name: 'Try again' })).toBeTruthy()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(calls('/api/v1/me/entitlements').length).toBe(3)
+    expect(archiveReads()).toEqual([])
+    expect(screen.queryByText('No access')).toBeNull()
   })
 
   it('reads in Arabic', async () => {

@@ -235,6 +235,12 @@ export type InvoiceReceivableDto = {
   outstandingAmount: number | null
   /** D-30(a), from 0c2d034d4: what lies below the floor of `outstandingAmount`, at or below zero. */
   unappliedCredit?: number
+  /**
+   * IE3-02: what a credit note may still credit, the server's own issue-time cap
+   * (`IssuedRemainders.amount`), so issued debit notes count. `null` where no credit note can be
+   * raised. Absent from an older server, where the composer falls back to total less credited.
+   */
+  creditableAmount?: number | null
   currency: string
   paymentState: 'UNPAID' | 'PARTIALLY_PAID' | 'PAID' | 'NOT_APPLICABLE'
   overdue: boolean

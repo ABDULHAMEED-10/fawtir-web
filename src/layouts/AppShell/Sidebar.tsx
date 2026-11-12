@@ -136,7 +136,12 @@ function visibleNav(session: Entitlements | null): NavGroup[] {
       if (item.prototype && prototypeHidden(item.prototype)) return []
       if (!can(session, item.requires)) return []
       if (!item.children) return [item]
-      const children = item.children.filter((child) => can(session, child.requires))
+      const children = item.children.filter(
+        (child) =>
+          can(session, child.requires) &&
+          (child.requiresAny === undefined ||
+            child.requiresAny.some((code) => can(session, code))),
+      )
       return children.length > 0 ? [{ ...item, children }] : []
     }),
   })).filter((group) => group.items.length > 0)

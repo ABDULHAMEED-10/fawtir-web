@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react'
-import { loadEntitlements, peekEntitlements, type Entitlements } from '../lib/identity/entitlements'
+import {
+  loadEntitlements,
+  onEntitlementsSettled,
+  peekEntitlements,
+  type Entitlements,
+} from '../lib/identity/entitlements'
 
 /**
  * The signed-in user's entitlement snapshot, from the same session cache every screen reads, so
  * moving between screens asks once.
  *
- * `entitlements` is `null` until the answer arrives, and stays `null` if it could not be fetched.
+ * `entitlements` is `null` until the answer arrives, and stays `null` if it could not be fetched
+ * until a later load (a retry elsewhere on the screen) settles one.
  * Callers read permissions through `hasPermission` on a non-null snapshot only, so a screen never
  * draws a control it has not confirmed the user holds: a button drawn optimistically and clicked
  * in the same instant produces a 403 for something we should not have offered.
@@ -18,6 +24,18 @@ import { loadEntitlements, peekEntitlements, type Entitlements } from '../lib/id
 export function useEntitlements(): { entitlements: Entitlements | null; ready: boolean } {
   const [entitlements, setEntitlements] = useState<Entitlements | null>(peekEntitlements)
   const [ready, setReady] = useState(() => peekEntitlements() !== null)
+
+  // A failed load leaves this on "nothing offered"; the answer a later retry settles replaces it
+  // (review R2-02). Subscribed for the hook's whole life, not only while loading, because the
+  // retry usually comes after this hook has already given up.
+  useEffect(
+    () =>
+      onEntitlementsSettled((loaded) => {
+        setEntitlements(loaded)
+        setReady(true)
+      }),
+    [],
+  )
 
   useEffect(() => {
     if (ready) return

@@ -11,7 +11,12 @@ import {
   SortMenu,
   type ActionMenuItem,
 } from '../../components/ui'
-import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
+import {
+  ApiReadFailure,
+  LoadingNotice,
+  Notice,
+  PermissionDeniedNotice,
+} from '../../components/feedback/ApiNotice'
 import { useApiRead, usePendingRefresh } from '../../hooks'
 import {
   ACTIVITY_PAGE_SIZE,
@@ -62,7 +67,7 @@ import { describeApiFailure } from '../../lib/apiFailure'
 import { tddResubmitRefusalKey } from '../../lib/tddResubmit'
 import { useSubscriptionAllows } from '../../lib/subscriptionReadOnly'
 import { BUSINESS_TIME_ZONE, formatAmount, formatCount } from '../../lib/format'
-import { can, useSession } from '../../lib/session/session'
+import { can, mayRequest, useSession } from '../../lib/session/session'
 import { ActivityEmptyState } from './ActivityEmptyState'
 import { ComplianceReportModal, type ReportRequest } from './ComplianceReportModal'
 import kpiAcceptedIcon from '../../assets/activity/kpi-cleared.svg'
@@ -226,8 +231,14 @@ function ActivityLedger() {
     direction: direction === 'all' ? '' : direction,
     invoiceNumber: search,
   }
+  // The ledger and its summary take `invoice.read` (ComplianceActivityController), which a Cashier
+  // lacks: a deep link earned a 403 on each (IE3-04, review W-04). Without it nothing is asked and
+  // the page draws the notice the refusal drew.
+  const mayRead = mayRequest(session, 'invoice.read')
   const listPath = activityListPath(filters, pageNumber - 1)
-  const list = useApiRead<ActivityListDto>(listPath, () => loadActivityList(listPath))
+  const list = useApiRead<ActivityListDto>(mayRead ? listPath : null, () =>
+    loadActivityList(listPath),
+  )
   // A quiet re-read of the rows while one awaits an answer, kept apart from `list` so a refresh
   // does not blank the table with a loader. It stands only over the very read it refreshed
   // (`over`): any later loud read (a new page or filter, a return to this one, a retry) settles
@@ -247,7 +258,7 @@ function ActivityLedger() {
     summaryRange.to,
     direction === 'all' ? '' : direction,
   )
-  const summary = useApiRead<ActivitySummaryDto>(summaryPath, () =>
+  const summary = useApiRead<ActivitySummaryDto>(mayRead ? summaryPath : null, () =>
     loadActivitySummary(summaryPath),
   )
 
@@ -402,6 +413,7 @@ function ActivityLedger() {
     </div>
   )
 
+  if (!mayRead) return shell(<PermissionDeniedNotice />)
   if (summary.read.status === 'loading') return shell(<LoadingNotice />)
   if (summary.read.status === 'failed') {
     return shell(<ApiReadFailure error={summary.read.error} retry={summary.retry} />)
