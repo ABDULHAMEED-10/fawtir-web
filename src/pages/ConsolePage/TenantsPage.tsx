@@ -423,9 +423,13 @@ function TenantsTable({ rows }: { rows: CompanySummary[] }) {
         <tbody>
           {rows.map((tenant) => {
             const tone = toneOf(tenant)
-            const decision =
-              tenant.verificationStatus === 'PENDING_VERIFICATION' ||
-              tenant.verificationStatus === 'REJECTED'
+            // Review only once the sign-up is submitted: a company still signing up has nothing to
+            // review yet (its row says Onboarding), the same rule as its pill and Needs attention.
+            const decision = awaitingReview(tenant) || tenant.verificationStatus === 'REJECTED'
+            // The participant ID is decided on the same Verification page, but the list does not
+            // say whether it still waits (TODO(backend): CONSOLE.md row 1.13), so an approved
+            // company keeps a way to it in the menu, and no read is made per row.
+            const participant = tenant.verificationStatus === 'VERIFIED'
             const tenure = tenant.submittedAt ? tenureOf(tenant.submittedAt) : null
             const onboarding = tenant.tenantStatus === 'PENDING'
             const menu: ActionMenuItem[] = [
@@ -443,6 +447,14 @@ function TenantsTable({ rows }: { rows: CompanySummary[] }) {
                   tenant.verificationStatus === 'REJECTED'
                     ? 'console.tenants.seeDecision'
                     : 'console.tenants.review',
+                icon: statementIcon,
+                to: `${VERIFICATION_ROUTE}/${tenant.tenantId}`,
+              })
+            }
+            if (participant) {
+              menu.push({
+                id: 'participant',
+                labelKey: 'console.tenants.action.participant',
                 icon: statementIcon,
                 to: `${VERIFICATION_ROUTE}/${tenant.tenantId}`,
               })

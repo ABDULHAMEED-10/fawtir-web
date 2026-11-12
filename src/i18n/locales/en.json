@@ -14266,7 +14266,8 @@
       "action": {
         "open": "Open the tenant",
         "signIn": "Sign in as them",
-        "suspend": "Suspend filing"
+        "suspend": "Suspend filing",
+        "participant": "Peppol participant ID"
       },
       "showingAll": "Showing {{shown}} of {{total}}",
       "rowMenu": "More for this tenant",

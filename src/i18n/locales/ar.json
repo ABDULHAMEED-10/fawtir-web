@@ -15192,7 +15192,8 @@
       "action": {
         "open": "افتح المشترك",
         "signIn": "ادخل باسمهم",
-        "suspend": "أوقف الإرسال"
+        "suspend": "أوقف الإرسال",
+        "participant": "معرّف المشارك في Peppol"
       },
       "showingAll": "عرض {{shown}} من {{total}}",
       "rowMenu": "المزيد لهذا المشترك",

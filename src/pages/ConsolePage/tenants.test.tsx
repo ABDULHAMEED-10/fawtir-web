@@ -330,6 +330,48 @@ describe('Approval stays with the verification queue', () => {
     expect(screen.queryByRole('link', { name: 'Review' })).toBeNull()
   })
 
+  it('offers no Review while a company is still signing up (nothing submitted yet)', async () => {
+    answer({
+      [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
+      [LIST_URL]: () => json(200, pageOf([{ ...PENDING, submittedAt: null }])),
+    })
+    renderAt('/console/tenants')
+    await screen.findByText('Sadam Company')
+
+    expect(screen.queryByRole('link', { name: 'Review' })).toBeNull()
+    // The row's pill says Onboarding instead (the tab of that name shows too).
+    expect(screen.getAllByText('Onboarding').length).toBeGreaterThan(1)
+  })
+
+  it("keeps an approved company's participant ID one step away, in the row menu, with no read per row", async () => {
+    answer({
+      [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
+      [LIST_URL]: () => json(200, pageOf([TENANT])),
+    })
+    renderAt('/console/tenants')
+    await screen.findByText('Al Noor Bakery')
+
+    fireEvent.click(screen.getByRole('button', { name: 'More for this tenant' }))
+    const item = await screen.findByRole('menuitem', { name: /Peppol participant ID/ })
+    expect(item.getAttribute('href')).toBe(`/console/onboarding/${TENANT_ID}`)
+    // Only the entitlements and the list were asked: no participant read for the row.
+    expect(fetchMock.mock.calls.map(([url]) => url).sort()).toEqual(
+      [ENTITLEMENTS_URL, LIST_URL].sort(),
+    )
+  })
+
+  it('offers no participant item before the company is approved', async () => {
+    answer({
+      [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
+      [LIST_URL]: () => json(200, pageOf([PENDING])),
+    })
+    renderAt('/console/tenants')
+    await screen.findByText('Sadam Company')
+
+    fireEvent.click(screen.getByRole('button', { name: 'More for this tenant' }))
+    expect(screen.queryByRole('menuitem', { name: /Peppol participant ID/ })).toBeNull()
+  })
+
   it('keeps the established tenant detail route for normal tenant management', async () => {
     answer({
       [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
