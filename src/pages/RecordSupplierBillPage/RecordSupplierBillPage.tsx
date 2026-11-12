@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { DateField, withRial } from '../../components/ui'
-import { FieldLabel, SectionCard, ToggleRow } from '../../components/form'
+import { FieldLabel, SectionCard } from '../../components/form'
 import {
   ApiReadFailure,
   LoadingNotice,
@@ -98,8 +98,11 @@ const round3 = (value: number) => Math.round(value * 1000) / 1000
  * With a file attached in step 4 the bill is uploaded and confirmed in one go (bill intake,
  * D12a), as the design's one button says. Without one the typed bill is recorded as it is
  * (`POST /bills`, §7.9; owner decision 2026-10-01: a bill may have no file), and its page then
- * says no original is on record. The "straight for approval" switch is drawn as designed and
- * kept on the client (§7.10).
+ * says no original is on record.
+ *
+ * The design's "Send it straight for approval" switch is not drawn (IE3-03, owner 2026-11-12): no
+ * request carried it, so it promised a choice the server never heard. Every bill follows the
+ * company's approval policy (`GET /expenditure/approval-policy`), which "What happens next" states.
  */
 export function RecordSupplierBillPage() {
   const { slug = '' } = useParams()
@@ -149,7 +152,6 @@ function RecordBill({ id }: { id: string }) {
   const [against, setAgainst] = useState<string>('')
   const [lines, setLines] = useState<LineDraft[]>(() => [emptyLine(vatRate)])
   const [file, setFile] = useState<File | null>(null)
-  const [straight, setStraight] = useState(true)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [duplicate, setDuplicate] = useState<DuplicateReview | null>(null)
@@ -611,19 +613,6 @@ function RecordBill({ id }: { id: string }) {
                   {file ? t('recordBill.replaceFile') : t('recordBill.attachFile')}
                 </button>
               </div>
-              {/* TODO(backend): the workflow state is the server's; the switch is kept on the client (§7.10). */}
-              <ToggleRow
-                label={t('recordBill.straightToApproval')}
-                hint={withRial(
-                  threshold === null
-                    ? t('recordBill.straightToApprovalAny')
-                    : underLimit
-                      ? t('recordBill.straightToApprovalUnder', { limit: sum(threshold) })
-                      : t('recordBill.straightToApprovalOver', { limit: sum(threshold) }),
-                )}
-                checked={straight}
-                onChange={setStraight}
-              />
             </div>
           </SectionCard>
         </div>
