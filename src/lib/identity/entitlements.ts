@@ -84,6 +84,19 @@ export type Entitlements = {
  */
 let cached: Promise<Entitlements> | null = null
 let settled: Entitlements | null = null
+/**
+ * Told of each answer that settles, so a hook whose own load failed takes the answer a later
+ * retry (the shell's "Try again") fetched, instead of staying on "nothing offered" until a
+ * remount (review R2-02). Only a real answer is announced: a failure tells nobody anything.
+ */
+const settledListeners = new Set<(entitlements: Entitlements) => void>()
+
+export function onEntitlementsSettled(listener: (entitlements: Entitlements) => void): () => void {
+  settledListeners.add(listener)
+  return () => {
+    settledListeners.delete(listener)
+  }
+}
 
 export function loadEntitlements(): Promise<Entitlements> {
   if (!cached) {
@@ -91,7 +104,10 @@ export function loadEntitlements(): Promise<Entitlements> {
       (entitlements) => {
         // Only if nobody forgot this request meanwhile: an answer for a session that has since
         // ended must not become the answer for the next one.
-        if (cached === request) settled = entitlements
+        if (cached === request) {
+          settled = entitlements
+          settledListeners.forEach((listener) => listener(entitlements))
+        }
         return entitlements
       },
       (error: unknown) => {

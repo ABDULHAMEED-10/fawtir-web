@@ -540,6 +540,54 @@ describe('The compliance archive, wired to the API', () => {
     expect(screen.queryByText('No access')).toBeNull()
   })
 
+  /** The first `failures` session answers are a 503; the rest are answered as before. */
+  function failSession(failures: number) {
+    const answer = fetchMock.getMockImplementation() as (url: string) => Promise<Response>
+    let failed = 0
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === '/api/v1/me/entitlements' && failed < failures) {
+        failed += 1
+        return json(503, { type: 'https://api.fawtir.om/problems/internal-error' })
+      }
+      return answer(url)
+    })
+  }
+  const archiveReads = () => calls('/api/v1/compliance/documents')
+
+  it('reads the archive once the shell recovers its session (review R2-01)', async () => {
+    // One failed session answer must not latch the page on "No access": the gate follows the
+    // shell's session, so its "Try again" is what lets the reader in.
+    failSession(1)
+    renderArchive()
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }))
+    expect(await screen.findByText('INV-2026-000004')).toBeTruthy()
+    expect(calls('/api/v1/compliance/documents?').length).toBeGreaterThan(0)
+    expect(screen.queryByText('No access')).toBeNull()
+  })
+
+  it('stays on the notice when the recovered session lacks invoice.read (review R2-01)', async () => {
+    who = CASHIER_ROLE
+    failSession(1)
+    renderArchive()
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }))
+    expect(await screen.findByText('No access')).toBeTruthy()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(archiveReads()).toEqual([])
+  })
+
+  it('asks nothing of the archive through repeated session failures (review R2-01)', async () => {
+    failSession(Number.POSITIVE_INFINITY)
+    renderArchive()
+    expect(await screen.findByRole('button', { name: 'Try again' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }))
+    expect(await screen.findByRole('button', { name: 'Try again' })).toBeTruthy()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(calls('/api/v1/me/entitlements').length).toBe(3)
+    expect(archiveReads()).toEqual([])
+    expect(screen.queryByText('No access')).toBeNull()
+  })
+
   it('reads in Arabic', async () => {
     await i18n.changeLanguage('ar')
     renderArchive()

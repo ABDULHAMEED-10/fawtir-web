@@ -6,6 +6,9 @@ import { resetSharedRequests } from '../../api'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import { ReportsIncomePage } from '../../pages/ReportsIncomePage'
 import { ReportsCompliancePage } from '../../pages/ReportsCompliancePage'
+import { ReportsVatPage } from '../../pages/ReportsVatPage'
+import { ReportsExpenditurePage } from '../../pages/ReportsExpenditurePage'
+import { ReportsCashFlowPage } from '../../pages/ReportsCashFlowPage'
 import { CASHIER_ROLE, VIEWER_ROLE } from '../../testing/roles'
 
 /** The built-in Sales Manager's reporting: `reports.sales.read` without `reports.read`. */
@@ -48,6 +51,9 @@ function renderAt(path: string) {
       <Routes>
         <Route path="/reports/income" element={<ReportsIncomePage />} />
         <Route path="/reports/compliance" element={<ReportsCompliancePage />} />
+        <Route path="/reports/vat-tax" element={<ReportsVatPage />} />
+        <Route path="/reports/expenditure" element={<ReportsExpenditurePage />} />
+        <Route path="/reports/cash-flow" element={<ReportsCashFlowPage />} />
       </Routes>
     </MemoryRouter>,
   )
@@ -116,5 +122,90 @@ describe('review W-03: the Export button only for a reader the export admits', (
     fireEvent.click(exportButton()!)
     expect(await screen.findByRole('menuitem', { name: /CSV/ })).toBeTruthy()
     expect(screen.getByRole('menuitem', { name: /Excel/ })).toBeTruthy()
+  })
+})
+
+describe('review R2-03: the reports.read pages draw Export only for a reader of reports.read', () => {
+  const exportButton = () => screen.queryByRole('button', { name: 'Export as PDF' })
+  const pages = ['/reports/vat-tax', '/reports/expenditure', '/reports/cash-flow']
+
+  it.each(pages)('%s: a sales-only reader sees the notice, asks nothing and is offered no Export', async (path) => {
+    who = SALES_ONLY
+    renderAt(path)
+    expect(await screen.findByText('No access')).toBeTruthy()
+    expect(exportButton()).toBeNull()
+    await settle()
+    expect(asked('/api/v1/reports')).toEqual([])
+  })
+
+  it.each(pages)('%s: a viewer is offered the files', async (path) => {
+    who = VIEWER_ROLE
+    renderAt(path)
+    fireEvent.click(await screen.findByRole('button', { name: 'Export as PDF' }))
+    expect(await screen.findByRole('menuitem', { name: /CSV/ })).toBeTruthy()
+  })
+})
+
+describe('review R2-02: a report page follows the session the shell recovers', () => {
+  const exportButton = () => screen.queryByRole('button', { name: 'Export as PDF' })
+  const entitlementCalls = () => asked('/api/v1/me/entitlements').length
+
+  /** The first `failures` session answers are a 503; the ones after answer `who`. */
+  function failSession(failures: number) {
+    let failed = 0
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url !== '/api/v1/me/entitlements') return json(404, { type: 'about:blank' })
+      if (failed < failures) {
+        failed += 1
+        return json(503, { type: 'https://api.fawtir.om/problems/internal-error' })
+      }
+      return json(200, who)
+    })
+  }
+
+  it('asks nothing and offers no Export while the session answer has failed', async () => {
+    who = VIEWER_ROLE
+    failSession(1)
+    renderAt('/reports/vat-tax')
+    expect(await screen.findByRole('button', { name: 'Try again' })).toBeTruthy()
+    await settle()
+    expect(asked('/api/v1/reports')).toEqual([])
+    expect(exportButton()).toBeNull()
+  })
+
+  it('a reader the retried answer admits gets the report and its Export back', async () => {
+    who = VIEWER_ROLE
+    failSession(1)
+    renderAt('/reports/vat-tax')
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }))
+    await waitFor(() => expect(asked('/api/v1/reports/vat').length).toBeGreaterThan(0))
+    expect(screen.queryByText('No access')).toBeNull()
+    fireEvent.click(await screen.findByRole('button', { name: 'Export as PDF' }))
+    expect(await screen.findByRole('menuitem', { name: /CSV/ })).toBeTruthy()
+  })
+
+  it('a reader the retried answer does not admit stays on the notice, asking nothing', async () => {
+    who = SALES_ONLY
+    failSession(1)
+    renderAt('/reports/vat-tax')
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }))
+    expect(await screen.findByText('No access')).toBeTruthy()
+    await settle()
+    expect(asked('/api/v1/reports')).toEqual([])
+    expect(exportButton()).toBeNull()
+  })
+
+  it('keeps refusing through repeated failures, asking once per click', async () => {
+    who = VIEWER_ROLE
+    failSession(Number.POSITIVE_INFINITY)
+    renderAt('/reports/vat-tax')
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }))
+    expect(await screen.findByRole('button', { name: 'Try again' })).toBeTruthy()
+    await settle()
+    expect(entitlementCalls()).toBe(3)
+    expect(asked('/api/v1/reports')).toEqual([])
+    expect(exportButton()).toBeNull()
+    expect(screen.queryByText('No access')).toBeNull()
   })
 })

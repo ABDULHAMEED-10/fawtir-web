@@ -1921,6 +1921,14 @@ describe('reads and exports only a reader may make (review W-03, W-04)', () => {
     expect(calls('/compliance/activity')).toEqual([])
   })
 
+  it('reports.read alone does not open the ledger, which takes invoice.read (review R2-04)', async () => {
+    who = { ...READER, permissions: ['reports.read'] }
+    renderLedger()
+    expect(await screen.findByText('No access')).toBeTruthy()
+    await wait()
+    expect(calls('/compliance/activity')).toEqual([])
+  })
+
   it('a holder of invoice.read still reads the ledger and its summary', async () => {
     renderLedger()
     await waitFor(() => expect(calls('/compliance/activity/summary').length).toBeGreaterThan(0))

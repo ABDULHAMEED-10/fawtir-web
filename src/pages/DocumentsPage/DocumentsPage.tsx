@@ -10,7 +10,6 @@ import {
   PermissionDeniedNotice,
 } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
-import { useEntitlements } from '../../hooks/useEntitlements'
 import {
   archiveListPath,
   downloadArtefact,
@@ -158,6 +157,14 @@ function sortItems(items: ArchiveItemDto[], sort: SortKey): ArchiveItemDto[] {
  * figure. "Download zip" saves each served file of the picked records, one by one (ask 3.6).
  */
 export function DocumentsPage() {
+  return (
+    <AppShell>
+      <DocumentsArchive />
+    </AppShell>
+  )
+}
+
+function DocumentsArchive() {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const today = muscatToday()
@@ -182,11 +189,10 @@ export function DocumentsPage() {
     page,
   )
   // The archive takes `invoice.read` (ComplianceDocumentsController), which a Cashier lacks: a deep
-  // link earned a 403 (IE3-04, review W-04). This page renders its shell itself, outside the shell's
-  // session context, so the permission is read from the shared entitlements answer, as
-  // CompanyProfilePage does; nothing is asked until that answer says the reader may.
-  const access = useEntitlements()
-  const mayRead = mayRequest(access.entitlements, 'invoice.read')
+  // link earned a 403 (IE3-04, review W-04). The archive is drawn inside the shell so the gate reads
+  // the shell's session: a standalone entitlements read latched "no access" after one failed
+  // answer and never followed the shell's "Try again" (review R2-01).
+  const mayRead = mayRequest(useSession(), 'invoice.read')
   const list = useApiRead<ArchiveListDto>(mayRead ? path : null, () => loadArchiveList(path))
 
   /** The figures and counts stay on screen while the next page loads. */
@@ -283,326 +289,324 @@ export function DocumentsPage() {
         ? data.page + 1 + (data.has_more ? 1 : 0)
         : 1
 
+  const title = (
+    <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
+      {t('documents.title')}
+    </h1>
+  )
+
   // The same notice the 403 drew, without asking for it.
-  if (access.ready && !mayRead) {
+  if (!mayRead) {
     return (
-      <AppShell>
-        <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-5 pb-10">
-          <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-            {t('documents.title')}
-          </h1>
-          <PermissionDeniedNotice />
-        </div>
-      </AppShell>
+      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-5 pb-10">
+        {title}
+        <PermissionDeniedNotice />
+      </div>
     )
   }
 
   return (
-    <AppShell>
-      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-5 pb-10">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-[820px]">
-            <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-              {t('documents.title')}
-            </h1>
-            <p className="mt-2 text-sm font-medium leading-[1.6] text-[#8f8f8f]">
-              {/* The no-edit, no-delete rule covers Peppol documents; uploads are filed on the
-                  supplier. TODO(backend): uploads in the archive, DOCUMENTS.md row 3.26. */}
-              {t(archiveEmpty ? 'documents.subtitleEmpty' : 'documents.subtitleFull')}
-            </p>
-          </div>
-          {archiveEmpty ? null : (
-            <UploadLink
-              className="inline-flex h-[46px] shrink-0 items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-5 text-base font-medium text-[#3a3a3a] transition-colors hover:bg-white"
-              iconClassName="size-5"
-            />
-          )}
+    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-5 pb-10">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="max-w-[820px]">
+          {title}
+          <p className="mt-2 text-sm font-medium leading-[1.6] text-[#8f8f8f]">
+            {/* The no-edit, no-delete rule covers Peppol documents; uploads are filed on the
+                supplier. TODO(backend): uploads in the archive, DOCUMENTS.md row 3.26. */}
+            {t(archiveEmpty ? 'documents.subtitleEmpty' : 'documents.subtitleFull')}
+          </p>
         </div>
-
-        <Figures summary={known?.summary ?? null} archiveEmpty={archiveEmpty} language={language} />
-
-        {notice ? (
-          <Notice
-            body={notice}
-            action={{ label: t('common.close'), onClick: () => setNotice(null) }}
+        {archiveEmpty ? null : (
+          <UploadLink
+            className="inline-flex h-[46px] shrink-0 items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-5 text-base font-medium text-[#3a3a3a] transition-colors hover:bg-white"
+            iconClassName="size-5"
           />
-        ) : null}
+        )}
+      </div>
 
-        {list.read.status === 'failed' ? (
-          <ApiReadFailure error={list.read.error} retry={list.retry} />
-        ) : null}
+      <Figures summary={known?.summary ?? null} archiveEmpty={archiveEmpty} language={language} />
 
-        {archiveEmpty ? (
-          <section className="flex min-h-[632px] flex-col items-center justify-center rounded-md bg-surface-card px-5 py-16 text-center">
-            <img src={emptyArt} alt="" className="h-[124px] w-auto" />
-            <h2 className="mt-12 text-2xl font-medium leading-[1.2] text-text-primary">
-              {t('documents.empty.title')}
-            </h2>
-            <p className="mt-3 max-w-[520px] text-sm font-medium leading-[1.6] text-text-tertiary">
-              {t('documents.empty.note')}
-            </p>
-            <UploadLink
-              className="mt-8 inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-5 text-base font-medium text-white transition-colors hover:bg-primary-800"
-              iconClassName="size-5 brightness-0 invert"
-            />
-          </section>
-        ) : list.read.status === 'failed' ? null : (
-          <section className="rounded-md bg-surface-card">
-            <div
-              role="tablist"
-              className="flex flex-wrap items-center gap-1 overflow-x-auto border-b border-border-subtle px-3"
-            >
-              {ARCHIVE_TABS.map((entry) => {
-                const active = entry === tab
-                const count = tabCount(entry)
-                return (
-                  <button
-                    key={entry}
-                    type="button"
-                    role="tab"
-                    aria-selected={active}
-                    onClick={() => chooseTab(entry)}
-                    className={[
-                      'inline-flex h-[57px] shrink-0 items-center gap-2 border-b-2 px-4 text-base font-medium transition-colors',
-                      active
-                        ? 'border-primary-700 text-primary-700'
-                        : 'border-transparent text-text-secondary hover:text-text-primary',
-                    ].join(' ')}
-                  >
-                    {t(`documents.tab.${entry}`)}
-                    {count != null ? (
-                      <span
-                        className={[
-                          'inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-medium',
-                          active
-                            ? 'bg-primary-50 text-primary-700'
-                            : 'bg-surface-background text-text-tertiary',
-                        ].join(' ')}
-                      >
-                        {formatCount(count, language)}
-                      </span>
-                    ) : null}
-                  </button>
-                )
-              })}
+      {notice ? (
+        <Notice
+          body={notice}
+          action={{ label: t('common.close'), onClick: () => setNotice(null) }}
+        />
+      ) : null}
+
+      {list.read.status === 'failed' ? (
+        <ApiReadFailure error={list.read.error} retry={list.retry} />
+      ) : null}
+
+      {archiveEmpty ? (
+        <section className="flex min-h-[632px] flex-col items-center justify-center rounded-md bg-surface-card px-5 py-16 text-center">
+          <img src={emptyArt} alt="" className="h-[124px] w-auto" />
+          <h2 className="mt-12 text-2xl font-medium leading-[1.2] text-text-primary">
+            {t('documents.empty.title')}
+          </h2>
+          <p className="mt-3 max-w-[520px] text-sm font-medium leading-[1.6] text-text-tertiary">
+            {t('documents.empty.note')}
+          </p>
+          <UploadLink
+            className="mt-8 inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-5 text-base font-medium text-white transition-colors hover:bg-primary-800"
+            iconClassName="size-5 brightness-0 invert"
+          />
+        </section>
+      ) : list.read.status === 'failed' ? null : (
+        <section className="rounded-md bg-surface-card">
+          <div
+            role="tablist"
+            className="flex flex-wrap items-center gap-1 overflow-x-auto border-b border-border-subtle px-3"
+          >
+            {ARCHIVE_TABS.map((entry) => {
+              const active = entry === tab
+              const count = tabCount(entry)
+              return (
+                <button
+                  key={entry}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => chooseTab(entry)}
+                  className={[
+                    'inline-flex h-[57px] shrink-0 items-center gap-2 border-b-2 px-4 text-base font-medium transition-colors',
+                    active
+                      ? 'border-primary-700 text-primary-700'
+                      : 'border-transparent text-text-secondary hover:text-text-primary',
+                  ].join(' ')}
+                >
+                  {t(`documents.tab.${entry}`)}
+                  {count != null ? (
+                    <span
+                      className={[
+                        'inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-medium',
+                        active
+                          ? 'bg-primary-50 text-primary-700'
+                          : 'bg-surface-background text-text-tertiary',
+                      ].join(' ')}
+                    >
+                      {formatCount(count, language)}
+                    </span>
+                  ) : null}
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
+            <label className="relative flex h-[44px] w-full max-w-[346px] items-center max-md:max-w-none">
+              <span className="sr-only">{t('documents.searchLabel')}</span>
+              <img
+                src={searchIcon}
+                alt=""
+                className="pointer-events-none absolute start-3.5 size-5 opacity-60"
+              />
+              {/* TODO(backend): search by the other party's name too (DOCUMENTS.md row 3.23);
+                  the archive filters by number only, and the placeholder says so. */}
+              <input
+                value={filters.invoiceNumber ?? ''}
+                onChange={(event) => set({ invoiceNumber: event.target.value })}
+                placeholder={t('documents.searchPlaceholder')}
+                className="h-full w-full rounded-sm border border-border-subtle bg-surface-tab-bar ps-11 pe-4 text-sm font-medium text-text-secondary outline-none placeholder:text-text-quaternary focus:border-primary-300"
+              />
+            </label>
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                aria-expanded={filtersOpen}
+                onClick={() => setFiltersOpen((open) => !open)}
+                className={[
+                  'inline-flex h-[46px] shrink-0 items-center gap-2 rounded-sm border px-4 text-sm font-medium transition-colors',
+                  filtered
+                    ? 'border-primary-700 bg-primary-25 text-primary-800'
+                    : 'border-border-subtle bg-white text-text-secondary hover:bg-primary-25',
+                ].join(' ')}
+              >
+                <img src={filterIcon} alt="" className="size-5" />
+                {t('documents.filters')}
+              </button>
+              <SortMenu value={sort} options={SORT_OPTIONS} onChange={setSort} width={240} />
             </div>
+          </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
-              <label className="relative flex h-[44px] w-full max-w-[346px] items-center max-md:max-w-none">
-                <span className="sr-only">{t('documents.searchLabel')}</span>
-                <img
-                  src={searchIcon}
-                  alt=""
-                  className="pointer-events-none absolute start-3.5 size-5 opacity-60"
+          {filtersOpen ? (
+            <div className="grid gap-3 border-t border-surface-background px-4 py-4 md:grid-cols-3 xl:grid-cols-5">
+              <FilterField label={t('documents.filter.kind')}>
+                <Select
+                  value={kindChoice}
+                  onChange={(choice) => {
+                    setKindChoice(choice as KindChoice | '')
+                    set({ documentKind: kindQuery(choice as KindChoice | '').documentKind })
+                  }}
+                  ariaLabel={t('documents.filter.kind')}
+                  compact
+                  options={[
+                    { value: '', label: t('documents.allKinds') },
+                    ...KIND_CHOICES.map((kind) => ({
+                      value: kind,
+                      label: t(`documents.kind.${kind}`),
+                    })),
+                  ]}
                 />
-                {/* TODO(backend): search by the other party's name too (DOCUMENTS.md row 3.23);
-                    the archive filters by number only, and the placeholder says so. */}
-                <input
-                  value={filters.invoiceNumber ?? ''}
-                  onChange={(event) => set({ invoiceNumber: event.target.value })}
-                  placeholder={t('documents.searchPlaceholder')}
-                  className="h-full w-full rounded-sm border border-border-subtle bg-surface-tab-bar ps-11 pe-4 text-sm font-medium text-text-secondary outline-none placeholder:text-text-quaternary focus:border-primary-300"
+              </FilterField>
+              <FilterField label={t('documents.filter.tdd')}>
+                <Select
+                  value={filters.tddStatus ?? ''}
+                  onChange={(tddStatus) => set({ tddStatus })}
+                  ariaLabel={t('documents.filter.tdd')}
+                  compact
+                  options={[
+                    { value: '', label: t('documents.allTdd') },
+                    ...TDD_STATUSES.map((status) => ({
+                      value: status,
+                      label: t(`documents.tdd.${status}`),
+                    })),
+                  ]}
                 />
-              </label>
+              </FilterField>
+              <FilterField label={t('documents.filter.taxYear')}>
+                <Select
+                  value={filters.taxYear ?? ''}
+                  onChange={(taxYear) => set({ taxYear })}
+                  ariaLabel={t('documents.filter.taxYear')}
+                  compact
+                  options={[
+                    { value: '', label: t('documents.allYears') },
+                    ...taxYears(today).map((year) => ({
+                      value: String(year),
+                      label: String(year),
+                    })),
+                  ]}
+                />
+              </FilterField>
+              <FilterField label={t('documents.filter.from')}>
+                <DateField
+                  value={filters.from ?? ''}
+                  max={filters.to || today}
+                  ariaLabel={t('documents.filter.from')}
+                  onChange={(from) => set({ from })}
+                />
+              </FilterField>
+              <FilterField label={t('documents.filter.to')}>
+                <DateField
+                  value={filters.to ?? ''}
+                  min={filters.from || undefined}
+                  max={today}
+                  ariaLabel={t('documents.filter.to')}
+                  onChange={(to) => set({ to })}
+                />
+              </FilterField>
+            </div>
+          ) : null}
+
+          {picked.length > 0 ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-y border-primary-100 bg-primary-25 px-5 py-3">
+              <div className="flex items-center gap-3">
+                <TableCheckbox
+                  checked
+                  onChange={() => setSelected([])}
+                  ariaLabel={t('documents.clearSelection')}
+                />
+                <p className="text-sm font-medium text-primary-700">
+                  {t('documents.selected', { count: picked.length, files: pickedFiles })}
+                  {pickedBytes != null ? ` · ${formatBytes(pickedBytes)}` : ''}
+                </p>
+              </div>
               <div className="flex items-center gap-2.5">
                 <button
                   type="button"
-                  aria-expanded={filtersOpen}
-                  onClick={() => setFiltersOpen((open) => !open)}
-                  className={[
-                    'inline-flex h-[46px] shrink-0 items-center gap-2 rounded-sm border px-4 text-sm font-medium transition-colors',
-                    filtered
-                      ? 'border-primary-700 bg-primary-25 text-primary-800'
-                      : 'border-border-subtle bg-white text-text-secondary hover:bg-primary-25',
-                  ].join(' ')}
+                  onClick={() => void downloadPicked()}
+                  className="inline-flex h-[38px] items-center gap-2 rounded-sm bg-primary-700 px-3.5 text-sm font-medium text-white transition-colors hover:bg-primary-800"
                 >
-                  <img src={filterIcon} alt="" className="size-5" />
-                  {t('documents.filters')}
+                  <img src={downloadIcon} alt="" className="size-4 brightness-0 invert" />
+                  {t('documents.downloadZip')}
                 </button>
-                <SortMenu value={sort} options={SORT_OPTIONS} onChange={setSort} width={240} />
+                <button
+                  type="button"
+                  onClick={() => setSelected([])}
+                  className="inline-flex h-[38px] items-center rounded-sm border border-warning-700 bg-white px-3.5 text-sm font-medium text-warning-700 transition-colors hover:bg-warning-100/50"
+                >
+                  {t('documents.clear')}
+                </button>
               </div>
             </div>
+          ) : null}
 
-            {filtersOpen ? (
-              <div className="grid gap-3 border-t border-surface-background px-4 py-4 md:grid-cols-3 xl:grid-cols-5">
-                <FilterField label={t('documents.filter.kind')}>
-                  <Select
-                    value={kindChoice}
-                    onChange={(choice) => {
-                      setKindChoice(choice as KindChoice | '')
-                      set({ documentKind: kindQuery(choice as KindChoice | '').documentKind })
-                    }}
-                    ariaLabel={t('documents.filter.kind')}
-                    compact
-                    options={[
-                      { value: '', label: t('documents.allKinds') },
-                      ...KIND_CHOICES.map((kind) => ({
-                        value: kind,
-                        label: t(`documents.kind.${kind}`),
-                      })),
-                    ]}
-                  />
-                </FilterField>
-                <FilterField label={t('documents.filter.tdd')}>
-                  <Select
-                    value={filters.tddStatus ?? ''}
-                    onChange={(tddStatus) => set({ tddStatus })}
-                    ariaLabel={t('documents.filter.tdd')}
-                    compact
-                    options={[
-                      { value: '', label: t('documents.allTdd') },
-                      ...TDD_STATUSES.map((status) => ({
-                        value: status,
-                        label: t(`documents.tdd.${status}`),
-                      })),
-                    ]}
-                  />
-                </FilterField>
-                <FilterField label={t('documents.filter.taxYear')}>
-                  <Select
-                    value={filters.taxYear ?? ''}
-                    onChange={(taxYear) => set({ taxYear })}
-                    ariaLabel={t('documents.filter.taxYear')}
-                    compact
-                    options={[
-                      { value: '', label: t('documents.allYears') },
-                      ...taxYears(today).map((year) => ({
-                        value: String(year),
-                        label: String(year),
-                      })),
-                    ]}
-                  />
-                </FilterField>
-                <FilterField label={t('documents.filter.from')}>
-                  <DateField
-                    value={filters.from ?? ''}
-                    max={filters.to || today}
-                    ariaLabel={t('documents.filter.from')}
-                    onChange={(from) => set({ from })}
-                  />
-                </FilterField>
-                <FilterField label={t('documents.filter.to')}>
-                  <DateField
-                    value={filters.to ?? ''}
-                    min={filters.from || undefined}
-                    max={today}
-                    ariaLabel={t('documents.filter.to')}
-                    onChange={(to) => set({ to })}
-                  />
-                </FilterField>
-              </div>
-            ) : null}
+          {list.read.status === 'loading' ? (
+            <div className="border-t border-surface-background p-5">
+              <LoadingNotice />
+            </div>
+          ) : null}
 
-            {picked.length > 0 ? (
-              <div className="flex flex-wrap items-center justify-between gap-3 border-y border-primary-100 bg-primary-25 px-5 py-3">
-                <div className="flex items-center gap-3">
-                  <TableCheckbox
-                    checked
-                    onChange={() => setSelected([])}
-                    ariaLabel={t('documents.clearSelection')}
-                  />
-                  <p className="text-sm font-medium text-primary-700">
-                    {t('documents.selected', { count: picked.length, files: pickedFiles })}
-                    {pickedBytes != null ? ` · ${formatBytes(pickedBytes)}` : ''}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => void downloadPicked()}
-                    className="inline-flex h-[38px] items-center gap-2 rounded-sm bg-primary-700 px-3.5 text-sm font-medium text-white transition-colors hover:bg-primary-800"
-                  >
-                    <img src={downloadIcon} alt="" className="size-4 brightness-0 invert" />
-                    {t('documents.downloadZip')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelected([])}
-                    className="inline-flex h-[38px] items-center rounded-sm border border-warning-700 bg-white px-3.5 text-sm font-medium text-warning-700 transition-colors hover:bg-warning-100/50"
-                  >
-                    {t('documents.clear')}
-                  </button>
-                </div>
-              </div>
-            ) : null}
+          {data && items.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 border-t border-surface-background px-6 py-14 text-center">
+              <img src={emptyArt} alt="" className="h-[90px] w-auto" />
+              <p className="mt-3 text-base font-medium text-text-primary">
+                {t('documents.noMatch.title')}
+              </p>
+              <p className="max-w-[440px] text-sm font-medium leading-[1.5] text-text-quaternary">
+                {t(
+                  tab === 'legalHold'
+                    ? data.has_more || data.page > 0 || filtered
+                      ? 'documents.noMatch.noHoldOnPage'
+                      : 'documents.noMatch.noHold'
+                    : typeCode && (data.has_more || data.page > 0)
+                      ? 'documents.noMatch.noTypeOnPage'
+                      : 'documents.noMatch.note',
+                )}
+              </p>
+            </div>
+          ) : null}
 
-            {list.read.status === 'loading' ? (
-              <div className="border-t border-surface-background p-5">
-                <LoadingNotice />
-              </div>
-            ) : null}
-
-            {data && items.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 border-t border-surface-background px-6 py-14 text-center">
-                <img src={emptyArt} alt="" className="h-[90px] w-auto" />
-                <p className="mt-3 text-base font-medium text-text-primary">
-                  {t('documents.noMatch.title')}
-                </p>
-                <p className="max-w-[440px] text-sm font-medium leading-[1.5] text-text-quaternary">
-                  {t(
-                    tab === 'legalHold'
-                      ? data.has_more || data.page > 0 || filtered
-                        ? 'documents.noMatch.noHoldOnPage'
-                        : 'documents.noMatch.noHold'
-                      : typeCode && (data.has_more || data.page > 0)
-                        ? 'documents.noMatch.noTypeOnPage'
-                        : 'documents.noMatch.note',
-                  )}
-                </p>
-              </div>
-            ) : null}
-
-            {data && items.length > 0 ? (
-              <ul className="flex flex-col border-t border-surface-background">
-                {items.map((item) => (
-                  <RecordRow
-                    key={item.invoice_uuid}
-                    item={item}
-                    today={today}
-                    language={language}
-                    checked={selected.includes(item.invoice_uuid)}
-                    onCheck={() => setSelected((current) => toggle(current, item.invoice_uuid))}
-                    open={expanded.includes(item.invoice_uuid)}
-                    onToggle={() => setExpanded((current) => toggle(current, item.invoice_uuid))}
-                    onDownload={(id) => void download(item, id)}
-                  />
-                ))}
-              </ul>
-            ) : null}
-
-            {data ? (
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-surface-background px-5 py-4">
-                <p className="text-sm font-medium text-text-secondary">
-                  {showing && showing.count > 0
-                    ? pageOnly
-                      ? t('documents.showingOnPage', { count: showing.count })
-                      : tabTotal != null
-                        ? t('documents.showingOf', {
-                            shown: formatCount(showing.count, language),
-                            total: formatCount(tabTotal, language),
-                          })
-                        : t('documents.showingRows', { from: showing.from, to: showing.to })
-                    : t('documents.showingNone')}
-                  {showing && showing.count > 1 && sort !== 'natural'
-                    ? ` · ${t('documents.sortedOnPage')}`
-                    : ''}
-                </p>
-                <Pager
-                  page={data.page + 1}
-                  pageCount={pageCount}
-                  onChange={(next) => setPage(Math.max(0, Math.min(next, pageCount) - 1))}
-                  labels={{
-                    nav: t('documents.pages'),
-                    previous: t('documents.previousPage'),
-                    next: t('documents.nextPage'),
-                  }}
+          {data && items.length > 0 ? (
+            <ul className="flex flex-col border-t border-surface-background">
+              {items.map((item) => (
+                <RecordRow
+                  key={item.invoice_uuid}
+                  item={item}
+                  today={today}
+                  language={language}
+                  checked={selected.includes(item.invoice_uuid)}
+                  onCheck={() => setSelected((current) => toggle(current, item.invoice_uuid))}
+                  open={expanded.includes(item.invoice_uuid)}
+                  onToggle={() => setExpanded((current) => toggle(current, item.invoice_uuid))}
+                  onDownload={(id) => void download(item, id)}
                 />
-              </div>
-            ) : null}
-          </section>
-        )}
-      </div>
-    </AppShell>
+              ))}
+            </ul>
+          ) : null}
+
+          {data ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-surface-background px-5 py-4">
+              <p className="text-sm font-medium text-text-secondary">
+                {showing && showing.count > 0
+                  ? pageOnly
+                    ? t('documents.showingOnPage', { count: showing.count })
+                    : tabTotal != null
+                      ? t('documents.showingOf', {
+                          shown: formatCount(showing.count, language),
+                          total: formatCount(tabTotal, language),
+                        })
+                      : t('documents.showingRows', { from: showing.from, to: showing.to })
+                  : t('documents.showingNone')}
+                {showing && showing.count > 1 && sort !== 'natural'
+                  ? ` · ${t('documents.sortedOnPage')}`
+                  : ''}
+              </p>
+              <Pager
+                page={data.page + 1}
+                pageCount={pageCount}
+                onChange={(next) => setPage(Math.max(0, Math.min(next, pageCount) - 1))}
+                labels={{
+                  nav: t('documents.pages'),
+                  previous: t('documents.previousPage'),
+                  next: t('documents.nextPage'),
+                }}
+              />
+            </div>
+          ) : null}
+        </section>
+      )}
+    </div>
   )
 }
 
