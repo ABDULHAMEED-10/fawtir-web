@@ -4,6 +4,7 @@ import {
   hasPermission,
   isPlatformOperator,
   loadEntitlements,
+  onEntitlementsSettled,
   peekEntitlements,
   type Entitlements,
 } from './entitlements'
@@ -69,6 +70,39 @@ describe('loadEntitlements', () => {
     await stale
 
     expect(peekEntitlements()).toBeNull()
+  })
+
+  // Review R3-01: the guard above protects `settled`, but the announcement is what reaches every
+  // mounted hook. Announcing a forgotten session's late answer would hand the previous user's
+  // permissions to the next user's screens after a re-login.
+  it('announces nothing for a forgotten session', async () => {
+    const listener = vi.fn()
+    const unsubscribe = onEntitlementsSettled(listener)
+    let answer: (response: Response) => void = () => {}
+    fetchMock.mockReturnValueOnce(new Promise<Response>((resolve) => (answer = resolve)))
+    const stale = loadEntitlements()
+
+    forgetEntitlements()
+    answer(ok(ENTITLEMENTS))
+    await stale
+    unsubscribe()
+
+    expect(listener).not.toHaveBeenCalled()
+  })
+
+  it('announces nothing for a failure, and the answer once a retry succeeds', async () => {
+    const listener = vi.fn()
+    const unsubscribe = onEntitlementsSettled(listener)
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ type: 'x/internal-error' }), { status: 503 }))
+    fetchMock.mockResolvedValueOnce(ok(ENTITLEMENTS))
+
+    await expect(loadEntitlements()).rejects.toThrow()
+    expect(listener).not.toHaveBeenCalled()
+    await loadEntitlements()
+    unsubscribe()
+
+    expect(listener).toHaveBeenCalledTimes(1)
+    expect(listener).toHaveBeenCalledWith(ENTITLEMENTS)
   })
 
   it('is forgotten once the backend confirms sign-out, and kept when sign-out fails', async () => {
