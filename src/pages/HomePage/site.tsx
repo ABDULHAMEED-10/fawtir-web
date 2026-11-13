@@ -267,9 +267,11 @@ export function Nav({ active }: { active: SitePage }) {
         aria-label={t('landing.nav.label')}
         className="flex items-center justify-center gap-6 max-lg:hidden"
       >
-        <div className="landing-shadow flex items-center gap-[140px] rounded-lg border border-[#e8e8ea] bg-white px-6 py-3 max-xl:gap-12">
+        <div className="landing-shadow flex items-center gap-[140px] rounded-lg border border-[#e8e8ea] bg-white px-6 py-3 max-xl:gap-8">
           <NavLogo arabic={arabic} />
-          <div className={`flex items-center gap-8 text-base leading-[normal] ${INK}`}>
+          <div
+            className={`flex items-center gap-8 text-base leading-[normal] whitespace-nowrap max-xl:gap-5 ${INK}`}
+          >
             {links.map((link) =>
               link.page === active ? (
                 <Link
