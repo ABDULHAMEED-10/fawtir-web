@@ -12,8 +12,6 @@ export function useSiteMail() {
   return {
     contact,
     demo: mailto(email, 'Fawtir demo request'),
-    // TODO(backend): SITE.md 1.3. No partner programme page exists yet; the link asks by email meanwhile.
-    partners: mailto(email, 'Fawtir partners'),
     newsletter: (body: string) => mailto(email, 'Fawtir newsletter', body),
   }
 }

@@ -23917,6 +23917,10 @@
       "refund": {
         "title": "Refund policy | Fawtir",
         "description": "When and how a Fawtir subscription payment can be refunded."
+      },
+      "partners": {
+        "title": "Partners | Fawtir E-Invoicing for Oman",
+        "description": "Partner with Fawtir: accounting firms, resellers and ERP or POS software companies bringing e-invoicing to businesses in Oman."
       }
     },
     "audience": {
@@ -25037,6 +25041,94 @@
               "a": "Write to {{email}} with your company name, commercial registration number, the bill or receipt number and the reason for the request. We will reply as soon as we can."
             }
           }
+        }
+      }
+    },
+    "partners": {
+      "hero": {
+        "lead": "Partner",
+        "word": "with us",
+        "body": "Work with us to bring e-invoicing to businesses across Oman: as an accounting firm, a reseller, or a software company connecting its ERP or POS.",
+        "apply": "Apply to become a partner"
+      },
+      "types": {
+        "lead": "Who we",
+        "em": "work with",
+        "body": "Three kinds of partners help businesses in Oman move to e-invoicing.",
+        "applyCta": "Apply now",
+        "accountants": {
+          "title": "Accountants and bookkeepers",
+          "body": "Help the businesses you look after get ready for e-invoicing under Oman's Fawtara system.",
+          "point1": "Bring your clients onto Fawtir",
+          "point2": "Keep your clients' invoices, bills and VAT records in order",
+          "point3": "Talk to us about how we can support your firm"
+        },
+        "resellers": {
+          "title": "Resellers and IT companies",
+          "body": "Offer Fawtir to the businesses you already serve, and help them set it up.",
+          "point1": "Introduce Fawtir to your customers",
+          "point2": "Help them set up their company, till and branches",
+          "point3": "Be their first point of contact"
+        },
+        "software": {
+          "title": "ERP and POS software companies",
+          "body": "Connect your software to Fawtir, so your customers can issue PINT-OM e-invoices without leaving it.",
+          "point1": "Send invoices, credit notes and debit notes through the API",
+          "point2": "Test everything in the sandbox first",
+          "point3": "Follow the developer guide step by step",
+          "cta": "Read the developer guide"
+        }
+      },
+      "steps": {
+        "lead": "How it",
+        "em": "works",
+        "apply": {
+          "title": "Apply",
+          "body": "Tell us about your company and the businesses you work with."
+        },
+        "talk": {
+          "title": "Talk with our team",
+          "body": "We reply by email and arrange a call to see how we can work together."
+        },
+        "start": {
+          "title": "Get started",
+          "body": "We help you get set up, so you can start working with Fawtir."
+        }
+      },
+      "apply": {
+        "lead": "Become a",
+        "em": "partner",
+        "body": "Tell us about your company. Our team will get back to you by email."
+      },
+      "form": {
+        "title": "Partner application",
+        "type": "What kind of partner are you?",
+        "name": "Your name",
+        "company": "Company name",
+        "email": "Email address",
+        "phone": "Phone number",
+        "city": "City",
+        "clients": "Number of clients (approximate)",
+        "message": "Anything else you would like us to know",
+        "send": "Send application",
+        "sent": "Your email app should open with the application ready to send. If it does not, write to us at {{email}}."
+      },
+      "faq": {
+        "who": {
+          "q": "Who can become a partner?",
+          "a": "Accounting and bookkeeping firms, resellers and IT companies, and ERP or POS software companies that work with businesses in Oman."
+        },
+        "software": {
+          "q": "We make ERP or POS software. Where do we start?",
+          "a": "Start with the developer guide at developer.fawtir.om. It explains how to connect your software to Fawtir and how to test in the sandbox. Apply here too, so our team knows you are building an integration."
+        },
+        "after": {
+          "q": "What happens after we apply?",
+          "a": "Our team reads every application and replies by email to arrange a call about how we can work together."
+        },
+        "customer": {
+          "q": "Do our clients need their own Fawtir account?",
+          "a": "Yes. Each business issues its invoices from its own Fawtir company, with its own verified Peppol participant ID."
         }
       }
     }

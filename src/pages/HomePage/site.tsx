@@ -29,7 +29,7 @@ export const INK = 'text-[#151c2d]'
 export const SOFT = 'text-[#494d56]'
 
 /** The site's pages, as the nav names and links them. */
-export type SitePage = 'home' | 'pricing' | 'features' | 'contact' | 'legal'
+export type SitePage = 'home' | 'pricing' | 'features' | 'partners' | 'contact' | 'legal'
 
 /* -------------------------------------------------------------------- meta */
 
@@ -232,7 +232,6 @@ function NavLogo({ arabic }: { arabic: boolean }) {
 
 export function Nav({ active }: { active: SitePage }) {
   const { t, i18n } = useTranslation()
-  const mail = useSiteMail()
   const arabic = i18n.language.startsWith('ar')
   const [menuOpen, setMenuOpen] = useState(false)
   const switchLanguage = () => {
@@ -250,6 +249,7 @@ export function Nav({ active }: { active: SitePage }) {
     { page: 'home', to: '/', key: 'home' },
     { page: 'pricing', to: '/pricing', key: 'pricing' },
     { page: 'features', to: '/features', key: 'features' },
+    { page: 'partners', to: '/partners', key: 'partners' },
   ]
 
   useEffect(() => {
@@ -288,7 +288,6 @@ export function Nav({ active }: { active: SitePage }) {
                 </Link>
               ),
             )}
-            <a href={mail.partners}>{t('landing.nav.partners')}</a>
             <a href={developersUrl(arabic)}>{t('landing.nav.developers')}</a>
           </div>
         </div>
@@ -372,12 +371,6 @@ export function Nav({ active }: { active: SitePage }) {
                   {t(`landing.nav.${link.key}`)}
                 </Link>
               ))}
-              <a
-                href={mail.partners}
-                className={`rounded-lg px-3 py-3 text-base leading-[normal] ${INK}`}
-              >
-                {t('landing.nav.partners')}
-              </a>
               <a
                 href={developersUrl(arabic)}
                 className={`rounded-lg px-3 py-3 text-base leading-[normal] ${INK}`}
@@ -552,7 +545,7 @@ export function ClosingBand() {
   )
 }
 /** The developer documentation (developer.fawtir.om), opened in the reader's language. */
-const developersUrl = (arabic: boolean) =>
+export const developersUrl = (arabic: boolean) =>
   arabic ? 'https://developer.fawtir.om/ar/' : 'https://developer.fawtir.om/'
 
 /* ----------------------------------------------------------------- footer */
@@ -571,7 +564,7 @@ export function Footer() {
   const links: { key: string; to?: string; href?: string }[] = [
     { key: 'pricing', to: '/pricing' },
     { key: 'features', to: '/features' },
-    { key: 'partners', href: mail.partners },
+    { key: 'partners', to: '/partners' },
     { key: 'developers', href: developersUrl(i18n.language.startsWith('ar')) },
     // The legal pages (owner, 4 Nov 2026; SITE.md 1.6 replaces 1.4).
     { key: 'privacy', to: '/privacy' },

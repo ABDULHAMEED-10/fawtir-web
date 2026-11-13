@@ -6,6 +6,7 @@ import i18n from '../../i18n'
 import { ContactPage } from './ContactPage'
 import { FeaturesPage } from './FeaturesPage'
 import { PricingPage } from './PricingPage'
+import { PartnersPage } from './PartnersPage'
 import { resetSharedRequests } from '../../api'
 import type { SignupCataloguePlan } from '../../lib/identity/signupPlans'
 import { comparisonGroups, faqAnswerKey, faqParams } from '../PlansPage/comparison'
@@ -347,6 +348,45 @@ describe('Contact page', () => {
   })
 })
 
+describe('Partners page', () => {
+  it('prepares the application as an email to the team, with the partner type picked', () => {
+    renderPage(<PartnersPage />)
+    const location = { href: '' }
+    vi.stubGlobal('location', location)
+
+    fireEvent.click(
+      screen.getByRole('radio', { name: i18n.t('site.partners.types.software.title') }),
+    )
+    fireEvent.change(screen.getByLabelText(i18n.t('site.partners.form.name')), {
+      target: { value: 'Huda' },
+    })
+    fireEvent.change(screen.getByLabelText(i18n.t('site.partners.form.company')), {
+      target: { value: 'Sahil ERP' },
+    })
+    fireEvent.change(screen.getByLabelText(i18n.t('site.partners.form.email')), {
+      target: { value: 'huda@example.om' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('site.partners.form.send') }))
+
+    const mail = decodeURIComponent(location.href)
+    expect(location.href).toContain('mailto:support@fawtir.om')
+    expect(mail).toContain('Fawtir partner application: Sahil ERP')
+    expect(mail).toContain('Partner type: ERP and POS software companies')
+    expect(mail).toContain('huda@example.om')
+    // Fields left empty add no empty lines.
+    expect(mail).not.toContain('Phone:')
+    expect(screen.getByRole('status').textContent).toContain('support@fawtir.om')
+    // The form sends nothing to the server: the one read is the contact details.
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([CONTACT_URL])
+  })
+
+  it('sends software companies to the developer guide', () => {
+    renderPage(<PartnersPage />)
+    const link = screen.getByRole('link', { name: i18n.t('site.partners.types.software.cta') })
+    expect(link.getAttribute('href')).toBe('https://developer.fawtir.om/')
+  })
+})
+
 describe('Contact page, company contact setting (CS-1)', () => {
   const SETTING = {
     version: 3,
@@ -433,7 +473,9 @@ describe('Contact page, company contact setting (CS-1)', () => {
     expect(document.querySelector('a[href^="tel:"]')).toBeNull()
     expect(screen.getByText(i18n.t('site.contact.info.address'))).toBeTruthy()
     expect(link('mailto:support@fawtir.om?subject=Fawtir%20demo%20request')).toBeTruthy()
-    expect(link('mailto:support@fawtir.om?subject=Fawtir%20partners')).toBeTruthy()
+    // "For Partners" opens the partners page now (SITE.md 1.7), not an email.
+    expect(link('/partners')).toBeTruthy()
+    expect(link('mailto:support@fawtir.om?subject=Fawtir%20partners')).toBeNull()
     expect(screen.queryByRole('link', { name: 'LinkedIn' })).toBeNull()
   })
 })

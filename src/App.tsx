@@ -6,7 +6,7 @@ import { BusinessIdentityPage } from './pages/BusinessIdentityPage'
 import { BusinessTypePage } from './pages/BusinessTypePage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { HomePage } from './pages/HomePage'
-import { ContactPage, FeaturesPage, LegalPage, PricingPage } from './pages/SitePages'
+import { ContactPage, FeaturesPage, LegalPage, PartnersPage, PricingPage } from './pages/SitePages'
 import { LoginPage } from './pages/LoginPage'
 import { LoginCodePage } from './pages/LoginCodePage'
 import { NewPasswordPage } from './pages/NewPasswordPage'
@@ -224,6 +224,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/features" element={<FeaturesPage />} />
+          <Route path="/partners" element={<PartnersPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/terms" element={<LegalPage doc="terms" />} />
           <Route path="/privacy" element={<LegalPage doc="privacy" />} />
@@ -261,12 +262,7 @@ function App() {
           <Route path="/expenditure/payments" element={<PaymentRunsListPage />} />
           <Route path="/expenditure/payments/new" element={<PaymentRunPage />} />
           <Route path="/expenditure/payments/:runId" element={<PaymentRunPage />} />
-          <Route
-            path="/expenditure/recurring-bills"
-            element={
-              <RecurringBillsPage />
-            }
-          />
+          <Route path="/expenditure/recurring-bills" element={<RecurringBillsPage />} />
           <Route
             path="/expenditure/recurring-bills/new"
             element={
@@ -283,18 +279,8 @@ function App() {
               </PlanGated>
             }
           />
-          <Route
-            path="/expenditure/recurring-bills/:id"
-            element={
-              <RecurringBillDetailPage />
-            }
-          />
-          <Route
-            path="/expenditure/credit-notes"
-            element={
-              <SupplierCreditNotesPage />
-            }
-          />
+          <Route path="/expenditure/recurring-bills/:id" element={<RecurringBillDetailPage />} />
+          <Route path="/expenditure/credit-notes" element={<SupplierCreditNotesPage />} />
           <Route
             path="/expenditure/credit-notes/upload"
             element={
@@ -303,18 +289,8 @@ function App() {
               </PlanGated>
             }
           />
-          <Route
-            path="/expenditure/credit-notes/:id"
-            element={
-              <SupplierCreditNoteDetailPage />
-            }
-          />
-          <Route
-            path="/expenditure/debit-notes"
-            element={
-              <SupplierDebitNotesPage />
-            }
-          />
+          <Route path="/expenditure/credit-notes/:id" element={<SupplierCreditNoteDetailPage />} />
+          <Route path="/expenditure/debit-notes" element={<SupplierDebitNotesPage />} />
           <Route path="/reports" element={<Navigate to="/reports/income" replace />} />
           <Route path="/reports/income" element={<ReportsIncomePage />} />
           <Route path="/reports/expenditure" element={<ReportsExpenditurePage />} />
@@ -330,30 +306,88 @@ function App() {
               </PlanGated>
             }
           />
-          <Route
-            path="/expenditure/debit-notes/:id"
-            element={
-              <SupplierDebitNoteDetailPage />
-            }
-          />
+          <Route path="/expenditure/debit-notes/:id" element={<SupplierDebitNoteDetailPage />} />
           <Route path="/expenditure/reminders" element={<ExpenditureRemindersPage />} />
           <Route path="/stock" element={<StockPage />} />
           <Route path="/stock/:id" element={<StockDetailPage />} />
           <Route path="/catalog" element={<CatalogPage />} />
-          <Route path="/catalog/upload" element={<DemoModule module="catalog"><UploadMenuPage /></DemoModule>} />
+          <Route
+            path="/catalog/upload"
+            element={
+              <DemoModule module="catalog">
+                <UploadMenuPage />
+              </DemoModule>
+            }
+          />
           {/* Reads the template and writes groups, kinds and products: no sample ribbon (B-1). */}
           <Route path="/catalog/build" element={<BuildCatalogPage />} />
           <Route path="/catalog/new" element={<ItemFormPage mode="new" />} />
           <Route path="/catalog/groups" element={<CatalogGroupsPage />} />
-          <Route path="/catalog/rules" element={<DemoModule module="catalog"><PriceRulesPage /></DemoModule>} />
-          <Route path="/catalog/rules/new" element={<DemoModule module="catalog"><NewRulePage /></DemoModule>} />
-          <Route path="/catalog/bundles" element={<DemoModule module="catalog"><BundlesPage /></DemoModule>} />
-          <Route path="/catalog/bundles/new" element={<DemoModule module="catalog"><BundlePage /></DemoModule>} />
-          <Route path="/catalog/bundles/:id" element={<DemoModule module="catalog"><BundlePage /></DemoModule>} />
+          <Route
+            path="/catalog/rules"
+            element={
+              <DemoModule module="catalog">
+                <PriceRulesPage />
+              </DemoModule>
+            }
+          />
+          <Route
+            path="/catalog/rules/new"
+            element={
+              <DemoModule module="catalog">
+                <NewRulePage />
+              </DemoModule>
+            }
+          />
+          <Route
+            path="/catalog/bundles"
+            element={
+              <DemoModule module="catalog">
+                <BundlesPage />
+              </DemoModule>
+            }
+          />
+          <Route
+            path="/catalog/bundles/new"
+            element={
+              <DemoModule module="catalog">
+                <BundlePage />
+              </DemoModule>
+            }
+          />
+          <Route
+            path="/catalog/bundles/:id"
+            element={
+              <DemoModule module="catalog">
+                <BundlePage />
+              </DemoModule>
+            }
+          />
           <Route path="/catalog/:id" element={<ItemFormPage mode="edit" />} />
-          <Route path="/catalog/:id/sells" element={<DemoModule module="catalog"><ItemSellsPage /></DemoModule>} />
-          <Route path="/catalog/:id/used" element={<DemoModule module="catalog"><ItemUsedPage /></DemoModule>} />
-          <Route path="/catalog/:id/changes" element={<DemoModule module="catalog"><ItemChangesPage /></DemoModule>} />
+          <Route
+            path="/catalog/:id/sells"
+            element={
+              <DemoModule module="catalog">
+                <ItemSellsPage />
+              </DemoModule>
+            }
+          />
+          <Route
+            path="/catalog/:id/used"
+            element={
+              <DemoModule module="catalog">
+                <ItemUsedPage />
+              </DemoModule>
+            }
+          />
+          <Route
+            path="/catalog/:id/changes"
+            element={
+              <DemoModule module="catalog">
+                <ItemChangesPage />
+              </DemoModule>
+            }
+          />
           {/* Reads and writes the item's sizes and options on the server: no sample ribbon. */}
           <Route path="/catalog/:id/options" element={<ItemOptionsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
@@ -375,13 +409,41 @@ function App() {
           {/* Real subscription dates above; the bills prototype inside keeps its own ribbon. */}
           <Route path="/settings/bills" element={<BillingPage />} />
           <Route path="/settings/activity-log" element={<ActivityLogPage />} />
-          <Route path="/settings/export" element={<DemoModule module="export"><ExportPage /></DemoModule>} />
-          <Route path="/settings/closing" element={<DemoModule module="closing"><ClosingPage /></DemoModule>} />
+          <Route
+            path="/settings/export"
+            element={
+              <DemoModule module="export">
+                <ExportPage />
+              </DemoModule>
+            }
+          />
+          <Route
+            path="/settings/closing"
+            element={
+              <DemoModule module="closing">
+                <ClosingPage />
+              </DemoModule>
+            }
+          />
           <Route path="/settings/signing-in" element={<SigningInPage />} />
           <Route path="/settings/approvals" element={<ApprovalPolicyPage />} />
           <Route path="/compliance/activity" element={<ActivityPage />} />
-          <Route path="/compliance/activity/call-log" element={<DemoModule module="otaCallLog"><OtaCallLogPage /></DemoModule>} />
-          <Route path="/compliance/activity/call-log/:id" element={<DemoModule module="otaCallLog"><OtaCallDetailPage /></DemoModule>} />
+          <Route
+            path="/compliance/activity/call-log"
+            element={
+              <DemoModule module="otaCallLog">
+                <OtaCallLogPage />
+              </DemoModule>
+            }
+          />
+          <Route
+            path="/compliance/activity/call-log/:id"
+            element={
+              <DemoModule module="otaCallLog">
+                <OtaCallDetailPage />
+              </DemoModule>
+            }
+          />
           <Route path="/compliance/activity/report" element={<ComplianceReportPage />} />
           <Route path="/compliance/activity/:id" element={<ActivityEventPage />} />
           <Route path="/compliance/activity/:id/resubmit" element={<TddResubmitPage />} />
@@ -411,78 +473,86 @@ function App() {
           <Route
             path="/trade-documents/quotations"
             element={
-              <DemoModule module="tradeDocuments"><QuotationsPage /></DemoModule>
+              <DemoModule module="tradeDocuments">
+                <QuotationsPage />
+              </DemoModule>
             }
           />
           <Route
             path="/trade-documents/quotations/new"
             element={
               <PlanGated feature="tradeDocuments">
-                <DemoModule module="tradeDocuments"><NewQuotationPage /></DemoModule>
+                <DemoModule module="tradeDocuments">
+                  <NewQuotationPage />
+                </DemoModule>
               </PlanGated>
             }
           />
           <Route
             path="/trade-documents/quotations/:id"
             element={
-              <DemoModule module="tradeDocuments"><QuotationDetailPage /></DemoModule>
+              <DemoModule module="tradeDocuments">
+                <QuotationDetailPage />
+              </DemoModule>
             }
           />
           <Route
             path="/trade-documents/order-forms"
             element={
-              <DemoModule module="tradeDocuments"><OrderFormsPage /></DemoModule>
+              <DemoModule module="tradeDocuments">
+                <OrderFormsPage />
+              </DemoModule>
             }
           />
           <Route
             path="/trade-documents/order-forms/new"
             element={
               <PlanGated feature="tradeDocuments">
-                <DemoModule module="tradeDocuments"><NewOrderFormPage /></DemoModule>
+                <DemoModule module="tradeDocuments">
+                  <NewOrderFormPage />
+                </DemoModule>
               </PlanGated>
             }
           />
           <Route
             path="/trade-documents/order-forms/:id"
             element={
-              <DemoModule module="tradeDocuments"><OrderFormDetailPage /></DemoModule>
+              <DemoModule module="tradeDocuments">
+                <OrderFormDetailPage />
+              </DemoModule>
             }
           />
           <Route
             path="/trade-documents/delivery-notes"
             element={
-              <DemoModule module="tradeDocuments"><DeliveryNotesPage /></DemoModule>
+              <DemoModule module="tradeDocuments">
+                <DeliveryNotesPage />
+              </DemoModule>
             }
           />
           <Route
             path="/trade-documents/delivery-notes/new"
             element={
               <PlanGated feature="tradeDocuments">
-                <DemoModule module="tradeDocuments"><NewDeliveryNotePage /></DemoModule>
+                <DemoModule module="tradeDocuments">
+                  <NewDeliveryNotePage />
+                </DemoModule>
               </PlanGated>
             }
           />
           <Route
             path="/trade-documents/delivery-notes/:id"
             element={
-              <DemoModule module="tradeDocuments"><DeliveryNoteDetailPage /></DemoModule>
+              <DemoModule module="tradeDocuments">
+                <DeliveryNoteDetailPage />
+              </DemoModule>
             }
           />
           <Route path="/income/debit-notes/new" element={<NewDebitNotePage />} />
           <Route path="/income/debit-notes/:id/edit" element={<NewDebitNotePage />} />
           <Route path="/income/debit-notes/:id" element={<DebitNoteDetailPage />} />
-          <Route
-            path="/expenditure/self-billing"
-            element={
-              <SelfBillingPage />
-            }
-          />
-          <Route
-            path="/expenditure/self-billing/agreements"
-            element={
-              <AgreementsPage />
-            }
-          />
+          <Route path="/expenditure/self-billing" element={<SelfBillingPage />} />
+          <Route path="/expenditure/self-billing/agreements" element={<AgreementsPage />} />
           {/* The design's dedicated composer (Figma 154:161180), writing a self-billed draft. */}
           <Route
             path="/expenditure/self-billing/new"
@@ -503,22 +573,10 @@ function App() {
           />
           <Route
             path="/expenditure/self-billing/credit-notes/:id/edit"
-            element={
-              <NewSelfBilledCreditNotePage />
-            }
+            element={<NewSelfBilledCreditNotePage />}
           />
-          <Route
-            path="/expenditure/self-billing/:id/edit"
-            element={
-              <NewSelfBillPage />
-            }
-          />
-          <Route
-            path="/expenditure/self-billing/:id"
-            element={
-              <SelfBillDetailPage />
-            }
-          />
+          <Route path="/expenditure/self-billing/:id/edit" element={<NewSelfBillPage />} />
+          <Route path="/expenditure/self-billing/:id" element={<SelfBillDetailPage />} />
           {/* Self-billing moved from Income to Expenditure (owner decision, 6 Oct 2026). The old
               addresses keep working, with the rest of the path and the query carried over. */}
           <Route path="/income/self-billing/*" element={<SelfBillingMovedRedirect />} />
@@ -760,12 +818,7 @@ function App() {
           />
           <Route path="/income/reminders" element={<RemindersPage />} />
           <Route path="/income/reminders/settings" element={<PaymentRemindersPage />} />
-          <Route
-            path="/income/periodic"
-            element={
-              <PeriodicInvoicesPage />
-            }
-          />
+          <Route path="/income/periodic" element={<PeriodicInvoicesPage />} />
           <Route
             path="/income/periodic/new"
             element={
@@ -774,12 +827,7 @@ function App() {
               </PlanGated>
             }
           />
-          <Route
-            path="/income/periodic/:id"
-            element={
-              <PeriodicInvoicePage mode="view" />
-            }
-          />
+          <Route path="/income/periodic/:id" element={<PeriodicInvoicePage mode="view" />} />
           <Route
             path="/income/periodic/:id/edit"
             element={
@@ -812,34 +860,87 @@ function App() {
           <Route path="/suppliers/:slug/record-bill" element={<RecordSupplierBillPage />} />
           <Route path="/suppliers/:slug/statement" element={<SupplierStatementPage />} />
           <Route path="/suppliers/:slug" element={<SupplierDetailPage />} />
-          <Route path="/console" element={<DemoModule module="console"><OperationsPage /></DemoModule>} />
+          <Route
+            path="/console"
+            element={
+              <DemoModule module="console">
+                <OperationsPage />
+              </DemoModule>
+            }
+          />
           <Route path="/console/tenants" element={<TenantsPage />} />
           <Route path="/console/tenants/:id" element={<TenantDetailPage />} />
-          <Route path="/console/tenants/:id/enterprise-terms" element={<ConsoleEnterpriseTermsPage />} />
+          <Route
+            path="/console/tenants/:id/enterprise-terms"
+            element={<ConsoleEnterpriseTermsPage />}
+          />
           <Route path="/console/enterprise" element={<ConsoleEnterprisePage />} />
           {/* The sample-data subscription screens are retired: a company's subscription is on its
               tenant page, and payments have their own queue. Old links land there. */}
-          <Route path="/console/subscriptions" element={<Navigate to="/console/tenants" replace />} />
-          <Route path="/console/subscriptions/invoices" element={<Navigate to="/console/billing/payments" replace />} />
-          <Route path="/console/queue" element={<DemoModule module="console"><ConsoleQueuePage /></DemoModule>} />
-          <Route path="/console/incidents" element={<DemoModule module="console"><ConsoleIncidentsPage /></DemoModule>} />
-          <Route path="/console/incidents/:id" element={<DemoModule module="console"><ConsoleIncidentsPage /></DemoModule>} />
+          <Route
+            path="/console/subscriptions"
+            element={<Navigate to="/console/tenants" replace />}
+          />
+          <Route
+            path="/console/subscriptions/invoices"
+            element={<Navigate to="/console/billing/payments" replace />}
+          />
+          <Route
+            path="/console/queue"
+            element={
+              <DemoModule module="console">
+                <ConsoleQueuePage />
+              </DemoModule>
+            }
+          />
+          <Route
+            path="/console/incidents"
+            element={
+              <DemoModule module="console">
+                <ConsoleIncidentsPage />
+              </DemoModule>
+            }
+          />
+          <Route
+            path="/console/incidents/:id"
+            element={
+              <DemoModule module="console">
+                <ConsoleIncidentsPage />
+              </DemoModule>
+            }
+          />
           <Route path="/console/onboarding" element={<VerificationPage />} />
           <Route path="/console/onboarding/:companyId" element={<VerificationCompanyPage />} />
           <Route path="/console/plans" element={<ConsolePlansPage />} />
           <Route path="/console/billing/payments" element={<ConsoleBillingPaymentsPage />} />
           <Route path="/console/billing/refunds" element={<ConsoleRefundCasesPage />} />
-          <Route path="/console/billing/accounts" element={<Navigate to="/console/settings/company" replace />} />
+          <Route
+            path="/console/billing/accounts"
+            element={<Navigate to="/console/settings/company" replace />}
+          />
           <Route path="/console/billing/settings" element={<ConsoleBillingSettingsPage />} />
-          <Route path="/console/billing/seller" element={<Navigate to="/console/settings/company" replace />} />
-          <Route path="/console/company-contact" element={<Navigate to="/console/settings/company" replace />} />
+          <Route
+            path="/console/billing/seller"
+            element={<Navigate to="/console/settings/company" replace />}
+          />
+          <Route
+            path="/console/company-contact"
+            element={<Navigate to="/console/settings/company" replace />}
+          />
           <Route path="/console/disconnections" element={<ConsoleDisconnectionsPage />} />
           <Route path="/console/owners" element={<ConsoleCompaniesWithoutOwnerPage />} />
           <Route path="/console/branch-access" element={<ConsoleBranchAccessReadinessPage />} />
           <Route path="/console/operators" element={<OperatorsPage />} />
           <Route path="/console/policies" element={<ValidationPoliciesPage />} />
           <Route path="/console/policies/:type" element={<ValidationPolicyPage />} />
-          <Route path="/console/audit" element={<DemoModule module="console"><ConsoleAuditPage /></DemoModule>} />
+          <Route
+            path="/console/audit"
+            element={
+              <DemoModule module="console">
+                <ConsoleAuditPage />
+              </DemoModule>
+            }
+          />
           {/* The console's ERP screens drew a story fixture and were retired; a tenant's ERP access is
               changed on that tenant's page, so an old link lands on Tenants (owner, 24 Oct 2026). */}
           <Route path="/console/erp/*" element={<Navigate to="/console/tenants" replace />} />
@@ -853,7 +954,14 @@ function App() {
             path="/console/settings/business-types/:code/template"
             element={<ConsoleTemplateEditorPage />}
           />
-          <Route path="/console/settings/values" element={<DemoModule module="console"><ConsoleSettingsPage /></DemoModule>} />
+          <Route
+            path="/console/settings/values"
+            element={
+              <DemoModule module="console">
+                <ConsoleSettingsPage />
+              </DemoModule>
+            }
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
