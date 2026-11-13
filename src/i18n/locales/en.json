@@ -23707,7 +23707,8 @@
       "menu": "Menu",
       "closeMenu": "Close menu",
       "mobileLabel": "Main menu",
-      "logIn": "Log In"
+      "logIn": "Log In",
+      "developers": "Developers"
     },
     "cta": {
       "demo": "Request For Demo",
@@ -23883,7 +23884,8 @@
         "partners": "for partners",
         "privacy": "privacy policy",
         "terms": "terms of service",
-        "refund": "refund policy"
+        "refund": "refund policy",
+        "developers": "Developers"
       },
       "rights": "Fawtir © {{year}}. All rights reserved"
     },

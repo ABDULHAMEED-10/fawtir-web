@@ -287,6 +287,7 @@ export function Nav({ active }: { active: SitePage }) {
               ),
             )}
             <a href={mail.partners}>{t('landing.nav.partners')}</a>
+            <a href={developersUrl(arabic)}>{t('landing.nav.developers')}</a>
           </div>
         </div>
         <div className="landing-shadow flex h-[59px] items-center gap-2 rounded-lg border border-[#e8e8ea] bg-white px-2 py-4">
@@ -374,6 +375,12 @@ export function Nav({ active }: { active: SitePage }) {
                 className={`rounded-lg px-3 py-3 text-base leading-[normal] ${INK}`}
               >
                 {t('landing.nav.partners')}
+              </a>
+              <a
+                href={developersUrl(arabic)}
+                className={`rounded-lg px-3 py-3 text-base leading-[normal] ${INK}`}
+              >
+                {t('landing.nav.developers')}
               </a>
               <Link
                 to="/login"
@@ -542,10 +549,14 @@ export function ClosingBand() {
     </section>
   )
 }
+/** The developer documentation (developer.fawtir.om), opened in the reader's language. */
+const developersUrl = (arabic: boolean) =>
+  arabic ? 'https://developer.fawtir.om/ar/' : 'https://developer.fawtir.om/'
+
 /* ----------------------------------------------------------------- footer */
 
 export function Footer() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const mail = useSiteMail()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -559,6 +570,7 @@ export function Footer() {
     { key: 'pricing', to: '/pricing' },
     { key: 'features', to: '/features' },
     { key: 'partners', href: mail.partners },
+    { key: 'developers', href: developersUrl(i18n.language.startsWith('ar')) },
     // The legal pages (owner, 4 Nov 2026; SITE.md 1.6 replaces 1.4).
     { key: 'privacy', to: '/privacy' },
     { key: 'terms', to: '/terms' },
