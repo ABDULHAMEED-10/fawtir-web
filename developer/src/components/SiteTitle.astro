@@ -1,0 +1,59 @@
+---
+// The Fawtir lockup (mark + AWTIR, or mark + فوتر in Arabic) as on fawtir.om, then "Developers".
+import mark from '../assets/logo-mark.svg'
+const { siteTitleHref, lang } = Astro.locals.starlightRoute
+const ar = lang === 'ar'
+---
+
+<a href={siteTitleHref} class="brand" aria-label={ar ? 'مطوّرو فوتر' : 'Fawtir Developers'}>
+  <span class="lockup" dir={ar ? 'rtl' : 'ltr'}>
+    <img src={mark.src} alt="" width="28" height="29" />
+    {ar ? <span class="word word--ar">فوتر</span> : <span class="word">AWTIR</span>}
+  </span>
+  <span class="divider" aria-hidden="true"></span>
+  <span class="product">{ar ? 'المطوّرون' : 'Developers'}</span>
+</a>
+
+<style>
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    text-decoration: none;
+    color: var(--fw-navy);
+    white-space: nowrap;
+  }
+  .lockup {
+    display: flex;
+    align-items: flex-end;
+  }
+  .lockup img {
+    height: 28px;
+    width: auto;
+    margin-inline-end: -7px;
+  }
+  .word {
+    font-family: Urbanist, sans-serif;
+    font-weight: 600;
+    font-size: 17px;
+    letter-spacing: 0.34px;
+    line-height: 1;
+    color: var(--fw-mark);
+  }
+  .word--ar {
+    font-family: 'Noto Sans Arabic', sans-serif;
+    font-weight: 700;
+    font-size: 19px;
+    margin-inline-start: 10px;
+  }
+  .divider {
+    width: 1px;
+    height: 1.25rem;
+    background: var(--sl-color-gray-5);
+  }
+  .product {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--sl-color-white);
+  }
+</style>

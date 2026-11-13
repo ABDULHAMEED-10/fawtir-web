@@ -1,0 +1,253 @@
+/* Fawtir on Starlight: the colours, type and surfaces of fawtir.om and app.fawtir.om
+   (web app src/styles/tokens.css). Light only, as the app and the landing pages. */
+
+:root {
+  --sl-font: 'Urbanist', 'Noto Sans Arabic', system-ui, sans-serif;
+  --sl-font-mono: ui-monospace, 'SFMono-Regular', 'JetBrains Mono', Menlo, Consolas, monospace;
+  --sl-content-width: 50rem;
+  --sl-text-h1: 2.5rem;
+  --sl-text-h2: 1.75rem;
+  --sl-text-h3: 1.3rem;
+  --sl-text-h4: 1.1rem;
+  --sl-line-height: 1.7;
+  --sl-nav-height: 4.25rem;
+
+  --fw-blue: #2c4eb7;
+  --fw-blue-hover: #233e92;
+  --fw-ink: #141826;
+  --fw-mark: #1a2f6e;
+}
+:root[lang='ar'] {
+  --sl-font: 'Noto Sans Arabic', 'Urbanist', system-ui, sans-serif;
+}
+
+/* Colours */
+:root,
+:root[data-theme='light'] {
+  --sl-color-accent-low: #eaedf8;
+  --sl-color-accent: #2c4eb7;
+  --sl-color-accent-high: #1a2f6e;
+  --sl-color-white: #141826;
+  --sl-color-gray-1: #1f2539;
+  --sl-color-gray-2: #3d4560;
+  --sl-color-gray-3: #646c86;
+  --sl-color-gray-4: #9097ad;
+  --sl-color-gray-5: #e3e6ef;
+  --sl-color-gray-6: #f4f6fb;
+  --sl-color-gray-7: #f9fafd;
+  --sl-color-black: #ffffff;
+  --sl-color-bg-nav: rgb(255 255 255 / 0.85);
+  --sl-color-bg-sidebar: #fbfbfd;
+  --sl-color-hairline: #e7e9f1;
+  --sl-color-hairline-light: #eef0f6;
+  --fw-card: #ffffff;
+  --fw-glow: #d5dcf1;
+  --fw-line: rgb(26 47 110 / 0.05);
+  --fw-mark: #1a2f6e;
+  --fw-surface: #f7f8fc;
+}
+
+/* Header: a frosted bar, as the floating nav on fawtir.om. */
+.header {
+  backdrop-filter: saturate(1.4) blur(10px);
+  border-bottom: 1px solid var(--sl-color-hairline);
+}
+site-search button[data-open-modal] {
+  border-radius: 8px;
+  background: var(--sl-color-gray-6);
+  border-color: var(--sl-color-hairline);
+}
+
+/* Sidebar: section labels small and calm, the current page a light-blue pill (as the app). */
+.sidebar-content summary .group-label .large,
+.sidebar-content .top-level > li > a .large {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sl-color-gray-3);
+}
+.sidebar-content a {
+  border-radius: 8px;
+  padding-block: 0.4rem;
+}
+.sidebar-content a[aria-current='page'],
+.sidebar-content a[aria-current='page']:hover {
+  background: var(--sl-color-accent-low);
+  color: var(--sl-color-accent-high);
+  font-weight: 600;
+}
+
+/* Headings */
+.sl-markdown-content :is(h1, h2, h3, h4) {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.sl-markdown-content h2 {
+  margin-top: 2.75rem;
+  padding-top: 0.25rem;
+}
+.content-panel h1#_top {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* Tables: a card with a tinted header; wide ones scroll inside the card, never the page. */
+.sl-markdown-content .table-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: 10px;
+}
+.sl-markdown-content .table-wrap table {
+  display: table;
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.925rem;
+}
+.sl-markdown-content :is(th, td) {
+  padding: 0.6rem 0.85rem;
+  vertical-align: top;
+  border-bottom: 1px solid var(--sl-color-hairline);
+  border-inline-end: 0;
+}
+.sl-markdown-content th {
+  background: var(--fw-surface);
+  font-weight: 600;
+  color: var(--sl-color-white);
+  white-space: nowrap;
+}
+.sl-markdown-content tr:last-child td {
+  border-bottom: 0;
+}
+.sl-markdown-content table code {
+  white-space: nowrap;
+}
+
+/* Inline code */
+.sl-markdown-content :not(pre) > code {
+  border-radius: 5px;
+  padding: 0.1em 0.35em;
+  background: var(--sl-color-gray-6);
+  border: 1px solid var(--sl-color-hairline);
+  font-size: 0.875em;
+}
+
+/* Callouts: rounded, tinted cards. */
+.starlight-aside {
+  border-radius: 10px;
+  border-inline-start-width: 4px;
+}
+
+/* Rule badges: where a rule comes from (OTA, PINT-OM, Fawtir, advice). */
+.rule {
+  display: inline-block;
+  padding: 0.05rem 0.5rem;
+  margin-inline-end: 0.15rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.6;
+  vertical-align: 0.1em;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.rule--ota {
+  background: #fbebeb;
+  color: #9b1c1c;
+  border-color: #f3c9c9;
+}
+.rule--pint {
+  background: #efedff;
+  color: #4b3bb8;
+  border-color: #d9d3ff;
+}
+.rule--fawtir {
+  background: #eaedf8;
+  color: #1a2f6e;
+  border-color: #c0cae9;
+}
+.rule--advice {
+  background: #e5f4e4;
+  color: #1f6b2a;
+  border-color: #c3e4c1;
+}
+
+/* Diagrams: a card; scroll sideways on a phone instead of shrinking to unreadable. */
+pre.mermaid {
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+  padding: 1.25rem;
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: 10px;
+  background: var(--fw-card);
+  color: transparent;
+}
+pre.mermaid[data-processed] {
+  color: inherit;
+}
+
+/* Codes and URLs read left to right inside Arabic pages. */
+:root[dir='rtl'] .sl-markdown-content code,
+:root[dir='rtl'] .expressive-code {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* Splash (home): page background as fawtir.om, sections spaced like the landing page. */
+[data-has-hero] .main-frame {
+  background: var(--sl-color-black);
+}
+[data-has-hero] .content-panel {
+  border: 0;
+}
+[data-has-hero] body {
+  overflow-x: clip;
+}
+[data-has-hero] .sl-markdown-content .level-h2 {
+  justify-content: center;
+  margin-top: 5rem;
+}
+[data-has-hero] .sl-markdown-content h2 {
+  text-align: center;
+  font-size: clamp(1.75rem, 3.5vw, 2.6rem);
+  line-height: 1.2;
+}
+[data-has-hero] .sl-markdown-content h2 em {
+  font-weight: 300;
+  color: var(--sl-color-gray-3);
+}
+[data-has-hero] .sl-markdown-content .level-h2 + p {
+  text-align: center;
+  max-width: 38rem;
+  margin-inline: auto;
+  color: var(--sl-color-gray-3);
+}
+.card {
+  border-radius: 12px !important;
+  border-color: var(--sl-color-hairline) !important;
+  background: var(--fw-card) !important;
+  box-shadow: 0 10px 30px -22px rgb(26 47 110 / 0.45);
+}
+.sl-link-card {
+  border-radius: 12px !important;
+  border-color: var(--sl-color-hairline) !important;
+  background: var(--fw-card) !important;
+}
+
+/* Pagination cards at the foot of each page */
+.pagination-links a {
+  border-radius: 10px;
+  border-color: var(--sl-color-hairline);
+  box-shadow: none;
+}
+
+/* Very long samples (a whole ERP invoice) scroll inside their block instead of filling screens. */
+.sl-markdown-content .expressive-code pre {
+  max-height: 34rem;
+}

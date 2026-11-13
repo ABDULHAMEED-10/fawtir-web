@@ -1,0 +1,124 @@
+---
+// Home hero in the fawtir.om style: a pill eyebrow, a large title whose <em> words sit in a
+// white box in light italic, a short lead and two buttons (blue, then navy).
+const { data } = Astro.locals.starlightRoute.entry
+const { title = data.title, tagline, actions = [] } = data.hero || {}
+const ar = Astro.locals.starlightRoute.lang === 'ar'
+---
+
+<div class="fw-hero">
+  <div class="grid" aria-hidden="true"></div>
+  <p class="eyebrow"><span class="dot"></span>{ar ? 'لتكامل أنظمة تخطيط الموارد ونقاط البيع مع فوتر' : 'For ERP, accounting and POS developers'}</p>
+  <h1 id="_top" data-page-title set:html={title} />
+  {tagline && <p class="lead" set:html={tagline} />}
+  {
+    actions.length > 0 && (
+      <div class="actions">
+        {actions.map(({ link, text, variant }, i) => (
+          <a href={link} class:list={['btn', i === 0 ? 'btn--blue' : 'btn--navy', variant]}>
+            {text}
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+              <path d="M7 17 17 7M9 7h8v8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+          </a>
+        ))}
+      </div>
+    )
+  }
+</div>
+
+<style>
+  .fw-hero {
+    position: relative;
+    text-align: center;
+    padding: 4.5rem 1rem 3.5rem;
+    isolation: isolate;
+  }
+  .grid {
+    position: absolute;
+    inset: -2rem calc(50% - 50vw) 0;
+    z-index: -1;
+    background:
+      radial-gradient(60% 70% at 50% 35%, var(--fw-glow) 0%, transparent 70%),
+      repeating-linear-gradient(90deg, var(--fw-line) 0 1px, transparent 1px 16.66%);
+    mask-image: linear-gradient(to bottom, #000 60%, transparent);
+  }
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0 auto 1.5rem;
+    padding: 0.4rem 1rem;
+    border-radius: 999px;
+    background: var(--fw-card);
+    box-shadow: 0 6px 24px -10px rgb(26 47 110 / 0.35);
+    color: var(--fw-blue);
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+  .dot {
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 50%;
+    background: var(--fw-blue);
+  }
+  h1 {
+    margin: 0 auto;
+    max-width: 18ch;
+    font-size: clamp(2.25rem, 6vw, 4rem);
+    font-weight: 600;
+    line-height: 1.12;
+    letter-spacing: -0.02em;
+    color: var(--sl-color-white);
+  }
+  h1 :global(em) {
+    display: inline-block;
+    padding: 0 0.3em;
+    border-radius: 6px;
+    background: var(--fw-card);
+    box-shadow: 0 16px 40px -18px rgb(44 78 183 / 0.55);
+    font-weight: 300;
+    color: var(--sl-color-gray-2);
+  }
+  .lead {
+    max-width: 40rem;
+    margin: 1.5rem auto 0;
+    font-size: 1.125rem;
+    line-height: 1.7;
+    color: var(--sl-color-gray-2);
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-top: 2rem;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1.1rem;
+    border-radius: 8px;
+    font-weight: 500;
+    text-decoration: none;
+    color: #fff;
+  }
+  .btn--blue {
+    background: var(--fw-blue);
+  }
+  .btn--blue:hover {
+    background: var(--fw-blue-hover);
+    color: #fff;
+  }
+  .btn--navy {
+    background: var(--fw-ink);
+  }
+  .btn--navy:hover {
+    background: #000;
+    color: #fff;
+  }
+  :global([dir='rtl']) .btn svg {
+    transform: scaleX(-1);
+  }
+</style>

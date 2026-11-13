@@ -1,0 +1,111 @@
+---
+title: Build e-invoicing into your ERP
+description: Guides and API reference for connecting an ERP, accounting or POS system to Fawtir, Oman's PINT-OM e-invoicing platform.
+template: splash
+banner:
+  content: Draft. This guide is under review and may change before Fawtir publishes it.
+hero:
+  title: Build e-invoicing <em>into your ERP</em>
+  tagline: Send invoices, credit notes and debit notes from the system you already use. Fawtir turns them into PINT-OM e-invoices, delivers them over Peppol and reports their tax data to the Oman Tax Authority.
+  actions:
+    - text: Quick start
+      link: /get-started/quick-start/
+    - text: Read the guide
+      link: /guide/
+---
+
+import { Card, CardGrid, LinkCard, Steps, Tabs, TabItem, Code } from '@astrojs/starlight/components'
+import Split from '../../components/Split.astro'
+
+export const request = `curl -i -X POST "{BASE_URL}/api/v1/invoices" \\
+  -H "Content-Type: application/json" \\
+  -H "X-API-Key: fawt_sk_<your-key>" \\
+  -H "Idempotency-Key: waha-inv-000145-v1-7f3c9a2e" \\
+  -H "X-Correlation-Id: 3f1c2a9e-7b4d-4c1a-9e2f-6a8b0c4d2e17" \\
+  --data @invoice-INV-2026-000145.json`
+
+export const response = `{
+  "id": "invc_01JCQ7Z8K4M2N6P9R3T5V7X9YB",
+  "invoice_uuid": "3f6d2a9e-8c41-5b7e-9a12-6c0e4f8b2d17",
+  "document_kind": "STANDARD_INVOICE",
+  "state": "QUEUED",
+  "peppol_send": { "target_participant": "0248:OM1999000202", "status": "queued" },
+  "tdd": { "status": "queued", "sla_deadline": "2026-11-10T06:30:04Z" },
+  "source": {
+    "external_document_id": "ERP-INV-000145",
+    "external_version": "1",
+    "disposition": "ACCEPTED"
+  }
+}`
+
+export const status = `curl -s "{BASE_URL}/api/v1/invoices/invc_01JCQ7Z8K4M2N6P9R3T5V7X9YB" \\
+  -H "Authorization: Bearer <access-token>"`
+
+## Your first invoice in <em>one request</em>
+
+Your ERP sends its own invoice JSON. A mapping your company certifies turns it into a PINT-OM e-invoice. The examples use fictitious data.
+
+<Split>
+  <div slot="text">
+    <Steps>
+      1. **Certify a mapping** for your ERP's invoice data in the Fawtir web app.
+      2. **Create an `ERP_INGESTION` key.** It can send documents and read nothing.
+      3. **Send the invoice** with one `POST`. A valid document is answered `202 Accepted`.
+      4. **Read its status** with an OAuth client that holds only `invoice.read`.
+    </Steps>
+    [Follow the quick start](/get-started/quick-start/)
+  </div>
+  <Tabs>
+    <TabItem label="Send">
+      <Code code={request} lang="bash" title="Push an invoice" />
+    </TabItem>
+    <TabItem label="202 Accepted">
+      <Code code={response} lang="json" title="Response (abridged)" />
+    </TabItem>
+    <TabItem label="Read status">
+      <Code code={status} lang="bash" title="Read the live status" />
+    </TabItem>
+  </Tabs>
+</Split>
+
+## Three ways <em>to connect</em>
+
+All three use the same certified mapping and the same validation, and produce the same PINT-OM document.
+
+<CardGrid>
+  <Card title="API Push" icon="rocket">
+    Your ERP calls Fawtir's REST API, one document per request, with an `ERP_INGESTION` key. Invoices, credit notes, debit notes and self-billed documents. The usual choice.
+  </Card>
+  <Card title="Managed Pull" icon="seti:pipeline">
+    Fawtir calls your ERP's HTTPS JSON endpoint on a schedule and collects new tax invoices with a cursor. For ERPs that already expose invoices over REST.
+  </Card>
+  <Card title="Bridge Upload" icon="document">
+    A person signed in to Fawtir uploads one exported invoice, as JSON or XML, up to 4 MiB. For low volume, a pilot, or recovering a single document.
+  </Card>
+  <Card title="What Fawtir does" icon="approve-check">
+    Converts with your mapping, validates in five layers, builds the PINT-OM e-invoice, delivers it over Peppol AS4 and reports the Tax Data Document.
+  </Card>
+</CardGrid>
+
+## Everything <em>you need</em>
+
+<CardGrid>
+  <LinkCard title="Authentication" description="API keys to push, OAuth clients to read, and every authentication error." href="/get-started/authentication/" />
+  <LinkCard title="API reference" description="Every endpoint an integration uses, with requests and responses." href="/api/reference/" />
+  <LinkCard title="ERP data mapping" description="How your ERP fields become PINT-OM, and the rules Fawtir enforces." href="/api/data-mapping/" />
+  <LinkCard title="Invoice lifecycle" description="Statuses, Peppol delivery, recipient responses and tax data reporting." href="/integrate/lifecycle/" />
+  <LinkCard title="Error reference" description="Every error code, what it means and what to do." href="/reference/errors/" />
+  <LinkCard title="Invoice corrections" description="Credit notes, debit notes and fixing rejected documents." href="/integrate/corrections/" />
+  <LinkCard title="Webhooks" description="Optional event notifications, and polling." href="/integrate/webhooks/" />
+  <LinkCard title="Platform limits" description="Sizes, rate limits, precision, dates and numbering." href="/reference/limits/" />
+</CardGrid>
+
+## Ready <em>to go live?</em>
+
+Build in the sandbox, pass the TEST checklist, then follow the production go-live steps.
+
+<CardGrid>
+  <LinkCard title="Sandbox (TEST)" description="Where you build and test: access, what to ask first, good habits." href="/get-started/sandbox/" />
+  <LinkCard title="TEST checklist" description="The scenarios to pass before you go live." href="/go-live/test-checklist/" />
+  <LinkCard title="Production go-live" description="Moving from TEST to production safely." href="/go-live/production/" />
+</CardGrid>

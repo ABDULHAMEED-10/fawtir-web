@@ -1,0 +1,11 @@
+const { chromium } = require('playwright')
+;(async () => {
+  const b = await chromium.launch()
+  const ctx = await b.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 })
+  await ctx.addInitScript(() => localStorage.setItem('starlight-theme', 'light'))
+  const p = await ctx.newPage()
+  await p.goto('http://localhost:4321/get-started/introduction/', { waitUntil: 'networkidle' })
+  await p.waitForTimeout(1500)
+  await (await p.$('pre.mermaid')).screenshot({ path: process.argv[2] })
+  await b.close()
+})()

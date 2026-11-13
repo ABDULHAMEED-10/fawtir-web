@@ -1,0 +1,26 @@
+---
+// Two columns on a wide screen (text, then a code panel); one column on a phone.
+---
+
+<div class="split not-content">
+  <div class="text"><slot name="text" /></div>
+  <div class="code"><slot /></div>
+</div>
+
+<style>
+  .split {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: 2.5rem;
+    align-items: start;
+    margin-top: 2rem;
+  }
+  .code {
+    min-width: 0;
+  }
+  @media (max-width: 60rem) {
+    .split {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+</style>

@@ -1,0 +1,29 @@
+---
+import Default from '@astrojs/starlight/components/Head.astro'
+---
+
+<Default {...Astro.props}><slot /></Default>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&family=Urbanist:wght@400;500;600;700&display=swap"
+/>
+<script>
+  // Diagrams are drawn only on pages that have one, in the theme the reader has chosen.
+  const blocks = document.querySelectorAll<HTMLElement>('pre.mermaid')
+  if (blocks.length) {
+    const sources = [...blocks].map((b) => b.textContent ?? '')
+    const { default: mermaid } = await import('mermaid')
+    await document.fonts.ready // measure labels in the real font, or they overflow their boxes
+    const draw = async () => {
+      mermaid.initialize({ startOnLoad: false, theme: 'neutral', fontFamily: 'Urbanist, sans-serif' })
+      blocks.forEach((b, i) => {
+        b.removeAttribute('data-processed')
+        b.textContent = sources[i]
+      })
+      await mermaid.run({ nodes: [...blocks] })
+    }
+    await draw()
+  }
+</script>

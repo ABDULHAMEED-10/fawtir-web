@@ -1,0 +1,101 @@
+---
+import Default from '@astrojs/starlight/components/Footer.astro'
+import mark from '../assets/logo-mark.svg'
+const ar = Astro.locals.starlightRoute.lang === 'ar'
+const t = ar
+  ? { product: 'المنتج', docs: 'الدليل', site: 'موقع فوتر', app: 'تطبيق فوتر', pricing: 'الأسعار', privacy: 'سياسة الخصوصية', terms: 'شروط الخدمة', quick: 'البدء السريع', api: 'مرجع واجهة البرمجة', errors: 'مرجع الأخطاء', support: 'الدعم والإصدارات', rights: 'فوتر © 2026. جميع الحقوق محفوظة.' }
+  : { product: 'Product', docs: 'Docs', site: 'fawtir.om', app: 'Fawtir app', pricing: 'Pricing', privacy: 'Privacy policy', terms: 'Terms of service', quick: 'Quick start', api: 'API reference', errors: 'Error reference', support: 'Support and versioning', rights: 'Fawtir © 2026. All rights reserved.' }
+const base = ar ? '/ar' : ''
+---
+
+<Default {...Astro.props}><slot /></Default>
+<div class="fw-footer not-content">
+  <div class="brand">
+    <span class="lockup" dir={ar ? 'rtl' : 'ltr'}>
+      <img src={mark.src} alt="" width="34" height="35" />
+      {ar ? <span class="word word--ar">فوتر</span> : <span class="word">AWTIR</span>}
+    </span>
+    <p>{t.rights}</p>
+  </div>
+  <nav aria-label={t.docs}>
+    <h2>{t.docs}</h2>
+    <a href={base + "/get-started/quick-start/"}>{t.quick}</a>
+    <a href={base + "/api/reference/"}>{t.api}</a>
+    <a href={base + "/reference/errors/"}>{t.errors}</a>
+    <a href={base + "/go-live/support/"}>{t.support}</a>
+  </nav>
+  <nav aria-label={t.product}>
+    <h2>{t.product}</h2>
+    <a href="https://fawtir.om">{t.site}</a>
+    <a href="https://app.fawtir.om">{t.app}</a>
+    <a href="https://fawtir.om/pricing">{t.pricing}</a>
+    <a href="https://fawtir.om/privacy">{t.privacy}</a>
+    <a href="https://fawtir.om/terms">{t.terms}</a>
+  </nav>
+</div>
+
+<style>
+  .fw-footer {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr;
+    gap: 2rem;
+    margin-top: 3rem;
+    padding: 2rem 0 1rem;
+    border-top: 1px solid var(--sl-color-hairline);
+  }
+  .brand p {
+    margin: 0.75rem 0 0;
+    font-size: 0.8rem;
+    color: var(--sl-color-gray-3);
+  }
+  .lockup {
+    display: flex;
+    align-items: flex-end;
+  }
+  .lockup img {
+    height: 34px;
+    width: auto;
+    margin-inline-end: -9px;
+  }
+  .word {
+    font-weight: 600;
+    font-size: 21px;
+    letter-spacing: 0.42px;
+    line-height: 1;
+    color: var(--fw-mark);
+  }
+  .word--ar {
+    font-family: 'Noto Sans Arabic', sans-serif;
+    font-weight: 700;
+    margin-inline-start: 12px;
+  }
+  nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  h2 {
+    margin: 0 0 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sl-color-white);
+  }
+  nav a {
+    font-size: 0.9rem;
+    color: var(--sl-color-gray-2);
+    text-decoration: none;
+  }
+  nav a:hover {
+    color: var(--sl-color-accent);
+  }
+  @media (max-width: 40rem) {
+    .fw-footer {
+      grid-template-columns: 1fr 1fr;
+    }
+    .brand {
+      grid-column: 1 / -1;
+    }
+  }
+</style>
